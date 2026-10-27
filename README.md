@@ -58,7 +58,7 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome → Ajustes → pegá el token → *Agregar a pantalla principal*.
-7. **Catálogo del itinerario**: `data/` está afuera del repo y de la imagen (`.gitignore`/`.dockerignore`) a propósito. Subí `reinvent2026-catalogo.json` al Volume (p. ej. `railway run cp reinvent2026-catalogo.json /data/`) y seteá `CATALOG_PATH=/data/reinvent2026-catalogo.json` en las Variables. Sin esto, la grabación funciona igual; sólo fallan `/api/catalog` y `/api/itinerary`.
+7. **Catálogo del itinerario**: `data/reinvent2026-catalogo.json` viaja commiteado en el repo y horneado en la imagen (`COPY data ./data` en el Dockerfile), así que no requiere ningún paso manual — cada deploy lo incluye solo. Si en algún momento falta (por ejemplo corriendo una imagen vieja), la grabación sigue funcionando igual; sólo fallan `/api/catalog` y `/api/itinerary` con un 503 claro.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 
