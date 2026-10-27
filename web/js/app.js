@@ -12,6 +12,13 @@ let cleanup = () => {};
 const kids = (...xs) => xs.filter((x) => x != null && x !== false);
 let activeRecorder = null;
 
+// --- token por link: abrir .../?token=XXXX lo guarda una vez y listo, sin pegarlo a mano -----
+const linkToken = new URLSearchParams(location.search).get("token");
+if (linkToken) {
+  setToken(linkToken);
+  history.replaceState(null, "", location.pathname + location.hash);
+}
+
 // --- tema --------------------------------------------------------------------
 const THEME = "reinventar.theme";
 function applyTheme(t) {
