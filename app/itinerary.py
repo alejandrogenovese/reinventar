@@ -1,5 +1,9 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
+import logging
+
 from . import catalog, config, db, llm, prompts
+
+log = logging.getLogger("reinventar.itinerary")
 
 _DEFAULT_MINUTES = 60
 # AWS no publica la duración de cada sesión en el feed; se estima por tipo para poder detectar choques de horario.
@@ -70,7 +74,11 @@ def generate(profile: dict, prompt: str) -> dict:
         raise ValueError("No encontramos sesiones que calcen con tu perfil. Probá con un prompt más amplio.")
 
     raw = llm.complete(config.ITINERARY_MODEL, prompts.ITINERARY_SYSTEM, prompts.itinerary_user(profile, prompt, candidates, confirmed_cards), 4000)
-    parsed = llm.parse_json(raw)
+    try:
+        parsed = llm.parse_json(raw)
+    except ValueError:
+        log.error("El LLM (%s) no devolvió JSON. Primeros 500 caracteres: %r", config.ITINERARY_MODEL, raw[:500])
+        raise
 
     accepted, skipped = [], []
     for pick in parsed.get("picks", []):
