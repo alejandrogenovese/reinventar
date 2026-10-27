@@ -1,11 +1,13 @@
 """Cliente LLM intercambiable: Claude directo o un endpoint OpenAI-compatible (LiteLLM)."""
 import json
+import logging
 import re
 
 import httpx
 
 from . import config
 
+log = logging.getLogger("reinventar.llm")
 _anthropic = None
 
 
@@ -31,7 +33,11 @@ def _claude(model, system, user, max_tokens):
     msg = _anthropic.messages.create(
         model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}]
     )
-    return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+    text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+    if not text:
+        kinds = [getattr(b, "type", "?") for b in msg.content]
+        log.warning("Claude devolvió sin texto (model=%s, stop_reason=%s, bloques=%s)", model, msg.stop_reason, kinds)
+    return text
 
 
 def _openai(model, system, user, max_tokens):

@@ -3,7 +3,7 @@ import json
 
 from fastapi.testclient import TestClient
 
-from app import catalog, llm
+from app import catalog, itinerary, llm
 from app.main import app
 
 H = {"Authorization": "Bearer secreto"}
@@ -51,6 +51,32 @@ def test_flujo_completo_de_itinerario():
         assert c.delete(f"/api/itinerary/items/{other}", headers=H).status_code == 200
         codes = {s["code"] for day in c.get("/api/itinerary", headers=H).json()["days"] for s in day["sessions"]}
         assert other not in codes
+
+
+def test_ask_llm_reintenta_si_el_primer_intento_no_trae_json(monkeypatch):
+    calls = []
+
+    def fake_complete(model, system, user, max_tokens=8000):
+        calls.append(user)
+        return "" if len(calls) == 1 else json.dumps({"picks": [], "notes": "ok tras reintentar"})
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    candidate = {"base": "X", "title": "t", "type": "Breakout session", "level": "200", "topic": [], "aoi": [], "abstract": "", "instances": []}
+    result = itinerary._ask_llm({"role": "", "experience": "", "interests": []}, "x", [candidate], [])
+
+    assert result["notes"] == "ok tras reintentar"
+    assert len(calls) == 2
+    assert "no cumplió el formato" in calls[1]
+
+
+def test_ask_llm_falla_con_mensaje_claro_tras_dos_intentos(monkeypatch):
+    monkeypatch.setattr(llm, "complete", lambda *a, **k: "No puedo ayudar con eso.")
+    try:
+        itinerary._ask_llm({"role": "", "experience": "", "interests": []}, "x", [], [])
+        assert False, "tenía que fallar"
+    except ValueError as e:
+        assert "2 intentos" in str(e)
+        assert "No puedo ayudar" in str(e)
 
 
 def test_generate_resuelve_choques_de_horario(monkeypatch):
