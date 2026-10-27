@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ async def lifespan(_app):
     db.init()
     try:
         catalog.load()
-    except OSError as e:
+    except catalog.CatalogUnavailable as e:
         # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
         logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)
     pipeline.start_worker()
@@ -31,6 +31,12 @@ async def lifespan(_app):
 
 app = FastAPI(title="ReinventAR", lifespan=lifespan)
 app.include_router(itinerary_api.router)
+
+
+@app.exception_handler(catalog.CatalogUnavailable)
+async def _catalog_unavailable(_request, exc: catalog.CatalogUnavailable):
+    logging.error("Catálogo de re:Invent no disponible: %s", exc)
+    return JSONResponse({"detail": "El catálogo de sesiones no está disponible en el servidor todavía."}, status_code=503)
 
 
 def _session_or_404(sid: str):

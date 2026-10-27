@@ -11,12 +11,19 @@ _STOPWORDS = {
 }
 
 
+class CatalogUnavailable(Exception):
+    """El JSON del catálogo no está en CATALOG_PATH (normal si todavía no se subió al Volume de Railway)."""
+
+
 def load(path=None) -> None:
     global _sessions
     import json
 
-    with open(path or config.CATALOG_PATH, encoding="utf-8") as f:
-        _sessions = json.load(f)
+    try:
+        with open(path or config.CATALOG_PATH, encoding="utf-8") as f:
+            _sessions = json.load(f)
+    except OSError as e:
+        raise CatalogUnavailable(str(e)) from e
 
 
 def _data() -> list[dict]:
