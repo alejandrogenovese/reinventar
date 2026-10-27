@@ -31,7 +31,10 @@ def _claude(model, system, user, max_tokens):
             raise RuntimeError("Falta ANTHROPIC_API_KEY")
         _anthropic = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=4, timeout=600)
     msg = _anthropic.messages.create(
-        model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}]
+        model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}],
+        # extra_body porque "thinking" no es un parámetro tipado en anthropic==0.40.0 (SDK viejo para estos modelos).
+        # Sin esto el modelo puede gastar todo max_tokens pensando y no dejar nada para el texto.
+        extra_body={"thinking": {"type": "disabled"}},
     )
     text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
     if not text:
