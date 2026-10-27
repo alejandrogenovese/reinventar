@@ -197,3 +197,21 @@ h1.title { font: 700 28px/32px var(--font-display); letter-spacing: -0.01em; mar
 .quote { font-style: italic; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--space-6) + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--surface-200); color: var(--ink); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); box-shadow: var(--lift); z-index: 60; max-width: calc(100% - 32px); }
 @media (min-width: 900px) { .app { max-width: 960px; } }
+
+/* itinerario */
+.chipgroup { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chipgroup input { position: absolute; opacity: 0; pointer-events: none; }
+.chipgroup label { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); border: 1px solid var(--line-strong); cursor: pointer; font: 500 14px/18px var(--font-sans); color: var(--ink-muted); }
+.chipgroup input:checked + label { background: var(--accent); color: var(--on-brand); border-color: var(--accent); }
+.chipgroup input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.ra-minicard { background: var(--surface-100); border-radius: var(--radius-md); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.ra-minicard-top { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
+.ra-minicard-time { font: 600 13px/16px var(--font-mono); color: var(--accent-ink); }
+.ra-minicard-title { font: 700 16px/20px var(--font-sans); color: var(--ink); margin: 0; }
+.ra-minicard-meta { font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }
+
+.mapbox { height: 320px; border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-100); }
+.mapbox .leaflet-popup-content-wrapper, .mapbox .leaflet-popup-tip { background: var(--surface-100); color: var(--ink); }
+
+.daylist { display: flex; flex-direction: column; gap: var(--space-2); }

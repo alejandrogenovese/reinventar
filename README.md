@@ -16,12 +16,20 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | Ruta | Qué es |
 |---|---|
 | `app/main.py` | API, autenticación por token y hosting de la PWA |
+| `app/auth.py` | `Depends(auth)` compartido por todas las rutas |
 | `app/pipeline.py` | worker: ensamblar → transcribir → traducir → resumir; export a Markdown |
 | `app/audio.py` | ffmpeg: une pedazos por parte, normaliza a 16 kHz mono, corta para el STT |
 | `app/stt.py`, `app/llm.py` | proveedores intercambiables por variables de entorno |
-| `app/prompts.py` | glosario AWS, prompt de traducción, plantillas de resumen por tipo |
+| `app/prompts.py` | glosario AWS, prompt de traducción, plantillas de resumen por tipo, prompt del itinerario |
+| `app/catalog.py` | catálogo de re:Invent (`data/*.json`) en memoria: facets, búsqueda y prefiltro por perfil/prompt |
+| `app/venues.py` | coordenadas de los hoteles/venues del Strip para el mapa |
+| `app/itinerary.py` | motor de recomendación: prefiltro → LLM elige y justifica → resuelve choques de horario |
+| `app/itinerary_api.py` | endpoints de catálogo e itinerario (`/api/catalog/*`, `/api/itinerary/*`) |
 | `web/` | la PWA (sin build): grabador, cola offline en IndexedDB, service worker |
-| `tests/test_api.py` | flujo completo con STT y LLM falsos |
+| `web/js/itinerary.js` | cuestionario de perfil, vista de itinerario por día, exploración manual del catálogo |
+| `web/js/map.js` | mapa interactivo de venues (Leaflet + OpenStreetMap, carga diferida) |
+| `tests/test_api.py` | flujo completo de grabación con STT y LLM falsos |
+| `tests/test_itinerary.py` | catálogo, generación de itinerario y resolución de choques de horario, con LLM falso |
 
 ## Correr local
 
@@ -50,6 +58,7 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome → Ajustes → pegá el token → *Agregar a pantalla principal*.
+7. **Catálogo del itinerario**: `data/` está afuera del repo y de la imagen (`.gitignore`/`.dockerignore`) a propósito. Subí `reinvent2026-catalogo.json` al Volume (p. ej. `railway run cp reinvent2026-catalogo.json /data/`) y seteá `CATALOG_PATH=/data/reinvent2026-catalogo.json` en las Variables. Sin esto, la grabación funciona igual; sólo fallan `/api/catalog` y `/api/itinerary`.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 

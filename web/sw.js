@@ -2,7 +2,7 @@
 const VERSION = "reinventar-v0.1.0";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.webmanifest",
-  "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js",
+  "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png",
 ];
 

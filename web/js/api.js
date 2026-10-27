@@ -29,3 +29,18 @@ export const Sessions = {
   remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
 };
+
+export const Catalog = {
+  meta: () => api("/api/catalog/meta"),
+  search: (params) => api(`/api/catalog/sessions?${new URLSearchParams(params)}`),
+  get: (base) => api(`/api/catalog/sessions/${base}`),
+};
+
+export const Itinerary = {
+  profile: () => api("/api/itinerary/profile"),
+  generate: (profile, prompt) => api("/api/itinerary/generate", { method: "POST", json: { profile, prompt } }),
+  get: () => api("/api/itinerary"),
+  add: (code) => api("/api/itinerary/items", { method: "POST", json: { code } }),
+  lock: (code, locked = true) => api(`/api/itinerary/items/${code}/lock?locked=${locked}`, { method: "POST" }),
+  remove: (code) => api(`/api/itinerary/items/${code}`, { method: "DELETE" }),
+};

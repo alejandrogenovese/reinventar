@@ -39,6 +39,20 @@ CREATE TABLE IF NOT EXISTS blocks (
   es TEXT,
   PRIMARY KEY (session_id, idx)
 );
+CREATE TABLE IF NOT EXISTS itinerary_profile (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  role TEXT, experience TEXT, interests TEXT, prompt TEXT,
+  updated_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS itinerary_items (
+  code TEXT PRIMARY KEY,
+  base TEXT NOT NULL,
+  day TEXT NOT NULL,
+  start TEXT NOT NULL,
+  locked INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
+  added_at REAL NOT NULL
+);
 """
 
 KINDS = ("Keynote", "Chalk talk", "Workshop", "Breakout")
@@ -164,3 +178,57 @@ def sessions_in(statuses):
     with conn() as c:
         rows = c.execute(f"SELECT id FROM sessions WHERE status IN ({q}) ORDER BY updated_at", tuple(statuses)).fetchall()
     return [r["id"] for r in rows]
+
+
+# --- itinerario ----------------------------------------------------------------------------
+
+def get_profile():
+    with conn() as c:
+        r = c.execute("SELECT * FROM itinerary_profile WHERE id=1").fetchone()
+    if not r:
+        return None
+    d = dict(r)
+    d["interests"] = json.loads(d["interests"]) if d.get("interests") else []
+    return d
+
+
+def save_profile(role, experience, interests, prompt):
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO itinerary_profile (id,role,experience,interests,prompt,updated_at) VALUES (1,?,?,?,?,?)",
+            (role, experience, json.dumps(interests, ensure_ascii=False), prompt, time.time()),
+        )
+
+
+def list_itinerary_items():
+    with conn() as c:
+        rows = c.execute("SELECT * FROM itinerary_items ORDER BY day, start").fetchall()
+    return [dict(r) for r in rows]
+
+
+def replace_itinerary_items(items):
+    """Reemplaza las sesiones no bloqueadas; las bloqueadas (locked=1) se conservan tal cual."""
+    with conn() as c:
+        c.execute("DELETE FROM itinerary_items WHERE locked=0")
+        c.executemany(
+            "INSERT INTO itinerary_items (code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,0,?,?)",
+            [(i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time()) for i in items],
+        )
+
+
+def add_item(code, base, day, start, locked=False, reason=None):
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO itinerary_items (code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,?,?)",
+            (code, base, day, start, int(locked), reason, time.time()),
+        )
+
+
+def set_item_locked(code, locked):
+    with conn() as c:
+        c.execute("UPDATE itinerary_items SET locked=? WHERE code=?", (int(locked), code))
+
+
+def remove_item(code):
+    with conn() as c:
+        c.execute("DELETE FROM itinerary_items WHERE code=?", (code,))

@@ -1,5 +1,6 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Sessions, api, getToken, setToken } from "./api.js";
+import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, LevelMeter, RecordButton, SessionCard, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast } from "./ui.js";
@@ -30,6 +31,9 @@ const routes = [
   [/^#\/ajustes$/, viewSettings],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/s\/([\w-]+)$/, viewDetail],
+  [/^#\/itinerario$/, () => it.viewItinerario(view)],
+  [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
+  [/^#\/itinerario\/explorar$/, () => it.viewExplorar(view)],
 ];
 
 let ignoreNextHash = false;

@@ -1,16 +1,16 @@
 """API de ReinventAR + hosting de la PWA."""
-import hmac
 import logging
 import shutil
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import audio, config, db, pipeline
+from . import audio, catalog, config, db, itinerary_api, pipeline
+from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -20,17 +20,17 @@ async def lifespan(_app):
     if not config.APP_TOKEN:
         logging.warning("APP_TOKEN vacío: la API queda cerrada hasta que lo configures")
     db.init()
+    try:
+        catalog.load()
+    except OSError as e:
+        # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
+        logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)
     pipeline.start_worker()
     yield
 
 
 app = FastAPI(title="ReinventAR", lifespan=lifespan)
-
-
-def auth(authorization: Optional[str] = Header(None)):
-    token = (authorization or "").removeprefix("Bearer ").strip()
-    if not config.APP_TOKEN or not hmac.compare_digest(token, config.APP_TOKEN):
-        raise HTTPException(401, "Token inválido")
+app.include_router(itinerary_api.router)
 
 
 def _session_or_404(sid: str):

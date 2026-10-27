@@ -53,6 +53,12 @@ def _fake(system, user):
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
         return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de Amazon S3." for i in ids)
+    if "Candidatas disponibles" in user:  # itinerario
+        bases = re.findall(r"- (\w+) \[", user)
+        return json.dumps({
+            "picks": [{"base": b, "reason": "Calza con tu perfil (fake)."} for b in bases[:3]],
+            "notes": "Selección de prueba.",
+        })
     return json.dumps({
         "tldr": "Resumen de prueba.",
         "announcements": [{"service": "Amazon S3", "text": "nueva función de prueba."}],
