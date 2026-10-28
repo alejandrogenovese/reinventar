@@ -13,12 +13,18 @@ function debounce(fn, ms) {
 
 function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
   const hotel = s.venue?.hotel || "";
+  const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("div", { class: "ra-minicard" },
     h("div", { class: "ra-minicard-top" },
-      h("span", { class: "ra-minicard-time" }, s.start || ""),
-      h("span", { class: "ra-kind" }, s.type)),
+      h("span", { class: "ra-minicard-time" }, [s.day, s.start].filter(Boolean).join(" · ")),
+      h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · "))),
     h("h4", { class: "ra-minicard-title" }, s.title),
     h("div", { class: "ra-minicard-meta" }, [hotel, s.venue?.detail].filter(Boolean).join(" · ")),
+    tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
+      s.newlaunch ? h("span", { class: "ra-chip" }, "Nuevo lanzamiento") : null,
+      tags.slice(0, 6).map((t) => h("span", { class: "ra-chip" }, t))) : null,
+    s.speakers ? h("p", { class: "caption" }, s.speakers) : null,
+    s.abstract ? h("p", {}, s.abstract) : null,
     s.reason ? h("p", { class: "caption" }, s.reason) : null,
     h("div", { class: "actions" },
       onAdd ? Button("Agregar", { onclick: onAdd }) : null,
@@ -91,11 +97,15 @@ export async function viewItinerario(view) {
       h("div", { class: "actions" },
         Button("Rehacer cuestionario", { onclick: () => (location.hash = "#/itinerario/cuestionario") }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/itinerario/explorar") })),
-      mapEl, tabs, list));
+      data.notes ? h("p", { class: "caption" }, data.notes) : null,
+      mapEl, tabs, list,
+      data.skipped?.length ? h("div", { class: "notice" },
+        h("p", { class: "label" }, `${data.skipped.length} sesión${data.skipped.length === 1 ? "" : "es"} no entraron por superposición de horario`),
+        h("ul", {}, data.skipped.map((sk) => h("li", { class: "caption" }, h("strong", {}, sk.title), ` — ${sk.reason}`)))) : null));
 
     renderMap(mapEl, { days: data.days })
       .then((api) => { mapEl._api = api; api.update(dayIndex); })
-      .catch(() => mapEl.replaceChildren(h("p", { class: "caption" }, "No se pudo cargar el mapa (¿sin conexión?). El itinerario sigue funcionando.")));
+      .catch((err) => mapEl.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar el mapa: ${err.message}. El itinerario sigue funcionando igual.`)));
 
     function paintTabs() {
       tabs.replaceChildren(...data.days.map((d, i) =>

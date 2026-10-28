@@ -48,8 +48,9 @@ def _build_response(items: list[dict]) -> dict:
 
 def get_current(username: str) -> dict:
     result = _build_response(db.list_itinerary_items(username))
-    result["skipped"] = []
-    result["notes"] = ""
+    profile = db.get_profile(username) or {}
+    result["skipped"] = profile.get("skipped") or []
+    result["notes"] = profile.get("notes") or ""
     return result
 
 
@@ -113,6 +114,7 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
         accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"], "reason": pick.get("reason", "")})
 
     db.replace_itinerary_items(username, accepted)
+    db.save_run_meta(username, parsed.get("notes", ""), skipped)
     result = _build_response(db.list_itinerary_items(username))
     result["skipped"] = skipped
     result["notes"] = parsed.get("notes", "")

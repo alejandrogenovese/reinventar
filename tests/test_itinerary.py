@@ -8,6 +8,15 @@ from app.main import app
 from tests.conftest import login_headers
 
 
+def test_maps_key_requiere_login_y_devuelve_el_campo():
+    with TestClient(app) as c:
+        assert c.get("/api/maps-key").status_code == 401
+        H = login_headers(c)
+        r = c.get("/api/maps-key", headers=H)
+        assert r.status_code == 200
+        assert "key" in r.json()
+
+
 def test_catalog_facets_y_busqueda():
     meta = catalog.facets()
     assert meta["topics"] and meta["venues"] and meta["dates"]
@@ -109,3 +118,9 @@ def test_generate_resuelve_choques_de_horario(monkeypatch):
         kept = {s["base"] for day in data["days"] for s in day["sessions"]}
         assert len(kept & set(clash)) == 1
         assert any(s["base"] in clash for s in data["skipped"])
+        assert data["notes"] == "n"
+
+        # skipped/notes tienen que sobrevivir a una recarga, no vivir sólo en la respuesta del POST
+        again = c.get("/api/itinerary", headers=H).json()
+        assert again["notes"] == "n"
+        assert any(s["base"] in clash for s in again["skipped"])

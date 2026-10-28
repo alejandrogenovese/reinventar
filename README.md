@@ -29,7 +29,7 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | `app/itinerary_api.py` | endpoints de catálogo e itinerario (`/api/catalog/*`, `/api/itinerary/*`) |
 | `web/` | la PWA (sin build): grabador, cola offline en IndexedDB, service worker |
 | `web/js/itinerary.js` | cuestionario de perfil, vista de itinerario por día, exploración manual del catálogo |
-| `web/js/map.js` | mapa interactivo de venues (Leaflet + OpenStreetMap, carga diferida) |
+| `web/js/map.js` | mapa interactivo de venues (Google Maps JavaScript API, carga diferida) |
 | `tests/test_api.py` | flujo completo de grabación con STT y LLM falsos |
 | `tests/test_itinerary.py` | catálogo, generación de itinerario y resolución de choques de horario, con LLM falso |
 
@@ -55,8 +55,11 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    BOOTSTRAP_USERS=ale:<contraseña>,mariana:<contraseña>,marcos:<contraseña>
    STT_API_KEY=<API key de Groq>
    ANTHROPIC_API_KEY=<API key de Claude>
+   GOOGLE_MAPS_API_KEY=<API key de Google Maps>
    ```
    Cada usuario de la lista se crea al arrancar si todavía no existe (no pisa contraseñas de usuarios ya creados). Para sumar a alguien después, agregalo a la variable y redeployá. El resto tiene defaults (ver `.env.example`).
+
+   Para `GOOGLE_MAPS_API_KEY`: en [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) activá la *Maps JavaScript API*, creá una API key y restringila por *HTTP referrer* a tu dominio de Railway (p. ej. `https://tu-dominio.up.railway.app/*`) para que nadie más la pueda usar aunque la vea en el código del navegador. Sin esta variable el itinerario funciona igual, pero sin mapa.
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.

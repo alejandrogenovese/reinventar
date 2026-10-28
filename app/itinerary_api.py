@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, db, itinerary
+from . import catalog, config, db, itinerary
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -23,6 +23,11 @@ class Generate(BaseModel):
 
 class AddItem(BaseModel):
     code: str = Field(min_length=1, max_length=40)
+
+
+@router.get("/api/maps-key")
+def maps_key():
+    return {"key": config.GOOGLE_MAPS_API_KEY}
 
 
 @router.get("/api/catalog/meta")

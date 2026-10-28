@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 CREATE TABLE IF NOT EXISTS itinerary_profile (
   username TEXT PRIMARY KEY,
   role TEXT, experience TEXT, interests TEXT, prompt TEXT,
+  notes TEXT, skipped TEXT,
   updated_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS itinerary_items (
@@ -91,6 +92,14 @@ def _needs_itinerary_migration(c) -> bool:
     return bool(cols) and "username" not in cols
 
 
+def _add_missing_columns(c, table: str, columns: dict[str, str]):
+    """Alta no destructiva de columnas nuevas en una tabla que ya existe con datos reales."""
+    existing = {r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall()}
+    for name, decl in columns.items():
+        if name not in existing:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -98,6 +107,7 @@ def init():
         if _needs_itinerary_migration(c):
             c.executescript("DROP TABLE IF EXISTS itinerary_profile; DROP TABLE IF EXISTS itinerary_items;")
         c.executescript(SCHEMA)
+        _add_missing_columns(c, "itinerary_profile", {"notes": "TEXT", "skipped": "TEXT"})
     bootstrap_users()
 
 
@@ -257,6 +267,7 @@ def get_profile(username):
         return None
     d = dict(r)
     d["interests"] = json.loads(d["interests"]) if d.get("interests") else []
+    d["skipped"] = json.loads(d["skipped"]) if d.get("skipped") else []
     return d
 
 
@@ -265,6 +276,15 @@ def save_profile(username, role, experience, interests, prompt):
         c.execute(
             "INSERT OR REPLACE INTO itinerary_profile (username,role,experience,interests,prompt,updated_at) VALUES (?,?,?,?,?,?)",
             (username, role, experience, json.dumps(interests, ensure_ascii=False), prompt, time.time()),
+        )
+
+
+def save_run_meta(username, notes, skipped):
+    """Se corre después de save_profile (que resetea notes/skipped al reemplazar la fila)."""
+    with conn() as c:
+        c.execute(
+            "UPDATE itinerary_profile SET notes=?, skipped=? WHERE username=?",
+            (notes, json.dumps(skipped, ensure_ascii=False), username),
         )
 
 

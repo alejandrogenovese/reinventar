@@ -50,3 +50,7 @@ export const Auth = {
   logout: () => api("/api/logout", { method: "POST" }),
   me: () => api("/api/me"),
 };
+
+export const Maps = {
+  key: () => api("/api/maps-key"),
+};
