@@ -25,11 +25,11 @@ def _minutes(hhmm: str) -> int:
 
 
 def _conflict(day: str, start: str, duration: int, taken: list[tuple[str, int, int, str]]) -> str | None:
-    """Devuelve el título de la primera sesión ya tomada que choca con este horario, o None si no hay choque."""
+    """Devuelve el código de instancia de la primera sesión ya tomada que choca con este horario, o None."""
     s = _minutes(start)
-    for t_day, t_start, t_dur, title in taken:
+    for t_day, t_start, t_dur, code in taken:
         if t_day == day and s < t_start + t_dur and t_start < s + duration:
-            return title
+            return code
     return None
 
 
@@ -96,7 +96,7 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
             continue
         session, instance = found
         locked_bases.add(session["base"])
-        taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type")), session["title"]))
+        taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type")), instance["c"]))
         confirmed_cards.append(catalog.card(session, instance))
 
     candidates = [c for c in catalog.prefilter(profile, prompt, config.ITINERARY_CANDIDATE_LIMIT) if c["base"] not in locked_bases]
@@ -117,18 +117,22 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
     accepted, skipped = [], []
     for session, pick in resolved:
         duration = _duration(session.get("type"))
-        chosen, conflict_with = None, None
+        chosen, conflict_code = None, None
         for inst in sorted(session["instances"], key=lambda i: (i["d"], i["st"])):
             conflict = _conflict(inst["d"], inst["st"], duration, taken)
             if not conflict:
                 chosen = inst
                 break
-            conflict_with = conflict_with or conflict
+            conflict_code = conflict_code or conflict
         if not chosen:
-            reason = f"Se superpone con «{conflict_with}»." if conflict_with else "No quedaba un horario libre sin superposición."
-            skipped.append({"base": session["base"], "title": session["title"], "reason": reason})
+            conflict_card = None
+            found = catalog.get_instance(conflict_code) if conflict_code else None
+            if found:
+                conflict_card = catalog.card(*found)
+            reason = f"Se superpone con «{conflict_card['title']}»." if conflict_card else "No quedaba un horario libre sin superposición."
+            skipped.append({"base": session["base"], "title": session["title"], "reason": reason, "conflict": conflict_card})
             continue
-        taken.append((chosen["d"], _minutes(chosen["st"]), duration, session["title"]))
+        taken.append((chosen["d"], _minutes(chosen["st"]), duration, chosen["c"]))
         accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"], "reason": pick.get("reason", "")})
 
     db.replace_itinerary_items(username, accepted)
