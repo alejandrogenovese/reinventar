@@ -99,8 +99,8 @@ export async function viewItinerario(view) {
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/itinerario/explorar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, list,
-      data.skipped?.length ? h("div", { class: "notice" },
-        h("p", { class: "label" }, `${data.skipped.length} sesión${data.skipped.length === 1 ? "" : "es"} no entraron por superposición de horario`),
+      data.skipped?.length ? h("details", { class: "notice" },
+        h("summary", { class: "label" }, `${data.skipped.length} sesión${data.skipped.length === 1 ? "" : "es"} no entraron por superposición de horario (tocá para ver cuáles)`),
         h("ul", {}, data.skipped.map((sk) => h("li", { class: "caption" }, h("strong", {}, sk.title), ` — ${sk.reason}`)))) : null));
 
     renderMap(mapEl, { days: data.days })

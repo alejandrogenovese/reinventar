@@ -120,6 +120,11 @@ def test_generate_resuelve_choques_de_horario(monkeypatch):
         assert any(s["base"] in clash for s in data["skipped"])
         assert data["notes"] == "n"
 
+        # el motivo del descarte tiene que nombrar la sesión con la que choca, no un texto genérico
+        kept_title = catalog.get_session(next(iter(kept & set(clash))))["title"]
+        skipped_entry = next(sk for sk in data["skipped"] if sk["base"] in clash)
+        assert kept_title in skipped_entry["reason"]
+
         # skipped/notes tienen que sobrevivir a una recarga, no vivir sólo en la respuesta del POST
         again = c.get("/api/itinerary", headers=H).json()
         assert again["notes"] == "n"

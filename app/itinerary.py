@@ -24,9 +24,18 @@ def _minutes(hhmm: str) -> int:
     return int(h) * 60 + int(m)
 
 
-def _overlaps(day: str, start: str, duration: int, taken: list[tuple[str, int, int]]) -> bool:
+def _conflict(day: str, start: str, duration: int, taken: list[tuple[str, int, int, str]]) -> str | None:
+    """Devuelve el título de la primera sesión ya tomada que choca con este horario, o None si no hay choque."""
     s = _minutes(start)
-    return any(t_day == day and s < t_start + t_dur and t_start < s + duration for t_day, t_start, t_dur in taken)
+    for t_day, t_start, t_dur, title in taken:
+        if t_day == day and s < t_start + t_dur and t_start < s + duration:
+            return title
+    return None
+
+
+def _earliest(session: dict) -> tuple[str, str]:
+    inst = min(session["instances"], key=lambda i: (i["d"], i["st"]))
+    return inst["d"], inst["st"]
 
 
 def _build_response(items: list[dict]) -> dict:
@@ -79,7 +88,7 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
 
     locked = [it for it in db.list_itinerary_items(username) if it["locked"]]
     locked_bases = set()
-    taken: list[tuple[str, int, int]] = []
+    taken: list[tuple[str, int, int, str]] = []
     confirmed_cards = []
     for it in locked:
         found = catalog.get_instance(it["code"])
@@ -87,7 +96,7 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
             continue
         session, instance = found
         locked_bases.add(session["base"])
-        taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type"))))
+        taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type")), session["title"]))
         confirmed_cards.append(catalog.card(session, instance))
 
     candidates = [c for c in catalog.prefilter(profile, prompt, config.ITINERARY_CANDIDATE_LIMIT) if c["base"] not in locked_bases]
@@ -96,21 +105,30 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
 
     parsed = _ask_llm(profile, prompt, candidates, confirmed_cards)
 
-    accepted, skipped = [], []
+    # Se resuelven en orden cronológico (no en el orden en que las devolvió el LLM): así el resultado
+    # no depende de que el modelo haya listado primero las más relevantes aunque choquen entre sí.
+    resolved = []
     for pick in parsed.get("picks", []):
         session = catalog.get_session(pick.get("base", ""))
-        if not session:
-            continue
+        if session and session.get("instances"):
+            resolved.append((session, pick))
+    resolved.sort(key=lambda sp: _earliest(sp[0]))
+
+    accepted, skipped = [], []
+    for session, pick in resolved:
         duration = _duration(session.get("type"))
-        chosen = next(
-            (inst for inst in sorted(session["instances"], key=lambda i: (i["d"], i["st"]))
-             if not _overlaps(inst["d"], inst["st"], duration, taken)),
-            None,
-        )
+        chosen, conflict_with = None, None
+        for inst in sorted(session["instances"], key=lambda i: (i["d"], i["st"])):
+            conflict = _conflict(inst["d"], inst["st"], duration, taken)
+            if not conflict:
+                chosen = inst
+                break
+            conflict_with = conflict_with or conflict
         if not chosen:
-            skipped.append({"base": session["base"], "title": session["title"], "reason": "No quedaba un horario libre sin superposición."})
+            reason = f"Se superpone con «{conflict_with}»." if conflict_with else "No quedaba un horario libre sin superposición."
+            skipped.append({"base": session["base"], "title": session["title"], "reason": reason})
             continue
-        taken.append((chosen["d"], _minutes(chosen["st"]), duration))
+        taken.append((chosen["d"], _minutes(chosen["st"]), duration, session["title"]))
         accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"], "reason": pick.get("reason", "")})
 
     db.replace_itinerary_items(username, accepted)
