@@ -1,13 +1,14 @@
-"""Autenticación por token compartido: Depends(auth) protege todas las rutas de datos."""
-import hmac
+"""Autenticación por token de sesión: Depends(auth) resuelve el token a un username (o 401)."""
 from typing import Optional
 
 from fastapi import Header, HTTPException
 
-from . import config
+from . import db
 
 
-def auth(authorization: Optional[str] = Header(None)):
+def auth(authorization: Optional[str] = Header(None)) -> str:
     token = (authorization or "").removeprefix("Bearer ").strip()
-    if not config.APP_TOKEN or not hmac.compare_digest(token, config.APP_TOKEN):
-        raise HTTPException(401, "Token inválido")
+    username = token and db.resolve_auth_token(token)
+    if not username:
+        raise HTTPException(401, "Sesión inválida o vencida")
+    return username

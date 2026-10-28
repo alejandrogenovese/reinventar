@@ -1,5 +1,5 @@
 // ReinventAR — router y pantallas.
-import { ApiError, Sessions, api, getToken, setToken } from "./api.js";
+import { ApiError, Auth, Sessions, getToken, setToken } from "./api.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -11,13 +11,6 @@ const PROCESSING = ["queued", "transcribing", "translating", "summarizing"];
 let cleanup = () => {};
 const kids = (...xs) => xs.filter((x) => x != null && x !== false);
 let activeRecorder = null;
-
-// --- token por link: abrir .../?token=XXXX lo guarda una vez y listo, sin pegarlo a mano -----
-const linkToken = new URLSearchParams(location.search).get("token");
-if (linkToken) {
-  setToken(linkToken);
-  history.replaceState(null, "", location.pathname + location.hash);
-}
 
 // --- tema --------------------------------------------------------------------
 const THEME = "reinventar.theme";
@@ -34,6 +27,7 @@ document.getElementById("themeBtn").addEventListener("click", () => {
 // --- router ------------------------------------------------------------------
 const routes = [
   [/^#\/?$/, viewList],
+  [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
@@ -52,7 +46,7 @@ async function route() {
   }
   cleanup(); cleanup = () => {};
   const hash = location.hash || "#/";
-  if (!getToken() && hash !== "#/ajustes") { location.hash = "#/ajustes"; return; }
+  if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
   for (const [re, fn] of routes) {
     const m = hash.match(re);
     if (m) {
@@ -69,8 +63,8 @@ window.addEventListener("beforeunload", (e) => { if (activeRecorder?.state === "
 
 function renderError(e) {
   console.error(e);
-  const msg = e instanceof ApiError && e.status === 401 ? "El token no es válido. Revisalo en Ajustes." : e.message || String(e);
-  view.replaceChildren(h("div", { class: "notice err" }, msg));
+  if (e instanceof ApiError && e.status === 401) { setToken(""); location.hash = "#/login"; return; }
+  view.replaceChildren(h("div", { class: "notice err" }, e.message || String(e)));
 }
 
 // --- lista -------------------------------------------------------------------
@@ -300,26 +294,54 @@ async function viewDetail(id) {
   await load();
 }
 
-// --- ajustes -----------------------------------------------------------------
-function viewSettings() {
-  const input = h("input", { id: "token", type: "password", value: getToken(), autocomplete: "off", placeholder: "El APP_TOKEN de Railway" });
+// --- login -------------------------------------------------------------------
+function viewLogin() {
+  const userInput = h("input", { id: "username", name: "username", required: true, autocomplete: "username", autocapitalize: "none" });
+  const passInput = h("input", { id: "password", name: "password", type: "password", required: true, autocomplete: "current-password" });
   const status = h("div");
+  const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector("button[type=submit]");
+    btn.disabled = true;
+    status.replaceChildren();
+    try {
+      const r = await Auth.login(userInput.value.trim(), passInput.value);
+      setToken(r.token);
+      store.persist();
+      location.hash = "#/";
+    } catch (err) {
+      status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Usuario o contraseña inválidos." : err.message));
+      btn.disabled = false;
+    }
+  } },
+    h("h1", { class: "title" }, "Ingresá a ReinventAR"),
+    h("div", { class: "field" }, h("label", { class: "label", for: "username" }, "Usuario"), userInput),
+    h("div", { class: "field" }, h("label", { class: "label", for: "password" }, "Contraseña"), passInput),
+    h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Entrar")),
+    status);
+  view.append(form);
+  userInput.focus();
+}
+
+// --- ajustes -----------------------------------------------------------------
+async function viewSettings() {
   const pending = h("p", { class: "caption" });
   store.allChunks().then((c) => (pending.textContent = c.length ? `${c.length} pedazos de audio esperando subir.` : "No hay audio pendiente de subir."));
-  view.append(h("form", { class: "stack-lg", onsubmit: async (e) => {
-    e.preventDefault();
-    setToken(input.value.trim());
-    try {
-      await api("/api/me");
-      status.replaceChildren(StatusPill("ready", "Conectado"));
-      store.persist();
-      setTimeout(() => (location.hash = "#/"), 600);
-    } catch (err) { status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Token inválido." : err.message)); }
-  } },
+
+  let username = "";
+  try { username = (await Auth.me()).username; } catch {}
+
+  async function logout() {
+    try { await Auth.logout(); } catch {}
+    setToken("");
+    location.hash = "#/login";
+  }
+
+  view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "title" }, "Ajustes"),
-    h("div", { class: "field" }, h("label", { class: "label", for: "token" }, "Token de acceso"), input),
-    h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Guardar y probar")),
-    status, pending,
+    h("p", {}, username ? `Conectado como ${username}.` : "Sesión no válida."),
+    h("div", { class: "actions" }, Button("Cerrar sesión", { variant: "danger", onclick: logout })),
+    pending,
     h("p", { class: "caption" }, "Tip: instalá la app (menú de Chrome → Agregar a pantalla principal) y desactivá la optimización de batería de Chrome antes de una keynote larga.")));
 }
 

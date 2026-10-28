@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import audio, catalog, config, db, itinerary_api, pipeline
+from . import audio, auth_api, catalog, config, db, itinerary_api, pipeline
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -17,9 +17,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 @asynccontextmanager
 async def lifespan(_app):
-    if not config.APP_TOKEN:
-        logging.warning("APP_TOKEN vacío: la API queda cerrada hasta que lo configures")
     db.init()
+    if not config.BOOTSTRAP_USERS:
+        logging.warning("BOOTSTRAP_USERS vacío: nadie va a poder loguearse hasta que lo configures")
     try:
         catalog.load()
     except catalog.CatalogUnavailable as e:
@@ -30,6 +30,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="ReinventAR", lifespan=lifespan)
+app.include_router(auth_api.router)
 app.include_router(itinerary_api.router)
 
 
@@ -64,9 +65,9 @@ def health():
     return {"ok": True, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
 
 
-@app.get("/api/me", dependencies=[Depends(auth)])
-def me():
-    return {"ok": True}
+@app.get("/api/me")
+def me(username: str = Depends(auth)):
+    return {"ok": True, "username": username}
 
 
 @app.post("/api/sessions", dependencies=[Depends(auth)])

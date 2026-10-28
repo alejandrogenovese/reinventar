@@ -5,7 +5,7 @@ import time
 import uuid
 from contextlib import contextmanager
 
-from . import config
+from . import config, passwords
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -39,19 +39,32 @@ CREATE TABLE IF NOT EXISTS blocks (
   es TEXT,
   PRIMARY KEY (session_id, idx)
 );
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  salt TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  token TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS itinerary_profile (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+  username TEXT PRIMARY KEY,
   role TEXT, experience TEXT, interests TEXT, prompt TEXT,
   updated_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS itinerary_items (
-  code TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  code TEXT NOT NULL,
   base TEXT NOT NULL,
   day TEXT NOT NULL,
   start TEXT NOT NULL,
   locked INTEGER NOT NULL DEFAULT 0,
   reason TEXT,
-  added_at REAL NOT NULL
+  added_at REAL NOT NULL,
+  PRIMARY KEY (username, code)
 );
 """
 
@@ -72,11 +85,20 @@ def conn():
         c.close()
 
 
+def _needs_itinerary_migration(c) -> bool:
+    """True si itinerary_profile existe con el esquema viejo (singleton, sin username)."""
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(itinerary_profile)").fetchall()}
+    return bool(cols) and "username" not in cols
+
+
 def init():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     with conn() as c:
+        if _needs_itinerary_migration(c):
+            c.executescript("DROP TABLE IF EXISTS itinerary_profile; DROP TABLE IF EXISTS itinerary_items;")
         c.executescript(SCHEMA)
+    bootstrap_users()
 
 
 def _row(r):
@@ -180,11 +202,57 @@ def sessions_in(statuses):
     return [r["id"] for r in rows]
 
 
-# --- itinerario ----------------------------------------------------------------------------
+# --- usuarios / login ------------------------------------------------------------------------
 
-def get_profile():
+def get_user(username):
     with conn() as c:
-        r = c.execute("SELECT * FROM itinerary_profile WHERE id=1").fetchone()
+        r = c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    return dict(r) if r else None
+
+
+def create_user(username, salt, password_hash):
+    with conn() as c:
+        c.execute(
+            "INSERT INTO users (username,salt,password_hash,created_at) VALUES (?,?,?,?)",
+            (username, salt, password_hash, time.time()),
+        )
+
+
+def bootstrap_users():
+    """Crea los usuarios listados en BOOTSTRAP_USERS ('user:pass,user:pass') si todavía no existen."""
+    for pair in config.BOOTSTRAP_USERS.split(","):
+        pair = pair.strip()
+        if not pair or ":" not in pair:
+            continue
+        username, password = pair.split(":", 1)
+        username = username.strip()
+        if not username or not password or get_user(username):
+            continue
+        salt, password_hash = passwords.hash_password(password)
+        create_user(username, salt, password_hash)
+
+
+def create_auth_token(token, username):
+    with conn() as c:
+        c.execute("INSERT INTO auth_tokens (token,username,created_at) VALUES (?,?,?)", (token, username, time.time()))
+
+
+def resolve_auth_token(token):
+    with conn() as c:
+        r = c.execute("SELECT username FROM auth_tokens WHERE token=?", (token,)).fetchone()
+    return r["username"] if r else None
+
+
+def delete_auth_token(token):
+    with conn() as c:
+        c.execute("DELETE FROM auth_tokens WHERE token=?", (token,))
+
+
+# --- itinerario (por usuario) ----------------------------------------------------------------
+
+def get_profile(username):
+    with conn() as c:
+        r = c.execute("SELECT * FROM itinerary_profile WHERE username=?", (username,)).fetchone()
     if not r:
         return None
     d = dict(r)
@@ -192,43 +260,43 @@ def get_profile():
     return d
 
 
-def save_profile(role, experience, interests, prompt):
+def save_profile(username, role, experience, interests, prompt):
     with conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO itinerary_profile (id,role,experience,interests,prompt,updated_at) VALUES (1,?,?,?,?,?)",
-            (role, experience, json.dumps(interests, ensure_ascii=False), prompt, time.time()),
+            "INSERT OR REPLACE INTO itinerary_profile (username,role,experience,interests,prompt,updated_at) VALUES (?,?,?,?,?,?)",
+            (username, role, experience, json.dumps(interests, ensure_ascii=False), prompt, time.time()),
         )
 
 
-def list_itinerary_items():
+def list_itinerary_items(username):
     with conn() as c:
-        rows = c.execute("SELECT * FROM itinerary_items ORDER BY day, start").fetchall()
+        rows = c.execute("SELECT * FROM itinerary_items WHERE username=? ORDER BY day, start", (username,)).fetchall()
     return [dict(r) for r in rows]
 
 
-def replace_itinerary_items(items):
-    """Reemplaza las sesiones no bloqueadas; las bloqueadas (locked=1) se conservan tal cual."""
+def replace_itinerary_items(username, items):
+    """Reemplaza las sesiones no bloqueadas de este usuario; las bloqueadas (locked=1) se conservan tal cual."""
     with conn() as c:
-        c.execute("DELETE FROM itinerary_items WHERE locked=0")
+        c.execute("DELETE FROM itinerary_items WHERE username=? AND locked=0", (username,))
         c.executemany(
-            "INSERT INTO itinerary_items (code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,0,?,?)",
-            [(i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time()) for i in items],
+            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,0,?,?)",
+            [(username, i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time()) for i in items],
         )
 
 
-def add_item(code, base, day, start, locked=False, reason=None):
+def add_item(username, code, base, day, start, locked=False, reason=None):
     with conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO itinerary_items (code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,?,?)",
-            (code, base, day, start, int(locked), reason, time.time()),
+            "INSERT OR REPLACE INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,?,?,?)",
+            (username, code, base, day, start, int(locked), reason, time.time()),
         )
 
 
-def set_item_locked(code, locked):
+def set_item_locked(username, code, locked):
     with conn() as c:
-        c.execute("UPDATE itinerary_items SET locked=? WHERE code=?", (int(locked), code))
+        c.execute("UPDATE itinerary_items SET locked=? WHERE username=? AND code=?", (int(locked), username, code))
 
 
-def remove_item(code):
+def remove_item(username, code):
     with conn() as c:
-        c.execute("DELETE FROM itinerary_items WHERE code=?", (code,))
+        c.execute("DELETE FROM itinerary_items WHERE username=? AND code=?", (username, code))

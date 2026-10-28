@@ -5,8 +5,7 @@ from fastapi.testclient import TestClient
 
 from app import catalog, itinerary, llm
 from app.main import app
-
-H = {"Authorization": "Bearer secreto"}
+from tests.conftest import login_headers
 
 
 def test_catalog_facets_y_busqueda():
@@ -27,6 +26,7 @@ def test_prefilter_prioriza_intereses_elegidos():
 def test_flujo_completo_de_itinerario():
     with TestClient(app) as c:
         assert c.get("/api/itinerary").status_code == 401
+        H = login_headers(c)
 
         profile = {"role": "Arquitecto de datos", "experience": "Senior", "interests": ["Artificial Intelligence"]}
         r = c.post("/api/itinerary/generate", headers=H, json={"profile": profile, "prompt": "gobierno de datos y agentic AI"})
@@ -102,6 +102,7 @@ def test_generate_resuelve_choques_de_horario(monkeypatch):
     monkeypatch.setattr(llm, "complete", lambda *a, **k: json.dumps({"picks": picks, "notes": "n"}))
 
     with TestClient(app) as c:
+        H = login_headers(c)
         r = c.post("/api/itinerary/generate", headers=H, json={"profile": {"role": "x", "experience": "", "interests": []}, "prompt": "x"})
         assert r.status_code == 200, r.text
         data = r.json()

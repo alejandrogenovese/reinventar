@@ -6,13 +6,12 @@ import time
 from pathlib import Path
 
 DATA = tempfile.mkdtemp(prefix="reinventar-test-")
-os.environ.update(DATA_DIR=DATA, APP_TOKEN="secreto", STT_PROVIDER="fake", LLM_PROVIDER="fake", STT_SEGMENT_SECONDS="8")
+os.environ.update(DATA_DIR=DATA, STT_PROVIDER="fake", LLM_PROVIDER="fake", STT_SEGMENT_SECONDS="8")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
-
-H = {"Authorization": "Bearer secreto"}
+from tests.conftest import login_headers  # noqa: E402
 
 
 def _webm(seconds: int, freq: int) -> bytes:
@@ -31,6 +30,7 @@ def test_flujo_completo():
     with TestClient(app) as c:
         assert c.get("/health").json()["ok"]
         assert c.get("/api/sessions").status_code == 401
+        H = login_headers(c)
 
         s = c.post("/api/sessions", headers=H, json={"title": "Lakehouse con Iceberg", "kind": "Chalk talk", "code": "ANT301"}).json()
         sid = s["id"]

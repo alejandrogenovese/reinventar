@@ -7,8 +7,9 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
-# Acceso: un único usuario con token compartido entre la PWA y el backend.
-APP_TOKEN = _env("APP_TOKEN")
+# Acceso: cada persona tiene su usuario/contraseña, creados al arrancar si no existen.
+# Formato: "usuario1:contraseña1,usuario2:contraseña2".
+BOOTSTRAP_USERS = _env("BOOTSTRAP_USERS")
 
 # Persistencia: montar un Railway Volume en /data.
 DATA_DIR = Path(_env("DATA_DIR", "/data"))

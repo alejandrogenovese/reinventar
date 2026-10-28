@@ -15,8 +15,10 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 
 | Ruta | Qué es |
 |---|---|
-| `app/main.py` | API, autenticación por token y hosting de la PWA |
-| `app/auth.py` | `Depends(auth)` compartido por todas las rutas |
+| `app/main.py` | API, login por usuario/contraseña y hosting de la PWA |
+| `app/auth.py` | `Depends(auth)` compartido: resuelve el token de sesión a un `username` |
+| `app/auth_api.py` | `POST /api/login`, `POST /api/logout` |
+| `app/passwords.py` | hash/verificación de contraseñas (PBKDF2, sin dependencias nuevas) |
 | `app/pipeline.py` | worker: ensamblar → transcribir → traducir → resumir; export a Markdown |
 | `app/audio.py` | ffmpeg: une pedazos por parte, normaliza a 16 kHz mono, corta para el STT |
 | `app/stt.py`, `app/llm.py` | proveedores intercambiables por variables de entorno |
@@ -37,8 +39,8 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt pytest
 pytest -q                                  # no consume APIs
-DATA_DIR=./data APP_TOKEN=dev STT_PROVIDER=fake LLM_PROVIDER=fake uvicorn app.main:app --reload
-# http://localhost:8000 → Ajustes → token "dev"
+DATA_DIR=./data BOOTSTRAP_USERS=dev:dev STT_PROVIDER=fake LLM_PROVIDER=fake uvicorn app.main:app --reload
+# http://localhost:8000 → usuario "dev", contraseña "dev"
 ```
 
 Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
@@ -50,15 +52,14 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Sin volumen, cada deploy borra el audio y la base.
 3. **Variables** (*Variables → Raw Editor*):
    ```
-   APP_TOKEN=<openssl rand -hex 32>
+   BOOTSTRAP_USERS=ale:<contraseña>,mariana:<contraseña>,marcos:<contraseña>
    STT_API_KEY=<API key de Groq>
    ANTHROPIC_API_KEY=<API key de Claude>
    ```
-   El resto tiene defaults (ver `.env.example`).
+   Cada usuario de la lista se crea al arrancar si todavía no existe (no pisa contraseñas de usuarios ya creados). Para sumar a alguien después, agregalo a la variable y redeployá. El resto tiene defaults (ver `.env.example`).
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
-6. **Celular**: abrí el dominio en Chrome → Ajustes → pegá el token → *Agregar a pantalla principal*.
-   Para que no haga falta pegarlo a mano en cada celular (Mariana, Marcos, Ale, etc.): mandale a cada uno por WhatsApp `https://tu-dominio/?token=<el mismo APP_TOKEN>`. Al abrirlo una vez, la PWA guarda el token en ese celular y no lo vuelve a pedir — después pueden hacer *Agregar a pantalla principal* igual. Cualquiera con ese link tiene acceso completo (graba, consume tu cuota de Anthropic/Groq), así que mandalo sólo por un canal privado, no lo publiques.
+6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.
 7. **Catálogo del itinerario**: `data/reinvent2026-catalogo.json` viaja commiteado en el repo y horneado en la imagen (`COPY data ./data` en el Dockerfile), así que no requiere ningún paso manual — cada deploy lo incluye solo. Si en algún momento falta (por ejemplo corriendo una imagen vieja), la grabación sigue funcionando igual; sólo fallan `/api/catalog` y `/api/itinerary` con un 503 claro.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.

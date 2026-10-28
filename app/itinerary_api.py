@@ -46,36 +46,36 @@ def catalog_detail(base: str):
 
 
 @router.get("/api/itinerary/profile")
-def get_profile():
-    return db.get_profile() or {"role": "", "experience": "", "interests": [], "prompt": ""}
+def get_profile(username: str = Depends(auth)):
+    return db.get_profile(username) or {"role": "", "experience": "", "interests": [], "prompt": ""}
 
 
 @router.post("/api/itinerary/generate")
-def generate_itinerary(body: Generate):
+def generate_itinerary(body: Generate, username: str = Depends(auth)):
     try:
-        return itinerary.generate(body.profile.model_dump(), body.prompt.strip())
+        return itinerary.generate(username, body.profile.model_dump(), body.prompt.strip())
     except ValueError as e:
         raise HTTPException(422, str(e))
 
 
 @router.get("/api/itinerary")
-def get_itinerary():
-    return itinerary.get_current()
+def get_itinerary(username: str = Depends(auth)):
+    return itinerary.get_current(username)
 
 
 @router.post("/api/itinerary/items")
-def add_item(body: AddItem):
+def add_item(body: AddItem, username: str = Depends(auth)):
     try:
-        return itinerary.add_manual(body.code.strip())
+        return itinerary.add_manual(username, body.code.strip())
     except ValueError as e:
         raise HTTPException(404, str(e))
 
 
 @router.post("/api/itinerary/items/{code}/lock")
-def lock_item(code: str, locked: bool = True):
-    return itinerary.set_lock(code, locked)
+def lock_item(code: str, locked: bool = True, username: str = Depends(auth)):
+    return itinerary.set_lock(username, code, locked)
 
 
 @router.delete("/api/itinerary/items/{code}")
-def remove_item(code: str):
-    return itinerary.remove(code)
+def remove_item(code: str, username: str = Depends(auth)):
+    return itinerary.remove(username, code)

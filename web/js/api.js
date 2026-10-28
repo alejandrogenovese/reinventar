@@ -1,4 +1,4 @@
-// Cliente de la API. El token vive en localStorage del celular (un único usuario).
+// Cliente de la API. El token de sesión (lo da /api/login) vive en localStorage de este celular.
 const KEY = "reinventar.token";
 
 export function getToken() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } }
@@ -43,4 +43,10 @@ export const Itinerary = {
   add: (code) => api("/api/itinerary/items", { method: "POST", json: { code } }),
   lock: (code, locked = true) => api(`/api/itinerary/items/${code}/lock?locked=${locked}`, { method: "POST" }),
   remove: (code) => api(`/api/itinerary/items/${code}`, { method: "DELETE" }),
+};
+
+export const Auth = {
+  login: (username, password) => api("/api/login", { method: "POST", json: { username, password } }),
+  logout: () => api("/api/logout", { method: "POST" }),
+  me: () => api("/api/me"),
 };

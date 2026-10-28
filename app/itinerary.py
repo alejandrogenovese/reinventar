@@ -46,8 +46,8 @@ def _build_response(items: list[dict]) -> dict:
     return {"days": ordered, "total": sum(len(d["sessions"]) for d in ordered)}
 
 
-def get_current() -> dict:
-    result = _build_response(db.list_itinerary_items())
+def get_current(username: str) -> dict:
+    result = _build_response(db.list_itinerary_items(username))
     result["skipped"] = []
     result["notes"] = ""
     return result
@@ -73,10 +73,10 @@ def _ask_llm(profile: dict, prompt: str, candidates: list[dict], confirmed_cards
         raise ValueError(f"El modelo no devolvió un itinerario válido tras 2 intentos. Respuesta: «{snippet}»") from None
 
 
-def generate(profile: dict, prompt: str) -> dict:
-    db.save_profile(profile.get("role", ""), profile.get("experience", ""), profile.get("interests") or [], prompt or "")
+def generate(username: str, profile: dict, prompt: str) -> dict:
+    db.save_profile(username, profile.get("role", ""), profile.get("experience", ""), profile.get("interests") or [], prompt or "")
 
-    locked = [it for it in db.list_itinerary_items() if it["locked"]]
+    locked = [it for it in db.list_itinerary_items(username) if it["locked"]]
     locked_bases = set()
     taken: list[tuple[str, int, int]] = []
     confirmed_cards = []
@@ -112,27 +112,27 @@ def generate(profile: dict, prompt: str) -> dict:
         taken.append((chosen["d"], _minutes(chosen["st"]), duration))
         accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"], "reason": pick.get("reason", "")})
 
-    db.replace_itinerary_items(accepted)
-    result = _build_response(db.list_itinerary_items())
+    db.replace_itinerary_items(username, accepted)
+    result = _build_response(db.list_itinerary_items(username))
     result["skipped"] = skipped
     result["notes"] = parsed.get("notes", "")
     return result
 
 
-def add_manual(code: str) -> dict:
+def add_manual(username: str, code: str) -> dict:
     found = catalog.get_instance(code)
     if not found:
         raise ValueError("Código de sesión inexistente")
     session, instance = found
-    db.add_item(code, session["base"], instance["d"], instance["st"], locked=True)
-    return get_current()
+    db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True)
+    return get_current(username)
 
 
-def set_lock(code: str, locked: bool) -> dict:
-    db.set_item_locked(code, locked)
-    return get_current()
+def set_lock(username: str, code: str, locked: bool) -> dict:
+    db.set_item_locked(username, code, locked)
+    return get_current(username)
 
 
-def remove(code: str) -> dict:
-    db.remove_item(code)
-    return get_current()
+def remove(username: str, code: str) -> dict:
+    db.remove_item(username, code)
+    return get_current(username)
