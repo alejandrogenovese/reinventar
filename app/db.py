@@ -1,11 +1,10 @@
-"""SQLite sobre el volumen. Una conexión por operación; WAL para lecturas concurrentes."""
+"""Estado de la app en Postgres (schema DB_SCHEMA): grabaciones, usuarios, tokens e itinerarios."""
 import json
-import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
 
-from . import config, passwords
+from . import config, legacy_import, passwords, pg
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -16,25 +15,25 @@ CREATE TABLE IF NOT EXISTS sessions (
   status TEXT NOT NULL,
   error TEXT,
   progress TEXT,
-  duration_s REAL,
+  duration_s DOUBLE PRECISION,
   expected_parts TEXT,
   summary TEXT,
-  created_at REAL NOT NULL,
-  updated_at REAL NOT NULL
+  created_at DOUBLE PRECISION NOT NULL,
+  updated_at DOUBLE PRECISION NOT NULL
 );
 CREATE TABLE IF NOT EXISTS chunks (
   session_id TEXT NOT NULL,
   part INTEGER NOT NULL,
   seq INTEGER NOT NULL,
   bytes INTEGER NOT NULL,
-  received_at REAL NOT NULL,
+  received_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (session_id, part, seq)
 );
 CREATE TABLE IF NOT EXISTS blocks (
   session_id TEXT NOT NULL,
   idx INTEGER NOT NULL,
-  start_s REAL NOT NULL,
-  end_s REAL NOT NULL,
+  start_s DOUBLE PRECISION NOT NULL,
+  end_s DOUBLE PRECISION NOT NULL,
   en TEXT NOT NULL,
   es TEXT,
   PRIMARY KEY (session_id, idx)
@@ -43,18 +42,18 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT PRIMARY KEY,
   salt TEXT NOT NULL,
   password_hash TEXT NOT NULL,
-  created_at REAL NOT NULL
+  created_at DOUBLE PRECISION NOT NULL
 );
 CREATE TABLE IF NOT EXISTS auth_tokens (
   token TEXT PRIMARY KEY,
   username TEXT NOT NULL,
-  created_at REAL NOT NULL
+  created_at DOUBLE PRECISION NOT NULL
 );
 CREATE TABLE IF NOT EXISTS itinerary_profile (
   username TEXT PRIMARY KEY,
   role TEXT, experience TEXT, interests TEXT, prompt TEXT,
   notes TEXT, skipped TEXT,
-  updated_at REAL NOT NULL
+  updated_at DOUBLE PRECISION NOT NULL
 );
 CREATE TABLE IF NOT EXISTS itinerary_items (
   username TEXT NOT NULL,
@@ -64,7 +63,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
   start TEXT NOT NULL,
   locked INTEGER NOT NULL DEFAULT 0,
   reason TEXT,
-  added_at REAL NOT NULL,
+  added_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, code)
 );
 """
@@ -75,39 +74,19 @@ PROCESSING = ("queued", "transcribing", "translating", "summarizing")
 
 @contextmanager
 def conn():
-    c = sqlite3.connect(config.DB_PATH, timeout=30)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.execute("PRAGMA foreign_keys=ON")
-    try:
+    """Conexión del pool; commit al salir sin error, rollback si hubo excepción."""
+    with pg.pool().connection() as c:
         yield c
-        c.commit()
-    finally:
-        c.close()
-
-
-def _needs_itinerary_migration(c) -> bool:
-    """True si itinerary_profile existe con el esquema viejo (singleton, sin username)."""
-    cols = {r["name"] for r in c.execute("PRAGMA table_info(itinerary_profile)").fetchall()}
-    return bool(cols) and "username" not in cols
-
-
-def _add_missing_columns(c, table: str, columns: dict[str, str]):
-    """Alta no destructiva de columnas nuevas en una tabla que ya existe con datos reales."""
-    existing = {r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall()}
-    for name, decl in columns.items():
-        if name not in existing:
-            c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
 
 def init():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     with conn() as c:
-        if _needs_itinerary_migration(c):
-            c.executescript("DROP TABLE IF EXISTS itinerary_profile; DROP TABLE IF EXISTS itinerary_items;")
-        c.executescript(SCHEMA)
-        _add_missing_columns(c, "itinerary_profile", {"notes": "TEXT", "skipped": "TEXT"})
+        c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
+        c.execute(SCHEMA)
+    with conn() as c:
+        legacy_import.run_once(c, config.LEGACY_SQLITE_PATH)
     bootstrap_users()
 
 
@@ -125,7 +104,8 @@ def create_session(title, kind, code=None, venue=None, speaker=None):
     now = time.time()
     with conn() as c:
         c.execute(
-            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (sid, title, kind, code, venue, speaker, "recording", now, now),
         )
     return get_session(sid)
@@ -133,12 +113,12 @@ def create_session(title, kind, code=None, venue=None, speaker=None):
 
 def get_session(sid):
     with conn() as c:
-        r = c.execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
+        r = c.execute("SELECT * FROM sessions WHERE id=%s", (sid,)).fetchone()
         s = _row(r)
         if s:
-            agg = c.execute("SELECT COUNT(*) n, COALESCE(SUM(bytes),0) b FROM chunks WHERE session_id=?", (sid,)).fetchone()
+            agg = c.execute("SELECT COUNT(*) n, COALESCE(SUM(bytes),0) b FROM chunks WHERE session_id=%s", (sid,)).fetchone()
             s["chunks_received"] = agg["n"]
-            s["bytes_received"] = agg["b"]
+            s["bytes_received"] = int(agg["b"])
         return s
 
 
@@ -155,22 +135,23 @@ def update_session(sid, **fields):
     for k in ("summary", "expected_parts"):
         if k in fields and fields[k] is not None and not isinstance(fields[k], str):
             fields[k] = json.dumps(fields[k], ensure_ascii=False)
-    cols = ", ".join(f"{k}=?" for k in fields)
+    cols = ", ".join(f"{k}=%s" for k in fields)  # las claves vienen del código, nunca del request
     with conn() as c:
-        c.execute(f"UPDATE sessions SET {cols} WHERE id=?", (*fields.values(), sid))
+        c.execute(f"UPDATE sessions SET {cols} WHERE id=%s", (*fields.values(), sid))
 
 
 def delete_session(sid):
     with conn() as c:
-        c.execute("DELETE FROM blocks WHERE session_id=?", (sid,))
-        c.execute("DELETE FROM chunks WHERE session_id=?", (sid,))
-        c.execute("DELETE FROM sessions WHERE id=?", (sid,))
+        c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
+        c.execute("DELETE FROM chunks WHERE session_id=%s", (sid,))
+        c.execute("DELETE FROM sessions WHERE id=%s", (sid,))
 
 
 def record_chunk(sid, part, seq, nbytes):
     with conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO chunks (session_id,part,seq,bytes,received_at) VALUES (?,?,?,?,?)",
+            "INSERT INTO chunks (session_id,part,seq,bytes,received_at) VALUES (%s,%s,%s,%s,%s) "
+            "ON CONFLICT (session_id,part,seq) DO UPDATE SET bytes=EXCLUDED.bytes, received_at=EXCLUDED.received_at",
             (sid, part, seq, nbytes, time.time()),
         )
 
@@ -178,7 +159,7 @@ def record_chunk(sid, part, seq, nbytes):
 def chunk_index(sid):
     """{part: set(seq)} de lo recibido."""
     with conn() as c:
-        rows = c.execute("SELECT part, seq FROM chunks WHERE session_id=?", (sid,)).fetchall()
+        rows = c.execute("SELECT part, seq FROM chunks WHERE session_id=%s", (sid,)).fetchall()
     out = {}
     for r in rows:
         out.setdefault(r["part"], set()).add(r["seq"])
@@ -187,28 +168,31 @@ def chunk_index(sid):
 
 def replace_blocks(sid, blocks):
     with conn() as c:
-        c.execute("DELETE FROM blocks WHERE session_id=?", (sid,))
-        c.executemany(
-            "INSERT INTO blocks (session_id,idx,start_s,end_s,en,es) VALUES (?,?,?,?,?,?)",
+        c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
+        c.cursor().executemany(
+            "INSERT INTO blocks (session_id,idx,start_s,end_s,en,es) VALUES (%s,%s,%s,%s,%s,%s)",
             [(sid, i, b["start"], b["end"], b["en"], b.get("es")) for i, b in enumerate(blocks)],
         )
 
 
 def set_translations(sid, pairs):
     with conn() as c:
-        c.executemany("UPDATE blocks SET es=? WHERE session_id=? AND idx=?", [(es, sid, i) for i, es in pairs])
+        c.cursor().executemany(
+            "UPDATE blocks SET es=%s WHERE session_id=%s AND idx=%s", [(es, sid, i) for i, es in pairs]
+        )
 
 
 def get_blocks(sid):
     with conn() as c:
-        rows = c.execute("SELECT idx,start_s,end_s,en,es FROM blocks WHERE session_id=? ORDER BY idx", (sid,)).fetchall()
+        rows = c.execute("SELECT idx,start_s,end_s,en,es FROM blocks WHERE session_id=%s ORDER BY idx", (sid,)).fetchall()
     return [dict(r) for r in rows]
 
 
 def sessions_in(statuses):
-    q = ",".join("?" * len(statuses))
     with conn() as c:
-        rows = c.execute(f"SELECT id FROM sessions WHERE status IN ({q}) ORDER BY updated_at", tuple(statuses)).fetchall()
+        rows = c.execute(
+            "SELECT id FROM sessions WHERE status = ANY(%s) ORDER BY updated_at", (list(statuses),)
+        ).fetchall()
     return [r["id"] for r in rows]
 
 
@@ -216,14 +200,14 @@ def sessions_in(statuses):
 
 def get_user(username):
     with conn() as c:
-        r = c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        r = c.execute("SELECT * FROM users WHERE username=%s", (username,)).fetchone()
     return dict(r) if r else None
 
 
 def create_user(username, salt, password_hash):
     with conn() as c:
         c.execute(
-            "INSERT INTO users (username,salt,password_hash,created_at) VALUES (?,?,?,?)",
+            "INSERT INTO users (username,salt,password_hash,created_at) VALUES (%s,%s,%s,%s)",
             (username, salt, password_hash, time.time()),
         )
 
@@ -244,25 +228,27 @@ def bootstrap_users():
 
 def create_auth_token(token, username):
     with conn() as c:
-        c.execute("INSERT INTO auth_tokens (token,username,created_at) VALUES (?,?,?)", (token, username, time.time()))
+        c.execute(
+            "INSERT INTO auth_tokens (token,username,created_at) VALUES (%s,%s,%s)", (token, username, time.time())
+        )
 
 
 def resolve_auth_token(token):
     with conn() as c:
-        r = c.execute("SELECT username FROM auth_tokens WHERE token=?", (token,)).fetchone()
+        r = c.execute("SELECT username FROM auth_tokens WHERE token=%s", (token,)).fetchone()
     return r["username"] if r else None
 
 
 def delete_auth_token(token):
     with conn() as c:
-        c.execute("DELETE FROM auth_tokens WHERE token=?", (token,))
+        c.execute("DELETE FROM auth_tokens WHERE token=%s", (token,))
 
 
 # --- itinerario (por usuario) ----------------------------------------------------------------
 
 def get_profile(username):
     with conn() as c:
-        r = c.execute("SELECT * FROM itinerary_profile WHERE username=?", (username,)).fetchone()
+        r = c.execute("SELECT * FROM itinerary_profile WHERE username=%s", (username,)).fetchone()
     if not r:
         return None
     d = dict(r)
@@ -272,34 +258,42 @@ def get_profile(username):
 
 
 def save_profile(username, role, experience, interests, prompt):
+    """Reemplaza el perfil entero: notes/skipped vuelven a NULL hasta que save_run_meta los complete."""
     with conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO itinerary_profile (username,role,experience,interests,prompt,updated_at) VALUES (?,?,?,?,?,?)",
+            "INSERT INTO itinerary_profile (username,role,experience,interests,prompt,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (username) DO UPDATE SET role=EXCLUDED.role, experience=EXCLUDED.experience, "
+            "interests=EXCLUDED.interests, prompt=EXCLUDED.prompt, notes=NULL, skipped=NULL, "
+            "updated_at=EXCLUDED.updated_at",
             (username, role, experience, json.dumps(interests, ensure_ascii=False), prompt, time.time()),
         )
 
 
 def save_run_meta(username, notes, skipped):
-    """Se corre después de save_profile (que resetea notes/skipped al reemplazar la fila)."""
+    """Se corre después de save_profile (que resetea notes/skipped)."""
     with conn() as c:
         c.execute(
-            "UPDATE itinerary_profile SET notes=?, skipped=? WHERE username=?",
+            "UPDATE itinerary_profile SET notes=%s, skipped=%s WHERE username=%s",
             (notes, json.dumps(skipped, ensure_ascii=False), username),
         )
 
 
 def list_itinerary_items(username):
     with conn() as c:
-        rows = c.execute("SELECT * FROM itinerary_items WHERE username=? ORDER BY day, start", (username,)).fetchall()
+        rows = c.execute(
+            "SELECT * FROM itinerary_items WHERE username=%s ORDER BY day, start", (username,)
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 def replace_itinerary_items(username, items):
     """Reemplaza las sesiones no bloqueadas de este usuario; las bloqueadas (locked=1) se conservan tal cual."""
     with conn() as c:
-        c.execute("DELETE FROM itinerary_items WHERE username=? AND locked=0", (username,))
-        c.executemany(
-            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,0,?,?)",
+        c.execute("DELETE FROM itinerary_items WHERE username=%s AND locked=0", (username,))
+        c.cursor().executemany(
+            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) "
+            "VALUES (%s,%s,%s,%s,%s,0,%s,%s) ON CONFLICT (username,code) DO NOTHING",
             [(username, i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time()) for i in items],
         )
 
@@ -307,16 +301,21 @@ def replace_itinerary_items(username, items):
 def add_item(username, code, base, day, start, locked=False, reason=None):
     with conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (username,code) DO UPDATE SET base=EXCLUDED.base, day=EXCLUDED.day, start=EXCLUDED.start, "
+            "locked=EXCLUDED.locked, reason=EXCLUDED.reason, added_at=EXCLUDED.added_at",
             (username, code, base, day, start, int(locked), reason, time.time()),
         )
 
 
 def set_item_locked(username, code, locked):
     with conn() as c:
-        c.execute("UPDATE itinerary_items SET locked=? WHERE username=? AND code=?", (int(locked), username, code))
+        c.execute(
+            "UPDATE itinerary_items SET locked=%s WHERE username=%s AND code=%s", (int(locked), username, code)
+        )
 
 
 def remove_item(username, code):
     with conn() as c:
-        c.execute("DELETE FROM itinerary_items WHERE username=? AND code=?", (username, code))
+        c.execute("DELETE FROM itinerary_items WHERE username=%s AND code=%s", (username, code))

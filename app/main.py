@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import audio, auth_api, catalog, config, db, itinerary_api, pipeline
+from . import audio, auth_api, catalog, config, db, itinerary_api, pg, pipeline
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -27,6 +27,7 @@ async def lifespan(_app):
         logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)
     pipeline.start_worker()
     yield
+    pg.close()
 
 
 app = FastAPI(title="ReinventAR", lifespan=lifespan)

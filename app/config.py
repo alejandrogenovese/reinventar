@@ -11,9 +11,13 @@ def _env(name: str, default: str = "") -> str:
 # Formato: "usuario1:contraseña1,usuario2:contraseña2".
 BOOTSTRAP_USERS = _env("BOOTSTRAP_USERS")
 
-# Persistencia: montar un Railway Volume en /data.
+# Persistencia: Postgres para datos (estado de la app en DB_SCHEMA, catálogo en el schema reinvent)
+# y un Railway Volume en /data para los archivos de audio.
+DATABASE_URL = _env("DATABASE_URL")
+DB_SCHEMA = _env("DB_SCHEMA", "app")
+DB_POOL_SIZE = int(_env("DB_POOL_SIZE", "5"))
 DATA_DIR = Path(_env("DATA_DIR", "/data"))
-DB_PATH = DATA_DIR / "reinventar.db"
+LEGACY_SQLITE_PATH = DATA_DIR / "reinventar.db"  # base anterior: se importa sola al primer arranque con Postgres
 SESSIONS_DIR = DATA_DIR / "sessions"
 
 # Speech-to-text.

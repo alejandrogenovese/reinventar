@@ -38,8 +38,10 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt pytest
-pytest -q                                  # no consume APIs
-DATA_DIR=./data BOOTSTRAP_USERS=dev:dev STT_PROVIDER=fake LLM_PROVIDER=fake uvicorn app.main:app --reload
+# Postgres local: el docker reinvent-pg (imagen pgvector/pgvector:pg16, puerto 5433) con el schema reinvent cargado.
+pytest -q                                  # no consume APIs; usa un schema app_test_* que se borra al final
+DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent \
+  DATA_DIR=./data BOOTSTRAP_USERS=dev:dev STT_PROVIDER=fake LLM_PROVIDER=fake uvicorn app.main:app --reload
 # http://localhost:8000 → usuario "dev", contraseña "dev"
 ```
 
@@ -49,7 +51,10 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 
 1. **Repo**: subilo a un repo privado de GitHub. En Railway, *New Project → Deploy from GitHub repo*. Railway detecta el `Dockerfile` solo.
    Sin GitHub: desde la carpeta, `railway init` y después `railway up --detach`.
-2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Sin volumen, cada deploy borra el audio y la base.
+2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Ahí quedan los audios; sin volumen, cada deploy los borra.
+   **Postgres**: *New → Template → pgvector* (Postgres con la extensión `vector`). En la app, `DATABASE_URL=${{<servicio postgres>.DATABASE_URL}}` (red privada).
+   Cargá el catálogo desde la Mac con `RAILWAY_DATABASE_URL='<DATABASE_PUBLIC_URL>' scripts/sync_to_railway.sh`; repetilo cada vez que corrijas la base local (solo pisa el schema `reinvent`).
+   Si el volumen tenía el SQLite anterior (`/data/reinventar.db`), el primer arranque lo importa solo a Postgres y lo renombra a `reinventar.db.migrated`.
 3. **Variables** (*Variables → Raw Editor*):
    ```
    BOOTSTRAP_USERS=ale:<contraseña>,mariana:<contraseña>,marcos:<contraseña>
