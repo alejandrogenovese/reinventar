@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
+-- Altas de columnas sobre tablas con datos reales: los usuarios existentes quedan obligados a cambiar la contraseña.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 CREATE TABLE IF NOT EXISTS auth_tokens (
   token TEXT PRIMARY KEY,
   username TEXT NOT NULL,
@@ -204,12 +207,38 @@ def get_user(username):
     return dict(r) if r else None
 
 
-def create_user(username, salt, password_hash):
+def create_user(username, salt, password_hash, must_change_password=True):
     with conn() as c:
         c.execute(
-            "INSERT INTO users (username,salt,password_hash,created_at) VALUES (%s,%s,%s,%s)",
-            (username, salt, password_hash, time.time()),
+            "INSERT INTO users (username,salt,password_hash,created_at,must_change_password) VALUES (%s,%s,%s,%s,%s)",
+            (username, salt, password_hash, time.time(), must_change_password),
         )
+
+
+def set_password(username, salt, password_hash, must_change_password):
+    with conn() as c:
+        c.execute(
+            "UPDATE users SET salt=%s, password_hash=%s, must_change_password=%s WHERE username=%s",
+            (salt, password_hash, must_change_password, username),
+        )
+
+
+def set_user_active(username, active):
+    with conn() as c:
+        c.execute("UPDATE users SET is_active=%s WHERE username=%s", (active, username))
+
+
+def list_users():
+    """Usuarios con su última sesión iniciada y cuántas sesiones abiertas tienen (para el admin)."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT u.username, u.created_at, u.must_change_password, u.is_active, "
+            "       MAX(t.created_at) AS last_login, COUNT(t.token) AS open_sessions, "
+            "       (SELECT COUNT(*) FROM itinerary_items i WHERE i.username = u.username) AS itinerary_items "
+            "FROM users u LEFT JOIN auth_tokens t ON t.username = u.username "
+            "GROUP BY u.username ORDER BY u.username"
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def bootstrap_users():
@@ -234,14 +263,46 @@ def create_auth_token(token, username):
 
 
 def resolve_auth_token(token):
+    """Username dueño del token, solo si el usuario sigue activo."""
     with conn() as c:
-        r = c.execute("SELECT username FROM auth_tokens WHERE token=%s", (token,)).fetchone()
+        r = c.execute(
+            "SELECT t.username FROM auth_tokens t JOIN users u ON u.username = t.username "
+            "WHERE t.token=%s AND u.is_active",
+            (token,),
+        ).fetchone()
     return r["username"] if r else None
 
 
 def delete_auth_token(token):
     with conn() as c:
         c.execute("DELETE FROM auth_tokens WHERE token=%s", (token,))
+
+
+def revoke_tokens(username, except_token=None):
+    with conn() as c:
+        c.execute(
+            "DELETE FROM auth_tokens WHERE username=%s AND token IS DISTINCT FROM %s", (username, except_token)
+        )
+
+
+# --- uso (admin) -----------------------------------------------------------------------------
+
+_RECENT_ERRORS = 10
+
+
+def recordings_by_status():
+    with conn() as c:
+        rows = c.execute("SELECT status, COUNT(*) AS n FROM sessions GROUP BY status ORDER BY n DESC").fetchall()
+    return {r["status"]: r["n"] for r in rows}
+
+
+def recent_errors():
+    with conn() as c:
+        rows = c.execute(
+            "SELECT id, title, error, updated_at FROM sessions WHERE status='error' ORDER BY updated_at DESC LIMIT %s",
+            (_RECENT_ERRORS,),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # --- itinerario (por usuario) ----------------------------------------------------------------

@@ -1,5 +1,6 @@
 // ReinventAR — router y pantallas.
-import { ApiError, Auth, Sessions, getToken, setToken } from "./api.js";
+import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
+import { viewAdmin, viewPassword } from "./account.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -30,6 +31,8 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
+  [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/s\/([\w-]+)$/, viewDetail],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
@@ -47,6 +50,7 @@ async function route() {
   cleanup(); cleanup = () => {};
   const hash = location.hash || "#/";
   if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
+  if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
   for (const [re, fn] of routes) {
     const m = hash.match(re);
     if (m) {
@@ -307,8 +311,9 @@ function viewLogin() {
     try {
       const r = await Auth.login(userInput.value.trim(), passInput.value);
       setToken(r.token);
+      setMustChangePassword(r.must_change_password);
       store.persist();
-      location.hash = "#/";
+      location.hash = r.must_change_password ? "#/password" : "#/";
     } catch (err) {
       status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Usuario o contraseña inválidos." : err.message));
       btn.disabled = false;
@@ -328,8 +333,9 @@ async function viewSettings() {
   const pending = h("p", { class: "caption" });
   store.allChunks().then((c) => (pending.textContent = c.length ? `${c.length} pedazos de audio esperando subir.` : "No hay audio pendiente de subir."));
 
-  let username = "";
-  try { username = (await Auth.me()).username; } catch {}
+  let me = {};
+  try { me = await Auth.me(); } catch {}
+  const username = me.username || "";
 
   async function logout() {
     try { await Auth.logout(); } catch {}
@@ -340,7 +346,10 @@ async function viewSettings() {
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "title" }, "Ajustes"),
     h("p", {}, username ? `Conectado como ${username}.` : "Sesión no válida."),
-    h("div", { class: "actions" }, Button("Cerrar sesión", { variant: "danger", onclick: logout })),
+    h("div", { class: "actions" },
+      Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
+      me.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
+      Button("Cerrar sesión", { variant: "danger", onclick: logout })),
     pending,
     h("p", { class: "caption" }, "Tip: instalá la app (menú de Chrome → Agregar a pantalla principal) y desactivá la optimización de batería de Chrome antes de una keynote larga.")));
 }

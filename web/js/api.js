@@ -1,8 +1,13 @@
 // Cliente de la API. El token de sesión (lo da /api/login) vive en localStorage de este celular.
 const KEY = "reinventar.token";
 
+const MUST_CHANGE = "reinventar.mustChangePassword";
+
 export function getToken() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } }
 export function setToken(t) { try { localStorage.setItem(KEY, t); } catch {} }
+// Lo informa el login: mientras esté en true, el router manda a #/password.
+export function mustChangePassword() { try { return localStorage.getItem(MUST_CHANGE) === "1"; } catch { return false; } }
+export function setMustChangePassword(v) { try { localStorage.setItem(MUST_CHANGE, v ? "1" : "0"); } catch {} }
 
 export class ApiError extends Error {
   constructor(status, detail) { super(typeof detail === "string" ? detail : detail?.message || `HTTP ${status}`); this.status = status; this.detail = detail; }
@@ -49,6 +54,18 @@ export const Auth = {
   login: (username, password) => api("/api/login", { method: "POST", json: { username, password } }),
   logout: () => api("/api/logout", { method: "POST" }),
   me: () => api("/api/me"),
+  changePassword: (currentPassword, newPassword) =>
+    api("/api/password", { method: "POST", json: { current_password: currentPassword, new_password: newPassword } }),
+};
+
+const enc = encodeURIComponent;
+export const Admin = {
+  users: () => api("/api/admin/users"),
+  createUser: (username, password) => api("/api/admin/users", { method: "POST", json: { username, password } }),
+  resetPassword: (username, password) => api(`/api/admin/users/${enc(username)}/reset-password`, { method: "POST", json: { password } }),
+  setActive: (username, active) => api(`/api/admin/users/${enc(username)}/active`, { method: "POST", json: { active } }),
+  revokeSessions: (username) => api(`/api/admin/users/${enc(username)}/sessions`, { method: "DELETE" }),
+  usage: () => api("/api/admin/usage"),
 };
 
 export const Maps = {

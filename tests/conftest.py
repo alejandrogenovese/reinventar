@@ -7,9 +7,12 @@ import pytest
 
 TEST_USER = "tester"
 TEST_PASSWORD = "testpass123"
+TEST_ADMIN = "admin_t"
+TEST_ADMIN_PASSWORD = "adminpass123"
 
 os.environ.setdefault("DATA_DIR", tempfile.mkdtemp(prefix="reinventar-test-"))
-os.environ.setdefault("BOOTSTRAP_USERS", f"{TEST_USER}:{TEST_PASSWORD}")
+os.environ.setdefault("BOOTSTRAP_USERS", f"{TEST_USER}:{TEST_PASSWORD},{TEST_ADMIN}:{TEST_ADMIN_PASSWORD}")
+os.environ.setdefault("ADMIN_USERS", TEST_ADMIN)
 os.environ.setdefault("STT_PROVIDER", "fake")
 os.environ.setdefault("LLM_PROVIDER", "fake")
 # Postgres del docker local; cada corrida usa un schema propio que se borra al final.

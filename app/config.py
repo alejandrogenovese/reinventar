@@ -10,6 +10,9 @@ def _env(name: str, default: str = "") -> str:
 # Acceso: cada persona tiene su usuario/contraseña, creados al arrancar si no existen.
 # Formato: "usuario1:contraseña1,usuario2:contraseña2".
 BOOTSTRAP_USERS = _env("BOOTSTRAP_USERS")
+# Usuarios con acceso al módulo de admin: "aleg" o "aleg,otro".
+ADMIN_USERS = frozenset(u.strip() for u in _env("ADMIN_USERS").split(",") if u.strip())
+PASSWORD_MIN_LENGTH = 8
 
 # Persistencia: Postgres para datos (estado de la app en DB_SCHEMA, catálogo en el schema reinvent)
 # y un Railway Volume en /data para los archivos de audio.
