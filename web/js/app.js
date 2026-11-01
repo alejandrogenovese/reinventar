@@ -1,6 +1,7 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
+import { viewExplore } from "./explore.js";
 import { InstallPrompt } from "./install.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
@@ -41,6 +42,7 @@ const routes = [
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
   [/^#\/itinerario\/explorar$/, () => it.viewExplorar(view)],
+  [/^#\/explorar(\?.*)?$/, () => viewExplore(view)],
   [/^#\/charla\/([\w-]+)$/, (base) => viewCharla(view, base)],
   [/^#\/speaker\/(\d+)$/, (id) => viewSpeaker(view, id)],
   [/^#\/empresa\/(\d+)$/, (id) => viewEmpresa(view, id)],

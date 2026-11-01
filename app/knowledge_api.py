@@ -1,7 +1,10 @@
 """Fichas navegables (charla, speaker, empresa) y buscador de personas/empresas."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 
-from . import knowledge
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from . import explore, knowledge
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -26,6 +29,23 @@ def speaker(speaker_id: int):
 @router.get("/empresa/{empresa_id}")
 def empresa(empresa_id: int):
     return _or_404(knowledge.empresa_detail(empresa_id), "Empresa")
+
+
+class ExploreQuery(BaseModel):
+    filters: dict[str, list[str]] = Field(default_factory=dict)
+    q: Optional[str] = Field(None, max_length=200)
+    group_by: Optional[str] = None
+    limit: int = Field(50, ge=1, le=500)
+    offset: int = Field(0, ge=0)
+
+
+@router.post("/explore")
+def explore_catalog(body: ExploreQuery):
+    unknown = (set(body.filters) | ({body.group_by} if body.group_by else set())) - set(explore.FACETS)
+    if unknown:
+        raise HTTPException(422, f"Faceta desconocida: {', '.join(sorted(unknown))}")
+    filters = {facet: set(values[:50]) for facet, values in body.filters.items() if values}
+    return explore.explore(filters, body.q or "", body.group_by, body.limit, body.offset)
 
 
 @router.get("/search/entities")
