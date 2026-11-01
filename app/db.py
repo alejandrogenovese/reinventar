@@ -208,6 +208,16 @@ def get_blocks(sid):
     return [dict(r) for r in rows]
 
 
+def recordings_for(codes):
+    """Grabaciones cuyo código es alguno de estos (los horarios de una charla), de la más nueva a la más vieja."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT id, title, status, created_at FROM sessions WHERE code = ANY(%s) ORDER BY created_at DESC",
+            (list(codes),),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def sessions_in(statuses):
     with conn() as c:
         rows = c.execute(

@@ -6,6 +6,7 @@ import { viewExplore } from "./explore.js";
 import { InstallPrompt } from "./install.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
+import { TalkPicker } from "./talkpicker.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -128,6 +129,7 @@ function viewNew() {
     } catch (err) { toast(err.message); btn.disabled = false; }
   } },
     h("h1", { class: "title" }, "Nueva sesión"),
+    TalkPicker({ onPick: (talk) => fillFromTalk(form, talk) }),
     h("fieldset", { style: { border: 0, padding: 0, margin: 0 } }, h("legend", { class: "label", style: { marginBottom: "8px" } }, "Tipo"), h("div", { class: "segmented" }, radios)),
     field("Título", h("input", { id: "title", name: "title", required: true, maxlength: "200", placeholder: "Keynote de apertura", autocomplete: "off" })),
     field("Código de agenda", h("input", { id: "code", name: "code", maxlength: "40", placeholder: "ANT301", autocapitalize: "characters", autocomplete: "off" })),
@@ -136,6 +138,19 @@ function viewNew() {
     h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Preparar grabación")));
   view.append(form);
   form.querySelector("#title").focus();
+}
+
+/** Completa el formulario con la charla elegida (los campos siguen siendo editables); null = solo desvincula. */
+function fillFromTalk(form, talk) {
+  const set = (name, value, max) => { form.elements[name].value = (value || "").slice(0, max); };
+  if (!talk) { set("code", "", 40); return; }
+  const names = (talk.people || []).map((p) => p.name).join(", ") || talk.speakers;
+  set("title", talk.title, 200);
+  set("code", talk.code, 40);
+  set("venue", [talk.venue?.hotel, talk.venue?.detail].filter(Boolean).join(" · "), 120);
+  set("speaker", names, 200);
+  const radio = form.querySelector(`input[name=kind][value="${talk.recording_kind}"]`);
+  if (radio) radio.checked = true;
 }
 
 // --- grabación ---------------------------------------------------------------
@@ -268,6 +283,7 @@ async function viewDetail(id) {
     head.replaceChildren(...kids(
       h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")),
       h("h1", { class: "title" }, s.title),
+      s.talk ? h("p", {}, h("a", { class: "ra-link", href: `#/charla/${s.talk.base}` }, `Ficha de la charla: ${s.talk.title}`)) : null,
       h("div", { class: "actions", style: { alignItems: "center" } }, StatusPill(s.status, s.progress || undefined), meta ? h("span", { class: "caption" }, meta) : null),
       s.error ? h("div", { class: "notice err", style: { marginTop: "12px" } }, s.error) : null));
 

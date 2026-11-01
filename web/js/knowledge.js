@@ -1,7 +1,7 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
 import { People, SessionMiniCard } from "./itinerary.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, StatusPill, h, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
 const chips = (items) => (items?.length ? h("div", { class: "ra-chips" }, items.map((t) => h("span", { class: "ra-chip" }, t))) : null);
@@ -37,6 +37,8 @@ export async function viewCharla(view, base) {
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
     s.abstract ? section("De qué se trata", h("p", {}, s.abstract)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
+    s.recordings?.length ? section("Tus grabaciones", h("ul", { class: "ra-people" }, s.recordings.map((r) =>
+      h("li", { class: "actions", style: { alignItems: "center" } }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
     s.related.length ? section("Charlas relacionadas", cardList(s.related)) : null));
 }
 

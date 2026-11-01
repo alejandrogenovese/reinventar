@@ -9,7 +9,7 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, llm, prompts, stt
+from . import audio, config, db, llm, prompts, stt, talks
 
 log = logging.getLogger("reinventar.pipeline")
 _q: "queue.Queue[str]" = queue.Queue()
@@ -70,6 +70,7 @@ def process(sid: str):
     if not s:
         return
     title, kind = s["title"], s["kind"]
+    names, context = talks.proper_names(s.get("code")), talks.context(s.get("code"))
 
     # 1 + 2. Ensamblar y transcribir (si ya hay bloques de una corrida anterior, se reusan).
     blocks = db.get_blocks(sid)
@@ -97,18 +98,18 @@ def process(sid: str):
     batches = [pending[i:i + config.TRANSLATE_BATCH] for i in range(0, len(pending), config.TRANSLATE_BATCH)]
     for n, batch in enumerate(batches, 1):
         db.update_session(sid, progress=f"Traduciendo {n}/{len(batches)}")
-        out = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user(batch))
+        out = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user(batch, names))
         got = {int(i): t.strip() for i, t in re.findall(r"\[\[(\d+)\]\]\s*(.*?)(?=\n?\[\[\d+\]\]|\Z)", out, re.S)}
         missing = [(i, t) for i, t in batch if not got.get(i)]
         for i, t in missing:  # reintento uno por uno si el modelo se comió alguna línea
-            one = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user([(i, t)]), 2000)
+            one = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user([(i, t)], names), 2000)
             got[i] = re.sub(r"^\s*\[\[\d+\]\]\s*", "", one).strip()
         db.set_translations(sid, [(i, got[i]) for i, _ in batch])
 
     # 4. Resumir sobre el original en inglés (más fiel) con timestamps.
     db.update_session(sid, status="summarizing", progress=None)
     transcript = "\n".join(f"[{hms(b['start_s'])}] {b['en']}" for b in db.get_blocks(sid))
-    raw = llm.complete(config.SUMMARY_MODEL, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript), 6000)
+    raw = llm.complete(config.SUMMARY_MODEL, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), 6000)
     summary = llm.parse_json(raw)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
 
@@ -128,6 +129,8 @@ def to_markdown(s: dict, blocks: list[dict]) -> str:
             out += ["## Servicios mencionados", "", ", ".join(f"`{x}`" for x in sm["services"]), ""]
         if sm.get("quotes"):
             out += ["## Frases", ""] + [f"- `{q.get('time', '')}` “{q['text']}”" for q in sm["quotes"]] + [""]
+        if sm.get("vs_abstract"):
+            out += ["## Versus lo prometido", "", sm["vs_abstract"], ""]
         if sm.get("takeaways"):
             out += ["## Para llevar a Galicia", ""] + [f"- {p}" for p in sm["takeaways"]] + [""]
     out += ["## Transcripción", ""]

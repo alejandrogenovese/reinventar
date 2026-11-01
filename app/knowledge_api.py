@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import ask, explore, knowledge
+from . import ask, explore, knowledge, talks
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -46,6 +46,12 @@ def explore_catalog(body: ExploreQuery):
         raise HTTPException(422, f"Faceta desconocida: {', '.join(sorted(unknown))}")
     filters = {facet: set(values[:50]) for facet, values in body.filters.items() if values}
     return explore.explore(filters, body.q or "", body.group_by, body.limit, body.offset)
+
+
+@router.get("/talks/pick")
+def pick_talk(q: str = Query(min_length=2, max_length=80)):
+    """Para grabar: horarios por código o título, con el tipo de grabación sugerido."""
+    return talks.pick(q)
 
 
 @router.get("/search/entities")

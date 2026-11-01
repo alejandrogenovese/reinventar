@@ -87,6 +87,7 @@ export const Knowledge = {
   searchEntities: (q) => api(`/api/k/search/entities?${new URLSearchParams({ q })}`),
   explore: (body) => api("/api/k/explore", { method: "POST", json: body }),
   ask: (q) => api("/api/k/ask", { method: "POST", json: { q } }),
+  pickTalk: (q) => api(`/api/k/talks/pick?${new URLSearchParams({ q })}`),
 };
 
 export const Maps = {

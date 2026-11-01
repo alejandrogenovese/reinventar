@@ -10,11 +10,14 @@ TRANSLATE_SYSTEM = f"""Sos traductor técnico. Traducís transcripciones de char
 La transcripción es automática: puede tener errores; traducí el sentido, sin agregar información.
 {GLOSSARY}
 
+Puede venir antes una línea "Nombres propios de esta charla: …" con la grafía correcta de speakers, empresas y servicios: usala para corregir lo que el transcriptor escribió mal, y no la devuelvas.
+
 Formato: vas a recibir líneas que empiezan con un marcador [[n]]. Devolvé exactamente las mismas líneas, en el mismo orden, cada una con su marcador [[n]] seguido de la traducción. Sin comentarios, sin texto extra."""
 
 
-def translate_user(items: list[tuple[int, str]]) -> str:
-    return "\n".join(f"[[{i}]] {t}" for i, t in items)
+def translate_user(items: list[tuple[int, str]], names: list[str] | tuple = ()) -> str:
+    lines = "\n".join(f"[[{i}]] {t}" for i, t in items)
+    return f"Nombres propios de esta charla: {', '.join(names)}\n\n{lines}" if names else lines
 
 
 KIND_GUIDE = {
@@ -36,16 +39,22 @@ Devolvé SOLO un objeto JSON con esta forma:
   "key_points": ["…"],
   "services": ["servicios AWS mencionados, nombre oficial"],
   "quotes": [{{"time": "HH:MM:SS", "text": "frase textual en inglés, corta"}}],
-  "takeaways": ["qué aplica al banco: Journey to Cloud, lakehouse, dbt, gobierno, GenAI"]
+  "takeaways": ["qué aplica al banco: Journey to Cloud, lakehouse, dbt, gobierno, GenAI"],
+  "vs_abstract": "si viene el contexto oficial: 1 o 2 oraciones sobre qué cubrió la charla respecto de lo prometido en el abstract (qué cumplió, qué faltó, qué sumó); si no viene, cadena vacía"
 }}
-Listas vacías si no aplica."""
+Listas vacías si no aplica.
+Si viene el contexto oficial de la charla, usalo para escribir bien nombres de speakers, empresas y servicios, pero lo que resumís es lo que se dijo en la transcripción."""
 
 
-def summary_user(kind: str, title: str, transcript: str) -> str:
+def summary_user(kind: str, title: str, transcript: str, context: str = "") -> str:
+    oficial = f"""
+Contexto oficial de la charla (del catálogo de re:Invent):
+{context}
+""" if context else ""
     return f"""Tipo de sesión: {kind}
 Título: {title}
 Guía: {KIND_GUIDE.get(kind, KIND_GUIDE['Breakout'])}
-
+{oficial}
 Transcripción (con timestamps):
 {transcript}"""
 

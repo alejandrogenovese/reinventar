@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search
+from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search, talks
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -74,7 +74,7 @@ def health():
 def create_session(body: NewSession):
     if body.kind not in db.KINDS:
         raise HTTPException(422, f"kind debe ser uno de {db.KINDS}")
-    return db.create_session(body.title.strip(), body.kind, body.code, body.venue, body.speaker)
+    return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker)
 
 
 @app.get("/api/sessions", dependencies=[Depends(auth)])
@@ -86,6 +86,7 @@ def list_sessions():
 def get_session(sid: str):
     s = _session_or_404(sid)
     s["blocks"] = db.get_blocks(sid)
+    s["talk"] = talks.link(s.get("code"))  # {base, title} si el código es de una charla del catálogo
     return s
 
 

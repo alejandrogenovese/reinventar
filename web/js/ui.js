@@ -72,6 +72,7 @@ export function SummaryPanel(sm) {
     sm.key_points?.length ? sec("Puntos clave", list(sm.key_points)) : null,
     sm.services?.length ? sec("Servicios mencionados", h("div", { class: "ra-chips" }, sm.services.map((x) => h("span", { class: "ra-chip" }, x)))) : null,
     sm.quotes?.length ? sec("Frases", h("ul", {}, sm.quotes.map((q) => h("li", { class: "quote" }, h("span", { class: "ra-chip" }, q.time || ""), " ", `“${q.text}”`)))) : null,
+    sm.vs_abstract ? sec("Versus lo prometido", h("p", {}, sm.vs_abstract)) : null,
     sm.takeaways?.length ? sec("Para llevar a Galicia", list(sm.takeaways)) : null);
 }
 

@@ -3,7 +3,7 @@
 Charlas, speakers en cada charla y empresas salen del catálogo ya cargado en memoria; solo el perfil completo
 del speaker (trayectoria, educación, skills) y los datos de la empresa se leen de Postgres.
 """
-from . import catalog, pg
+from . import catalog, db, pg
 
 RELATED_LIMIT = 6
 COMPANY_TALKS_LIMIT = 50
@@ -78,7 +78,8 @@ def speech_detail(base: str) -> dict | None:
         return None
     instances = [catalog.card(session, i) for i in session.get("instances", [])]
     head = instances[0] if instances else catalog.card(session, {"c": base})
-    return {**head, "instances": instances, "related": _related(session)}
+    codes = {base} | {i["c"] for i in session.get("instances", [])}
+    return {**head, "instances": instances, "related": _related(session), "recordings": db.recordings_for(codes)}
 
 
 # --- speaker ---------------------------------------------------------------------------------
