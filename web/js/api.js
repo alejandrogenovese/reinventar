@@ -80,6 +80,13 @@ export const Admin = {
   reloadCatalog: () => api("/api/admin/catalog/reload", { method: "POST" }),
 };
 
+export const Knowledge = {
+  speech: (base) => api(`/api/k/speech/${encodeURIComponent(base)}`),
+  speaker: (id) => api(`/api/k/speaker/${encodeURIComponent(id)}`),
+  empresa: (id) => api(`/api/k/empresa/${encodeURIComponent(id)}`),
+  searchEntities: (q) => api(`/api/k/search/entities?${new URLSearchParams({ q })}`),
+};
+
 export const Maps = {
   key: () => api("/api/maps-key"),
 };

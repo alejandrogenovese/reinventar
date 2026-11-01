@@ -1,5 +1,6 @@
 // Cuestionario de perfil + itinerario con mapa + exploración manual del catálogo.
 import { Catalog, Itinerary } from "./api.js";
+import { EntityResults } from "./knowledge.js";
 import { renderMap } from "./map.js";
 import { Button, h, toast } from "./ui.js";
 
@@ -14,25 +15,26 @@ function debounce(fn, ms) {
 const PEOPLE_LIMIT = 4;
 
 // Speakers con cargo y empresa (de la base); si la sesión no tiene speakers cargados, el texto original del catálogo.
-function People(s) {
+export function People(s) {
   const people = s.people || [];
   if (!people.length) return s.speakers ? h("p", { class: "caption" }, s.speakers) : null;
-  const line = (p) => {
-    const where = [p.title, p.company].filter(Boolean).join(" · ");
-    return h("li", {}, h("strong", {}, p.name), where ? ` — ${where}` : "", p.sector && !p.is_amazon ? h("span", { class: "caption" }, ` (${p.sector})`) : "");
-  };
+  const line = (p) => h("li", {},
+    h("a", { class: "ra-link", href: `#/speaker/${p.id}` }, h("strong", {}, p.name)),
+    p.title ? ` — ${p.title}` : "",
+    p.company ? [" · ", p.company_id ? h("a", { class: "ra-link", href: `#/empresa/${p.company_id}` }, p.company) : p.company] : "",
+    p.sector && !p.is_amazon ? h("span", { class: "caption" }, ` (${p.sector})`) : "");
   const extra = people.length - PEOPLE_LIMIT;
   return h("ul", { class: "ra-people" }, people.slice(0, PEOPLE_LIMIT).map(line), extra > 0 ? h("li", { class: "caption" }, `y ${extra} más`) : null);
 }
 
-function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
+export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
   const hotel = s.venue?.hotel || "";
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("div", { class: "ra-minicard" },
     h("div", { class: "ra-minicard-top" },
       h("span", { class: "ra-minicard-time" }, [s.day, s.start].filter(Boolean).join(" · ")),
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · "))),
-    h("h4", { class: "ra-minicard-title" }, s.title),
+    h("h4", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
     h("div", { class: "ra-minicard-meta" }, [hotel, s.venue?.detail].filter(Boolean).join(" · ")),
     tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
       s.newlaunch ? h("span", { class: "ra-chip" }, "Nuevo lanzamiento") : null,
@@ -146,14 +148,17 @@ export async function viewItinerario(view) {
 
 export async function viewExplorar(view) {
   const meta = await Catalog.meta();
-  const qInput = h("input", { placeholder: "Buscar por título o tema…", "aria-label": "Buscar sesiones" });
+  const qInput = h("input", { placeholder: "Buscar por título, tema, persona o empresa…", "aria-label": "Buscar sesiones" });
   const daySelect = h("select", { "aria-label": "Día" },
     h("option", { value: "" }, "Todos los días"),
     meta.dates.map((d) => h("option", { value: d.value }, d.value)));
   const results = h("div", { class: "daylist" });
+  const entities = h("div");
 
   async function search() {
-    const rows = await Catalog.search({ q: qInput.value.trim(), day: daySelect.value, limit: "40" });
+    const q = qInput.value.trim();
+    const [rows, found] = await Promise.all([Catalog.search({ q, day: daySelect.value, limit: "40" }), EntityResults(q)]);
+    entities.replaceChildren(found);
     results.replaceChildren(...(rows.length
       ? rows.map((s) => SessionMiniCard(s, { onAdd: async () => { await Itinerary.add(s.code); toast("Agregada al itinerario."); } }))
       : [h("div", { class: "empty" }, "Sin resultados.")]));
@@ -165,6 +170,7 @@ export async function viewExplorar(view) {
     h("h1", { class: "title" }, "Buscar sesiones"),
     h("div", { class: "field" }, qInput),
     h("div", { class: "field" }, daySelect),
+    entities,
     results));
   await search();
 }

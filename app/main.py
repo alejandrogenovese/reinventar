@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, passkey_api, pg, pipeline
+from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -34,6 +34,7 @@ app = FastAPI(title="ReinventAR", lifespan=lifespan)
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
+app.include_router(knowledge_api.router)
 app.include_router(itinerary_api.router)
 
 

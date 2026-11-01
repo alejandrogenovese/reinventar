@@ -5,6 +5,7 @@ y suma "people": los speakers en orden, con cargo, empresa, industria y sector.
 """
 import logging
 import re
+import unicodedata
 
 import psycopg
 
@@ -83,8 +84,22 @@ def _data() -> list[dict]:
     return _sessions
 
 
+def all_sessions() -> list[dict]:
+    """Todas las sesiones cargadas (solo lectura: no modificar los dicts)."""
+    return _data()
+
+
+def first_card(session: dict) -> dict | None:
+    """Card de la primera instancia (la más temprana) de una sesión, para listados de fichas."""
+    instances = session.get("instances") or []
+    return card(session, instances[0]) if instances else None
+
+
 def _split(field: str | None) -> list[str]:
     return [x.strip() for x in (field or "").split(";") if x.strip()]
+
+
+split_field = _split  # "a;b" -> ["a", "b"], para otros módulos
 
 
 def get_session(base: str) -> dict | None:
@@ -155,15 +170,20 @@ def facets() -> dict:
     }
 
 
+def fold(text: str | None) -> str:
+    """Minúsculas y sin tildes: 'Itaú' y 'itau' son lo mismo para buscar."""
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+
+
 def _matches(q: str, session: dict) -> bool:
-    """Texto libre: título, resumen, speakers (nombre) y su empresa/industria/sector/cargo."""
-    names = " ".join(p.get("name") or "" for p in session.get("people", [])).lower()
-    return any(q in text for text in (session.get("title", "").lower(), (session.get("abstract") or "").lower(),
-                                      names, _people_text(session)))
+    """Texto libre (q ya pasado por fold): título, resumen, speakers (nombre) y su empresa/industria/sector/cargo."""
+    names = " ".join(p.get("name") or "" for p in session.get("people", []))
+    return any(q in fold(text) for text in (session.get("title"), session.get("abstract"), names, _people_text(session)))
 
 
 def search(q=None, day=None, venue=None, topic=None, aoi=None, level=None, kind=None, limit=100) -> list[dict]:
-    q = (q or "").strip().lower()
+    q = fold((q or "").strip())
     out = []
     for s in _data():
         if kind and s.get("type") != kind:

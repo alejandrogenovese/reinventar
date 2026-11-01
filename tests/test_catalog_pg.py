@@ -81,3 +81,10 @@ def test_busqueda_por_texto_encuentra_speakers_y_empresas():
 
     assert por_empresa and all(any(p["company"] == "Nubank" for p in r["people"]) for r in por_empresa)
     assert [r["base"] for r in por_speaker] == ["ARC407"]
+
+
+def test_busqueda_ignora_tildes_y_mayusculas():
+    sin_tilde = {r["base"] for r in catalog.search(q="itau", limit=20)}
+    con_tilde = {r["base"] for r in catalog.search(q="ITAÚ", limit=20)}
+
+    assert "MAM207" in sin_tilde and sin_tilde == con_tilde
