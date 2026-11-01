@@ -14,6 +14,7 @@ from . import audio, config, db, llm, prompts, stt, talks
 log = logging.getLogger("reinventar.pipeline")
 _q: "queue.Queue[str]" = queue.Queue()
 _started = False
+SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
 
 
 def enqueue(sid: str):
@@ -109,7 +110,7 @@ def process(sid: str):
     # 4. Resumir sobre el original en inglés (más fiel) con timestamps.
     db.update_session(sid, status="summarizing", progress=None)
     transcript = "\n".join(f"[{hms(b['start_s'])}] {b['en']}" for b in db.get_blocks(sid))
-    raw = llm.complete(config.SUMMARY_MODEL, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), 6000)
+    raw = llm.complete(config.SUMMARY_MODEL, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), SUMMARY_MAX_TOKENS)
     summary = llm.parse_json(raw)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
 

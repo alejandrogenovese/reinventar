@@ -22,6 +22,22 @@ def complete(model: str, system: str, user: str, max_tokens: int = 8000) -> str:
     raise ValueError(f"LLM_PROVIDER desconocido: {p}")
 
 
+DEFAULT_EFFORT = "medium"
+_THINKING_OFF_MODELS = ("claude-sonnet-5-5",)
+
+
+def thinking_params(model: str) -> dict:
+    """Cada modelo acepta una configuración de thinking distinta; la equivocada es un 400.
+
+    - Sonnet 5.5: no acepta {"type": "disabled"}; se apaga con "between_tools" (sólo piensa entre tools, y no usamos).
+    - Opus 5.5 y el resto: el thinking no se puede apagar ("between_tools" y "disabled" dan 400); se omite
+      y se fija el effort (en Opus 5.5 el default ya es medium, se explicita para que no cambie sin aviso).
+    """
+    if model.startswith(_THINKING_OFF_MODELS):
+        return {"thinking": {"type": "between_tools"}}
+    return {"output_config": {"effort": DEFAULT_EFFORT}}
+
+
 def _claude(model, system, user, max_tokens):
     global _anthropic
     import anthropic
@@ -32,10 +48,8 @@ def _claude(model, system, user, max_tokens):
         _anthropic = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=4, timeout=600)
     msg = _anthropic.messages.create(
         model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}],
-        # extra_body porque "thinking" no es un parámetro tipado en anthropic==0.40.0 (SDK viejo para estos modelos).
-        # Este modelo no acepta {"type": "disabled"}: la API devuelve 400 y dice que uses "between_tools"
-        # (sólo piensa entre llamadas a tools; como no usamos tools, no debería pensar antes de responder).
-        extra_body={"thinking": {"type": "between_tools"}},
+        # extra_body porque "thinking"/"output_config" no son parámetros tipados en anthropic==0.40.0.
+        extra_body=thinking_params(model),
     )
     text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
     if not text:
