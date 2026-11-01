@@ -13,6 +13,10 @@ BOOTSTRAP_USERS = _env("BOOTSTRAP_USERS")
 # Usuarios con acceso al módulo de admin: "aleg" o "aleg,otro".
 ADMIN_USERS = frozenset(u.strip() for u in _env("ADMIN_USERS").split(",") if u.strip())
 PASSWORD_MIN_LENGTH = 8
+# Passkeys (Face ID / huella). Vacíos = se toman del dominio del request (Railway: reinventar-production.up.railway.app).
+# Si se cambia de dominio, las passkeys registradas dejan de servir y hay que registrarlas de nuevo.
+WEBAUTHN_RP_ID = _env("WEBAUTHN_RP_ID")
+WEBAUTHN_ORIGIN = _env("WEBAUTHN_ORIGIN")
 
 # Persistencia: Postgres para datos (estado de la app en DB_SCHEMA, catálogo en el schema reinvent)
 # y un Railway Volume en /data para los archivos de audio.

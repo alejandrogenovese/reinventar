@@ -5,3 +5,4 @@ anthropic==0.40.0
 pydantic==2.10.3
 psycopg[binary]==3.2.3
 psycopg-pool==3.2.4
+webauthn==2.5.2

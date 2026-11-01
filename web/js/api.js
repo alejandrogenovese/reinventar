@@ -58,6 +58,17 @@ export const Auth = {
     api("/api/password", { method: "POST", json: { current_password: currentPassword, new_password: newPassword } }),
 };
 
+export const Passkeys = {
+  registerOptions: () => api("/api/passkey/register/options", { method: "POST" }),
+  registerVerify: (challengeId, credential, device) =>
+    api("/api/passkey/register/verify", { method: "POST", json: { challenge_id: challengeId, credential, device } }),
+  loginOptions: () => api("/api/passkey/login/options", { method: "POST" }),
+  loginVerify: (challengeId, credential) =>
+    api("/api/passkey/login/verify", { method: "POST", json: { challenge_id: challengeId, credential } }),
+  list: () => api("/api/passkeys"),
+  remove: (id) => api(`/api/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
+};
+
 const enc = encodeURIComponent;
 export const Admin = {
   users: () => api("/api/admin/users"),

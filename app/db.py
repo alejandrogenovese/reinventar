@@ -52,6 +52,22 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
   username TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
+CREATE TABLE IF NOT EXISTS passkeys (
+  id TEXT PRIMARY KEY,                 -- credential id en base64url
+  username TEXT NOT NULL,
+  public_key BYTEA NOT NULL,
+  sign_count BIGINT NOT NULL DEFAULT 0,
+  device TEXT,
+  created_at DOUBLE PRECISION NOT NULL,
+  last_used_at DOUBLE PRECISION
+);
+CREATE TABLE IF NOT EXISTS webauthn_challenges (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                  -- register | login
+  username TEXT,                       -- solo en register
+  challenge BYTEA NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL
+);
 CREATE TABLE IF NOT EXISTS itinerary_profile (
   username TEXT PRIMARY KEY,
   role TEXT, experience TEXT, interests TEXT, prompt TEXT,

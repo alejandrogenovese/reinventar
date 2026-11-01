@@ -29,14 +29,19 @@ def _session_info(user: dict) -> dict:
     }
 
 
+def issue_session(user: dict) -> dict:
+    """Emite un token de sesión para un usuario ya autenticado (contraseña o passkey)."""
+    token = secrets.token_hex(32)
+    db.create_auth_token(token, user["username"])
+    return {"token": token, **_session_info(user)}
+
+
 @router.post("/api/login")
 def login(body: Login):
     user = db.get_user(body.username.strip())
     if not user or not user["is_active"] or not passwords.verify_password(body.password, user["salt"], user["password_hash"]):
         raise HTTPException(401, "Usuario o contraseña inválidos")
-    token = secrets.token_hex(32)
-    db.create_auth_token(token, user["username"])
-    return {"token": token, **_session_info(user)}
+    return issue_session(user)
 
 
 @router.post("/api/logout")

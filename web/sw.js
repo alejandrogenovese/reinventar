@@ -1,8 +1,8 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
-const VERSION = "reinventar-v0.2.1";
+const VERSION = "reinventar-v0.3.0";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.webmanifest",
-  "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/install.js",
+  "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/install.js", "/js/passkey.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png",
 ];
 

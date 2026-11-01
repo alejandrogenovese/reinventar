@@ -2,6 +2,7 @@
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
 import { InstallPrompt } from "./install.js";
+import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -78,7 +79,7 @@ async function viewList() {
   const banner = h("div");
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "actions" }, Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") })),
-    InstallPrompt({ dismissible: true }), banner, list));
+    InstallPrompt({ dismissible: true }), PasskeyOffer(), banner, list));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
@@ -300,6 +301,13 @@ async function viewDetail(id) {
 }
 
 // --- login -------------------------------------------------------------------
+function finishLogin(r) {
+  setToken(r.token);
+  setMustChangePassword(r.must_change_password);
+  store.persist();
+  location.hash = r.must_change_password ? "#/password" : "#/";
+}
+
 function viewLogin() {
   const userInput = h("input", { id: "username", name: "username", required: true, autocomplete: "username", autocapitalize: "none" });
   const passInput = h("input", { id: "password", name: "password", type: "password", required: true, autocomplete: "current-password" });
@@ -310,11 +318,7 @@ function viewLogin() {
     btn.disabled = true;
     status.replaceChildren();
     try {
-      const r = await Auth.login(userInput.value.trim(), passInput.value);
-      setToken(r.token);
-      setMustChangePassword(r.must_change_password);
-      store.persist();
-      location.hash = r.must_change_password ? "#/password" : "#/";
+      finishLogin(await Auth.login(userInput.value.trim(), passInput.value));
     } catch (err) {
       status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Usuario o contraseña inválidos." : err.message));
       btn.disabled = false;
@@ -325,7 +329,8 @@ function viewLogin() {
     h("div", { class: "field" }, h("label", { class: "label", for: "password" }, "Contraseña"), passInput),
     h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Entrar")),
     status);
-  view.append(form);
+  const passkey = PasskeyLoginButton(finishLogin, (msg) => status.replaceChildren(h("div", { class: "notice err" }, msg)));
+  view.append(form, passkey);
   userInput.focus();
 }
 
@@ -351,6 +356,7 @@ async function viewSettings() {
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       me.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
+    PasskeySettings(),
     InstallPrompt(),
     pending,
     h("p", { class: "caption" }, "Tip: en Android, desactivá la optimización de batería de Chrome antes de una keynote larga.")));
