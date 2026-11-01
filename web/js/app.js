@@ -1,6 +1,7 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
+import { InstallPrompt } from "./install.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -77,7 +78,7 @@ async function viewList() {
   const banner = h("div");
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "actions" }, Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") })),
-    banner, list));
+    InstallPrompt({ dismissible: true }), banner, list));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
@@ -350,8 +351,9 @@ async function viewSettings() {
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       me.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
+    InstallPrompt(),
     pending,
-    h("p", { class: "caption" }, "Tip: instalá la app (menú de Chrome → Agregar a pantalla principal) y desactivá la optimización de batería de Chrome antes de una keynote larga.")));
+    h("p", { class: "caption" }, "Tip: en Android, desactivá la optimización de batería de Chrome antes de una keynote larga.")));
 }
 
 // --- arranque ----------------------------------------------------------------
