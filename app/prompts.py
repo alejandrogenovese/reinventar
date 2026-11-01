@@ -85,6 +85,7 @@ Lo que pide en sus palabras: {prompt or '(sin prompt adicional)'}"""
         f"- {c['base']} [{c.get('type')}, L{c.get('level')}] {c['title']} — "
         f"{', '.join((c.get('topic') or [])[:2] + (c.get('aoi') or [])[:2])} — "
         + "; ".join(f"{i['d']} {i['st']} {i['v'].split('|')[0]}" for i in c.get("instances", []))
+        + (" — por " + ", ".join(sorted({p["company"] for p in c.get("people", []) if p.get("company")})) if c.get("people") else "")
         + " — " + (c.get("abstract") or "")[:220]
         for c in candidates
     )

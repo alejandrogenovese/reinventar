@@ -215,3 +215,6 @@ h1.title { font: 700 28px/32px var(--font-display); letter-spacing: -0.01em; mar
 .mapbox { height: 320px; background: var(--surface-100); }
 
 .daylist { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Speakers de una sesión: nombre, cargo y empresa */
+.ra-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font: 400 14px/20px var(--font-sans); color: var(--ink); }

@@ -58,7 +58,6 @@ BLOCK_SECONDS = float(_env("BLOCK_SECONDS", "45"))  # largo objetivo de cada blo
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 # Catálogo de sesiones y motor de recomendación/itinerario.
-CATALOG_PATH = Path(_env("CATALOG_PATH", str(Path(__file__).resolve().parent.parent / "data" / "reinvent2026-catalogo.json")))
 ITINERARY_MODEL = _env("ITINERARY_MODEL", "claude-sonnet-5-5")
 ITINERARY_CANDIDATE_LIMIT = int(_env("ITINERARY_CANDIDATE_LIMIT", "240"))  # sesiones que se le mandan al LLM como candidatas
 

@@ -11,6 +11,20 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
+const PEOPLE_LIMIT = 4;
+
+// Speakers con cargo y empresa (de la base); si la sesión no tiene speakers cargados, el texto original del catálogo.
+function People(s) {
+  const people = s.people || [];
+  if (!people.length) return s.speakers ? h("p", { class: "caption" }, s.speakers) : null;
+  const line = (p) => {
+    const where = [p.title, p.company].filter(Boolean).join(" · ");
+    return h("li", {}, h("strong", {}, p.name), where ? ` — ${where}` : "", p.sector && !p.is_amazon ? h("span", { class: "caption" }, ` (${p.sector})`) : "");
+  };
+  const extra = people.length - PEOPLE_LIMIT;
+  return h("ul", { class: "ra-people" }, people.slice(0, PEOPLE_LIMIT).map(line), extra > 0 ? h("li", { class: "caption" }, `y ${extra} más`) : null);
+}
+
 function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
   const hotel = s.venue?.hotel || "";
   const tags = [...(s.topic || []), ...(s.aoi || [])];
@@ -23,7 +37,7 @@ function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
     tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
       s.newlaunch ? h("span", { class: "ra-chip" }, "Nuevo lanzamiento") : null,
       tags.slice(0, 6).map((t) => h("span", { class: "ra-chip" }, t))) : null,
-    s.speakers ? h("p", { class: "caption" }, s.speakers) : null,
+    People(s),
     s.abstract ? h("p", {}, s.abstract) : null,
     s.reason ? h("p", { class: "caption" }, s.reason) : null,
     h("div", { class: "actions" },

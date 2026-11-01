@@ -77,6 +77,7 @@ export const Admin = {
   setActive: (username, active) => api(`/api/admin/users/${enc(username)}/active`, { method: "POST", json: { active } }),
   revokeSessions: (username) => api(`/api/admin/users/${enc(username)}/sessions`, { method: "DELETE" }),
   usage: () => api("/api/admin/usage"),
+  reloadCatalog: () => api("/api/admin/catalog/reload", { method: "POST" }),
 };
 
 export const Maps = {

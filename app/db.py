@@ -4,7 +4,7 @@ import time
 import uuid
 from contextlib import contextmanager
 
-from . import config, legacy_import, passwords, pg
+from . import config, legacy_import, passwords, pg, sectors
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -104,6 +104,7 @@ def init():
     with conn() as c:
         c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
         c.execute(SCHEMA)
+        sectors.ensure(c)
     with conn() as c:
         legacy_import.run_once(c, config.LEGACY_SQLITE_PATH)
     bootstrap_users()

@@ -115,5 +115,11 @@ export async function viewAdmin(view) {
     h("h1", { class: "title" }, "Administración"),
     h("div", { class: "stack" }, h("h2", { class: "label" }, "Usuarios"), usersBox),
     NewUserForm(reload),
+    h("div", { class: "stack" },
+      h("h2", { class: "label" }, "Catálogo"),
+      h("p", { class: "caption" }, "Después de subir la base con scripts/sync_to_railway.sh, recargala acá sin reiniciar la app."),
+      h("div", { class: "actions" }, Button("Recargar catálogo", { onclick: async () => {
+        try { const r = await Admin.reloadCatalog(); toast(`Catálogo recargado: ${r.sessions} sesiones`); } catch (err) { toast(err.message); }
+      } }))),
     usageBox));
 }

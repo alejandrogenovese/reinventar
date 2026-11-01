@@ -1,9 +1,10 @@
 """Tests del catálogo y del motor de itinerario (LLM_PROVIDER=fake, no consume APIs)."""
 import json
+import uuid
 
 from fastapi.testclient import TestClient
 
-from app import catalog, itinerary, llm
+from app import catalog, db, itinerary, llm, passwords
 from app.main import app
 from tests.conftest import login_headers
 
@@ -111,7 +112,11 @@ def test_generate_resuelve_choques_de_horario(monkeypatch):
     monkeypatch.setattr(llm, "complete", lambda *a, **k: json.dumps({"picks": picks, "notes": "n"}))
 
     with TestClient(app) as c:
-        H = login_headers(c)
+        # usuario propio: las sesiones que otros tests bloquean en el itinerario de "tester" podrían pisar el choque
+        username = f"choque_{uuid.uuid4().hex[:6]}"
+        salt, password_hash = passwords.hash_password("choque12345")
+        db.create_user(username, salt, password_hash, must_change_password=False)
+        H = login_headers(c, username, "choque12345")
         r = c.post("/api/itinerary/generate", headers=H, json={"profile": {"role": "x", "experience": "", "interests": []}, "prompt": "x"})
         assert r.status_code == 200, r.text
         data = r.json()
