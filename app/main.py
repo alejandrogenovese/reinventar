@@ -158,4 +158,14 @@ def sw():
     return FileResponse(config.WEB_DIR / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
 
-app.mount("/", StaticFiles(directory=config.WEB_DIR, html=True), name="web")
+class RevalidatedStaticFiles(StaticFiles):
+    """La PWA (HTML/JS/CSS) se revalida en cada carga: con ETag el navegador recibe un 304 si no cambió,
+    y después de un deploy toma la versión nueva en vez de reusar una copia vieja por caché heurística."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/", RevalidatedStaticFiles(directory=config.WEB_DIR, html=True), name="web")

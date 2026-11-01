@@ -1,5 +1,5 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
-const VERSION = "reinventar-v0.4.0";
+const VERSION = "reinventar-v0.4.1";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/install.js", "/js/passkey.js",
@@ -7,7 +7,7 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -36,7 +36,7 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) return;
   // App shell: red primero (para tomar cambios), caché si no hay señal.
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" }) // revalida con el servidor: nunca una copia vieja de la caché HTTP
       .then((r) => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copy)); } return r; })
       .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
   );

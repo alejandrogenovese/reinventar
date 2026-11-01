@@ -73,3 +73,12 @@ def test_pwa_se_sirve():
         assert c.get("/").status_code == 200
         assert c.get("/sw.js").status_code == 200
         assert c.get("/manifest.webmanifest").status_code == 200
+
+
+def test_archivos_de_la_app_se_revalidan_en_cada_carga():
+    # Sin Cache-Control el navegador reusa JS viejo tras un deploy (caché heurística) y no se ven los cambios.
+    with TestClient(app) as c:
+        for path in ("/", "/index.html", "/js/app.js", "/js/itinerary.js", "/styles.css", "/sw.js"):
+            r = c.get(path)
+            assert r.status_code == 200, path
+            assert r.headers.get("cache-control") == "no-cache", path
