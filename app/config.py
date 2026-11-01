@@ -52,8 +52,8 @@ TARGET_LANGUAGE = _env("TARGET_LANGUAGE", "castellano rioplatense (Argentina)")
 
 # Límites.
 MAX_CHUNK_BYTES = int(_env("MAX_CHUNK_BYTES", str(5 * 1024 * 1024)))
-TRANSLATE_BATCH = int(_env("TRANSLATE_BATCH", "30"))  # bloques por llamada
-BLOCK_SECONDS = float(_env("BLOCK_SECONDS", "45"))  # largo objetivo de cada bloque de lectura
+TRANSLATE_BATCH = int(_env("TRANSLATE_BATCH", "60"))  # bloques por llamada (~15 min de charla)
+BLOCK_SECONDS = float(_env("BLOCK_SECONDS", "15"))  # largo objetivo de cada bloque de lectura (estilo subtítulos)
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 

@@ -49,6 +49,9 @@ def hms(t: float) -> str:
     return f"{t // 3600:02d}:{t % 3600 // 60:02d}:{t % 60:02d}"
 
 
+BLOCK_MAX_FACTOR = 2  # sin fin de oración a la vista (música, habla de corrido), se corta igual al doble del objetivo
+
+
 def group_blocks(segs: list[dict], target: float) -> list[dict]:
     """Agrupa segmentos de Whisper en bloques de lectura de ~`target` segundos, cortando en fin de oración."""
     blocks, cur = [], None
@@ -58,7 +61,8 @@ def group_blocks(segs: list[dict], target: float) -> list[dict]:
             continue
         cur["en"] += " " + s["text"]
         cur["end"] = s["end"]
-        if cur["end"] - cur["start"] >= target and re.search(r"[.!?]\"?$", s["text"]):
+        length = cur["end"] - cur["start"]
+        if (length >= target and re.search(r"[.!?]\"?$", s["text"])) or length >= target * BLOCK_MAX_FACTOR:
             blocks.append(cur)
             cur = None
     if cur:
