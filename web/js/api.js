@@ -86,6 +86,7 @@ export const Knowledge = {
   empresa: (id) => api(`/api/k/empresa/${encodeURIComponent(id)}`),
   searchEntities: (q) => api(`/api/k/search/entities?${new URLSearchParams({ q })}`),
   explore: (body) => api("/api/k/explore", { method: "POST", json: body }),
+  parseFilters: (text) => api("/api/k/explore/parse", { method: "POST", json: { text } }),
   ask: (q) => api("/api/k/ask", { method: "POST", json: { q } }),
   briefing: (kind, id, refresh = false) => api("/api/k/briefing", { method: "POST", json: { kind, id: Number(id), refresh } }),
   pickTalk: (q) => api(`/api/k/talks/pick?${new URLSearchParams({ q })}`),

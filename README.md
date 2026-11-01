@@ -27,6 +27,8 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | `app/search.py`, `app/embeddings.py` | búsqueda híbrida: embeddings multilingües locales (fastembed) + BM25, fusionados con RRF; vectores guardados en `speech_embedding`; prefiltro del itinerario |
 | `app/ask.py` | chat de búsqueda (`POST /api/k/ask`): responde citando charlas por código |
 | `app/briefing.py` | "Preparar conversación" (`POST /api/k/briefing`): ficha de un speaker o empresa cruzada con el perfil del usuario y sus grabaciones; caché por usuario en `briefings` |
+| `app/nl_filters.py` | filtros en lenguaje natural (`POST /api/k/explore/parse`): el LLM propone, se valida contra los valores reales de cada faceta |
+| `app/clusters.py` | temas emergentes: k-means sobre los embeddings, nombrados por el LLM; faceta `tema` del explorador, guardados en `speech_cluster` |
 | `app/talks.py` | grabación ↔ charla del catálogo: elegirla al grabar (`GET /api/k/talks/pick`), contexto oficial para el resumen y nombres propios para la traducción |
 | `app/sectors.py` | mapeo industria → sector (tabla `sector_industria` en el schema de la app; los valores iniciales no pisan ediciones) |
 | `app/venues.py` | coordenadas de los hoteles/venues del Strip para el mapa |

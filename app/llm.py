@@ -74,6 +74,11 @@ def _openai(model, system, user, max_tokens):
 
 
 def _fake(system, user):
+    if user.startswith("Grupo 0:"):  # nombres de temas emergentes
+        ids = re.findall(r"^Grupo (\d+):", user, re.M)
+        return json.dumps({"groups": [{"id": int(i), "name": f"Tema {i}"} for i in ids]})
+    if "Pedido de filtros:" in user:  # filtros en lenguaje natural
+        return json.dumps({"filters": {"sector": ["Finanzas"]}, "q": ""})
     if user.startswith("Entidad a preparar:"):  # briefing
         return json.dumps({
             "quien": "Persona de prueba (fake).", "empresa_y_aws": "Empresa de prueba.", "en_reinvent": "Charla de prueba.",

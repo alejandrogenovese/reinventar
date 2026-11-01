@@ -6,7 +6,7 @@ import { Button, h, toast } from "./ui.js";
 const PAGE = 50;
 const VALUES_SHOWN = 8;
 const FACETS = [
-  ["sector", "Sector"], ["empresa", "Empresa"], ["topico", "Tópico"], ["area", "Área de interés"],
+  ["tema", "Tema emergente"], ["sector", "Sector"], ["empresa", "Empresa"], ["topico", "Tópico"], ["area", "Área de interés"],
   ["dia", "Día"], ["sede", "Sede"], ["tipo", "Tipo"], ["nivel", "Nivel"], ["servicio", "Servicio de AWS"],
   ["industria", "Industria"], ["seniority", "Seniority"], ["lanzamiento", "Nuevo lanzamiento"],
 ];
@@ -140,6 +140,25 @@ export async function viewExplore(view) {
     paint();
   }
 
+  // Lenguaje natural → filtros: reemplaza los filtros actuales (es un pedido nuevo) y quedan como chips para ajustar.
+  const nlInput = h("input", { maxlength: "300", "aria-label": "Pedido en lenguaje natural",
+    placeholder: "Ej: fintechs hablando de agentes el martes en el Venetian" });
+  const nlButton = Button("Armar filtros", { variant: "primary", type: "submit" });
+  const nlForm = h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    const text = nlInput.value.trim();
+    if (text.length < 2) return;
+    nlButton.disabled = true;
+    try {
+      const parsed = await Knowledge.parseFilters(text);
+      const filters = Object.fromEntries(Object.entries(parsed.filters).map(([f, v]) => [f, new Set(v)]));
+      if (!Object.keys(filters).length && !parsed.q) toast("No pude traducirlo a filtros: probá con otras palabras o usá los filtros de abajo.");
+      else if (parsed.ignored.length) toast(`No encontré en el catálogo: ${parsed.ignored.join(", ")}`);
+      qInput.value = parsed.q;
+      await update({ ...state, filters, q: parsed.q, offset: 0 });
+    } catch (err) { toast(err.message); } finally { nlButton.disabled = false; }
+  } }, h("div", { class: "field" }, nlInput), h("div", { class: "actions" }, nlButton));
+
   qInput.addEventListener("input", debounce(() => update({ ...state, q: qInput.value.trim(), offset: 0 }), 300));
   groupSelect.addEventListener("change", () => update({ ...state, groupBy: groupSelect.value }));
 
@@ -147,6 +166,7 @@ export async function viewExplore(view) {
     h("h1", { class: "title" }, "Explorar"),
     h("p", { class: "caption" }, "Filtrá en el orden que quieras: cada opción muestra cuántas charlas quedan. ",
       h("a", { class: "ra-link", href: "#/preguntar" }, "¿Preferís preguntar con tus palabras?")),
+    nlForm,
     h("div", { class: "field" }, qInput),
     chips,
     h("div", { class: "ra-explore" }, h("aside", {}, panel), h("div", { class: "stack" }, h("div", { class: "field" }, groupSelect), header, results))));

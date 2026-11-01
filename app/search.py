@@ -164,6 +164,18 @@ def _warm() -> None:
     except Exception:
         _warm_failed_at = time.monotonic()
         log.exception("No se pudo armar el índice de embeddings; la búsqueda sigue solo por palabras")
+        return
+    from . import clusters  # import diferido: clusters depende de este módulo
+
+    try:
+        clusters.ensure()
+    except Exception:
+        log.exception("No se pudieron armar los temas emergentes; el explorador sigue sin esa faceta")
+
+
+def ready_vectors() -> np.ndarray | None:
+    """La matriz de embeddings si ya está armada para el catálogo actual (sin disparar el armado)."""
+    return _matrix if _matrix is not None and _matrix_source is catalog.all_sessions() else None
 
 
 def warm_async() -> None:

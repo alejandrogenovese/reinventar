@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import ask, briefing, explore, knowledge, talks
+from . import ask, briefing, explore, knowledge, nl_filters, talks
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -52,6 +52,19 @@ def explore_catalog(body: ExploreQuery):
 def pick_talk(q: str = Query(min_length=2, max_length=80)):
     """Para grabar: horarios por código o título, con el tipo de grabación sugerido."""
     return talks.pick(q)
+
+
+class ParseQuery(BaseModel):
+    text: str = Field(min_length=2, max_length=300)
+
+
+@router.post("/explore/parse")
+def parse_filters(body: ParseQuery):
+    """Pedido en lenguaje natural → filtros validados contra los valores reales (se aplican después con /explore)."""
+    try:
+        return nl_filters.parse(body.text.strip())
+    except nl_filters.NLFiltersUnavailable:
+        raise HTTPException(502, "No pude interpretar el pedido ahora. Probá con los filtros de abajo.") from None
 
 
 @router.get("/search/entities")

@@ -5,9 +5,9 @@
   cuántas charlas sumaría "Salud".
 - día y sede se evalúan sobre el mismo horario: "2026-12-02" + "Caesars Palace" = se da ese día en esa sede.
 """
-from . import catalog
+from . import catalog, clusters
 
-SESSION_FACETS = ("sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tipo", "nivel", "lanzamiento")
+SESSION_FACETS = ("tema", "sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tipo", "nivel", "lanzamiento")
 INSTANCE_FACETS = ("dia", "sede")
 FACETS = SESSION_FACETS + INSTANCE_FACETS
 GROUPS_LIMIT = 30
@@ -19,6 +19,7 @@ _SORT_BY_VALUE = {"dia", "nivel"}
 
 _entries: list[dict] | None = None
 _entries_source: list | None = None
+_entries_clusters = -1
 
 
 def _session_values(s: dict) -> dict[str, set[str]]:
@@ -27,6 +28,8 @@ def _session_values(s: dict) -> dict[str, set[str]]:
     values["tipo"] = {s["type"]} if s.get("type") else set()
     values["nivel"] = {s["level"]} if s.get("level") else set()
     values["lanzamiento"] = {"Sí" if s.get("newlaunch") else "No"}
+    tema = clusters.label_for(s["base"])
+    values["tema"] = {tema} if tema else set()
     return values
 
 
@@ -38,11 +41,11 @@ def _entry(s: dict) -> dict:
 
 
 def _all_entries() -> list[dict]:
-    """Valores de faceta y texto normalizado por sesión; se recalcula solo si el catálogo se recargó."""
-    global _entries, _entries_source
+    """Valores de faceta y texto normalizado por sesión; se recalcula si se recargó el catálogo o cambiaron los temas."""
+    global _entries, _entries_source, _entries_clusters
     sessions = catalog.all_sessions()
-    if _entries is None or _entries_source is not sessions:
-        _entries, _entries_source = [_entry(s) for s in sessions], sessions
+    if _entries is None or _entries_source is not sessions or _entries_clusters != clusters.version():
+        _entries, _entries_source, _entries_clusters = [_entry(s) for s in sessions], sessions, clusters.version()
     return _entries
 
 

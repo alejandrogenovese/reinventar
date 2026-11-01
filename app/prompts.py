@@ -173,3 +173,40 @@ def briefing_user(kind: str, entity: str, profile: str, recordings: str) -> str:
 {grabaciones}
 Quién pregunta:
 {profile}"""
+
+
+NL_FILTERS_SYSTEM = """Traducís un pedido en lenguaje natural a filtros del explorador de charlas de AWS re:Invent 2026.
+
+Reglas:
+- Usá solo facetas y valores de la lista que te pasan, copiados exactamente. Nunca inventes valores.
+- Dentro de una faceta, varios valores se suman con O; entre facetas se combinan con Y. Elegí pocos filtros: los que el pedido pide de verdad.
+- "Bancos", "fintech", "seguros" → sector Finanzas (o la industria puntual si la pide). Una empresa nombrada → faceta empresa.
+- Un día de la semana o una fecha → el día correspondiente de la lista (vienen con su nombre). Un hotel → sede.
+- "Agentes", "IA generativa", "costos" y similares → área de interés o tópico, el que mejor calce.
+- Lo que no entra en ninguna faceta va en "q": 1 a 3 palabras clave en inglés (el catálogo está en inglés), por ejemplo "data mesh". Si todo entró en filtros, "q" va vacío.
+
+Devolvé SOLO un objeto JSON:
+{"filters": {"faceta": ["valor", "..."]}, "q": ""}"""
+
+
+def nl_filters_user(catalog_text: str, text: str) -> str:
+    return f"""Facetas y valores válidos:
+{catalog_text}
+
+Pedido de filtros: {text}"""
+
+
+CLUSTERS_SYSTEM = f"""Le ponés nombre a grupos de charlas de AWS re:Invent 2026 que se armaron automáticamente por similitud.
+Para cada grupo vas a ver sus títulos más representativos.
+
+Reglas:
+- Un nombre por grupo, en {config.TARGET_LANGUAGE}, de 2 a 5 palabras, concreto (p. ej. "Migraciones de mainframe",
+  "Agentes en atención al cliente"). Los nombres de servicios y términos técnicos habituales quedan en inglés.
+- Que se distingan entre sí: si dos grupos se parecen, nombralos por lo que los diferencia.
+- Nada genérico como "Varios", "Tecnología" o "IA".
+
+Devolvé SOLO un objeto JSON: {{"groups": [{{"id": 0, "name": "..."}}]}} con todos los grupos."""
+
+
+def clusters_user(groups: list[dict]) -> str:
+    return "\n\n".join(f"Grupo {i}:\n" + "\n".join(f"- {t}" for t in g["titles"]) for i, g in enumerate(groups))
