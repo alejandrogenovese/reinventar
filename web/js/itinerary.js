@@ -98,7 +98,9 @@ export async function viewItinerario(view) {
         h("div", { class: "empty" },
           h("p", {}, "Todavía no armaste tu itinerario."),
           h("p", { class: "caption" }, "Contestá un par de preguntas y la IA te recomienda sesiones.")),
-        h("div", { class: "actions" }, Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/cuestionario") }))));
+        h("div", { class: "actions" },
+          Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/cuestionario") }),
+          Button("Buscar sesiones", { onclick: () => (location.hash = "#/itinerario/explorar") }))));
       return;
     }
 
