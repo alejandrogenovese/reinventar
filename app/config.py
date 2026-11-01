@@ -59,7 +59,14 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 # Catálogo de sesiones y motor de recomendación/itinerario.
 ITINERARY_MODEL = _env("ITINERARY_MODEL", "claude-sonnet-5-5")
-ITINERARY_CANDIDATE_LIMIT = int(_env("ITINERARY_CANDIDATE_LIMIT", "240"))  # sesiones que se le mandan al LLM como candidatas
+ITINERARY_CANDIDATE_LIMIT = int(_env("ITINERARY_CANDIDATE_LIMIT", "150"))  # sesiones que se le mandan al LLM como candidatas
+ASK_MODEL = _env("ASK_MODEL", "claude-sonnet-5-5")  # chat de búsqueda sobre el catálogo
+
+# Búsqueda por significado (embeddings). local = modelo multilingüe dentro del contenedor; off = solo por palabras.
+EMBED_PROVIDER = _env("EMBED_PROVIDER", "local")
+EMBED_MODEL = _env("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+EMBED_CACHE_DIR = DATA_DIR / "models"  # en el volumen: el modelo se baja una sola vez
+EMBED_BATCH = int(_env("EMBED_BATCH", "32"))
 
 # Mapa de venues: key de Google Maps JavaScript API (restringida por dominio en Google Cloud Console).
 GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")

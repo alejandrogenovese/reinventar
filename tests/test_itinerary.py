@@ -4,7 +4,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app import catalog, db, itinerary, llm, passwords
+from app import catalog, db, itinerary, llm, passwords, search
 from app.main import app
 from tests.conftest import login_headers
 
@@ -28,7 +28,7 @@ def test_catalog_facets_y_busqueda():
 
 
 def test_prefilter_prioriza_intereses_elegidos():
-    con_interes = catalog.prefilter({"role": "", "experience": "", "interests": ["Artificial Intelligence"]}, "", limit=10)
+    con_interes = search.prefilter({"role": "", "experience": "", "interests": ["Artificial Intelligence"]}, "", limit=10)
     assert con_interes
     assert all("Artificial Intelligence" in c["topic"] for c in con_interes[:3])
 

@@ -86,6 +86,7 @@ export const Knowledge = {
   empresa: (id) => api(`/api/k/empresa/${encodeURIComponent(id)}`),
   searchEntities: (q) => api(`/api/k/search/entities?${new URLSearchParams({ q })}`),
   explore: (body) => api("/api/k/explore", { method: "POST", json: body }),
+  ask: (q) => api("/api/k/ask", { method: "POST", json: { q } }),
 };
 
 export const Maps = {

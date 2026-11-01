@@ -23,7 +23,9 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | `app/audio.py` | ffmpeg: une pedazos por parte, normaliza a 16 kHz mono, corta para el STT |
 | `app/stt.py`, `app/llm.py` | proveedores intercambiables por variables de entorno |
 | `app/prompts.py` | glosario AWS, prompt de traducción, plantillas de resumen por tipo, prompt del itinerario |
-| `app/catalog.py` | catálogo de re:Invent leído de Postgres (schema `reinvent`) a memoria al arrancar: facets, búsqueda y prefiltro por perfil/prompt, con speakers, empresa y sector |
+| `app/catalog.py` | catálogo de re:Invent leído de Postgres (schema `reinvent`) a memoria al arrancar: facets y búsqueda, con speakers, empresa y sector |
+| `app/search.py`, `app/embeddings.py` | búsqueda híbrida: embeddings multilingües locales (fastembed) + BM25, fusionados con RRF; vectores guardados en `speech_embedding`; prefiltro del itinerario |
+| `app/ask.py` | chat de búsqueda (`POST /api/k/ask`): responde citando charlas por código |
 | `app/sectors.py` | mapeo industria → sector (tabla `sector_industria` en el schema de la app; los valores iniciales no pisan ediciones) |
 | `app/venues.py` | coordenadas de los hoteles/venues del Strip para el mapa |
 | `app/itinerary.py` | motor de recomendación: prefiltro → LLM elige y justifica → resuelve choques de horario |
@@ -71,6 +73,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.
 7. **Catálogo del itinerario**: se lee del schema `reinvent` de Postgres al arrancar. Después de correr `scripts/sync_to_railway.sh`, el admin puede recargarlo sin reiniciar (`POST /api/admin/catalog/reload`, botón en Administración). Si el schema no está cargado, la grabación sigue funcionando igual; sólo fallan `/api/catalog` y `/api/itinerary` con un 503 claro.
 
+8. **Búsqueda por significado**: al arrancar se baja el modelo de embeddings (~220 MB) a `/data/models` (una sola vez, queda en el volumen) y se calculan los vectores de las charlas en segundo plano (~30 s la primera vez; después solo las charlas nuevas o cambiadas). Mientras tanto la búsqueda y el itinerario funcionan solo por palabras. Suma ~400 MB de RAM.
+
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 
 ### Proveedores
@@ -83,6 +87,9 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `LLM_PROVIDER` | `anthropic` | `openai` + `LLM_BASE_URL` para pasar por LiteLLM |
 | `TRANSLATE_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar |
 | `SUMMARY_MODEL` | `claude-opus-5-5` | `claude-sonnet-5-5` |
+| `ASK_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar el chat de búsqueda |
+| `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
+| `EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | otro modelo de fastembed (se recalculan todos los vectores) |
 
 ## Cómo se comporta la grabación
 

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline
+from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -22,6 +22,7 @@ async def lifespan(_app):
         logging.warning("BOOTSTRAP_USERS vacío: nadie va a poder loguearse hasta que lo configures")
     try:
         catalog.load()
+        search.warm_async()  # embeddings en segundo plano: mientras tanto se busca solo por palabras
     except catalog.CatalogUnavailable as e:
         # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
         logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)

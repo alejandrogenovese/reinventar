@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, passwords
+from . import catalog, config, db, passwords, search
 from .auth import admin, is_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -79,7 +79,9 @@ def revoke_sessions(username: str, _admin: str = Depends(admin)):
 @router.post("/catalog/reload")
 def reload_catalog(_admin: str = Depends(admin)):
     """Relee el catálogo de Postgres (después de correr scripts/sync_to_railway.sh) sin reiniciar la app."""
-    return {"ok": True, "sessions": catalog.load()}
+    sessions = catalog.load()
+    search.warm_async()  # recalcula en segundo plano solo los embeddings de charlas nuevas o cambiadas
+    return {"ok": True, "sessions": sessions}
 
 
 @router.get("/usage")

@@ -98,3 +98,34 @@ Sesiones ya confirmadas en su agenda (no las vuelvas a elegir, planificá alrede
 
 Candidatas disponibles (elegí de esta lista únicamente):
 {candidatas}"""
+
+
+ASK_SYSTEM = f"""Sos el asistente de AWS re:Invent 2026 dentro de una app para preparar la agenda y las conversaciones del evento.
+Respondés la pregunta de la persona usando ÚNICAMENTE las charlas candidatas que te pasan (salieron de una búsqueda sobre el catálogo).
+
+Reglas:
+- Escribís en {config.TARGET_LANGUAGE}, breve y concreto: 2 a 6 oraciones, o una lista con "- " al principio de cada línea.
+- Citá cada charla que menciones con su código exacto entre corchetes, por ejemplo [ARC407]. Nunca inventes códigos.
+- Cuando sume, decí quién la da y de qué empresa (los clientes son lo más interesante; Amazon/AWS es el anfitrión).
+- Los resúmenes están en inglés: explicalos en castellano. Los nombres de servicios y productos quedan como están.
+- Si ninguna candidata responde bien la pregunta, decilo y sugerí cómo reformularla. No inventes charlas, horarios ni speakers.
+- Sin markdown: nada de negritas, títulos ni tablas."""
+
+
+def ask_user(question: str, candidates: list[dict]) -> str:
+    def speakers(s: dict) -> str:
+        people = [f"{p['name']} ({', '.join(x for x in (p.get('title'), p.get('company')) if x)})" for p in s.get("people", [])[:4]]
+        return "; ".join(people) or (s.get("speakers") or "sin speakers")
+
+    def when(s: dict) -> str:
+        return "; ".join(f"{i['d']} {i['st']} {i['v'].split('|')[0]}" for i in s.get("instances", [])[:3]) or "sin horario"
+
+    lines = "\n".join(
+        f"[{s['base']}] {s['title']} — {s.get('type')}, nivel {s.get('level') or '?'} — {when(s)} — por {speakers(s)} — "
+        + (s.get("abstract") or "")[:400]
+        for s in candidates
+    )
+    return f"""Pregunta: {question}
+
+Charlas candidatas:
+{lines}"""

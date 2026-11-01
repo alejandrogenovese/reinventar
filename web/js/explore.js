@@ -145,7 +145,8 @@ export async function viewExplore(view) {
 
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "title" }, "Explorar"),
-    h("p", { class: "caption" }, "Filtrá en el orden que quieras: cada opción muestra cuántas charlas quedan."),
+    h("p", { class: "caption" }, "Filtrá en el orden que quieras: cada opción muestra cuántas charlas quedan. ",
+      h("a", { class: "ra-link", href: "#/preguntar" }, "¿Preferís preguntar con tus palabras?")),
     h("div", { class: "field" }, qInput),
     chips,
     h("div", { class: "ra-explore" }, h("aside", {}, panel), h("div", { class: "stack" }, h("div", { class: "field" }, groupSelect), header, results))));

@@ -60,6 +60,9 @@ def _openai(model, system, user, max_tokens):
 
 
 def _fake(system, user):
+    if user.startswith("Pregunta:"):  # chat de búsqueda
+        codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
+        return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
         return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de Amazon S3." for i in ids)

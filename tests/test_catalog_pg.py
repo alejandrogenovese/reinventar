@@ -1,7 +1,7 @@
 """Catálogo leído de Postgres (schema reinvent) con speakers, empresas y sector."""
 from fastapi.testclient import TestClient
 
-from app import catalog, db, pg, sectors
+from app import catalog, db, pg, search, sectors
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, login_headers
 
@@ -50,8 +50,8 @@ def test_todas_las_industrias_de_la_base_tienen_sector():
 
 
 def test_prefilter_encuentra_charlas_por_empresa_e_industria():
-    por_empresa = catalog.prefilter({"role": "", "experience": "", "interests": []}, "Nubank", limit=5)
-    por_industria = catalog.prefilter({"role": "", "experience": "", "interests": []}, "banca", limit=20)
+    por_empresa = search.prefilter({"role": "", "experience": "", "interests": []}, "Nubank", limit=5)
+    por_industria = search.prefilter({"role": "", "experience": "", "interests": []}, "banca", limit=20)
 
     assert any(p["company"] == "Nubank" for p in por_empresa[0]["people"])
     assert any(p["industry"] == "Banca" for c in por_industria for p in c["people"])

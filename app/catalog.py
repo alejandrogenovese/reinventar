@@ -4,7 +4,6 @@ Cada sesión conserva la forma que tenía el JSON original (base, title, topic "
 y suma "people": los speakers en orden, con cargo, empresa, industria y sector.
 """
 import logging
-import re
 import unicodedata
 
 import psycopg
@@ -15,10 +14,6 @@ log = logging.getLogger("reinventar.catalog")
 
 _sessions: list[dict] | None = None
 
-_STOPWORDS = {
-    "de", "la", "el", "en", "y", "a", "que", "los", "las", "un", "una", "con", "para", "del", "por", "su",
-    "the", "and", "for", "with", "that", "this", "from", "are", "our",
-}
 
 # Una fila por sesión; horarios y speakers vienen agregados como JSON. sector_industria está en el schema de la app.
 _LOAD_SQL = """
@@ -207,44 +202,7 @@ def search(q=None, day=None, venue=None, topic=None, aoi=None, level=None, kind=
     return out
 
 
-def _terms(*texts: str) -> set[str]:
-    words = re.findall(r"[a-záéíóúñ0-9]{3,}", " ".join(texts).lower())
-    return {w for w in words if w not in _STOPWORDS}
-
-
 def _people_text(session: dict) -> str:
     """Empresas, industrias, sectores y cargos de los speakers, para que "banca" o "Nubank" encuentren la charla."""
     fields = ("company", "industry", "sector", "title")
     return " ".join(str(p.get(f) or "") for p in session.get("people", []) for f in fields).lower()
-
-
-def prefilter(profile: dict, prompt: str, limit: int) -> list[dict]:
-    """Ranking determinístico por keywords: acota el catálogo antes de llamar al LLM (son 1759 sesiones, no entran todas)."""
-    terms = _terms(profile.get("role", ""), profile.get("experience", ""), prompt or "")
-    interests = set(profile.get("interests") or [])
-    scored = []
-    for s in _data():
-        title = s.get("title", "").lower()
-        abstract = (s.get("abstract") or "").lower()
-        services = (s.get("services") or "").lower()
-        people = _people_text(s)
-        topic_aoi = set(_split(s.get("topic")) + _split(s.get("aoi")))
-        score = 0.0
-        for t in terms:
-            if t in title:
-                score += 3
-            if t in people:
-                score += 2
-            if t in abstract:
-                score += 1
-            if t in services:
-                score += 1
-        if interests & topic_aoi:
-            score += 4 * len(interests & topic_aoi)
-        scored.append((score, s))
-    # Orden estable: a igual puntaje queda el orden por fecha, así un perfil sin señales igual recibe candidatas.
-    scored.sort(key=lambda x: -x[0])
-    return [
-        {**s, "topic": _split(s.get("topic")), "aoi": _split(s.get("aoi")), "relevance": round(sc, 1)}
-        for sc, s in scored[:limit]
-    ]

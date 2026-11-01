@@ -231,3 +231,10 @@ button.ra-chip { cursor: pointer; border: 1px solid var(--line-strong); }
 .ra-filters > summary { list-style: none; width: 100%; }
 .ra-filters > summary::-webkit-details-marker { display: none; }
 .ra-filters[open] > summary { margin-bottom: var(--space-3); }
+.ra-ask-turn { border-top: 1px solid var(--line); padding-top: var(--space-3); }
+/* En el celular la navegación baja a una segunda línea y se reparte el ancho: con 5 entradas no entra al lado de la marca. */
+@media (max-width: 560px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar > .actions { flex: 1 1 100% !important; flex-wrap: nowrap; justify-content: space-between; gap: 0; }
+  .topbar .iconbtn { min-width: 0; padding: 0 4px; font-size: 11px; letter-spacing: 0; }
+}

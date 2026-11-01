@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import explore, knowledge
+from . import ask, explore, knowledge
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -51,3 +51,15 @@ def explore_catalog(body: ExploreQuery):
 @router.get("/search/entities")
 def search_entities(q: str = Query(min_length=2, max_length=80)):
     return knowledge.search_entities(q)
+
+
+class AskQuery(BaseModel):
+    q: str = Field(min_length=2, max_length=500)
+
+
+@router.post("/ask")
+def ask_catalog(body: AskQuery):
+    try:
+        return ask.answer(body.q.strip())
+    except ask.AskUnavailable:
+        raise HTTPException(502, "No pude responder ahora. Probá de nuevo en un rato o usá Explorar.") from None

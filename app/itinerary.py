@@ -1,7 +1,7 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
 import logging
 
-from . import catalog, config, db, llm, prompts
+from . import catalog, config, db, llm, prompts, search
 
 log = logging.getLogger("reinventar.itinerary")
 
@@ -99,7 +99,7 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
         taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type")), instance["c"]))
         confirmed_cards.append(catalog.card(session, instance))
 
-    candidates = [c for c in catalog.prefilter(profile, prompt, config.ITINERARY_CANDIDATE_LIMIT) if c["base"] not in locked_bases]
+    candidates = [c for c in search.prefilter(profile, prompt, config.ITINERARY_CANDIDATE_LIMIT) if c["base"] not in locked_bases]
     if not candidates:
         raise ValueError("No encontramos sesiones que calcen con tu perfil. Probá con un prompt más amplio.")
 
