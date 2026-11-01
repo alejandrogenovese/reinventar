@@ -26,6 +26,7 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | `app/catalog.py` | catálogo de re:Invent leído de Postgres (schema `reinvent`) a memoria al arrancar: facets y búsqueda, con speakers, empresa y sector |
 | `app/search.py`, `app/embeddings.py` | búsqueda híbrida: embeddings multilingües locales (fastembed) + BM25, fusionados con RRF; vectores guardados en `speech_embedding`; prefiltro del itinerario |
 | `app/ask.py` | chat de búsqueda (`POST /api/k/ask`): responde citando charlas por código |
+| `app/briefing.py` | "Preparar conversación" (`POST /api/k/briefing`): ficha de un speaker o empresa cruzada con el perfil del usuario y sus grabaciones; caché por usuario en `briefings` |
 | `app/talks.py` | grabación ↔ charla del catálogo: elegirla al grabar (`GET /api/k/talks/pick`), contexto oficial para el resumen y nombres propios para la traducción |
 | `app/sectors.py` | mapeo industria → sector (tabla `sector_industria` en el schema de la app; los valores iniciales no pisan ediciones) |
 | `app/venues.py` | coordenadas de los hoteles/venues del Strip para el mapa |
@@ -88,6 +89,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `LLM_PROVIDER` | `anthropic` | `openai` + `LLM_BASE_URL` para pasar por LiteLLM |
 | `TRANSLATE_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar |
 | `SUMMARY_MODEL` | `claude-opus-5-5` | `claude-sonnet-5-5` |
+| `BRIEFING_MODEL` | `claude-sonnet-5-5` | modelo de la ficha para conversar |
 | `ASK_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar el chat de búsqueda |
 | `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
 | `EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | otro modelo de fastembed (se recalculan todos los vectores) |

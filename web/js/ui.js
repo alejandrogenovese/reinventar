@@ -84,3 +84,18 @@ export function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.remove(), 3500);
 }
+
+const CODE = /\[([A-Z0-9][A-Z0-9-]{2,19})\]/g;
+
+/** Texto con [CODIGO] → links a la ficha de la charla; solo para códigos de `valid` (los demás quedan como texto). */
+export function withCodeLinks(text, valid) {
+  const parts = [];
+  let last = 0;
+  for (const m of text.matchAll(CODE)) {
+    parts.push(text.slice(last, m.index));
+    parts.push(valid.has(m[1]) ? h("a", { class: "ra-link", href: `#/charla/${m[1]}` }, m[1]) : m[0]);
+    last = m.index + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}

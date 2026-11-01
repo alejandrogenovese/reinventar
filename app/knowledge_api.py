@@ -1,10 +1,10 @@
 """Fichas navegables (charla, speaker, empresa) y buscador de personas/empresas."""
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import ask, explore, knowledge, talks
+from . import ask, briefing, explore, knowledge, talks
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -69,3 +69,19 @@ def ask_catalog(body: AskQuery):
         return ask.answer(body.q.strip())
     except ask.AskUnavailable:
         raise HTTPException(502, "No pude responder ahora. Probá de nuevo en un rato o usá Explorar.") from None
+
+
+class BriefingQuery(BaseModel):
+    kind: Literal["speaker", "empresa"]
+    id: int = Field(ge=1)
+    refresh: bool = False
+
+
+@router.post("/briefing")
+def make_briefing(body: BriefingQuery, username: str = Depends(auth)):
+    """Ficha para conversar con un speaker o empresa, cruzada con el perfil de quien la pide (en caché por usuario)."""
+    try:
+        result = briefing.get(username, body.kind, body.id, body.refresh)
+    except briefing.BriefingUnavailable:
+        raise HTTPException(502, "No pude preparar la ficha ahora. Probá de nuevo en un rato.") from None
+    return _or_404(result, "Speaker" if body.kind == "speaker" else "Empresa")

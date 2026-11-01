@@ -1,11 +1,10 @@
 // Preguntar: chat de búsqueda sobre el catálogo. La respuesta cita charlas por código ([ARC407]) y las muestra abajo.
 import { Itinerary, Knowledge } from "./api.js";
 import { SessionMiniCard } from "./itinerary.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, toast, withCodeLinks } from "./ui.js";
 
 const MAX_QUESTION = 500;
 const HISTORY_LIMIT = 10;
-const CODE = /\[([A-Z0-9][A-Z0-9-]{2,19})\]/g;
 const EXAMPLES = [
   "Bancos latinoamericanos usando IA generativa",
   "Cómo bajar costos de inferencia",
@@ -20,27 +19,14 @@ const addToItinerary = (code) => async () => {
   try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
 };
 
-/** Texto con [CODIGO] → links a la ficha (solo los códigos que el servidor validó). */
-function withLinks(text, cited) {
-  const parts = [];
-  let last = 0;
-  for (const m of text.matchAll(CODE)) {
-    parts.push(text.slice(last, m.index));
-    parts.push(cited.has(m[1]) ? h("a", { class: "ra-link", href: `#/charla/${m[1]}` }, m[1]) : m[0]);
-    last = m.index + m[0].length;
-  }
-  parts.push(text.slice(last));
-  return parts;
-}
-
 function Answer(text, citedList) {
   const cited = new Set(citedList);
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const bullets = lines.filter((l) => l.startsWith("- "));
   const paragraphs = lines.filter((l) => !l.startsWith("- "));
   return h("div", { class: "stack" },
-    paragraphs.map((l) => h("p", {}, withLinks(l, cited))),
-    bullets.length ? h("ul", { class: "ra-people" }, bullets.map((l) => h("li", {}, withLinks(l.slice(2), cited)))) : null);
+    paragraphs.map((l) => h("p", {}, withCodeLinks(l, cited))),
+    bullets.length ? h("ul", { class: "ra-people" }, bullets.map((l) => h("li", {}, withCodeLinks(l.slice(2), cited)))) : null);
 }
 
 function Exchange({ q, result }) {

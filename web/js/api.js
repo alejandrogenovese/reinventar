@@ -87,6 +87,7 @@ export const Knowledge = {
   searchEntities: (q) => api(`/api/k/search/entities?${new URLSearchParams({ q })}`),
   explore: (body) => api("/api/k/explore", { method: "POST", json: body }),
   ask: (q) => api("/api/k/ask", { method: "POST", json: { q } }),
+  briefing: (kind, id, refresh = false) => api("/api/k/briefing", { method: "POST", json: { kind, id: Number(id), refresh } }),
   pickTalk: (q) => api(`/api/k/talks/pick?${new URLSearchParams({ q })}`),
 };
 

@@ -1,5 +1,6 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
+import { BriefingPanel } from "./briefing.js";
 import { People, SessionMiniCard } from "./itinerary.js";
 import { Button, StatusPill, h, toast } from "./ui.js";
 
@@ -68,6 +69,7 @@ export async function viewSpeaker(view, id) {
       h("h1", { class: "title" }, sp.name),
       h("p", {}, [p.title, company].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))),
       sp.company?.sector ? h("span", { class: "caption" }, [sp.company.sector, sp.company.industry].filter(Boolean).join(" › ")) : null),
+    BriefingPanel("speaker", sp.id, sp.talks.map((t) => t.base)),
     Profile(sp.profile),
     section(`Charlas en re:Invent (${sp.talks.length})`, cardList(sp.talks)),
     sp.co_speakers.length ? section("Comparte escenario con", h("ul", { class: "ra-people" }, sp.co_speakers.map((c) => PersonLink(c)))) : null));
@@ -82,6 +84,7 @@ export async function viewEmpresa(view, id) {
       h("h1", { class: "title" }, e.name),
       h("p", { class: "caption" }, [e.sector, e.industry].filter(Boolean).join(" › ") || "Sin clasificar"),
       e.group && e.group !== e.name ? h("p", { class: "caption" }, `Grupo: ${e.group}`) : null),
+    BriefingPanel("empresa", e.id, e.talks.map((t) => t.base)),
     section(`Quiénes vienen (${e.people_total})`,
       h("ul", { class: "ra-people" }, e.people.map((p) => PersonLink(p, `· ${p.talks} charla${p.talks === 1 ? "" : "s"}`))),
       truncated(e.people.length, e.people_total, "personas")),

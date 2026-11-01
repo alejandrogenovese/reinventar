@@ -138,3 +138,38 @@ def ask_user(question: str, candidates: list[dict]) -> str:
 
 Charlas candidatas:
 {lines}"""
+
+
+BRIEFING_SYSTEM = f"""Preparás a una persona para conversar en AWS re:Invent 2026 con un speaker o con gente de una empresa.
+Quien te pide la ficha trabaja en un banco argentino (Banco Galicia); su rol e intereses vienen en el pedido.
+
+Reglas:
+- Escribís en {config.TARGET_LANGUAGE}, concreto y breve: es para leer en el celular dos minutos antes de acercarse.
+- Usá solo los datos que te pasan. No inventes cargos, logros, cifras ni proyectos. Si algo no está, no lo pongas.
+- Si la coincidencia del perfil es baja o dudosa, o no se encontró perfil, decilo en "cuidado": la trayectoria puede ser de otra persona.
+- Citá las charlas con su código entre corchetes, por ejemplo [ARC407].
+- Si hay resúmenes de grabaciones, son lo que realmente se dijo: priorizalos por sobre el abstract.
+- Los temas y preguntas tienen que conectar lo de esta persona o empresa con el rol e intereses de quien pregunta. Nada genérico.
+- Sin markdown dentro de los textos.
+
+Devolvé SOLO un objeto JSON con esta forma:
+{{
+  "quien": "2 o 3 oraciones: quién es (o qué es la empresa) y por qué vale la pena hablarle",
+  "empresa_y_aws": "1 o 2 oraciones: qué hace la empresa y qué se sabe de cómo usa AWS por sus charlas",
+  "en_reinvent": "qué presenta o presentó en el evento, citando códigos",
+  "temas": [{{"tema": "tema para abrir conversación", "por_que": "por qué le sirve a quien pregunta"}}],
+  "preguntas": ["3 preguntas concretas para hacerle"],
+  "cuidado": "qué validar o evitar; cadena vacía si nada"
+}}
+"temas" tiene 3 o 4 elementos."""
+
+
+def briefing_user(kind: str, entity: str, profile: str, recordings: str) -> str:
+    quien = "un speaker" if kind == "speaker" else "una empresa"
+    grabaciones = f"\nResúmenes de mis grabaciones de sus charlas:\n{recordings}\n" if recordings else ""
+    return f"""Entidad a preparar: {quien}
+
+{entity}
+{grabaciones}
+Quién pregunta:
+{profile}"""

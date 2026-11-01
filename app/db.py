@@ -218,6 +218,17 @@ def recordings_for(codes):
     return [dict(r) for r in rows]
 
 
+def ready_summaries_for(codes):
+    """Grabaciones procesadas de estos códigos, con su resumen (para el briefing)."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT code, title, summary FROM sessions WHERE code = ANY(%s) AND status = 'ready' AND summary IS NOT NULL "
+            "ORDER BY created_at DESC",
+            (list(codes),),
+        ).fetchall()
+    return [{**dict(r), "summary": json.loads(r["summary"])} for r in rows]
+
+
 def sessions_in(statuses):
     with conn() as c:
         rows = c.execute(

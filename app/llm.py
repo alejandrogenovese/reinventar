@@ -74,6 +74,11 @@ def _openai(model, system, user, max_tokens):
 
 
 def _fake(system, user):
+    if user.startswith("Entidad a preparar:"):  # briefing
+        return json.dumps({
+            "quien": "Persona de prueba (fake).", "empresa_y_aws": "Empresa de prueba.", "en_reinvent": "Charla de prueba.",
+            "temas": [{"tema": "Tema de prueba", "por_que": "Porque sí."}] * 3, "preguntas": ["¿Pregunta?"], "cuidado": "",
+        })
     if user.startswith("Pregunta:"):  # chat de búsqueda
         codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
         return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
