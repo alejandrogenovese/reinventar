@@ -116,7 +116,7 @@ export async function viewItinerario(view) {
           h("p", { class: "caption" }, "Contestá un par de preguntas y la IA te recomienda sesiones.")),
         h("div", { class: "actions" },
           Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/cuestionario") }),
-          Button("Buscar sesiones", { onclick: () => (location.hash = "#/explorar") }))));
+          Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") }))));
       return;
     }
 
@@ -128,7 +128,7 @@ export async function viewItinerario(view) {
       h("h1", { class: "title" }, "Tu itinerario"),
       h("div", { class: "actions" },
         Button("Rehacer cuestionario", { onclick: () => (location.hash = "#/itinerario/cuestionario") }),
-        Button("Buscar sesiones", { onclick: () => (location.hash = "#/explorar") })),
+        Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, list,
       data.skipped?.length ? h("details", { class: "notice" },

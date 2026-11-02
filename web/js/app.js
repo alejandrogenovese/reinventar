@@ -1,13 +1,12 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
-import { viewAsk } from "./ask.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
-import { viewExplore } from "./explore.js";
 import { InstallPrompt } from "./install.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
+import { viewSearch } from "./search.js";
 import { TalkPicker } from "./talkpicker.js";
 import { TodayPanel } from "./today.js";
 import * as it from "./itinerary.js";
@@ -55,9 +54,11 @@ const routes = [
   [/^#\/s\/([\w-]+)$/, viewDetail],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
-  [/^#\/itinerario\/explorar$/, () => { location.replace("#/explorar"); }], // ruta vieja: la búsqueda vive en Explorar
-  [/^#\/explorar(\?.*)?$/, () => viewExplore(view)],
-  [/^#\/preguntar$/, () => viewAsk(view)],
+  [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
+  // Rutas viejas: Explorar y Preguntar ahora son los dos modos de Buscar.
+  [/^#\/itinerario\/explorar$/, () => location.replace("#/buscar")],
+  [/^#\/explorar(\?.*)?$/, (qs = "") => location.replace(`#/buscar${qs}`)],
+  [/^#\/preguntar$/, () => location.replace("#/buscar?modo=preguntar")],
   [/^#\/charla\/([\w-]+)$/, (base) => viewCharla(view, base)],
   [/^#\/speaker\/(\d+)$/, (id) => viewSpeaker(view, id)],
   [/^#\/empresa\/(\d+)$/, (id) => viewEmpresa(view, id)],

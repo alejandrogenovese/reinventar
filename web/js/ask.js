@@ -1,4 +1,4 @@
-// Preguntar: chat de búsqueda sobre el catálogo. La respuesta cita charlas por código ([ARC407]) y las muestra abajo.
+// Buscar › Preguntar: chat de búsqueda sobre el catálogo. La respuesta cita charlas por código ([ARC407]) y las muestra abajo.
 import { Itinerary, Knowledge } from "./api.js";
 import { SessionMiniCard } from "./itinerary.js";
 import { Button, h, toast, withCodeLinks } from "./ui.js";
@@ -41,7 +41,8 @@ function Exchange({ q, result }) {
     others.length ? h("details", { class: "notice" }, h("summary", { class: "label" }, `Otras que pueden servirte (${others.length})`), cards(others)) : null);
 }
 
-export function viewAsk(view) {
+/** Modo Preguntar de Buscar: formulario, ejemplos y la conversación (sobrevive al cambiar de pantalla). */
+export function AskPanel() {
   const input = h("textarea", { rows: "2", maxlength: String(MAX_QUESTION), "aria-label": "Tu pregunta",
     placeholder: "Ej: ¿qué bancos cuentan cómo usan agentes con Bedrock?" });
   const submit = Button("Preguntar", { variant: "primary", type: "submit" });
@@ -73,14 +74,12 @@ export function viewAsk(view) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
   });
 
-  view.append(h("div", { class: "stack-lg" },
-    h("div", { class: "stack" },
-      h("h1", { class: "title" }, "Preguntar"),
-      h("p", { class: "caption" }, "Contá qué buscás con tus palabras: busco en las 1.759 charlas y te respondo citando las que sirven."),
-      h("p", { class: "caption" }, h("a", { class: "ra-link", href: "#/explorar" }, "¿Preferís filtrar? Ir a Explorar"))),
+  const panel = h("div", { class: "stack-lg" },
+    h("p", { class: "caption" }, "Contá qué buscás con tus palabras: busco en todo el catálogo y te respondo citando las charlas que sirven."),
     form,
     history.length ? null : h("div", { class: "ra-chips" },
       EXAMPLES.map((ex) => h("button", { type: "button", class: "ra-chip", onclick: () => { input.value = ex; ask(ex); } }, ex))),
-    turns));
+    turns);
   paint();
+  return panel;
 }
