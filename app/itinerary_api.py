@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, itinerary
+from . import catalog, config, db, itinerary, today
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -23,6 +23,11 @@ class Generate(BaseModel):
 
 class AddItem(BaseModel):
     code: str = Field(min_length=1, max_length=40)
+
+
+@router.get("/api/today")
+def get_today(username: str = Depends(auth)):
+    return today.for_user(username)
 
 
 @router.get("/api/maps-key")

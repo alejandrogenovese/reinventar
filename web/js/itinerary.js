@@ -1,16 +1,10 @@
-// Cuestionario de perfil + itinerario con mapa + exploración manual del catálogo.
+// Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Itinerary } from "./api.js";
-import { EntityResults } from "./knowledge.js";
 import { renderMap } from "./map.js";
 import { Button, h, toast } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
-
-function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
 
 const PEOPLE_LIMIT = 4;
 
@@ -102,7 +96,7 @@ export async function viewItinerario(view) {
           h("p", { class: "caption" }, "Contestá un par de preguntas y la IA te recomienda sesiones.")),
         h("div", { class: "actions" },
           Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/cuestionario") }),
-          Button("Buscar sesiones", { onclick: () => (location.hash = "#/itinerario/explorar") }))));
+          Button("Buscar sesiones", { onclick: () => (location.hash = "#/explorar") }))));
       return;
     }
 
@@ -114,7 +108,7 @@ export async function viewItinerario(view) {
       h("h1", { class: "title" }, "Tu itinerario"),
       h("div", { class: "actions" },
         Button("Rehacer cuestionario", { onclick: () => (location.hash = "#/itinerario/cuestionario") }),
-        Button("Buscar sesiones", { onclick: () => (location.hash = "#/itinerario/explorar") })),
+        Button("Buscar sesiones", { onclick: () => (location.hash = "#/explorar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, list,
       data.skipped?.length ? h("details", { class: "notice" },
@@ -144,33 +138,4 @@ export async function viewItinerario(view) {
     paintList();
   }
   await paint();
-}
-
-export async function viewExplorar(view) {
-  const meta = await Catalog.meta();
-  const qInput = h("input", { placeholder: "Buscar por título, tema, persona o empresa…", "aria-label": "Buscar sesiones" });
-  const daySelect = h("select", { "aria-label": "Día" },
-    h("option", { value: "" }, "Todos los días"),
-    meta.dates.map((d) => h("option", { value: d.value }, d.value)));
-  const results = h("div", { class: "daylist" });
-  const entities = h("div");
-
-  async function search() {
-    const q = qInput.value.trim();
-    const [rows, found] = await Promise.all([Catalog.search({ q, day: daySelect.value, limit: "40" }), EntityResults(q)]);
-    entities.replaceChildren(found);
-    results.replaceChildren(...(rows.length
-      ? rows.map((s) => SessionMiniCard(s, { onAdd: async () => { await Itinerary.add(s.code); toast("Agregada al itinerario."); } }))
-      : [h("div", { class: "empty" }, "Sin resultados.")]));
-  }
-  qInput.addEventListener("input", debounce(search, 300));
-  daySelect.addEventListener("change", search);
-
-  view.replaceChildren(h("div", { class: "stack-lg" },
-    h("h1", { class: "title" }, "Buscar sesiones"),
-    h("div", { class: "field" }, qInput),
-    h("div", { class: "field" }, daySelect),
-    entities,
-    results));
-  await search();
 }

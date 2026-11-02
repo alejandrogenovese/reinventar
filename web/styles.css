@@ -265,3 +265,18 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
   .navitem[aria-current="page"]::after { top: 0; bottom: auto; left: 30%; right: 30%; }
   .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }  /* por encima de la barra inferior */
 }
+
+/* --- Hoy (inicio): ahora / próxima / resto del día --------------------------- */
+.ra-today {
+  background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2); box-shadow: var(--edge), var(--shadow-1);
+}
+.ra-today.is-now { box-shadow: inset 4px 0 0 var(--brand), var(--edge), var(--shadow-2); }
+.ra-today-when { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.ra-today-when .ra-mono { font: var(--t-data); color: var(--ink-muted); }
+.ra-today.is-now .ra-today-when .label { color: var(--brand-ink); }
+.ra-today .ra-card-title .ra-link { text-decoration: none; }
+.ra-today-later { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-today-later li { display: flex; gap: var(--space-3); align-items: baseline; font: var(--t-small); }
+.ra-today-later .ra-mono { font: var(--t-data); color: var(--ink-muted); flex: none; }
+.ra-today-empty { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }

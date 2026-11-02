@@ -41,6 +41,10 @@ export const Catalog = {
   get: (base) => api(`/api/catalog/sessions/${base}`),
 };
 
+export const Today = {
+  get: () => api("/api/today"),
+};
+
 export const Itinerary = {
   profile: () => api("/api/itinerary/profile"),
   generate: (profile, prompt) => api("/api/itinerary/generate", { method: "POST", json: { profile, prompt } }),

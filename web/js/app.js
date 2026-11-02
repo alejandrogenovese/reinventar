@@ -8,6 +8,7 @@ import { InstallPrompt } from "./install.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import { TalkPicker } from "./talkpicker.js";
+import { TodayPanel } from "./today.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -53,7 +54,7 @@ const routes = [
   [/^#\/s\/([\w-]+)$/, viewDetail],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
-  [/^#\/itinerario\/explorar$/, () => it.viewExplorar(view)],
+  [/^#\/itinerario\/explorar$/, () => { location.replace("#/explorar"); }], // ruta vieja: la búsqueda vive en Explorar
   [/^#\/explorar(\?.*)?$/, () => viewExplore(view)],
   [/^#\/preguntar$/, () => viewAsk(view)],
   [/^#\/charla\/([\w-]+)$/, (base) => viewCharla(view, base)],
@@ -106,9 +107,13 @@ function renderError(e) {
 async function viewList() {
   const list = h("div", { class: "stack" });
   const banner = h("div");
+  const todaySlot = h("div");
+  const newBtn = Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") });
   view.append(h("div", { class: "stack-lg" },
-    h("div", { class: "actions" }, Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") })),
-    InstallPrompt({ dismissible: true }), PasskeyOffer(), banner, list));
+    todaySlot,
+    h("div", { class: "actions" }, newBtn),
+    InstallPrompt({ dismissible: true }), PasskeyOffer(), banner,
+    h("h2", { class: "label" }, "Tus grabaciones"), list));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
@@ -118,6 +123,13 @@ async function viewList() {
   uploader.refresh(); uploader.kick();
 
   const sessions = await Sessions.list();
+  TodayPanel(sessions)
+    .then(({ el, hasTalk }) => {
+      todaySlot.replaceChildren(el);
+      // Un solo botón primario: si hay una charla para grabar, "Nueva sesión" pasa a secundario.
+      if (hasTalk) newBtn.className = "ra-btn ra-btn-secondary";
+    })
+    .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${err.message}`)));
   if (!sessions.length) {
     list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva sesión.")));
     return;
