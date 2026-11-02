@@ -10,7 +10,7 @@ const dayLabel = (iso) =>
 const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
 
 /** Crea la sesión de grabación con los datos de la charla y abre el grabador. */
-async function recordTalk(s, btn) {
+export async function recordTalk(s, btn) {
   btn.disabled = true;
   try {
     const rec = await Sessions.create({

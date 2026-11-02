@@ -33,16 +33,26 @@ export function RecordButton(state, onClick) {
     h("span", { class: "ra-rec-label" }, label));
 }
 
+const METER_SEGMENTS = 24;
+const METER_HOT = 0.75;   // desde acá conviene alejar el micrófono
+const METER_CLIP = 0.95;  // satura: se pierde audio
+const METER_SILENT = 0.05;
+
+const meterZone = (x) => (x > METER_CLIP ? "clip" : x > METER_HOT ? "hot" : "ok");
+
+/** Medidor de entrada por segmentos (verde/ámbar/rojo) con la palabra de estado al costado. */
 export function LevelMeter() {
-  const name = h("strong", {}, "Micrófono"), word = h("span", {}, "Sin señal");
-  const fill = h("div", { class: "ra-meter-fill", style: { width: "0%" } });
-  const track = h("div", { class: "ra-meter-track", role: "meter", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0", "aria-label": "Nivel de entrada" }, fill);
+  const name = h("strong", {}, "Micrófono"), word = h("span", { class: "ra-meter-word" }, "Sin señal");
+  const segs = Array.from({ length: METER_SEGMENTS }, (_, i) => h("span", { class: `ra-seg is-${meterZone((i + 1) / METER_SEGMENTS)}` }));
+  const track = h("div", { class: "ra-meter-track", role: "meter", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0", "aria-label": "Nivel de entrada" }, segs);
   const el = h("div", { class: "ra-meter" }, h("div", { class: "ra-meter-head" }, h("span", {}, name), word), track);
   el.update = (level, device) => {
     if (device) name.textContent = device;
-    fill.style.width = `${Math.round(level * 100)}%`;
-    fill.className = "ra-meter-fill" + (level > 0.95 ? " is-clip" : level > 0.75 ? " is-hot" : "");
-    word.textContent = level > 0.95 ? "Satura" : level > 0.75 ? "Alto" : level < 0.05 ? "Sin señal" : "Bien";
+    const lit = Math.round(level * METER_SEGMENTS);
+    segs.forEach((s, i) => s.classList.toggle("is-lit", i < lit));
+    const state = level > METER_CLIP ? "clip" : level > METER_HOT ? "hot" : level < METER_SILENT ? "silent" : "ok";
+    word.textContent = { clip: "Satura", hot: "Alto", silent: "Sin señal", ok: "Bien" }[state];
+    word.dataset.state = state;
     track.setAttribute("aria-valuenow", String(Math.round(level * 100)));
   };
   return el;

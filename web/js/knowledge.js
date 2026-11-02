@@ -1,7 +1,8 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
-import { People, SessionMiniCard } from "./itinerary.js";
+import { People, SessionMiniCard, shortDay } from "./itinerary.js";
+import { recordTalk } from "./today.js";
 import { Button, StatusPill, Tag, h, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
@@ -15,6 +16,34 @@ const addToItinerary = (code) => async () => {
 };
 const cardList = (talks) => h("div", { class: "daylist" }, talks.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
 
+const initials = (name) => (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+
+/** Encabezado de ficha: avatar con iniciales (speaker/empresa), título y líneas de contexto. */
+function EntityHeader(name, ...lines) {
+  return h("header", { class: "ra-entity" },
+    h("span", { class: "ra-avatar", "aria-hidden": "true" }, initials(name)),
+    h("div", { class: "stack" }, h("h1", { class: "title" }, name), ...lines));
+}
+
+const live = (r) => r.status === "recording" || r.status === "uploading";
+
+/** Acción principal de la charla: grabarla, o seguir/ver la grabación si ya existe. */
+function TalkRecordAction(s) {
+  const mine = s.recordings?.[0];
+  if (mine) return Button(live(mine) ? "Seguir grabando" : "Ver grabación", { variant: "primary",
+    onclick: () => (location.hash = live(mine) ? `#/grabar/${mine.id}` : `#/s/${mine.id}`) });
+  const btn = Button("Grabar esta charla", { variant: "primary", onclick: () => recordTalk(s, btn) });
+  return btn;
+}
+
+/** Horario como tarjeta tocable: riel de hora/día, sede y Agregar. */
+const Slot = (i) => h("li", { class: "ra-slot" },
+  h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, i.start || "—"), h("span", { class: "ra-rail-day" }, shortDay(i.day))),
+  h("div", { class: "ra-slot-body" },
+    h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
+    i.code !== i.base ? h("span", { class: "caption" }, i.code) : null),
+  Button("Agregar", { onclick: addToItinerary(i.code), "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` }));
+
 function PersonLink(p, extra) {
   const where = [p.title, p.company].filter(Boolean).join(" · ");
   return h("li", {},
@@ -27,16 +56,16 @@ function PersonLink(p, extra) {
 export async function viewCharla(view, base) {
   const s = await Knowledge.speech(base);
   view.append(h("div", { class: "stack-lg" },
-    h("div", { class: "stack" },
+    h("header", { class: "stack" },
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h1", { class: "title" }, s.title),
-      s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
-      chips([...(s.topic || []), ...(s.aoi || [])])),
-    section("Horarios", h("ul", { class: "ra-people" }, s.instances.map((i) => h("li", { class: "actions is-center is-between" },
-      h("span", {}, h("strong", {}, `${i.day} · ${i.start}`), ` — ${[i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ")}`),
-      Button("Agregar", { onclick: addToItinerary(i.code) }))))),
+      s.newlaunch || s.topic?.length || s.aoi?.length ? h("div", { class: "ra-chips" },
+        s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
+        [...(s.topic || []), ...(s.aoi || [])].map(Tag)) : null,
+      h("div", { class: "actions" }, TalkRecordAction(s))),
+    s.abstract ? section("De qué se trata", h("p", { class: "ra-prose" }, s.abstract)) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
-    s.abstract ? section("De qué se trata", h("p", {}, s.abstract)) : null,
+    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Horarios", h("ul", { class: "ra-slots" }, s.instances.map(Slot))) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
     s.recordings?.length ? section("Tus grabaciones", h("ul", { class: "ra-people" }, s.recordings.map((r) =>
       h("li", { class: "actions is-center" }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
@@ -65,8 +94,7 @@ export async function viewSpeaker(view, id) {
   const p = sp.profile || {};
   const company = sp.company?.id ? h("a", { class: "ra-link", href: `#/empresa/${sp.company.id}` }, sp.company.name) : sp.company?.name;
   view.append(h("div", { class: "stack-lg" },
-    h("div", { class: "stack" },
-      h("h1", { class: "title" }, sp.name),
+    EntityHeader(sp.name,
       h("p", {}, [p.title, company].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))),
       sp.company?.sector ? h("span", { class: "caption" }, [sp.company.sector, sp.company.industry].filter(Boolean).join(" › ")) : null),
     BriefingPanel("speaker", sp.id, sp.talks.map((t) => t.base)),
@@ -80,8 +108,7 @@ export async function viewEmpresa(view, id) {
   const e = await Knowledge.empresa(id);
   const truncated = (shown, total, what) => (total > shown ? h("p", { class: "caption" }, `Mostrando ${shown} de ${total} ${what}.`) : null);
   view.append(h("div", { class: "stack-lg" },
-    h("div", { class: "stack" },
-      h("h1", { class: "title" }, e.name),
+    EntityHeader(e.name,
       h("p", { class: "caption" }, [e.sector, e.industry].filter(Boolean).join(" › ") || "Sin clasificar"),
       e.group && e.group !== e.name ? h("p", { class: "caption" }, `Grupo: ${e.group}`) : null),
     BriefingPanel("empresa", e.id, e.talks.map((t) => t.base)),

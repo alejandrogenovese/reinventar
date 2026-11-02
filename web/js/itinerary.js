@@ -23,7 +23,7 @@ export function People(s) {
 
 const ABSTRACT_FOLD = 220; // más largo que esto se pliega a 3 líneas con "Leer más"
 
-const shortDay = (iso) => (iso
+export const shortDay = (iso) => (iso
   ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" }).replace(/[.,]/g, "")
   : "");
 

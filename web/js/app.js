@@ -209,6 +209,7 @@ async function viewRecord(id) {
   const rec = new Recorder(id);
   activeRecorder = rec;
   const counter = h("div", { class: "counter", "aria-live": "off" }, hms(rec.elapsed() / 1000));
+  const recStatus = h("p", { class: "ra-recstatus", role: "status" });
   const meter = LevelMeter();
   const micSelect = h("select", { id: "mic", "aria-label": "Micrófono" });
   const recSlot = h("div");
@@ -221,12 +222,19 @@ async function viewRecord(id) {
   view.append(h("div", { class: "stack-lg" },
     h("div", {}, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), h("h1", { class: "title" }, s.title),
       resumed ? h("p", { class: "caption" }, "Retomás una grabación: lo nuevo se agrega a continuación.") : null),
-    h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect),
-    h("div", { class: "recorder" }, meter, counter, recSlot, upl, msg,
+    h("section", { class: "ra-input", "aria-label": "Entrada de audio" },
+      h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter),
+    h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, upl, msg,
       h("div", { class: "actions" }, salaBtn, finishBtn),
       h("div", { class: "actions" }, Button("Descartar", { variant: "danger", onclick: discard })))));
 
-  const paint = () => recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle));
+  const REC_STATUS = { idle: "Listo para grabar", stopped: "Listo para grabar", recording: "Grabando", paused: "En pausa" };
+  const paint = () => {
+    recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle));
+    counter.dataset.state = rec.state;
+    recStatus.dataset.state = rec.state;
+    recStatus.textContent = REC_STATUS[rec.state] || "";
+  };
   rec.addEventListener("state", () => { paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
   rec.addEventListener("level", (e) => meter.update(e.detail, rec.deviceLabel));

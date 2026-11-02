@@ -38,6 +38,7 @@ def test_ficha_de_charla_con_horarios_speakers_y_relacionadas():
         assert [i["code"] for i in body["instances"]] == ["ARC407"]
         assert [p["name"] for p in body["people"]][1] == "Mohammed Ali Syed"
         assert body["related"] and "ARC407" not in {s["base"] for s in body["related"]}
+        assert body["recording_kind"] == "Breakout"  # el botón Grabar crea la sesión con este tipo
         assert missing.status_code == 404
 
 

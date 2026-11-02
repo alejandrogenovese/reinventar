@@ -2,6 +2,10 @@
 import { Knowledge } from "./api.js";
 import { Button, h, toast, withCodeLinks } from "./ui.js";
 
+const BriefingSkeleton = () => h("div", { class: "ra-skeleton", "aria-busy": "true", "aria-label": "Preparando la ficha" },
+  h("p", { class: "caption" }, "Preparando la ficha… tarda unos segundos la primera vez."),
+  Array.from({ length: 4 }, () => h("div", { class: "ra-skel ra-skel-line" })));
+
 const formatDate = (epochSeconds) => new Date(epochSeconds * 1000).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 
 function BriefingBody(b, codes) {
@@ -27,7 +31,7 @@ export function BriefingPanel(kind, id, talkCodes) {
   const slot = h("div", { class: "stack" });
 
   async function load(refresh) {
-    slot.replaceChildren(h("p", { class: "caption" }, "Preparando la ficha… (tarda unos segundos la primera vez)"));
+    slot.replaceChildren(BriefingSkeleton());
     try {
       const r = await Knowledge.briefing(kind, id, refresh);
       slot.replaceChildren(
@@ -43,8 +47,8 @@ export function BriefingPanel(kind, id, talkCodes) {
 
   const start = Button("Preparar conversación", { variant: "primary", onclick: () => load(false) });
   slot.append(start);
-  return h("section", { class: "stack notice" },
-    h("h2", { class: "label" }, "Para conversar"),
+  return h("section", { class: "stack ra-converse", "aria-labelledby": `conv-${kind}-${id}` },
+    h("h2", { class: "label", id: `conv-${kind}-${id}` }, "Para conversar"),
     h("p", { class: "caption" }, "Quién es, qué hace su empresa con AWS y temas para abrir, cruzados con tu perfil del itinerario."),
     slot);
 }
