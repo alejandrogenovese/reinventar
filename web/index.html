@@ -1,31 +1,48 @@
 <!doctype html>
-<html lang="es-AR" data-theme="dark">
+<html lang="es-AR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0a1a">
+  <meta name="theme-color" content="#f4f4f4">
   <meta name="description" content="Grabá, traducí y resumí cada charla de re:Invent.">
   <title>ReinventAR</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <!-- iPhone: abrir a pantalla completa cuando se agrega a inicio desde Safari -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ReinventAR">
+  <!-- Tema antes de pintar (sin parpadeo): el elegido, o el del sistema -->
+  <script>
+    (function () {
+      var t; try { t = localStorage.getItem("reinventar.theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <a class="brand" href="#/">Reinvent<span>AR</span></a>
-      <div class="actions" style="flex:0 0 auto">
-        <a class="iconbtn" href="#/explorar" style="display:grid;place-items:center;text-decoration:none">Explorar</a>
-        <a class="iconbtn" href="#/preguntar" style="display:grid;place-items:center;text-decoration:none">Preguntar</a>
-        <a class="iconbtn" href="#/itinerario" style="display:grid;place-items:center;text-decoration:none">Itinerario</a>
-        <button class="iconbtn" id="themeBtn" type="button" aria-label="Cambiar tema">Tema</button>
-        <a class="iconbtn" href="#/ajustes" style="display:grid;place-items:center;text-decoration:none">Ajustes</a>
+      <a class="brand" href="#/"><img src="/icons/icon.svg" alt="" width="28" height="28"><span class="brand-word">Reinvent<span>AR</span></span></a>
+      <!-- En el celular esta misma nav se convierte en la barra inferior (styles.css) -->
+      <nav class="navbar" aria-label="Secciones">
+        <a class="navitem" href="#/" data-match="^#/?$|^#/(s|grabar|nueva)/?"><span data-icon="inicio"></span><span>Inicio</span></a>
+        <a class="navitem" href="#/explorar" data-match="^#/(explorar|charla|speaker|empresa)"><span data-icon="explorar"></span><span>Explorar</span></a>
+        <a class="navitem" href="#/preguntar" data-match="^#/preguntar"><span data-icon="preguntar"></span><span>Preguntar</span></a>
+        <a class="navitem" href="#/itinerario" data-match="^#/itinerario"><span data-icon="itinerario"></span><span>Itinerario</span></a>
+      </nav>
+      <div class="toolbar">
+        <button class="iconbtn" id="themeBtn" type="button" aria-label="Cambiar tema"><span data-icon="oscuro"></span></button>
+        <a class="iconbtn" href="#/ajustes" aria-label="Ajustes" title="Ajustes" data-match="^#/(ajustes|admin|password)"><span data-icon="ajustes"></span></a>
       </div>
     </header>
     <main id="view" aria-live="polite"></main>

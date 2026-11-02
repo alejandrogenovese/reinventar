@@ -86,7 +86,7 @@ export function PasskeyOffer() {
       h("strong", {}, "Entrá con Face ID / huella"),
       h("span", { class: "caption" }, "Así no tenés que tipear la contraseña en el evento. No se guarda ningún dato biométrico."),
       h("div", { class: "actions" },
-        Button("Activar", { variant: "primary", onclick: () => activate(dismiss) }),
+        Button("Activar", { onclick: () => activate(dismiss) }),
         Button("Ahora no", { onclick: dismiss }))));
   });
   return slot;

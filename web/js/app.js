@@ -2,6 +2,7 @@
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
 import { viewAsk } from "./ask.js";
+import { icon } from "./icons.js";
 import { viewExplore } from "./explore.js";
 import { InstallPrompt } from "./install.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
@@ -21,11 +22,20 @@ let activeRecorder = null;
 
 // --- tema --------------------------------------------------------------------
 const THEME = "reinventar.theme";
+const THEME_COLOR = { light: "#f4f4f4", dark: "#121212" };
+for (const slot of document.querySelectorAll("[data-icon]")) slot.replaceWith(icon(slot.dataset.icon));
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  document.querySelector('meta[name="theme-color"]').content = t === "light" ? "#f7f5fc" : "#0b0a1a";
+  document.querySelector('meta[name="theme-color"]').content = THEME_COLOR[t];
+  // El botón muestra a qué tema pasás: luna en claro, sol en oscuro.
+  const next = t === "dark" ? "claro" : "oscuro";
+  const btn = document.getElementById("themeBtn");
+  btn.replaceChildren(icon(next));
+  btn.setAttribute("aria-label", `Cambiar a tema ${next}`);
+  btn.title = `Tema ${next}`;
 }
-try { applyTheme(localStorage.getItem(THEME) || "dark"); } catch { applyTheme("dark"); }
+// El <head> ya puso el tema (elegido o el del sistema); acá solo se sincroniza la barra del navegador.
+applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 document.getElementById("themeBtn").addEventListener("click", () => {
   const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   applyTheme(t); try { localStorage.setItem(THEME, t); } catch {}
@@ -51,6 +61,15 @@ const routes = [
   [/^#\/empresa\/(\d+)$/, (id) => viewEmpresa(view, id)],
 ];
 
+/** Marca la sección actual (aria-current: se ve y lo anuncia el lector de pantalla); sin sesión se oculta la nav. */
+function markNav(hash) {
+  document.body.classList.toggle("is-guest", !getToken());
+  for (const a of document.querySelectorAll(".topbar [data-match]")) {
+    if (new RegExp(a.dataset.match).test(hash)) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+}
+
 let ignoreNextHash = false;
 async function route() {
   if (ignoreNextHash) { ignoreNextHash = false; return; }
@@ -62,6 +81,7 @@ async function route() {
   const hash = location.hash || "#/";
   if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
   if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
+  markNav(hash);
   for (const [re, fn] of routes) {
     const m = hash.match(re);
     if (m) {

@@ -21,7 +21,8 @@ function loadGoogleMaps() {
   return mapsPromise;
 }
 
-const DAY_COLORS = ["#ff2e88", "#a98bff", "#ffb547", "#3ee8c8", "#ff8a3d"];
+// Un color por día, de la paleta de Brick: naranja classic, info, success, morado move y warning.
+const DAY_COLORS = ["#fa6400", "#2970bc", "#258825", "#8a50f7", "#e99d09"];
 
 export async function renderMap(el, { days } = {}) {
   const maps = await loadGoogleMaps();

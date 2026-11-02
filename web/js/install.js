@@ -37,7 +37,7 @@ export function InstallPrompt({ dismissible = false } = {}) {
     h("span", { class: "caption" }, "Queda como app en la pantalla de inicio, abre a pantalla completa y funciona sin señal."),
     status,
     h("div", { class: "actions" },
-      isIOS() || isInAppBrowser() ? null : Button("Instalar app", { variant: "primary", onclick: () => install(status) }),
+      isIOS() || isInAppBrowser() ? null : Button("Instalar app", { onclick: () => install(status) }),
       dismissible ? Button("Ahora no", { onclick: () => { try { localStorage.setItem(DISMISSED, "1"); } catch {} el.remove(); } }) : null));
   return el;
 }

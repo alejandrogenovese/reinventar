@@ -1,0 +1,104 @@
+/* ReinventAR — tokens sobre Brick v2 (paleta "classic" de Galicia, Inter, escala 4/8, radios 4/8, sombras level1–4).
+   Contrastes medidos (WCAG): ver .claude/plans/rediseno-bricks.plan.md §2.1.
+   Brick no tiene modo oscuro: el oscuro se deriva de sus neutros, pensado para salas con poca luz.
+   El tema efectivo (elegido o el del sistema) lo resuelve un script en el <head> y queda en data-theme. */
+
+@layer tokens {
+  :root {
+    color-scheme: light;
+    /* Superficies y texto */
+    --bg: #f4f4f4;            /* grey20 */
+    --surface-1: #ffffff;
+    --surface-2: #fafafa;
+    --surface-3: #ececec;     /* hover, pistas de medidores */
+    --ink: #2b2b2b;           /* grey80 · 12,9:1 sobre --bg */
+    --ink-muted: #6a6a6a;     /* grey60 · 5,4:1 sobre blanco */
+    --line: #e2e2e2;
+    --line-strong: #8a8a8a;   /* bordes de campos y chips · 3,5:1 */
+
+    /* Marca: el naranja es señal (ahora, en vivo, acción principal), no decoración */
+    --brand: #fa6400;         /* classic primary */
+    --on-brand: #1a1a1a;      /* 5,7:1 sobre el naranja (el blanco da 3,05 y no pasa AA) */
+    --brand-ink: #a84308;     /* classic action · 6,0:1 sobre blanco: links y texto de marca */
+    --brand-soft: #ffe2ce;    /* classic light: fondo de "ahora" y chip activo */
+
+    /* Estados de Brick */
+    --success: #258825;       /* 4,5:1 como texto */
+    --warning: #e99d09;       /* 2,3:1: solo punto o fondo, nunca texto */
+    --error: #c51111;
+    --info: #2970bc;
+    --focus: #0e7bc4;         /* link de Brick · 4,5:1 */
+
+    /* Profundidad (sombras level1–3 de Brick) */
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .06), 0 2px 4px 1px rgb(0 0 0 / .04);
+    --shadow-2: 0 2px 2px rgb(0 0 0 / .14), 0 1px 8px rgb(0 0 0 / .12);
+    --shadow-3: 0 3px 5px -1px rgb(0 0 0 / .2), 0 6px 10px rgb(0 0 0 / .14), 0 1px 18px rgb(0 0 0 / .12);
+    --edge: 0 0 0 1px var(--line);  /* borde fino que acompaña a la sombra */
+
+    /* Tipografía: Inter para la interfaz, mono solo para datos (horas, códigos, contadores) */
+    --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --t-display: 700 32px/36px var(--font-ui);
+    --t-title: 600 24px/30px var(--font-ui);
+    --t-heading: 600 18px/24px var(--font-ui);
+    --t-body: 400 16px/24px var(--font-ui);
+    --t-body-strong: 600 16px/22px var(--font-ui);
+    --t-small: 400 14px/20px var(--font-ui);
+    --t-small-strong: 600 14px/20px var(--font-ui);
+    --t-micro: 600 12px/16px var(--font-ui);
+    --t-time: 600 15px/20px var(--font-data);
+    --t-data: 500 13px/18px var(--font-data);
+    --track-tight: -0.02em;
+    --track-micro: 0.04em;
+
+    /* Espaciado (escala de Brick) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* Radios: 8 en contenedores, 4 en piezas chicas, pill solo para estados y el botón de grabar */
+    --radius-s: 4px;
+    --radius-m: 8px;
+    --radius-pill: 999px;
+
+    /* Movimiento (animaciones de Brick) */
+    --ease: 150ms ease-in-out;
+    --ease-chip: 200ms ease-in-out;
+    --ease-sheet: 350ms ease-out;
+
+    /* Grabación */
+    --rec: var(--error);
+    --on-rec: #ffffff;
+    --glow-rec: 0 0 0 6px rgb(197 17 17 / .18);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121212;
+    --surface-1: #1c1c1c;
+    --surface-2: #262626;
+    --surface-3: #303030;
+    --ink: #f4f4f4;           /* 17,0:1 */
+    --ink-muted: #a3a3a3;     /* 6,8:1 sobre --surface-1 */
+    --line: #333333;
+    --line-strong: #6a6a6a;   /* 3,2:1 */
+    --brand-ink: #ff8a3d;     /* 7,3:1 */
+    --brand-soft: #3a2210;
+    --success: #4cb84c;
+    --warning: #f2b23a;
+    --error: #ff5a4f;
+    --info: #6ba6e6;
+    --focus: #6bb8f0;         /* 8,7:1 */
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .5);
+    --shadow-2: 0 2px 8px rgb(0 0 0 / .55);
+    --shadow-3: 0 8px 24px rgb(0 0 0 / .6);
+    --edge: inset 0 0 0 1px rgb(255 255 255 / .06);
+    --on-rec: #121212;
+    --glow-rec: 0 0 0 6px rgb(255 90 79 / .22);
+  }
+}
