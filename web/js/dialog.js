@@ -9,6 +9,7 @@ import { h } from "./ui.js";
  */
 function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Cancelar", danger = false, input }) {
   return new Promise((resolve) => {
+    const opener = document.activeElement; // al cerrar, el foco vuelve al botón que abrió el diálogo
     const field = input ? h("input", { id: "dlg-input", type: input.type || "text", minlength: input.minlength, required: true, autocomplete: "off" }) : null;
     const form = h("form", { method: "dialog", class: "ra-dialog-body" },
       h("h2", { class: "ra-dialog-title", id: "dlg-title" }, title),
@@ -22,6 +23,7 @@ function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Canc
     dlg.addEventListener("close", () => {
       const ok = dlg.returnValue === "ok";
       dlg.remove();
+      if (opener?.isConnected) opener.focus();
       resolve(input ? (ok ? field.value : null) : ok);
     });
     document.body.append(dlg);

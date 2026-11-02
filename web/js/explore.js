@@ -106,10 +106,13 @@ function FilterSheet() {
   done.addEventListener("click", () => dlg.close());
   // Tocar el fondo oscuro cierra (el click llega al <dialog> mismo, no a su contenido).
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  // Al cerrar, el foco vuelve a quien abrió el panel (teclado y lector de pantalla no pierden el lugar).
+  let opener = null;
+  dlg.addEventListener("close", () => opener?.focus());
   document.body.append(dlg);
 
   return {
-    showModal: () => dlg.showModal(),
+    showModal: (from) => { opener = from; dlg.showModal(); },
     remove: () => dlg.remove(),
     get isOpen() { return dlg.open; },
     paint(state, last, update) {
@@ -151,7 +154,7 @@ export async function ExplorePanel() {
     placeholder: "Ej: bancos el martes · Nubank · agentes con Bedrock" });
   const nlButton = Button("Convertir en filtros", { type: "submit" });
   const filterBtn = h("button", { type: "button", class: "ra-btn ra-btn-secondary ra-filterbtn", onclick: () => openSheet() });
-  const chips = h("div"), groupBar = h("div"), header = h("p", { class: "caption", "aria-live": "polite" }), results = h("div", { class: "stack-lg" });
+  const chips = h("div"), groupBar = h("div"), header = h("h2", { class: "caption", "aria-live": "polite" }), results = h("div", { class: "stack-lg" });
 
   const fetchPage = (s) => Knowledge.explore({
     q: s.q, group_by: s.groupBy || null, limit: PAGE, offset: s.offset,
@@ -201,7 +204,7 @@ export async function ExplorePanel() {
 
   function openSheet() {
     sheet.paint(state, last, update);
-    sheet.showModal();
+    sheet.showModal(filterBtn);
   }
 
   // Lenguaje natural → filtros: reemplaza los filtros actuales, con Deshacer por si no era lo que querías.

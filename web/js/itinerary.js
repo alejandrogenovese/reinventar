@@ -48,7 +48,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
       h("span", { class: "ra-rail-day" }, shortDay(s.day))),
     h("div", { class: "ra-minicard-body" },
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
-      h("h4", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
+      h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
       h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
       tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
@@ -124,13 +124,14 @@ export async function viewItinerario(view) {
     const mapEl = h("div", { class: "mapbox" });
     const tabs = h("div", { class: "tabs", role: "tablist" });
     const list = h("div", { class: "daylist" });
+    const dayHeading = h("h2", { class: "sr-only" }); // título para el lector de pantalla: las pestañas no son encabezados
     view.append(h("div", { class: "stack-lg" },
       h("h1", { class: "title" }, "Tu itinerario"),
       h("div", { class: "actions" },
         Button("Rehacer cuestionario", { onclick: () => (location.hash = "#/itinerario/cuestionario") }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
-      mapEl, tabs, list,
+      mapEl, tabs, dayHeading, list,
       data.skipped?.length ? h("details", { class: "notice" },
         h("summary", { class: "label" }, `${data.skipped.length} sesión${data.skipped.length === 1 ? "" : "es"} no entraron por superposición de horario (tocá para ver cuáles)`),
         h("ul", {}, data.skipped.map((sk) => h("li", { class: "caption" },
@@ -148,6 +149,7 @@ export async function viewItinerario(view) {
     }
     function paintList() {
       const day = data.days[dayIndex];
+      dayHeading.textContent = day ? `Charlas del ${day.day}` : "";
       list.replaceChildren(...(day?.sessions || []).map((s) => {
         const card = SessionMiniCard(s, {
           locked: s.locked,

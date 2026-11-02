@@ -3,6 +3,26 @@
    Brick no tiene modo oscuro: el oscuro se deriva de sus neutros, pensado para salas con poca luz.
    El tema efectivo (elegido o el del sistema) lo resuelve un script en el <head> y queda en data-theme. */
 
+/* Respaldo con las métricas de Inter (valores de next/font): mientras llega la fuente, el texto ocupa
+   lo mismo y el cambio no mueve la pantalla (CLS). */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("Helvetica"), local("Roboto");
+  size-adjust: 107.12%;
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+}
+/* Ídem para JetBrains Mono (horarios y contador): mismo ancho de carácter (600/1000) y misma altura de línea. */
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Courier New"), local("Courier");
+  size-adjust: 100%;
+  ascent-override: 102%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
 @layer tokens {
   :root {
     color-scheme: light;
@@ -36,8 +56,8 @@
     --edge: 0 0 0 1px var(--line);  /* borde fino que acompaña a la sombra */
 
     /* Tipografía: Inter para la interfaz, mono solo para datos (horas, códigos, contadores) */
-    --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --font-ui: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-data: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace;
     --t-display: 700 32px/36px var(--font-ui);
     --t-title: 600 24px/30px var(--font-ui);
     --t-heading: 600 18px/24px var(--font-ui);

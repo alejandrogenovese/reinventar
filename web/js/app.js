@@ -76,6 +76,26 @@ function skeletonUntilContent() {
   return done;
 }
 
+const APP_NAME = "ReinventAR";
+let firstScreen = true;
+
+/**
+ * Tras cambiar de pantalla: título de la pestaña con el de la pantalla y foco en su h1, así el lector de
+ * pantalla anuncia dónde estás (en vez de leer todo con aria-live). En la primera carga no se mueve el foco.
+ */
+function announceScreen() {
+  const h1 = view.querySelector("h1");
+  document.title = h1 ? `${h1.textContent} · ${APP_NAME}` : APP_NAME;
+  if (firstScreen) { firstScreen = false; return; }
+  if (view.contains(document.activeElement) && document.activeElement !== view) return; // la pantalla ya enfocó algo (ej. un campo)
+  const target = h1 || view;
+  if (target !== view) target.setAttribute("tabindex", "-1");
+  target.focus({ preventScroll: true });
+}
+
+// "Saltar al contenido": el href #view se usa sin tocar el hash (el router lo tomaría como ruta).
+document.querySelector(".skip-link").addEventListener("click", (e) => { e.preventDefault(); view.focus(); });
+
 /** Marca la sección actual (aria-current: se ve y lo anuncia el lector de pantalla); sin sesión se oculta la nav. */
 function markNav(hash) {
   document.body.classList.toggle("is-guest", !getToken());
@@ -105,6 +125,7 @@ async function route() {
       const hideSkeleton = skeletonUntilContent();
       try { await fn(...m.slice(1)); } catch (e) { renderError(e); } finally { hideSkeleton(); }
       window.scrollTo(0, 0);
+      announceScreen();
       return;
     }
   }
@@ -121,11 +142,13 @@ function renderError(e) {
 
 // --- lista -------------------------------------------------------------------
 async function viewList() {
-  const list = h("div", { class: "stack" });
+  // Los dos bloques que llegan de la API reservan su lugar con un skeleton: así no empujan la pantalla (CLS).
+  const list = h("div", { class: "stack" }, h("div", { class: "ra-skel ra-skel-card" }));
   const banner = h("div");
-  const todaySlot = h("div");
+  const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
   const newBtn = Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") });
   view.append(h("div", { class: "stack-lg" },
+    h("h1", { class: "sr-only" }, "Inicio"),
     todaySlot,
     h("div", { class: "actions" }, newBtn),
     InstallPrompt({ dismissible: true }), PasskeyOffer(), banner,
@@ -146,6 +169,7 @@ async function viewList() {
       if (hasTalk) newBtn.className = "ra-btn ra-btn-secondary";
     })
     .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${err.message}`)));
+  list.replaceChildren();
   if (!sessions.length) {
     list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva sesión.")));
     return;

@@ -35,7 +35,7 @@ function Exchange({ q, result }) {
   const others = result.sessions.filter((s) => !cited.has(s.base));
   const cards = (rows) => h("div", { class: "daylist" }, rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
   return h("section", { class: "stack ra-ask-turn" },
-    h("p", { class: "label" }, q),
+    h("h2", { class: "label" }, q),
     h("div", { class: "notice" }, Answer(result.answer, result.cited)),
     citedCards.length ? cards(citedCards) : null,
     others.length ? h("details", { class: "notice" }, h("summary", { class: "label" }, `Otras que pueden servirte (${others.length})`), cards(others)) : null);

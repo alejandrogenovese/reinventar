@@ -1,13 +1,33 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
-const VERSION = "reinventar-v0.16.0";
+const VERSION = "reinventar-v0.17.1";
 const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
 ];
 
+const FONTS_CSS = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap";
+
+// Precarga la tipografía (CSS + woff2) para que la app abra sin señal con su fuente desde la primera visita.
+// Si falla (sin red al instalar), no frena la instalación: se cachea sola en el próximo uso.
+async function precacheFonts() {
+  try {
+    const cache = await caches.open("fonts");
+    const css = await fetch(FONTS_CSS);
+    if (!css.ok) return;
+    await cache.put(FONTS_CSS, css.clone());
+    // Solo el subset "latin" (cubre el español: á é ñ ¿ ¡); los demás alfabetos se bajan si alguna vez hacen falta.
+    const latin = (await css.text()).split("/* ").filter((block) => block.startsWith("latin */"));
+    const files = latin.flatMap((block) => [...block.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map((m) => m[1]));
+    await Promise.all(files.map((u) => fetch(u).then((r) => (r.ok ? cache.put(u, r) : null))));
+  } catch {}
+}
+
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
+  e.waitUntil(Promise.all([
+    caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))),
+    precacheFonts(),
+  ]).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
