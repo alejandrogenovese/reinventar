@@ -2,10 +2,10 @@
 import { Itinerary, Knowledge } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
 import { People, SessionMiniCard } from "./itinerary.js";
-import { Button, StatusPill, h, toast } from "./ui.js";
+import { Button, StatusPill, Tag, h, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
-const chips = (items) => (items?.length ? h("div", { class: "ra-chips" }, items.map((t) => h("span", { class: "ra-chip" }, t))) : null);
+const chips = (items) => (items?.length ? h("div", { class: "ra-chips" }, items.map(Tag)) : null);
 // Solo links https: los perfiles vienen de una fuente externa y no se confía en el esquema.
 const safeUrl = (url) => (typeof url === "string" && url.startsWith("https://") ? url : null);
 const external = (label, url) => (safeUrl(url) ? h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, label) : null);
@@ -30,16 +30,16 @@ export async function viewCharla(view, base) {
     h("div", { class: "stack" },
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h1", { class: "title" }, s.title),
-      s.newlaunch ? h("span", { class: "ra-chip" }, "Nuevo lanzamiento") : null,
+      s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
       chips([...(s.topic || []), ...(s.aoi || [])])),
-    section("Horarios", h("ul", { class: "ra-people" }, s.instances.map((i) => h("li", { class: "actions", style: { alignItems: "center", justifyContent: "space-between" } },
+    section("Horarios", h("ul", { class: "ra-people" }, s.instances.map((i) => h("li", { class: "actions is-center is-between" },
       h("span", {}, h("strong", {}, `${i.day} · ${i.start}`), ` — ${[i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ")}`),
       Button("Agregar", { onclick: addToItinerary(i.code) }))))),
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
     s.abstract ? section("De qué se trata", h("p", {}, s.abstract)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
     s.recordings?.length ? section("Tus grabaciones", h("ul", { class: "ra-people" }, s.recordings.map((r) =>
-      h("li", { class: "actions", style: { alignItems: "center" } }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
+      h("li", { class: "actions is-center" }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
     s.related.length ? section("Charlas relacionadas", cardList(s.related)) : null));
 }
 

@@ -2,6 +2,7 @@
 import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
 import { viewAsk } from "./ask.js";
+import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { viewExplore } from "./explore.js";
 import { InstallPrompt } from "./install.js";
@@ -12,7 +13,7 @@ import { TodayPanel } from "./today.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, RecordButton, SessionCard, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast } from "./ui.js";
+import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -62,6 +63,18 @@ const routes = [
   [/^#\/empresa\/(\d+)$/, (id) => viewEmpresa(view, id)],
 ];
 
+const SKELETON_DELAY_MS = 150; // si la pantalla carga más rápido, no se muestra (evita el parpadeo)
+
+/** Muestra un skeleton mientras la pantalla no tenga contenido propio; devuelve la función para sacarlo. */
+function skeletonUntilContent() {
+  const sk = Skeleton();
+  const timer = setTimeout(() => { if (!view.childElementCount) view.append(sk); }, SKELETON_DELAY_MS);
+  const obs = new MutationObserver(() => { if ([...view.children].some((c) => c !== sk)) done(); });
+  obs.observe(view, { childList: true });
+  function done() { clearTimeout(timer); obs.disconnect(); sk.remove(); }
+  return done;
+}
+
 /** Marca la sección actual (aria-current: se ve y lo anuncia el lector de pantalla); sin sesión se oculta la nav. */
 function markNav(hash) {
   document.body.classList.toggle("is-guest", !getToken());
@@ -75,7 +88,8 @@ let ignoreNextHash = false;
 async function route() {
   if (ignoreNextHash) { ignoreNextHash = false; return; }
   if (activeRecorder && ["recording", "paused"].includes(activeRecorder.state) && !location.hash.startsWith("#/grabar/")) {
-    if (!confirm("Estás grabando. ¿Salir igual? La grabación se detiene.")) { ignoreNextHash = true; history.back(); return; }
+    const leave = await confirmDialog("¿Salir de la grabación?", { text: "Estás grabando: si salís, la grabación se detiene.", confirmLabel: "Salir y detener", cancelLabel: "Seguir grabando", danger: true });
+    if (!leave) { ignoreNextHash = true; history.back(); return; }
     await activeRecorder.stop(); activeRecorder.close(); activeRecorder = null;
   }
   cleanup(); cleanup = () => {};
@@ -87,7 +101,8 @@ async function route() {
     const m = hash.match(re);
     if (m) {
       view.replaceChildren();
-      try { await fn(...m.slice(1)); } catch (e) { renderError(e); }
+      const hideSkeleton = skeletonUntilContent();
+      try { await fn(...m.slice(1)); } catch (e) { renderError(e); } finally { hideSkeleton(); }
       window.scrollTo(0, 0);
       return;
     }
@@ -162,7 +177,7 @@ function viewNew() {
   } },
     h("h1", { class: "title" }, "Nueva sesión"),
     TalkPicker({ onPick: (talk) => fillFromTalk(form, talk) }),
-    h("fieldset", { style: { border: 0, padding: 0, margin: 0 } }, h("legend", { class: "label", style: { marginBottom: "8px" } }, "Tipo"), h("div", { class: "segmented" }, radios)),
+    h("fieldset", { class: "fieldset-plain" }, h("legend", { class: "label" }, "Tipo"), h("div", { class: "segmented" }, radios)),
     field("Título", h("input", { id: "title", name: "title", required: true, maxlength: "200", placeholder: "Keynote de apertura", autocomplete: "off" })),
     field("Código de agenda", h("input", { id: "code", name: "code", maxlength: "40", placeholder: "ANT301", autocapitalize: "characters", autocomplete: "off" })),
     field("Sala", h("input", { id: "venue", name: "venue", maxlength: "120", placeholder: "Venetian · Hall A", autocomplete: "off" })),
@@ -289,7 +304,7 @@ async function viewRecord(id) {
   }
 
   async function discard() {
-    if (!confirm("¿Descartar esta grabación? Se borra el audio del celular y del servidor.")) return;
+    if (!await confirmDialog("¿Descartar esta grabación?", { text: "Se borra el audio del celular y del servidor. No se puede deshacer.", confirmLabel: "Descartar", danger: true })) return;
     await rec.stop(); rec.close(); activeRecorder = null;
     store.dropRecMeta(id);
     try { await Sessions.remove(id); } catch {}
@@ -316,15 +331,15 @@ async function viewDetail(id) {
       h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")),
       h("h1", { class: "title" }, s.title),
       s.talk ? h("p", {}, h("a", { class: "ra-link", href: `#/charla/${s.talk.base}` }, `Ficha de la charla: ${s.talk.title}`)) : null,
-      h("div", { class: "actions", style: { alignItems: "center" } }, StatusPill(s.status, s.progress || undefined), meta ? h("span", { class: "caption" }, meta) : null),
-      s.error ? h("div", { class: "notice err", style: { marginTop: "12px" } }, s.error) : null));
+      h("div", { class: "actions is-center" }, StatusPill(s.status, s.progress || undefined), meta ? h("span", { class: "caption" }, meta) : null),
+      s.error ? h("div", { class: "notice err" }, s.error) : null));
 
     actions.replaceChildren(...kids(
       s.status === "ready" ? Button("Exportar .md", { onclick: () => exportMd(s) }) : null,
       s.status === "error" ? Button("Reintentar", { variant: "primary", onclick: async () => { await Sessions.retry(id); load(); } }) : null,
       ["recording", "uploading"].includes(s.status) ? Button("Seguir grabando", { variant: "primary", onclick: () => (location.hash = `#/grabar/${id}`) }) : null,
       Button("Eliminar", { variant: "danger", onclick: async () => {
-        if (!confirm("¿Eliminar la sesión con su audio, transcripción y resumen?")) return;
+        if (!await confirmDialog("¿Eliminar la sesión?", { text: "Se borran el audio, la transcripción y el resumen. No se puede deshacer.", confirmLabel: "Eliminar", danger: true })) return;
         await Sessions.remove(id); store.dropRecMeta(id); location.hash = "#/";
       } })));
 

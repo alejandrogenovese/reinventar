@@ -101,7 +101,7 @@ export function PasskeySettings() {
     box.replaceChildren(
       h("h2", { class: "label" }, "Face ID / huella"),
       passkeys.length ? "" : h("p", { class: "caption" }, "Todavía no activaste el ingreso con Face ID / huella."),
-      ...passkeys.map((p) => h("div", { class: "notice actions", style: { justifyContent: "space-between", alignItems: "center" } },
+      ...passkeys.map((p) => h("div", { class: "notice actions is-center is-between" },
         h("span", {}, `${p.device || "Dispositivo"} · último uso: ${when(p.last_used_at)}`),
         Button("Quitar", { variant: "danger", onclick: async () => { await Passkeys.remove(p.id); try { localStorage.removeItem(REGISTERED_HERE); } catch {} load(); } }))),
       ok ? h("div", { class: "actions" }, Button("Activar en este dispositivo", { onclick: () => activate(load) }))

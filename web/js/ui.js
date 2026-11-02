@@ -70,20 +70,44 @@ export function SummaryPanel(sm) {
     sm.tldr ? sec("TL;DR", h("p", { class: "ra-tldr" }, sm.tldr)) : null,
     sm.announcements?.length ? sec("Anuncios", h("ul", {}, sm.announcements.map((a) => h("li", {}, h("span", { class: "ra-hl" }, a.service), " ", a.text)))) : null,
     sm.key_points?.length ? sec("Puntos clave", list(sm.key_points)) : null,
-    sm.services?.length ? sec("Servicios mencionados", h("div", { class: "ra-chips" }, sm.services.map((x) => h("span", { class: "ra-chip" }, x)))) : null,
-    sm.quotes?.length ? sec("Frases", h("ul", {}, sm.quotes.map((q) => h("li", { class: "quote" }, h("span", { class: "ra-chip" }, q.time || ""), " ", `“${q.text}”`)))) : null,
+    sm.services?.length ? sec("Servicios mencionados", h("div", { class: "ra-chips" }, sm.services.map(Tag))) : null,
+    sm.quotes?.length ? sec("Frases", h("ul", {}, sm.quotes.map((q) => h("li", { class: "quote" }, h("span", { class: "ra-tag ra-mono" }, q.time || ""), " ", `“${q.text}”`)))) : null,
     sm.vs_abstract ? sec("Versus lo prometido", h("p", {}, sm.vs_abstract)) : null,
     sm.takeaways?.length ? sec("Para llevar a Galicia", list(sm.takeaways)) : null);
 }
 
+const TOAST_MS = 3500;
+const UNDO_MS = 6000;
 let toastTimer;
-export function toast(msg) {
+
+/** Aviso breve abajo. Con `action` ({ label, onClick }) queda más tiempo y suma un botón (ej. Deshacer). */
+export function toast(msg, { action } = {}) {
   document.querySelector(".toast")?.remove();
-  const el = h("div", { class: "toast", role: "status" }, msg);
+  const el = h("div", { class: "toast", role: "status" }, h("span", {}, msg),
+    action ? h("button", { type: "button", class: "toast-action", onclick: () => { clearTimeout(toastTimer); el.remove(); action.onClick(); } }, action.label) : null);
   document.body.append(el);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.remove(), 3500);
+  toastTimer = setTimeout(() => el.remove(), action ? UNDO_MS : TOAST_MS);
 }
+
+/**
+ * Acción con Deshacer: `apply` se ejecuta ya (ej. ocultar), `commit` recién cuando vence el aviso
+ * y `undo` si el usuario se arrepiente. Así no hace falta reconstruir lo borrado.
+ */
+export function withUndo(msg, { apply, commit, undo }) {
+  apply();
+  let undone = false;
+  const timer = setTimeout(() => { if (!undone) commit(); }, UNDO_MS);
+  toast(msg, { action: { label: "Deshacer", onClick: () => { undone = true; clearTimeout(timer); undo(); } } });
+}
+
+/** Etiqueta informativa (no se toca); los filtros que sí se tocan son `button.ra-chip`. */
+export const Tag = (text) => h("span", { class: "ra-tag" }, text);
+
+/** Placeholder gris mientras carga una pantalla. */
+export const Skeleton = (cards = 3) => h("div", { class: "ra-skeleton", "aria-busy": "true", "aria-label": "Cargando" },
+  h("div", { class: "ra-skel ra-skel-title" }),
+  Array.from({ length: cards }, () => h("div", { class: "ra-skel ra-skel-card" })));
 
 const CODE = /\[([A-Z0-9][A-Z0-9-]{2,19})\]/g;
 

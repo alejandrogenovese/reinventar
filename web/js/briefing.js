@@ -32,7 +32,7 @@ export function BriefingPanel(kind, id, talkCodes) {
       const r = await Knowledge.briefing(kind, id, refresh);
       slot.replaceChildren(
         BriefingBody(r.briefing, codes),
-        h("div", { class: "actions", style: { alignItems: "center" } },
+        h("div", { class: "actions is-center" },
           h("span", { class: "caption" }, `Generada el ${formatDate(r.created_at)}`),
           Button("Regenerar", { onclick: () => load(true) })));
     } catch (e) {

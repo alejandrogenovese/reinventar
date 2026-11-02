@@ -89,6 +89,10 @@ button.ra-chip {
 button.ra-chip:hover { box-shadow: var(--shadow-1); }
 .ra-chip-on { border-color: var(--brand) !important; background: var(--brand-soft) !important; color: var(--ink) !important; font-weight: 600 !important; }
 .ra-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Tag: dato, no se toca (sin borde ni sombra); el chip-botón tiene borde y estado */
+.ra-tag { font: var(--t-micro); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 6px; white-space: nowrap; }
+.ra-tag.is-new { background: var(--brand-soft); color: var(--ink); font-weight: 600; }
+:root[data-theme="dark"] .ra-tag.is-new { background: var(--surface-3); color: var(--brand-ink); }
 
 /* --- resumen ------------------------------------------------------------- */
 .ra-sum { background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; gap: var(--space-6); box-shadow: var(--edge), var(--shadow-1); }
@@ -147,6 +151,11 @@ summary.label { font: var(--t-small-strong); letter-spacing: 0; text-transform: 
 .stack-lg { display: flex; flex-direction: column; gap: var(--space-8); }
 .actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .actions .ra-btn { flex: 1 1 auto; }
+.actions.is-center { align-items: center; }
+.actions.is-between { justify-content: space-between; }
+.fieldset-plain { border: 0; padding: 0; margin: 0; }
+.fieldset-plain > legend { margin-bottom: var(--space-2); }
+.notice.is-plain { text-decoration: none; display: block; }
 .empty { padding: var(--space-12) var(--space-4); text-align: center; color: var(--ink-muted); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }
 
 /* --- formularios ---------------------------------------------------------- */
@@ -210,17 +219,24 @@ summary.label { font: var(--t-small-strong); letter-spacing: 0; text-transform: 
 .chipgroup input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .ra-minicard {
-  background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);
+  background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-4); display: grid; grid-template-columns: 56px 1fr; gap: var(--space-3);
   box-shadow: var(--edge), var(--shadow-1); transition: box-shadow var(--ease);
 }
 .ra-minicard:hover { box-shadow: var(--edge), var(--shadow-2); }
-.ra-minicard-top { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
-.ra-minicard-time { font: var(--t-time); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ra-minicard[hidden] { display: none; }
+/* riel de tiempo: la hora manda, el día abajo; la línea conecta visualmente con el contenido */
+.ra-rail { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-right: var(--space-3); border-right: 2px solid var(--line); }
+.ra-rail-time { font: var(--t-time); font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ra-rail-day { font: var(--t-micro); color: var(--ink-muted); }
+.ra-minicard-body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .ra-minicard-title { font: var(--t-body-strong); font-size: 17px; line-height: 23px; color: var(--ink); }
 .ra-minicard-title .ra-link { text-decoration: none; }
 .ra-minicard-title .ra-link:hover { text-decoration: underline; }
 .ra-minicard-meta { font: var(--t-small); color: var(--ink-muted); }
-.ra-minicard > p:not(.caption) { font: var(--t-small); color: var(--ink-muted); }
+.ra-abstract { font: var(--t-small); color: var(--ink-muted); }
+.ra-abstract.is-folded { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ra-more { align-self: flex-start; background: none; border: 0; padding: var(--space-1) 0; min-height: 32px; cursor: pointer; font: var(--t-small-strong); color: var(--brand-ink); }
+.ra-more:hover { text-decoration: underline; }
 
 /* sin overflow:hidden a propósito: Google Maps renderiza el InfoWindow adentro de este mismo contenedor y quedaba recortado */
 .mapbox { height: 320px; background: var(--surface-1); border-radius: var(--radius-m); }
@@ -280,3 +296,24 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-today-later li { display: flex; gap: var(--space-3); align-items: baseline; font: var(--t-small); }
 .ra-today-later .ra-mono { font: var(--t-data); color: var(--ink-muted); flex: none; }
 .ra-today-empty { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }
+
+/* --- toast con acción (Deshacer) -------------------------------------------- */
+.toast { display: flex; align-items: center; gap: var(--space-4); }
+.toast-action { background: none; border: 0; padding: 0 var(--space-2); min-height: 36px; cursor: pointer; font: var(--t-small-strong); color: var(--brand); text-transform: uppercase; letter-spacing: .04em; }
+.toast-action:focus-visible { outline-color: var(--bg); }
+
+/* --- diálogo ---------------------------------------------------------------- */
+.ra-dialog { border: 0; padding: 0; border-radius: var(--radius-m); background: var(--surface-1); color: var(--ink); box-shadow: var(--shadow-3); width: min(420px, calc(100% - 32px)); }
+.ra-dialog::backdrop { background: rgb(0 0 0 / .45); }
+.ra-dialog[open] { animation: ra-pop var(--ease-sheet); }
+.ra-dialog-body { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6); }
+.ra-dialog-title { font: var(--t-title); color: var(--ink); }
+.ra-dialog-text { font: var(--t-body); color: var(--ink-muted); }
+@keyframes ra-pop { from { opacity: 0; transform: scale(.97); } }
+
+/* --- skeleton ---------------------------------------------------------------- */
+.ra-skeleton { display: flex; flex-direction: column; gap: var(--space-3); }
+.ra-skel { border-radius: var(--radius-m); background: linear-gradient(90deg, var(--surface-3) 25%, var(--line) 50%, var(--surface-3) 75%); background-size: 200% 100%; animation: ra-shimmer 1.2s linear infinite; }
+.ra-skel-title { height: 28px; width: 55%; border-radius: var(--radius-s); }
+.ra-skel-card { height: 112px; }
+@keyframes ra-shimmer { to { background-position: -200% 0; } }

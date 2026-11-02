@@ -1,5 +1,6 @@
 // Cuenta: cambio de contraseña (obligatorio en el primer ingreso) y módulo de admin.
 import { Admin, Auth, setMustChangePassword } from "./api.js";
+import { promptDialog } from "./dialog.js";
 import { Button, h, toast } from "./ui.js";
 
 const MIN_LENGTH = 8;
@@ -49,8 +50,10 @@ async function run(action, okMsg, reload) {
   try { await action(); toast(okMsg); await reload(); } catch (err) { toast(err.message); }
 }
 
-function askPassword(username) {
-  const pwd = prompt(`Contraseña temporal para ${username} (mínimo ${MIN_LENGTH} caracteres). Se le va a pedir cambiarla al entrar.`);
+async function askPassword(username) {
+  const pwd = await promptDialog(`Resetear la contraseña de ${username}`,
+    { label: `Contraseña temporal (mínimo ${MIN_LENGTH} caracteres)`, minlength: MIN_LENGTH },
+    { text: "Se le va a pedir cambiarla al entrar.", confirmLabel: "Resetear" });
   if (pwd == null) return null;
   if (pwd.length < MIN_LENGTH) { toast(`Necesita al menos ${MIN_LENGTH} caracteres.`); return null; }
   return pwd;
@@ -58,8 +61,8 @@ function askPassword(username) {
 
 function UserRow(u, reload) {
   const tags = [u.is_admin ? "admin" : null, u.is_active ? null : "desactivado", u.must_change_password ? "debe cambiar contraseña" : null].filter(Boolean);
-  const reset = () => {
-    const pwd = askPassword(u.username);
+  const reset = async () => {
+    const pwd = await askPassword(u.username);
     if (pwd) run(() => Admin.resetPassword(u.username, pwd), `Contraseña de ${u.username} reseteada`, reload);
   };
   const toggle = () => run(() => Admin.setActive(u.username, !u.is_active), u.is_active ? `${u.username} desactivado` : `${u.username} activado`, reload);
@@ -98,7 +101,7 @@ function UsageSummary(usage) {
     h("p", {}, statuses.length ? statuses.map(([s, n]) => `${s}: ${n}`).join(" · ") : "Todavía no hay grabaciones."),
     usage.recent_errors.length
       ? h("div", { class: "stack" }, usage.recent_errors.map((e) =>
-          h("a", { class: "notice err", href: `#/s/${e.id}`, style: { textDecoration: "none" } }, `${e.title}: ${e.error || "error"} (${when(e.updated_at)})`)))
+          h("a", { class: "notice err is-plain", href: `#/s/${e.id}` }, `${e.title}: ${e.error || "error"} (${when(e.updated_at)})`)))
       : null);
 }
 

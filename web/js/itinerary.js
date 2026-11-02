@@ -1,7 +1,7 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Itinerary } from "./api.js";
 import { renderMap } from "./map.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, Tag, h, toast, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
@@ -21,25 +21,45 @@ export function People(s) {
   return h("ul", { class: "ra-people" }, people.slice(0, PEOPLE_LIMIT).map(line), extra > 0 ? h("li", { class: "caption" }, `y ${extra} más`) : null);
 }
 
+const ABSTRACT_FOLD = 220; // más largo que esto se pliega a 3 líneas con "Leer más"
+
+const shortDay = (iso) => (iso
+  ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" }).replace(/[.,]/g, "")
+  : "");
+
+/** Abstract plegado a 3 líneas; el botón lo despliega (aria-expanded para el lector de pantalla). */
+function Abstract(text) {
+  const p = h("p", { class: "ra-abstract" }, text);
+  if (text.length <= ABSTRACT_FOLD) return p;
+  p.classList.add("is-folded");
+  const btn = h("button", { type: "button", class: "ra-more", "aria-expanded": "false", onclick: () => {
+    const open = p.classList.toggle("is-folded") === false;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Leer menos" : "Leer más";
+  } }, "Leer más");
+  return [p, btn];
+}
+
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
-  const hotel = s.venue?.hotel || "";
   const tags = [...(s.topic || []), ...(s.aoi || [])];
-  return h("div", { class: "ra-minicard" },
-    h("div", { class: "ra-minicard-top" },
-      h("span", { class: "ra-minicard-time" }, [s.day, s.start].filter(Boolean).join(" · ")),
-      h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · "))),
-    h("h4", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
-    h("div", { class: "ra-minicard-meta" }, [hotel, s.venue?.detail].filter(Boolean).join(" · ")),
-    tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
-      s.newlaunch ? h("span", { class: "ra-chip" }, "Nuevo lanzamiento") : null,
-      tags.slice(0, 6).map((t) => h("span", { class: "ra-chip" }, t))) : null,
-    People(s),
-    s.abstract ? h("p", {}, s.abstract) : null,
-    s.reason ? h("p", { class: "caption" }, s.reason) : null,
-    h("div", { class: "actions" },
-      onAdd ? Button("Agregar", { onclick: onAdd }) : null,
-      onLock ? Button(locked ? "Desbloquear" : "Bloquear", { onclick: onLock }) : null,
-      onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null));
+  return h("article", { class: "ra-minicard" },
+    h("div", { class: "ra-rail" },
+      h("span", { class: "ra-rail-time" }, s.start || "—"),
+      h("span", { class: "ra-rail-day" }, shortDay(s.day))),
+    h("div", { class: "ra-minicard-body" },
+      h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
+      h("h4", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
+      h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
+      tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
+        s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
+        tags.slice(0, 6).map(Tag)) : null,
+      People(s),
+      s.abstract ? Abstract(s.abstract) : null,
+      s.reason ? h("p", { class: "caption" }, s.reason) : null,
+      h("div", { class: "actions" },
+        onAdd ? Button("Agregar", { onclick: onAdd }) : null,
+        onLock ? Button(locked ? "Desbloquear" : "Bloquear", { onclick: onLock }) : null,
+        onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null)));
 }
 
 export async function viewCuestionario(view) {
@@ -128,11 +148,18 @@ export async function viewItinerario(view) {
     }
     function paintList() {
       const day = data.days[dayIndex];
-      list.replaceChildren(...(day?.sessions || []).map((s) => SessionMiniCard(s, {
-        locked: s.locked,
-        onLock: async () => { await Itinerary.lock(s.code, !s.locked); paint(); },
-        onRemove: async () => { if (!confirm("¿Quitar esta sesión del itinerario?")) return; await Itinerary.remove(s.code); paint(); },
-      })));
+      list.replaceChildren(...(day?.sessions || []).map((s) => {
+        const card = SessionMiniCard(s, {
+          locked: s.locked,
+          onLock: async () => { await Itinerary.lock(s.code, !s.locked); paint(); },
+          onRemove: () => withUndo("Sesión quitada del itinerario.", {
+            apply: () => { card.hidden = true; },
+            commit: () => Itinerary.remove(s.code).catch((err) => { card.hidden = false; toast(err.message); }),
+            undo: () => { card.hidden = false; },
+          }),
+        });
+        return card;
+      }));
     }
     paintTabs();
     paintList();
