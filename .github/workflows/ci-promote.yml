@@ -52,7 +52,8 @@ jobs:
       - name: Dependencias
         # Lock con hashes de todas las dependencias (también las transitivas) y solo wheels:
         # pip no ejecuta scripts de instalación de paquetes fuente.
-        run: pip install --require-hashes --only-binary :all: -r requirements-dev.lock
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-dev.lock
 
       # Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan
       # el schema reinvent cargado y no corren en CI: se corren local con pytest -q.
