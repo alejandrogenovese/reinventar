@@ -1,5 +1,5 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
-const VERSION = "reinventar-v0.18.0";
+const VERSION = "reinventar-v0.19.0";
 const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js",
@@ -38,6 +38,10 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Guardar en caché es best effort: si falla (cuota llena, modo privado) la respuesta se sirve igual.
+const cachePut = (name, req, res) =>
+  caches.open(name).then((c) => c.put(req, res)).catch((err) => console.warn("[sw] no se pudo cachear", req.url, err));
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
@@ -47,7 +51,7 @@ self.addEventListener("fetch", (e) => {
   if (url.hostname.endsWith("fonts.googleapis.com") || url.hostname.endsWith("fonts.gstatic.com")) {
     e.respondWith(caches.open("fonts").then(async (c) => {
       const hit = await c.match(e.request);
-      const net = fetch(e.request).then((r) => { if (r.ok || r.type === "opaque") c.put(e.request, r.clone()); return r; }).catch(() => hit);
+      const net = fetch(e.request).then((r) => { if (r.ok || r.type === "opaque") void cachePut("fonts", e.request, r.clone()); return r; }).catch(() => hit);
       return hit || net;
     }));
     return;
@@ -57,7 +61,7 @@ self.addEventListener("fetch", (e) => {
   // App shell: red primero (para tomar cambios), caché si no hay señal.
   e.respondWith(
     fetch(e.request, { cache: "no-cache" }) // revalida con el servidor: nunca una copia vieja de la caché HTTP
-      .then((r) => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copy)); } return r; })
+      .then((r) => { if (r.ok) void cachePut(VERSION, e.request, r.clone()); return r; })
       .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
   );
 });

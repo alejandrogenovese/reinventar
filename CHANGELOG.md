@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [0.19.0] - 2026-11-06
+
 ### Agregado
 - CI en GitHub Actions: tests de núcleo contra Postgres en cada PR y en cada push a `dev`.
 - Promoción automática `dev` → `main` (fast-forward) cuando pasan los tests; Railway deploya con el push a `main`.
@@ -13,6 +15,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ### Seguridad
 - Dependencias instaladas desde locks con hashes y solo wheels (`requirements.lock`, `requirements-dev.lock`) en CI y en Docker.
 - Acciones de GitHub fijadas por SHA de commit.
+- Hashes de caché (embeddings, temas, briefings) con SHA-256 en lugar de SHA-1/MD5. Al desplegar se recalculan una vez.
+- Los logs no incluyen el texto que escribe el usuario, y los rechazos de passkeys se loguean en una sola línea (sin inyección de líneas falsas).
+
+### Arreglado
+- Errores que se perdían en silencio en la PWA: reintentar el procesamiento, fijar una charla, quitar una passkey,
+  cambiar de pestaña y leer el audio pendiente ahora avisan con un mensaje. La subida en segundo plano muestra el error.
+- El service worker avisa en consola si no puede guardar en caché, en vez de fallar en silencio.
+- Test de filtros en lenguaje natural que fallaba según el orden (carrera con el nombrado de temas en segundo plano).
 
 ## [0.18.0] - 2026-11-05
 
@@ -45,6 +55,7 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.18.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.1.0...v0.18.0
 [0.1.0]: https://github.com/alejandrogenovese/reinventar/releases/tag/v0.1.0
