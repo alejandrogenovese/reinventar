@@ -221,7 +221,7 @@ export async function ExplorePanel() {
       qInput.value = parsed.q;
       await update({ ...state, filters, q: parsed.q, offset: 0 });
       const ignored = parsed.ignored.length ? ` No encontré: ${parsed.ignored.join(", ")}.` : "";
-      toast(`Filtros aplicados.${ignored}`, { action: { label: "Deshacer", onClick: () => { qInput.value = before.q; update(before); } } });
+      toast(`Filtros aplicados.${ignored}`, { action: { label: "Deshacer", onClick: () => { qInput.value = before.q; void update(before); } } });
     } catch (err) { toast(err.message); } finally { nlButton.disabled = false; }
   }
 

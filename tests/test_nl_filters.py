@@ -12,7 +12,9 @@ def _llm_returns(monkeypatch, payload):
     calls = []
 
     def fake(model, system, user, *a, **k):
-        calls.append((system, user))
+        # Solo las llamadas del filtro: al arrancar, un hilo en segundo plano también nombra los temas con el LLM.
+        if system == prompts.NL_FILTERS_SYSTEM:
+            calls.append((system, user))
         return json.dumps(payload)
 
     monkeypatch.setattr(llm, "complete", fake)
@@ -96,3 +98,15 @@ def test_con_el_llm_caido_da_502(monkeypatch):
 def test_nombres_de_los_dias():
     assert nl_filters.day_label("2026-11-30") == "2026-11-30 (lunes)"
     assert nl_filters.day_label("2026-12-03") == "2026-12-03 (jueves)"
+
+
+def test_con_el_llm_caido_no_loguea_el_texto_del_usuario(monkeypatch, caplog):
+    def boom(*a, **k):
+        raise RuntimeError("timeout")
+
+    monkeypatch.setattr(llm, "complete", boom)
+    with TestClient(app) as c:
+        c.post("/api/k/explore/parse", headers=login_headers(c), json={"text": "bancos\nINFO falso: admin logueado"})
+
+    assert "admin logueado" not in caplog.text  # el texto del usuario no llega al log (inyección de líneas falsas)
+    assert "No se pudo traducir a filtros" in caplog.text

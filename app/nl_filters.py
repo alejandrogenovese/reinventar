@@ -71,7 +71,7 @@ def parse(text: str) -> dict:
         raw = llm.complete(config.ASK_MODEL, prompts.NL_FILTERS_SYSTEM, prompts.nl_filters_user(_catalog_text(allowed), text), NL_MAX_TOKENS)
         proposed = llm.parse_json(raw)
     except Exception as e:
-        log.exception("No se pudo traducir a filtros: %r", text[:100])
+        log.exception("No se pudo traducir a filtros (pedido de %d caracteres)", len(text))
         raise NLFiltersUnavailable from e
     filters, ignored = _validate(proposed.get("filters"), allowed)
     q = proposed.get("q")

@@ -1,6 +1,6 @@
 // Passkeys (Face ID / huella) con la API WebAuthn del navegador. El servidor arma las opciones y verifica la firma.
 import { Passkeys } from "./api.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, toast, toastOnError } from "./ui.js";
 
 const OFFER_DISMISSED = "reinventar.passkeyOfferDismissed";
 const REGISTERED_HERE = "reinventar.passkeyRegistered";
@@ -66,7 +66,7 @@ async function activate(onDone) {
 /** Botón "Entrar con Face ID / huella" para la pantalla de login (vacío si el dispositivo no lo soporta). */
 export function PasskeyLoginButton(onLogin, onError) {
   const slot = h("div", { class: "actions" });
-  isSupported().then((ok) => {
+  void isSupported().then((ok) => {
     if (!ok) return;
     slot.append(Button("Entrar con Face ID / huella", { onclick: async () => {
       try { const r = await login(); if (r) onLogin(r); } catch (e) { onError(e.status === 401 ? "Esa passkey no está registrada. Entrá con contraseña y activala en Ajustes." : e.message); }
@@ -79,7 +79,7 @@ export function PasskeyLoginButton(onLogin, onError) {
 export function PasskeyOffer() {
   const slot = h("div");
   try { if (localStorage.getItem(OFFER_DISMISSED) === "1" || localStorage.getItem(REGISTERED_HERE) === "1") return slot; } catch {}
-  isSupported().then((ok) => {
+  void isSupported().then((ok) => {
     if (!ok) return;
     const dismiss = () => { try { localStorage.setItem(OFFER_DISMISSED, "1"); } catch {} slot.replaceChildren(); };
     slot.append(h("div", { class: "notice stack" },
@@ -103,7 +103,7 @@ export function PasskeySettings() {
       passkeys.length ? "" : h("p", { class: "caption" }, "Todavía no activaste el ingreso con Face ID / huella."),
       ...passkeys.map((p) => h("div", { class: "notice actions is-center is-between" },
         h("span", {}, `${p.device || "Dispositivo"} · último uso: ${when(p.last_used_at)}`),
-        Button("Quitar", { variant: "danger", onclick: async () => { await Passkeys.remove(p.id); try { localStorage.removeItem(REGISTERED_HERE); } catch {} load(); } }))),
+        Button("Quitar", { variant: "danger", onclick: () => toastOnError(Passkeys.remove(p.id).then(() => { try { localStorage.removeItem(REGISTERED_HERE); } catch {} return load(); })) }))),
       ok ? h("div", { class: "actions" }, Button("Activar en este dispositivo", { onclick: () => activate(load) }))
          : h("p", { class: "caption" }, "Este navegador no permite Face ID / huella."));
   }

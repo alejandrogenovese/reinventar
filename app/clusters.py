@@ -123,7 +123,7 @@ def _llm_names(groups: list[dict]) -> list[str] | None:
 
 # --- persistencia --------------------------------------------------------------------------------
 def _source_hash(sessions: list[dict], X: np.ndarray) -> str:
-    h = hashlib.sha1(f"{embeddings.model_name()}|{CLUSTER_COUNT}|".encode())
+    h = hashlib.sha256(f"{embeddings.model_name()}|{CLUSTER_COUNT}|".encode())
     h.update("|".join(s["base"] for s in sessions).encode())
     h.update(np.ascontiguousarray(X, dtype=np.float32).tobytes())
     return h.hexdigest()

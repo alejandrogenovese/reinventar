@@ -90,7 +90,7 @@ export class Recorder extends EventTarget {
     this.mr.start(TIMESLICE_MS);
     this._startClock();
     this._setState("recording");
-    wakeLock.acquire();
+    void wakeLock.acquire();
   }
 
   pause() { if (this.mr?.state === "recording") { this.mr.pause(); this._stopClock(); this._setState("paused"); } }
@@ -137,13 +137,13 @@ export const wakeLock = {
   release() { this.wanted = false; this.lock?.release().catch(() => {}); this.lock = null; },
 };
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && wakeLock.wanted) wakeLock.acquire();
+  if (document.visibilityState === "visible" && wakeLock.wanted) void wakeLock.acquire();
 });
 
 // Sube la cola de IndexedDB en orden, con backoff. Un solo loop para toda la app.
 export const uploader = new (class extends EventTarget {
   constructor() { super(); this.running = false; this.pending = 0; this.lastError = null; this.backoff = 1000; }
-  kick() { if (!this.running) this._run(); }
+  kick() { if (!this.running) this._run().catch((e) => { this.lastError = e.message; this._emit(); }); }
   async refresh() { this.pending = (await store.allChunks()).length; this._emit(); }
   async _run() {
     this.running = true;

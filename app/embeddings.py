@@ -4,10 +4,10 @@
   fake  → hashing de palabras, determinístico y sin dependencias (tests)
   off   → sin vectores: la búsqueda queda solo por palabras
 """
-import hashlib
 import logging
 import re
 import threading
+import zlib
 
 import numpy as np
 
@@ -38,7 +38,7 @@ def fake_embed(texts: list[str]) -> np.ndarray:
     out = np.zeros((len(texts), FAKE_DIM), dtype=np.float32)
     for row, text in enumerate(texts):
         for word in re.findall(r"\w{3,}", catalog.fold(text)):
-            out[row, int(hashlib.md5(word.encode()).hexdigest(), 16) % FAKE_DIM] += 1
+            out[row, zlib.crc32(word.encode()) % FAKE_DIM] += 1
     return _normalized(out)
 
 

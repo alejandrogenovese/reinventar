@@ -100,6 +100,13 @@ export function toast(msg, { action } = {}) {
   toastTimer = setTimeout(() => el.remove(), action ? UNDO_MS : TOAST_MS);
 }
 
+const GENERIC_ERROR = "Algo falló. Probá de nuevo.";
+
+/** Para una promesa que no se espera (ej. en un onclick): si falla, avisa con un toast en vez de perder el error. */
+export function toastOnError(promise) {
+  promise.catch((err) => toast(err?.message || GENERIC_ERROR));
+}
+
 /**
  * Acción con Deshacer: `apply` se ejecuta ya (ej. ocultar), `commit` recién cuando vence el aviso
  * y `undo` si el usuario se arrepiente. Así no hace falta reconstruir lo borrado.

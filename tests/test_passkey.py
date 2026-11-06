@@ -208,3 +208,21 @@ def test_punta_a_punta_con_firma_real():
         assert [r.status_code for r in logins] == [200, 200], [r.text for r in logins]
         assert logins[0].json()["username"] == username
         assert forged.status_code == 401
+
+
+def test_rechazo_de_passkey_no_loguea_datos_del_navegador(monkeypatch, caplog):
+    def rejects(**kw):
+        raise webauthn.helpers.exceptions.InvalidRegistrationResponse("origen inesperado\nINFO falso: login ok")
+
+    monkeypatch.setattr(webauthn, "verify_registration_response", rejects)
+    with TestClient(app) as c:
+        headers = login_headers(c)
+        opts = c.post("/api/passkey/register/options", headers=headers).json()
+        r = c.post("/api/passkey/register/verify", headers=headers,
+                   json={"challenge_id": opts["challenge_id"], "credential": _credential(b"x"), "device": "d"})
+
+    assert r.status_code == 400
+    rejected = [rec.getMessage() for rec in caplog.records if "rechazado" in rec.getMessage()]
+    assert rejected
+    assert "InvalidRegistrationResponse" in rejected[0]
+    assert "login ok" not in caplog.text  # el mensaje trae datos del navegador: no llega al log

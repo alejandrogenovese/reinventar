@@ -164,7 +164,7 @@ def get(username: str, kind: str, entity_id: int, refresh: bool = False) -> dict
         return None
     text, talks = entity
     user = prompts.briefing_user(kind, text, _profile_text(db.get_profile(username) or {}), _recordings_text(talks))
-    input_hash = hashlib.sha1(f"{config.BRIEFING_MODEL}\n{user}".encode()).hexdigest()
+    input_hash = hashlib.sha256(f"{config.BRIEFING_MODEL}\n{user}".encode()).hexdigest()
 
     cached = None if refresh else _load(username, kind, entity_id)
     if cached and cached["input_hash"] == input_hash:
