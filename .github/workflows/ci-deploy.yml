@@ -24,7 +24,7 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: reinvent
-          POSTGRES_PASSWORD: reinvent2026
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: reinvent
         ports:
           - 5433:5432
@@ -34,7 +34,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://reinvent:reinvent2026@localhost:5433/reinvent
+      DATABASE_URL: postgresql://reinvent@localhost:5433/reinvent
     steps:
       - uses: actions/checkout@v4
 
