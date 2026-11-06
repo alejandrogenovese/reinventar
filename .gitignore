@@ -1,5 +1,23 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
-.env
 .pytest_cache/
+.coverage
+htmlcov/
+
+# Configuración local y secretos (.env.example sí va al repo)
+.env
+.env.*
+!.env.example
+
+# Datos locales: audios, modelos de embeddings
+data/
+
+# Sistema operativo y editores
+.DS_Store
+.idea/
+.vscode/
+
+# Notas de trabajo de Claude Code
+.claude/

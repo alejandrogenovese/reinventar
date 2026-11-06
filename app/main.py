@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search, talks
+from . import __version__, admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search, talks
 from .auth import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -31,7 +31,7 @@ async def lifespan(_app):
     pg.close()
 
 
-app = FastAPI(title="ReinventAR", lifespan=lifespan)
+app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
@@ -67,7 +67,7 @@ class Finish(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
+    return {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
 
 
 @app.post("/api/sessions", dependencies=[Depends(auth)])

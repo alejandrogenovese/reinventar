@@ -1,14 +1,21 @@
 # ReinventAR
 
-PWA para grabar charlas de re:Invent con el DJI Mic Mini 2 en el celular. Cuando la sesión termina, el backend la transcribe, la traduce al castellano y la resume.
+PWA para aprovechar AWS re:Invent desde el celular. Tiene tres enfoques:
+
+1. **Grabar charlas**: graba con el micrófono (pensado para el DJI Mic Mini 2) y, al terminar, el backend transcribe, traduce al castellano y resume según el tipo de sesión.
+2. **Encontrar sesiones**: búsqueda híbrida y chat con RAG sobre el catálogo en Postgres, más un itinerario recomendado según el perfil de cada persona.
+3. **Preparar conversaciones**: fichas navegables de charla → speaker → empresa y un briefing para llegar con contexto a cada charla.
+
+Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway, se despliega solo con cada push a `main`.
 
 ```
-PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway ──▶ Volume /data
-                                                     │ al terminar:
-                                                     ├─ ffmpeg (une las partes, corta en pedazos de 10 min)
-                                                     ├─ STT  (Groq Whisper / OpenAI / LiteLLM / faster-whisper)
-                                                     ├─ traducción EN→ES (Claude Sonnet)
-                                                     └─ resumen según el tipo de sesión (Claude Opus)
+PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway ──▶ Volume /data
+                                                                 │ al terminar:
+                                                                 ├─ ffmpeg (une las partes, corta en pedazos de 10 min)
+                                                                 ├─ STT  (Groq Whisper / OpenAI / LiteLLM / faster-whisper)
+                                                                 ├─ traducción EN→ES (Claude Sonnet)
+                                                                 └─ resumen según el tipo de sesión (Claude Opus)
+                                                       Postgres + pgvector: estado de la app y catálogo de re:Invent
 ```
 
 ## Estructura
@@ -33,30 +40,42 @@ PWA (Chrome Android) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway
 | `app/sectors.py` | mapeo industria → sector (tabla `sector_industria` en el schema de la app; los valores iniciales no pisan ediciones) |
 | `app/venues.py` | coordenadas de los hoteles/venues del Strip para el mapa |
 | `app/itinerary.py` | motor de recomendación: prefiltro → LLM elige y justifica → resuelve choques de horario |
-| `app/itinerary_api.py` | endpoints de catálogo e itinerario (`/api/catalog/*`, `/api/itinerary/*`) |
-| `web/` | la PWA (sin build): grabador, cola offline en IndexedDB, service worker |
-| `web/js/itinerary.js` | cuestionario de perfil, vista de itinerario por día, exploración manual del catálogo |
+| `app/itinerary_api.py` | endpoints de catálogo e itinerario (`/api/catalog/*`, `/api/itinerary/*`, `/api/today`) |
+| `app/today.py` | pantalla Hoy: charla actual y próxima del itinerario, en hora de Las Vegas |
+| `app/knowledge.py`, `app/knowledge_api.py` | fichas de charla, speaker y empresa (`/api/k/*`) |
+| `app/admin_api.py` | administración de usuarios y uso (`/api/admin/*`, solo `ADMIN_USERS`) |
+| `app/passkey_api.py`, `app/passkeys_db.py` | ingreso con passkeys (WebAuthn) |
+| `app/__init__.py` | `__version__`: la versión única de la app |
+| `web/` | la PWA (sin build): grabador, cola offline en IndexedDB, service worker (`web/sw.js`) |
+| `web/css/tokens.css` | tokens de diseño (colores, tipografía, espaciado) sobre Brick v2 |
+| `web/js/app.js` | router, inicio y grabador |
+| `web/js/today.js`, `web/js/search.js` | pantalla Hoy; Buscar con los modos Filtrar (`explore.js`) y Preguntar (`ask.js`) |
+| `web/js/itinerary.js` | cuestionario de perfil y vista de itinerario por día |
+| `web/js/knowledge.js`, `web/js/briefing.js` | fichas navegables y "Para conversar" |
+| `web/js/ui.js`, `web/js/dialog.js` | componentes compartidos: botones, toasts con deshacer, diálogos |
 | `web/js/map.js` | mapa interactivo de venues (Google Maps JavaScript API, carga diferida) |
-| `tests/test_api.py` | flujo completo de grabación con STT y LLM falsos |
-| `tests/test_itinerary.py` | catálogo, generación de itinerario y resolución de choques de horario, con LLM falso |
+| `tests/` | pytest con STT, LLM y embeddings falsos; un test por módulo |
 
 ## Correr local
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt pytest
+pip install -r requirements-dev.txt
 # Postgres local: el docker reinvent-pg (imagen pgvector/pgvector:pg16, puerto 5433) con el schema reinvent cargado.
 pytest -q                                  # no consume APIs; usa un schema app_test_* que se borra al final
-DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent \
-  DATA_DIR=./data BOOTSTRAP_USERS=dev:dev STT_PROVIDER=fake LLM_PROVIDER=fake uvicorn app.main:app --reload
-# http://localhost:8000 → usuario "dev", contraseña "dev"
+DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEMA=app_dev \
+  DATA_DIR=./data BOOTSTRAP_USERS=dev:devpass123 ADMIN_USERS=dev \
+  STT_PROVIDER=fake LLM_PROVIDER=fake EMBED_PROVIDER=off uvicorn app.main:app --reload
+# http://localhost:8000 → usuario "dev", contraseña "devpass123"
 ```
+
+Los tests necesitan el catálogo de re:Invent cargado en el Postgres local (usan charlas reales como ARC407), por eso no corren en CI.
 
 Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
 
 ## Deploy en Railway
 
-1. **Repo**: subilo a un repo privado de GitHub. En Railway, *New Project → Deploy from GitHub repo*. Railway detecta el `Dockerfile` solo.
+1. **Repo**: en Railway, *New Project → Deploy from GitHub repo*. Railway detecta el `Dockerfile` solo.
    Sin GitHub: desde la carpeta, `railway init` y después `railway up --detach`.
 2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Ahí quedan los audios; sin volumen, cada deploy los borra.
    **Postgres**: *New → Template → pgvector* (Postgres con la extensión `vector`). En la app, `DATABASE_URL=${{<servicio postgres>.DATABASE_URL}}` (red privada).
@@ -64,12 +83,13 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    Si el volumen tenía el SQLite anterior (`/data/reinventar.db`), el primer arranque lo importa solo a Postgres y lo renombra a `reinventar.db.migrated`.
 3. **Variables** (*Variables → Raw Editor*):
    ```
-   BOOTSTRAP_USERS=ale:<contraseña>,mariana:<contraseña>,marcos:<contraseña>
+   BOOTSTRAP_USERS=ale:<contraseña>
+   ADMIN_USERS=ale
    STT_API_KEY=<API key de Groq>
    ANTHROPIC_API_KEY=<API key de Claude>
    GOOGLE_MAPS_API_KEY=<API key de Google Maps>
    ```
-   Cada usuario de la lista se crea al arrancar si todavía no existe (no pisa contraseñas de usuarios ya creados). Para sumar a alguien después, agregalo a la variable y redeployá. El resto tiene defaults (ver `.env.example`).
+   `BOOTSTRAP_USERS` crea al arrancar los usuarios que todavía no existen (no pisa contraseñas); usalo solo para el primer admin. El resto de los usuarios se da de alta desde la app (ver [Usuarios](#usuarios)). Las demás variables tienen defaults (ver `.env.example`).
 
    Para `GOOGLE_MAPS_API_KEY`: en [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) activá la *Maps JavaScript API*, creá una API key y restringila por *HTTP referrer* a tu dominio de Railway (p. ej. `https://tu-dominio.up.railway.app/*`) para que nadie más la pueda usar aunque la vea en el código del navegador. Sin esta variable el itinerario funciona igual, pero sin mapa.
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
@@ -96,6 +116,12 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
 | `EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | otro modelo de fastembed (se recalculan todos los vectores) |
 
+## Usuarios
+
+- **Alta**: un admin entra a *Ajustes → Administración* (`#/admin`) y crea el usuario con una contraseña temporal (mínimo 8 caracteres). Al primer ingreso la app obliga a cambiarla.
+- Desde la misma pantalla se resetean contraseñas, se activan o desactivan usuarios y se cierran sus sesiones.
+- **Admins**: los usuarios listados en `ADMIN_USERS` (separados por coma). Se cambia en las variables de Railway; no hay botón en la app.
+
 ## Cómo se comporta la grabación
 
 - MediaRecorder en `audio/webm;codecs=opus` a 32 kbps mono: una hora ≈ 14 MB. Se desactivan el echo cancellation, el noise suppression y el AGC del navegador.
@@ -110,3 +136,23 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 2. 60 min con *Modo sala*: confirmar que no se corta. Probar también con la pantalla bloqueada (no está garantizado en Chrome Android).
 3. Activar el modo avión a mitad de la sesión y desactivarlo: la cola tiene que vaciarse sola.
 4. Cuánto tarda y cuánto cuesta procesar una keynote de 2 h.
+
+## Cómo trabajar en el repo
+
+- **Rama**: `main` es producción (cada push despliega en Railway). Para cambios grandes, una rama `feat/...` o `fix/...` y un PR.
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en castellano: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`.
+- **Tests**: `pytest -q` antes de cada push. Las funcionalidades nuevas van con su test.
+- **Secretos**: nunca al repo (es público). Van en `.env` local (ignorado por git) o en las variables de Railway.
+
+### Publicar una versión
+
+La versión sigue [SemVer](https://semver.org/lang/es/): `MAJOR.MINOR.PATCH` (`fix` sube PATCH, `feat` sube MINOR).
+
+1. Subí `__version__` en `app/__init__.py`.
+2. Subí `VERSION` en `web/sw.js` al mismo número, para que los celulares descarguen la PWA nueva.
+3. En `CHANGELOG.md`, pasá lo de *Sin publicar* a una sección `## [X.Y.Z] - AAAA-MM-DD` y actualizá los links del final.
+4. `pytest -q` (`tests/test_version.py` verifica que los tres coincidan).
+5. Commit `chore: versión X.Y.Z`, tag y push:
+   ```bash
+   git tag -a vX.Y.Z -m "vX.Y.Z" && git push && git push --tags
+   ```
