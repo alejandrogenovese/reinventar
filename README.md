@@ -6,7 +6,7 @@ PWA para aprovechar AWS re:Invent desde el celular. Tiene tres enfoques:
 2. **Encontrar sesiones**: búsqueda híbrida y chat con RAG sobre el catálogo en Postgres, más un itinerario recomendado según el perfil de cada persona.
 3. **Preparar conversaciones**: fichas navegables de charla → speaker → empresa y un briefing para llegar con contexto a cada charla.
 
-Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway, se despliega solo con cada push a `main`.
+Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway. Cada push a `main` pasa por GitHub Actions (tests de núcleo) y, si pasan, se deploya con `railway up`.
 
 ```
 PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway ──▶ Volume /data
@@ -69,7 +69,7 @@ DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEM
 # http://localhost:8000 → usuario "dev", contraseña "devpass123"
 ```
 
-Los tests necesitan el catálogo de re:Invent cargado en el Postgres local (usan charlas reales como ARC407), por eso no corren en CI.
+Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan el schema `reinvent` cargado en el Postgres local, por eso corren solo local. En CI (`.github/workflows/ci-deploy.yml`) corren los tests de núcleo (auth, API, base, LLM, passkeys, versión) contra un Postgres vacío.
 
 Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
 
@@ -99,6 +99,12 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 7. **Catálogo del itinerario**: se lee del schema `reinvent` de Postgres al arrancar. Después de correr `scripts/sync_to_railway.sh`, el admin puede recargarlo sin reiniciar (`POST /api/admin/catalog/reload`, botón en Administración). Si el schema no está cargado, la grabación sigue funcionando igual; sólo fallan `/api/catalog` y `/api/itinerary` con un 503 claro.
 
 8. **Búsqueda por significado**: al arrancar se baja el modelo de embeddings (~220 MB) a `/data/models` (una sola vez, queda en el volumen) y se calculan los vectores de las charlas en segundo plano (~30 s la primera vez; después solo las charlas nuevas o cambiadas). Mientras tanto la búsqueda y el itinerario funcionan solo por palabras. Suma ~400 MB de RAM.
+
+### CI/CD con GitHub Actions y Claude Code
+
+- **`ci-deploy.yml`**: en cada PR corre los tests de núcleo; en cada push a `main`, si pasan, deploya con `railway up --ci`. Necesita el secret `RAILWAY_TOKEN` (project token del environment *production*, en *Project Settings → Tokens*) y, opcional, la variable `RAILWAY_SERVICE` (por defecto `reinventar`). El servicio **no** tiene que estar conectado al repo en Railway (*Settings → Source → Disconnect*): si lo está, cada push deploya dos veces.
+- **`claude.yml`**: mencioná `@claude` en un issue, un PR o una revisión y Claude Code responde, implementa o abre un PR. Solo responde a usuarios con permiso de escritura. Necesita la GitHub App de Claude y el secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Sigue las reglas de `CLAUDE.md`.
+- **Volver atrás**: reconectá el repo en *Settings → Source* y borrá o desactivá el job `deploy`.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 
@@ -140,7 +146,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 
 ## Cómo trabajar en el repo
 
-- **Rama**: `main` es producción (cada push despliega en Railway). Para cambios grandes, una rama `feat/...` o `fix/...` y un PR.
+- **Rama**: `main` es producción (cada push que pasa CI despliega en Railway). Para cambios grandes, una rama `feat/...` o `fix/...` y un PR.
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en castellano: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`.
 - **Tests**: `pytest -q` antes de cada push. Las funcionalidades nuevas van con su test.
 - **Secretos**: nunca al repo (es público). Van en `.env` local (ignorado por git) o en las variables de Railway.

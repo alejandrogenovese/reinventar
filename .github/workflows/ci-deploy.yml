@@ -1,0 +1,88 @@
+name: CI y deploy a Railway
+
+# Tests de núcleo en cada PR y en cada push a main; si pasan en main, deploy a Railway.
+# Requiere: secret RAILWAY_TOKEN (project token del environment production).
+# Opcional: variable RAILWAY_SERVICE (nombre o ID del servicio; por defecto "reinventar").
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests de núcleo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: reinvent
+          POSTGRES_PASSWORD: reinvent2026
+          POSTGRES_DB: reinvent
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U reinvent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://reinvent:reinvent2026@localhost:5433/reinvent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Dependencias
+        run: pip install -r requirements-dev.txt
+
+      # Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan
+      # el schema reinvent cargado y no corren en CI: se corren local con pytest -q.
+      - name: pytest (sin catálogo)
+        run: >-
+          pytest -q
+          --ignore=tests/test_briefing.py
+          --ignore=tests/test_catalog_pg.py
+          --ignore=tests/test_clusters.py
+          --ignore=tests/test_explore.py
+          --ignore=tests/test_itinerary.py
+          --ignore=tests/test_knowledge.py
+          --ignore=tests/test_nl_filters.py
+          --ignore=tests/test_search.py
+          --ignore=tests/test_talk_link.py
+          --ignore=tests/test_today.py
+          --deselect=tests/test_auth.py::test_itinerarios_quedan_separados_por_usuario
+
+  deploy:
+    name: Deploy a Railway
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: railway-production
+      cancel-in-progress: false
+    container: ghcr.io/railwayapp/cli:latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || 'reinventar' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --ci: sigue el build en el log y falla el job si el build falla.
+      - name: railway up
+        run: railway up --service="$RAILWAY_SERVICE" --ci

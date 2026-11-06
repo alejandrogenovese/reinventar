@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- CI en GitHub Actions: tests de núcleo contra Postgres en cada PR y en cada push a `main`.
+- Deploy a Railway desde Actions (`railway up --ci`), solo si pasan los tests.
+- Claude Code en GitHub: `@claude` en issues y PRs, con `CLAUDE.md` como guía del repo.
+
 ## [0.18.0] - 2026-11-05
 
 ### Agregado
