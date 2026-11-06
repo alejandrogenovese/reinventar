@@ -61,6 +61,9 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
       - name: Dependencias
         run: pip install -r requirements-dev.txt
 
