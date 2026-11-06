@@ -117,7 +117,7 @@ def _lexical_ranking(query: str, top: int) -> list[int]:
 
 # --- embeddings (por significado) --------------------------------------------
 def _hash(text: str) -> str:
-    return hashlib.sha1(text.encode()).hexdigest()
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 def ensure_index(force: bool = False) -> None:

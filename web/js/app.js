@@ -12,7 +12,7 @@ import { TodayPanel } from "./today.js";
 import * as it from "./itinerary.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast } from "./ui.js";
+import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -159,7 +159,7 @@ async function viewList() {
   const onUp = (e) => showPending(e.detail);
   uploader.addEventListener("change", onUp);
   cleanup = () => uploader.removeEventListener("change", onUp);
-  uploader.refresh(); uploader.kick();
+  toastOnError(uploader.refresh()); uploader.kick();
 
   const sessions = await Sessions.list();
   TodayPanel(sessions)
@@ -268,7 +268,7 @@ async function viewRecord(id) {
     upl.replaceChildren(pending ? StatusPill("uploading", `Subiendo ${pending}`) : StatusPill("ready", "Todo subido"), h("span", { class: "caption" }, error || ""));
   };
   uploader.addEventListener("change", onUp);
-  uploader.refresh();
+  toastOnError(uploader.refresh());
   if (resumed) finishBtn.disabled = false;
   paint();
 
@@ -287,7 +287,7 @@ async function viewRecord(id) {
   }
   micSelect.addEventListener("change", () => {
     if (rec.state === "recording" || rec.state === "paused") { toast("Para cambiar de micrófono, terminá o pausá y volvé a entrar."); return; }
-    openMic(micSelect.value);
+    void openMic(micSelect.value);
   });
   // Primero con el preferido; si no, con el default para obtener permiso y labels, y buscamos el DJI.
   const pref = preferredMic();
@@ -310,7 +310,7 @@ async function viewRecord(id) {
       h("span", { class: "caption" }, "Tocá para salir"));
     sala.update = () => { c.textContent = counter.textContent; };
     document.body.append(sala);
-    if (rec.state === "recording") wakeLock.acquire();
+    if (rec.state === "recording") void wakeLock.acquire();
   }
 
   async function finish() {
@@ -369,7 +369,7 @@ async function viewDetail(id) {
 
     actions.replaceChildren(...kids(
       s.status === "ready" ? Button("Exportar .md", { onclick: () => exportMd(s) }) : null,
-      s.status === "error" ? Button("Reintentar", { variant: "primary", onclick: async () => { await Sessions.retry(id); load(); } }) : null,
+      s.status === "error" ? Button("Reintentar", { variant: "primary", onclick: () => toastOnError(Sessions.retry(id).then(load)) }) : null,
       ["recording", "uploading"].includes(s.status) ? Button("Seguir grabando", { variant: "primary", onclick: () => (location.hash = `#/grabar/${id}`) }) : null,
       Button("Eliminar", { variant: "danger", onclick: async () => {
         if (!await confirmDialog("¿Eliminar la sesión?", { text: "Se borran el audio, la transcripción y el resumen. No se puede deshacer.", confirmLabel: "Eliminar", danger: true })) return;
@@ -378,7 +378,7 @@ async function viewDetail(id) {
 
     const tabs = h("div", { class: "tabs", role: "tablist" },
       [["resumen", "Resumen"], ["transcripcion", "Transcripción"]].map(([k, label]) =>
-        h("button", { class: "ra-tab", role: "tab", "aria-selected": String(tab === k), onclick: () => { tab = k; load(); } }, label)));
+        h("button", { class: "ra-tab", role: "tab", "aria-selected": String(tab === k), onclick: () => { tab = k; toastOnError(load()); } }, label)));
     let content;
     if (tab === "resumen") {
       content = s.summary ? SummaryPanel(s.summary) : h("div", { class: "empty" }, PROCESSING.includes(s.status) ? "El resumen aparece cuando termina el procesamiento." : "Sin resumen todavía.");
@@ -408,7 +408,7 @@ async function viewDetail(id) {
 function finishLogin(r) {
   setToken(r.token);
   setMustChangePassword(r.must_change_password);
-  store.persist();
+  void store.persist();
   location.hash = r.must_change_password ? "#/password" : "#/";
 }
 
@@ -441,7 +441,9 @@ function viewLogin() {
 // --- ajustes -----------------------------------------------------------------
 async function viewSettings() {
   const pending = h("p", { class: "caption" });
-  store.allChunks().then((c) => (pending.textContent = c.length ? `${c.length} pedazos de audio esperando subir.` : "No hay audio pendiente de subir."));
+  store.allChunks()
+    .then((c) => (pending.textContent = c.length ? `${c.length} pedazos de audio esperando subir.` : "No hay audio pendiente de subir."))
+    .catch(() => (pending.textContent = "No se pudo leer el audio pendiente."));
 
   let me = {};
   try { me = await Auth.me(); } catch {}
@@ -468,4 +470,4 @@ async function viewSettings() {
 
 // --- arranque ----------------------------------------------------------------
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
-route();
+void route();

@@ -5,6 +5,7 @@ Login sin usuario (credencial descubrible): el navegador ofrece las passkeys de 
 """
 import json
 import logging
+import re
 from typing import Optional
 
 import webauthn
@@ -26,6 +27,14 @@ from .auth import auth
 from .auth_api import issue_session
 
 log = logging.getLogger("reinventar.passkey")
+
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]+")
+REASON_MAX = 200
+
+
+def _reason(e: Exception) -> str:
+    """Motivo del rechazo para el log, en una línea: puede traer datos del navegador (no deben falsear entradas del log)."""
+    return _CONTROL_CHARS.sub(" ", f"{type(e).__name__}: {e}")[:REASON_MAX]
 router = APIRouter()
 
 RP_NAME = "ReinventAR"
@@ -86,7 +95,7 @@ def register_verify(body: RegisterVerify, request: Request, username: str = Depe
             expected_origin=origin, require_user_verification=True,
         )
     except WebAuthnException as e:
-        log.warning("Registro de passkey rechazado para %s: %s", username, e)
+        log.warning("Registro de passkey rechazado para %s: %s", username, _reason(e))
         raise HTTPException(400, "No se pudo verificar el Face ID / huella") from e
     store.add_passkey(
         bytes_to_base64url(verified.credential_id), username, verified.credential_public_key,
@@ -121,7 +130,7 @@ def login_verify(body: LoginVerify, request: Request):
             require_user_verification=True,
         )
     except WebAuthnException as e:
-        log.warning("Login con passkey rechazado para %s: %s", passkey["username"], e)
+        log.warning("Login con passkey rechazado para %s: %s", passkey["username"], _reason(e))
         raise HTTPException(401, "No se pudo verificar el Face ID / huella") from e
     store.touch_passkey(passkey["id"], verified.new_sign_count)
     return issue_session(user)

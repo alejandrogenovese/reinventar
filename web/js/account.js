@@ -63,7 +63,7 @@ function UserRow(u, reload) {
   const tags = [u.is_admin ? "admin" : null, u.is_active ? null : "desactivado", u.must_change_password ? "debe cambiar contraseña" : null].filter(Boolean);
   const reset = async () => {
     const pwd = await askPassword(u.username);
-    if (pwd) run(() => Admin.resetPassword(u.username, pwd), `Contraseña de ${u.username} reseteada`, reload);
+    if (pwd) void run(() => Admin.resetPassword(u.username, pwd), `Contraseña de ${u.username} reseteada`, reload);
   };
   const toggle = () => run(() => Admin.setActive(u.username, !u.is_active), u.is_active ? `${u.username} desactivado` : `${u.username} activado`, reload);
   const revoke = () => run(() => Admin.revokeSessions(u.username), `Sesiones de ${u.username} cerradas`, reload);

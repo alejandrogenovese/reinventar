@@ -208,3 +208,19 @@ def test_punta_a_punta_con_firma_real():
         assert [r.status_code for r in logins] == [200, 200], [r.text for r in logins]
         assert logins[0].json()["username"] == username
         assert forged.status_code == 401
+
+
+def test_rechazo_de_passkey_loguea_en_una_sola_linea(monkeypatch, caplog):
+    def rejects(**kw):
+        raise webauthn.helpers.exceptions.InvalidRegistrationResponse("origen inesperado\nINFO falso: login ok")
+
+    monkeypatch.setattr(webauthn, "verify_registration_response", rejects)
+    with TestClient(app) as c:
+        headers = login_headers(c)
+        opts = c.post("/api/passkey/register/options", headers=headers).json()
+        r = c.post("/api/passkey/register/verify", headers=headers,
+                   json={"challenge_id": opts["challenge_id"], "credential": _credential(b"x"), "device": "d"})
+
+    assert r.status_code == 400
+    rejected = [rec.getMessage() for rec in caplog.records if "rechazado" in rec.getMessage()]
+    assert rejected and all("\n" not in m for m in rejected)  # datos del navegador sin saltos de línea: no se falsean entradas

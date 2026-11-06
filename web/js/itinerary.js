@@ -1,7 +1,7 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Itinerary } from "./api.js";
 import { renderMap } from "./map.js";
-import { Button, Tag, h, toast, withUndo } from "./ui.js";
+import { Button, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
@@ -153,7 +153,7 @@ export async function viewItinerario(view) {
       list.replaceChildren(...(day?.sessions || []).map((s) => {
         const card = SessionMiniCard(s, {
           locked: s.locked,
-          onLock: async () => { await Itinerary.lock(s.code, !s.locked); paint(); },
+          onLock: () => toastOnError(Itinerary.lock(s.code, !s.locked).then(paint)),
           onRemove: () => withUndo("Sesión quitada del itinerario.", {
             apply: () => { card.hidden = true; },
             commit: () => Itinerary.remove(s.code).catch((err) => { card.hidden = false; toast(err.message); }),

@@ -67,7 +67,7 @@ export function AskPanel() {
     }
   }
 
-  const form = h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); ask(input.value.trim()); } },
+  const form = h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); void ask(input.value.trim()); } },
     h("div", { class: "field" }, input),
     h("div", { class: "actions" }, submit));
   input.addEventListener("keydown", (e) => {
@@ -78,7 +78,7 @@ export function AskPanel() {
     h("p", { class: "caption" }, "Contá qué buscás con tus palabras: busco en todo el catálogo y te respondo citando las charlas que sirven."),
     form,
     history.length ? null : h("div", { class: "ra-chips" },
-      EXAMPLES.map((ex) => h("button", { type: "button", class: "ra-chip", onclick: () => { input.value = ex; ask(ex); } }, ex))),
+      EXAMPLES.map((ex) => h("button", { type: "button", class: "ra-chip", onclick: () => { input.value = ex; void ask(ex); } }, ex))),
     turns);
   paint();
   return panel;
