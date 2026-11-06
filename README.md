@@ -60,7 +60,7 @@ PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastA
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.lock
 # Postgres local: el docker reinvent-pg (imagen pgvector/pgvector:pg16, puerto 5433) con el schema reinvent cargado.
 pytest -q                                  # no consume APIs; usa un schema app_test_* que se borra al final
 DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEMA=app_dev \
@@ -143,6 +143,20 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 2. 60 min con *Modo sala*: confirmar que no se corta. Probar también con la pantalla bloqueada (no está garantizado en Chrome Android).
 3. Activar el modo avión a mitad de la sesión y desactivarlo: la cola tiene que vaciarse sola.
 4. Cuánto tarda y cuánto cuesta procesar una keynote de 2 h.
+
+## Dependencias
+
+Las dependencias directas se declaran en `requirements.txt` (producción) y `requirements-dev.txt` (más pytest).
+CI y Docker instalan desde los locks (`requirements.lock`, `requirements-dev.lock`): todas las versiones fijas, transitivas incluidas,
+con hashes y solo wheels (`--require-hashes --only-binary :all:`). Después de cambiar un `requirements*.txt`, regenerá los dos:
+
+```bash
+OPTS="--generate-hashes --only-binary :all: --python-version 3.12 --python-platform x86_64-manylinux_2_28 --no-header"
+uv pip compile requirements.txt $OPTS -o requirements.lock
+uv pip compile requirements-dev.txt $OPTS -o requirements-dev.lock
+```
+
+Las acciones de GitHub en `.github/workflows` van fijadas por SHA de commit (con la versión en un comentario).
 
 ## Cómo trabajar en el repo
 

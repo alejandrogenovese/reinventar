@@ -8,8 +8,9 @@ RUN apt-get update \
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DATA_DIR=/data
 WORKDIR /srv
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Lock con hashes y solo wheels (regenerarlo: ver README → Dependencias).
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes --only-binary :all: -r requirements.lock
 
 COPY app ./app
 COPY web ./web

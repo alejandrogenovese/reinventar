@@ -10,6 +10,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Promoción automática `dev` → `main` (fast-forward) cuando pasan los tests; Railway deploya con el push a `main`.
 - Claude Code en GitHub: `@claude` en issues y PRs, con PRs contra `dev` y `CLAUDE.md` como guía del repo.
 
+### Seguridad
+- Dependencias instaladas desde locks con hashes y solo wheels (`requirements.lock`, `requirements-dev.lock`) en CI y en Docker.
+- Acciones de GitHub fijadas por SHA de commit.
+
 ## [0.18.0] - 2026-11-05
 
 ### Agregado
