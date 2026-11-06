@@ -6,7 +6,7 @@ PWA para aprovechar AWS re:Invent desde el celular. Tiene tres enfoques:
 2. **Encontrar sesiones**: búsqueda híbrida y chat con RAG sobre el catálogo en Postgres, más un itinerario recomendado según el perfil de cada persona.
 3. **Preparar conversaciones**: fichas navegables de charla → speaker → empresa y un briefing para llegar con contexto a cada charla.
 
-Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway, se despliega solo con cada push a `main`.
+Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway, se despliega solo con cada push a `main`. Se trabaja en `dev`: cuando pasa los tests en GitHub Actions, `main` se adelanta a `dev` solo.
 
 ```
 PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway ──▶ Volume /data
@@ -60,7 +60,7 @@ PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastA
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.lock
 # Postgres local: el docker reinvent-pg (imagen pgvector/pgvector:pg16, puerto 5433) con el schema reinvent cargado.
 pytest -q                                  # no consume APIs; usa un schema app_test_* que se borra al final
 DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEMA=app_dev \
@@ -69,7 +69,7 @@ DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEM
 # http://localhost:8000 → usuario "dev", contraseña "devpass123"
 ```
 
-Los tests necesitan el catálogo de re:Invent cargado en el Postgres local (usan charlas reales como ARC407), por eso no corren en CI.
+Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan el schema `reinvent` cargado en el Postgres local, por eso corren solo local. En CI (`.github/workflows/ci-promote.yml`) corren los tests de núcleo (auth, API, base, LLM, passkeys, versión) contra un Postgres vacío.
 
 Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
 
@@ -99,6 +99,12 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 7. **Catálogo del itinerario**: se lee del schema `reinvent` de Postgres al arrancar. Después de correr `scripts/sync_to_railway.sh`, el admin puede recargarlo sin reiniciar (`POST /api/admin/catalog/reload`, botón en Administración). Si el schema no está cargado, la grabación sigue funcionando igual; sólo fallan `/api/catalog` y `/api/itinerary` con un 503 claro.
 
 8. **Búsqueda por significado**: al arrancar se baja el modelo de embeddings (~220 MB) a `/data/models` (una sola vez, queda en el volumen) y se calculan los vectores de las charlas en segundo plano (~30 s la primera vez; después solo las charlas nuevas o cambiadas). Mientras tanto la búsqueda y el itinerario funcionan solo por palabras. Suma ~400 MB de RAM.
+
+### CI/CD con GitHub Actions y Claude Code
+
+- **Flujo**: `feat/...` o `fix/...` → PR a `dev` → merge → `ci-promote.yml` corre los tests de núcleo en `dev` y, si pasan, hace fast-forward de `main` a `dev` → Railway deploya con ese push a `main`. El servicio tiene que seguir conectado al repo en Railway (*Settings → Source*, branch `main`), sin *Wait for CI*: el push que hace Actions no dispara otro workflow en `main`.
+- **Si la promoción falla** porque `main` tiene commits que `dev` no tiene: `git checkout dev && git merge origin/main && git push`.
+- **`claude.yml`**: mencioná `@claude` en un issue, un PR o una revisión y Claude Code responde, implementa o abre un PR contra `dev`. Solo responde a usuarios con permiso de escritura. Necesita la GitHub App de Claude y el secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Sigue las reglas de `CLAUDE.md`.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 
@@ -138,9 +144,23 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 3. Activar el modo avión a mitad de la sesión y desactivarlo: la cola tiene que vaciarse sola.
 4. Cuánto tarda y cuánto cuesta procesar una keynote de 2 h.
 
+## Dependencias
+
+Las dependencias directas se declaran en `requirements.txt` (producción) y `requirements-dev.txt` (más pytest).
+CI y Docker instalan desde los locks (`requirements.lock`, `requirements-dev.lock`): todas las versiones fijas, transitivas incluidas,
+con hashes y solo wheels (`--require-hashes --only-binary :all:`). Después de cambiar un `requirements*.txt`, regenerá los dos:
+
+```bash
+OPTS="--generate-hashes --only-binary :all: --python-version 3.12 --python-platform x86_64-manylinux_2_28 --no-header"
+uv pip compile requirements.txt $OPTS -o requirements.lock
+uv pip compile requirements-dev.txt $OPTS -o requirements-dev.lock
+```
+
+Las acciones de GitHub en `.github/workflows` van fijadas por SHA de commit (con la versión en un comentario).
+
 ## Cómo trabajar en el repo
 
-- **Rama**: `main` es producción (cada push despliega en Railway). Para cambios grandes, una rama `feat/...` o `fix/...` y un PR.
+- **Ramas**: `main` es producción (cada push despliega en Railway) y no se toca a mano. Se trabaja en `dev`; para cambios grandes, una rama `feat/...` o `fix/...` desde `dev` y un PR contra `dev`. Cuando `dev` pasa los tests, Actions adelanta `main` (fast-forward).
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en castellano: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`.
 - **Tests**: `pytest -q` antes de cada push. Las funcionalidades nuevas van con su test.
 - **Secretos**: nunca al repo (es público). Van en `.env` local (ignorado por git) o en las variables de Railway.
