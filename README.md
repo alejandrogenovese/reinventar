@@ -79,7 +79,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    Sin GitHub: desde la carpeta, `railway init` y después `railway up --detach`.
 2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Ahí quedan los audios; sin volumen, cada deploy los borra.
    **Postgres**: *New → Template → pgvector* (Postgres con la extensión `vector`). En la app, `DATABASE_URL=${{<servicio postgres>.DATABASE_URL}}` (red privada).
-   Cargá el catálogo desde la Mac con `RAILWAY_DATABASE_URL='<DATABASE_PUBLIC_URL>' scripts/sync_to_railway.sh`; repetilo cada vez que corrijas la base local (solo pisa el schema `reinvent`).
+   Para conectarte desde afuera, activá *Settings → Networking → TCP Proxy* (puerto `5432`); la URL pública es `postgresql://<PGUSER>:<PGPASSWORD>@<RAILWAY_TCP_PROXY_DOMAIN>:<RAILWAY_TCP_PROXY_PORT>/<PGDATABASE>` (variables del servicio pgvector; el dominio HTTP no sirve para Postgres). Los colaboradores entran con el rol de solo lectura `colaborador`, que ve el schema `reinvent` y no el `app`.
+   Cargá el catálogo desde la Mac con `RAILWAY_DATABASE_URL='<URL pública>' scripts/sync_to_railway.sh`; repetilo cada vez que corrijas la base local (solo pisa el schema `reinvent`).
    Si el volumen tenía el SQLite anterior (`/data/reinventar.db`), el primer arranque lo importa solo a Postgres y lo renombra a `reinventar.db.migrated`.
 3. **Variables** (*Variables → Raw Editor*):
    ```

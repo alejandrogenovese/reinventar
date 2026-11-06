@@ -3,12 +3,13 @@
 # Solo pisa el schema reinvent: el schema "app" (usuarios, grabaciones, itinerarios) no se toca.
 #
 # Uso:  RAILWAY_DATABASE_URL='postgresql://...' scripts/sync_to_railway.sh
-#       (la URL pública está en Railway → servicio Postgres → Variables → DATABASE_PUBLIC_URL)
+#       (URL pública: PGUSER, PGPASSWORD y PGDATABASE del servicio pgvector en Railway, con el host y puerto
+#        del TCP Proxy: RAILWAY_TCP_PROXY_DOMAIN y RAILWAY_TCP_PROXY_PORT)
 set -euo pipefail
 
 LOCAL_CONTAINER="${LOCAL_CONTAINER:-reinvent-pg}"
 SCHEMA="reinvent"
-: "${RAILWAY_DATABASE_URL:?Falta RAILWAY_DATABASE_URL (DATABASE_PUBLIC_URL del Postgres de Railway)}"
+: "${RAILWAY_DATABASE_URL:?Falta RAILWAY_DATABASE_URL (URL pública del Postgres de Railway por el TCP Proxy)}"
 
 DUMP="$(mktemp -t reinvent-sync).dump"
 trap 'rm -f "${DUMP}"' EXIT
@@ -26,6 +27,16 @@ docker exec -i "${LOCAL_CONTAINER}" sh -c "
     -c 'DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE' &&
   pg_restore -d '${RAILWAY_DATABASE_URL}' --no-owner --no-privileges --exit-on-error
 " < "${DUMP}"
+
+# El DROP ... CASCADE se lleva los permisos: el rol de solo lectura de los colaboradores (si existe) los recupera.
+docker exec "${LOCAL_CONTAINER}" psql "${RAILWAY_DATABASE_URL}" -v ON_ERROR_STOP=1 -q -c "
+  DO \$\$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'colaborador') THEN
+      GRANT USAGE ON SCHEMA ${SCHEMA} TO colaborador;
+      GRANT SELECT ON ALL TABLES IN SCHEMA ${SCHEMA} TO colaborador;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA ${SCHEMA} GRANT SELECT ON TABLES TO colaborador;
+    END IF;
+  END \$\$"
 
 echo "> Verificación en Railway:"
 docker exec "${LOCAL_CONTAINER}" psql "${RAILWAY_DATABASE_URL}" -P pager=off -c "
