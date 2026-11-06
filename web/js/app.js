@@ -470,4 +470,4 @@ async function viewSettings() {
 
 // --- arranque ----------------------------------------------------------------
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
-void route();
+await route();

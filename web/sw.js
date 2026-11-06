@@ -49,11 +49,16 @@ self.addEventListener("fetch", (e) => {
 
   // Google Fonts: stale-while-revalidate en su propia caché.
   if (url.hostname.endsWith("fonts.googleapis.com") || url.hostname.endsWith("fonts.gstatic.com")) {
-    e.respondWith(caches.open("fonts").then(async (c) => {
-      const hit = await c.match(e.request);
-      const net = fetch(e.request).then((r) => { if (r.ok || r.type === "opaque") void cachePut("fonts", e.request, r.clone()); return r; }).catch(() => hit);
+    e.respondWith((async () => {
+      const hit = await caches.match(e.request, { cacheName: "fonts" });
+      const net = fetch(e.request)
+        .then((r) => {
+          if (r.ok || r.type === "opaque") void cachePut("fonts", e.request, r.clone());
+          return r;
+        })
+        .catch(() => hit);
       return hit || net;
-    }));
+    })());
     return;
   }
 
@@ -61,7 +66,10 @@ self.addEventListener("fetch", (e) => {
   // App shell: red primero (para tomar cambios), caché si no hay señal.
   e.respondWith(
     fetch(e.request, { cache: "no-cache" }) // revalida con el servidor: nunca una copia vieja de la caché HTTP
-      .then((r) => { if (r.ok) void cachePut(VERSION, e.request, r.clone()); return r; })
+      .then((r) => {
+        if (r.ok) void cachePut(VERSION, e.request, r.clone());
+        return r;
+      })
       .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
   );
 });
