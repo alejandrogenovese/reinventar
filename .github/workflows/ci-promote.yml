@@ -1,14 +1,15 @@
-name: CI y deploy a Railway
+name: CI y promoción dev → main
 
-# Tests de núcleo en cada PR y en cada push a main; si pasan en main, deploy a Railway.
-# Requiere: secret RAILWAY_TOKEN (project token del environment production).
-# Opcional: variable RAILWAY_SERVICE (nombre o ID del servicio; por defecto "reinventar").
+# Flujo: se trabaja en dev (o en ramas feat/fix con PR a dev).
+# Cada push a dev corre los tests de núcleo; si pasan, main se adelanta a dev (fast-forward)
+# y Railway, conectado al repo, deploya solo con ese push a main.
+# En PRs a dev o a main solo corren los tests.
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [dev]
+  pull_request:
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
@@ -24,8 +25,8 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: reinvent
-          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: reinvent
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5433:5432
         options: >-
@@ -70,23 +71,35 @@ jobs:
           --ignore=tests/test_today.py
           --deselect=tests/test_auth.py::test_itinerarios_quedan_separados_por_usuario
 
-  deploy:
-    name: Deploy a Railway
+  promote:
+    name: Promover dev → main
     needs: test
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: production
+    timeout-minutes: 5
+    permissions:
+      contents: write
     concurrency:
-      group: railway-production
+      group: promote-main
       cancel-in-progress: false
-    container: ghcr.io/railwayapp/cli:latest
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || 'reinventar' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
 
-      # --ci: sigue el build en el log y falla el job si el build falla.
-      - name: railway up
-        run: railway up --service="$RAILWAY_SERVICE" --ci
+      # Solo fast-forward: si main tiene commits que dev no tiene, falla y no pisa nada.
+      # Arreglo: git checkout dev && git merge origin/main && git push.
+      - name: Fast-forward de main a dev
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "::error::main tiene commits que no están en dev. Traelos a dev (git merge origin/main) y volvé a pushear."
+            exit 1
+          fi
+          if [ "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)" ]; then
+            echo "main ya está en el mismo commit que dev; nada para promover."
+            exit 0
+          fi
+          git push origin HEAD:main
+          echo "main → $(git rev-parse --short HEAD). Railway deploya solo con este push."

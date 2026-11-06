@@ -71,6 +71,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Las ramas que crea Claude salen de dev y sus PRs van contra dev, nunca contra main.
+          base_branch: dev
           claude_args: >-
             --max-turns 30
             --allowedTools "Bash(pytest:*),Bash(python -m pytest:*),Bash(pip install:*),Bash(git diff:*),Bash(git log:*),Bash(git status:*)"

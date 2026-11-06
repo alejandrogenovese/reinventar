@@ -6,7 +6,7 @@ PWA para aprovechar AWS re:Invent desde el celular. Tiene tres enfoques:
 2. **Encontrar sesiones**: búsqueda híbrida y chat con RAG sobre el catálogo en Postgres, más un itinerario recomendado según el perfil de cada persona.
 3. **Preparar conversaciones**: fichas navegables de charla → speaker → empresa y un briefing para llegar con contexto a cada charla.
 
-Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway. Cada push a `main` pasa por GitHub Actions (tests de núcleo) y, si pasan, se deploya con `railway up`.
+Versión actual: ver [`CHANGELOG.md`](CHANGELOG.md). Producción: Railway, se despliega solo con cada push a `main`. Se trabaja en `dev`: cuando pasa los tests en GitHub Actions, `main` se adelanta a `dev` solo.
 
 ```
 PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastAPI en Railway ──▶ Volume /data
@@ -69,7 +69,7 @@ DATABASE_URL=postgresql://reinvent:reinvent2026@localhost:5433/reinvent DB_SCHEM
 # http://localhost:8000 → usuario "dev", contraseña "devpass123"
 ```
 
-Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan el schema `reinvent` cargado en el Postgres local, por eso corren solo local. En CI (`.github/workflows/ci-deploy.yml`) corren los tests de núcleo (auth, API, base, LLM, passkeys, versión) contra un Postgres vacío.
+Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan el schema `reinvent` cargado en el Postgres local, por eso corren solo local. En CI (`.github/workflows/ci-promote.yml`) corren los tests de núcleo (auth, API, base, LLM, passkeys, versión) contra un Postgres vacío.
 
 Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`.
 
@@ -102,9 +102,9 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 
 ### CI/CD con GitHub Actions y Claude Code
 
-- **`ci-deploy.yml`**: en cada PR corre los tests de núcleo; en cada push a `main`, si pasan, deploya con `railway up --ci`. Necesita el secret `RAILWAY_TOKEN` (project token del environment *production*, en *Project Settings → Tokens*) y, opcional, la variable `RAILWAY_SERVICE` (por defecto `reinventar`). El servicio **no** tiene que estar conectado al repo en Railway (*Settings → Source → Disconnect*): si lo está, cada push deploya dos veces.
-- **`claude.yml`**: mencioná `@claude` en un issue, un PR o una revisión y Claude Code responde, implementa o abre un PR. Solo responde a usuarios con permiso de escritura. Necesita la GitHub App de Claude y el secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Sigue las reglas de `CLAUDE.md`.
-- **Volver atrás**: reconectá el repo en *Settings → Source* y borrá o desactivá el job `deploy`.
+- **Flujo**: `feat/...` o `fix/...` → PR a `dev` → merge → `ci-promote.yml` corre los tests de núcleo en `dev` y, si pasan, hace fast-forward de `main` a `dev` → Railway deploya con ese push a `main`. El servicio tiene que seguir conectado al repo en Railway (*Settings → Source*, branch `main`), sin *Wait for CI*: el push que hace Actions no dispara otro workflow en `main`.
+- **Si la promoción falla** porque `main` tiene commits que `dev` no tiene: `git checkout dev && git merge origin/main && git push`.
+- **`claude.yml`**: mencioná `@claude` en un issue, un PR o una revisión y Claude Code responde, implementa o abre un PR contra `dev`. Solo responde a usuarios con permiso de escritura. Necesita la GitHub App de Claude y el secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Sigue las reglas de `CLAUDE.md`.
 
 No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado y los archivos legacy dejan de funcionar el 1-dic-2026, en plena re:Invent. Configurá todo desde el dashboard.
 
@@ -146,7 +146,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 
 ## Cómo trabajar en el repo
 
-- **Rama**: `main` es producción (cada push que pasa CI despliega en Railway). Para cambios grandes, una rama `feat/...` o `fix/...` y un PR.
+- **Ramas**: `main` es producción (cada push despliega en Railway) y no se toca a mano. Se trabaja en `dev`; para cambios grandes, una rama `feat/...` o `fix/...` desde `dev` y un PR contra `dev`. Cuando `dev` pasa los tests, Actions adelanta `main` (fast-forward).
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en castellano: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`.
 - **Tests**: `pytest -q` antes de cada push. Las funcionalidades nuevas van con su test.
 - **Secretos**: nunca al repo (es público). Van en `.env` local (ignorado por git) o en las variables de Railway.
