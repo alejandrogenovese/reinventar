@@ -349,12 +349,19 @@ def huerfanos_app(conn: psycopg.Connection, schema: str = "reinvent", schema_app
 
 # ---------- CLI ----------
 
+_IDENTIFICADOR = re.compile(r"[a-z_][a-z0-9_]{0,62}")
+
+
 def _backup(schema: str) -> Path:
+    # El schema y el contenedor van como argumentos de pg_dump/docker: solo identificadores simples (nada que empiece
+    # con "-" ni con espacios), y el schema en la forma --schema=valor para que no se pueda leer como otra opción.
+    if not _IDENTIFICADOR.fullmatch(schema) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", LOCAL_CONTAINER):
+        sys.exit(f"Schema o contenedor inválido ({schema!r}, {LOCAL_CONTAINER!r}); no se aplicó nada.")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     destino = BACKUP_DIR / f"{schema}_antes_actualizar_{dt.datetime.now():%Y%m%d-%H%M%S}.dump"
     with destino.open("wb") as f:
         r = subprocess.run(["docker", "exec", LOCAL_CONTAINER, "pg_dump", "-U", "reinvent", "-d", "reinvent",
-                            "-n", schema, "-Fc", "--no-owner", "--no-privileges"], stdout=f, check=False)
+                            f"--schema={schema}", "-Fc", "--no-owner", "--no-privileges"], stdout=f, check=False)
     if r.returncode != 0:
         destino.unlink(missing_ok=True)
         sys.exit("Falló el backup; no se aplicó nada.")

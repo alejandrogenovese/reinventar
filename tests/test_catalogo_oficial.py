@@ -84,7 +84,8 @@ def test_homonimos_el_existente_queda_con_quien_coincide_con_su_perfil():
 
     assert plan.asignados == {"u-david-2": 7}
     assert [n.aws_speaker_id for n in plan.nuevos] == ["u-david-1"]
-    assert plan.homonimos[0].id_speaker == 7 and plan.homonimos[0].criterio == "empresa del perfil"
+    assert plan.homonimos[0].id_speaker == 7
+    assert plan.homonimos[0].criterio == "empresa del perfil"
 
 
 def test_homonimos_sin_perfil_el_existente_queda_con_el_de_mas_charlas():

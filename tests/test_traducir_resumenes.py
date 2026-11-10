@@ -54,7 +54,8 @@ def test_aplicar_traduce_lo_pendiente_y_no_toca_los_vacios(conn):
 def test_modo_prueba_muestra_sin_escribir(conn):
     r = traducir(conn, schema=conn.schema, limite=2)
 
-    assert [m[0] for m in r.muestra] == ["ARC100", "DEV200"] and r.traducidas == 0
+    assert [m[0] for m in r.muestra] == ["ARC100", "DEV200"]
+    assert r.traducidas == 0
     assert len(pendientes(conn, conn.schema)) == 3
 
 
@@ -66,7 +67,9 @@ def test_un_lote_fallido_no_frena_al_resto(conn):
 
     r = traducir(conn, schema=conn.schema, aplicar=True, lote=1, completar=completar)
 
-    assert r.traducidas == 2 and len(r.lotes_fallidos) == 1 and "ARC100" in r.lotes_fallidos[0]
+    assert r.traducidas == 2
+    assert len(r.lotes_fallidos) == 1
+    assert "ARC100" in r.lotes_fallidos[0]
     assert [p[0] for p in pendientes(conn, conn.schema)] == ["ARC100"]
 
 
