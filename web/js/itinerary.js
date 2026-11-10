@@ -27,17 +27,37 @@ export const shortDay = (iso) => (iso
   ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" }).replace(/[.,]/g, "")
   : "");
 
-/** Abstract plegado a 3 líneas; el botón lo despliega (aria-expanded para el lector de pantalla). */
-function Abstract(text) {
-  const p = h("p", { class: "ra-abstract" }, text);
-  if (text.length <= ABSTRACT_FOLD) return p;
-  p.classList.add("is-folded");
-  const btn = h("button", { type: "button", class: "ra-more", "aria-expanded": "false", onclick: () => {
+// Idioma del resumen que eligió la persona ("es" traducido, "en" original); queda guardado en este celular.
+const ABSTRACT_LANG = "ra.abstract-lang";
+const abstractLang = () => { try { return localStorage.getItem(ABSTRACT_LANG) || "es"; } catch { return "es"; } };
+const saveAbstractLang = (lang) => { try { localStorage.setItem(ABSTRACT_LANG, lang); } catch {} };
+
+/** Resumen oficial en castellano o en el inglés original, con botón para cambiar. En las tarjetas (fold) se pliega a
+ *  3 líneas con "Leer más" (aria-expanded para el lector de pantalla). Null si la charla no tiene resumen. */
+export function Abstract(s, { fold = true, className = "ra-abstract" } = {}) {
+  const texts = { es: s.abstract_es, en: s.abstract };
+  if (!texts.es && !texts.en) return null;
+  let lang = texts[abstractLang()] ? abstractLang() : (texts.en ? "en" : "es");
+  const p = h("p", { class: className });
+  const canFold = fold && Math.max((texts.es || "").length, (texts.en || "").length) > ABSTRACT_FOLD;
+  const more = canFold ? h("button", { type: "button", class: "ra-more", "aria-expanded": "false", onclick: () => {
     const open = p.classList.toggle("is-folded") === false;
-    btn.setAttribute("aria-expanded", String(open));
-    btn.textContent = open ? "Leer menos" : "Leer más";
-  } }, "Leer más");
-  return [p, btn];
+    more.setAttribute("aria-expanded", String(open));
+    more.textContent = open ? "Leer menos" : "Leer más";
+  } }, "Leer más") : null;
+  const toggle = texts.es && texts.en ? h("button", { type: "button", class: "ra-more", onclick: () => {
+    lang = lang === "es" ? "en" : "es";
+    saveAbstractLang(lang);
+    render();
+  } }) : null;
+  function render() {
+    p.textContent = texts[lang];
+    p.lang = lang === "es" ? "es-AR" : "en";
+    if (toggle) toggle.textContent = lang === "es" ? "Ver original en inglés" : "Ver en castellano";
+  }
+  if (canFold) p.classList.add("is-folded");
+  render();
+  return [p, more || toggle ? h("div", { class: "ra-abstract-actions" }, more, toggle) : null];
 }
 
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
@@ -54,7 +74,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         tags.slice(0, 6).map(Tag)) : null,
       People(s),
-      s.abstract ? Abstract(s.abstract) : null,
+      Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
       h("div", { class: "actions" },
         onAdd ? Button("Agregar", { onclick: onAdd }) : null,

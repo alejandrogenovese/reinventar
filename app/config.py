@@ -47,6 +47,7 @@ ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 LLM_BASE_URL = _env("LLM_BASE_URL")
 LLM_API_KEY = _env("LLM_API_KEY")
 TRANSLATE_MODEL = _env("TRANSLATE_MODEL", "claude-sonnet-5-5")
+EXTRACT_MODEL = _env("EXTRACT_MODEL", "claude-opus-5-5")  # claves del resumen de cada charla (scripts/extraer_claves.py)
 SUMMARY_MODEL = _env("SUMMARY_MODEL", "claude-opus-5-5")
 TARGET_LANGUAGE = _env("TARGET_LANGUAGE", "castellano rioplatense (Argentina)")
 

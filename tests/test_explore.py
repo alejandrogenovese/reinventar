@@ -5,7 +5,8 @@ from app import catalog
 from app.main import app
 from tests.conftest import login_headers
 
-FACETS = {"tema", "sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tipo", "nivel", "dia", "sede", "lanzamiento"}
+FACETS = {"tema", "sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tecnologia", "concepto",
+          "enfoque", "tipo", "nivel", "dia", "sede", "lanzamiento"}
 
 
 def _explore(c, H, **body):

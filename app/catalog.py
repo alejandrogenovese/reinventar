@@ -42,9 +42,14 @@ WITH people AS (
   GROUP BY id_speech
 )
 SELECT s.id_speech AS base, s.titulo AS title, s.tipo AS type, coalesce(s.nivel::text, '') AS level,
-       array_to_string(s.topicos, ';') AS topic, array_to_string(s.servicios, ';') AS services,
+       array_to_string(s.topicos, ';') AS topic,
+       -- servicios oficiales + los que menciona el resumen (extraer_claves.py), sin repetir
+       array_to_string(ARRAY(SELECT DISTINCT unnest(s.servicios || coalesce(s.servicios_mencionados, '{}'))
+                             ORDER BY 1), ';') AS services,
+       array_to_string(s.tecnologias, ';') AS tech, array_to_string(s.conceptos, ';') AS concepts,
+       array_to_string(s.conceptos_en, ';') AS concepts_en, array_to_string(s.enfoque, ';') AS focus,
        coalesce(s.area_interes, '') AS aoi, s.formato AS features, s.es_lanzamiento AS newlaunch,
-       s.speakers_original AS speakers, s.resumen AS abstract,
+       s.speakers_original AS speakers, s.resumen AS abstract, s.resumen_es AS abstract_es,
        coalesce(i.instances, '[]'::jsonb) AS instances, coalesce(p.people, '[]'::jsonb) AS people
 FROM reinvent.speech s
 LEFT JOIN instances i ON i.id_speech = s.id_speech
@@ -120,9 +125,13 @@ def card(session: dict, instance: dict) -> dict:
         "topic": _split(session.get("topic")),
         "aoi": _split(session.get("aoi")),
         "services": _split(session.get("services")),
+        "tech": _split(session.get("tech")),
+        "concepts": _split(session.get("concepts")),
+        "focus": _split(session.get("focus")),
         "speakers": session.get("speakers"),
         "people": session.get("people", []),
         "abstract": session.get("abstract"),
+        "abstract_es": session.get("abstract_es"),  # traducción al castellano (None si todavía no se tradujo)
         "newlaunch": bool(session.get("newlaunch")),
         "day": instance.get("d"),
         "start": instance.get("st"),
@@ -171,10 +180,18 @@ def fold(text: str | None) -> str:
     return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
 
 
+def _keys_text(session: dict) -> str:
+    """Claves extraídas del resumen (tecnologías y conceptos en castellano e inglés), para la búsqueda por texto."""
+    # " · " separa las claves: una búsqueda por frase no debe calzar pegando el final de una con el principio de otra.
+    return " · ".join(v for k in ("tech", "concepts", "concepts_en") for v in _split(session.get(k)))
+
+
 def _matches(q: str, session: dict) -> bool:
     """Texto libre (q ya pasado por fold): título, resumen, speakers (nombre) y su empresa/industria/sector/cargo."""
     names = " ".join(p.get("name") or "" for p in session.get("people", []))
-    return any(q in fold(text) for text in (session.get("title"), session.get("abstract"), names, _people_text(session)))
+    texts = (session.get("title"), session.get("abstract"), session.get("abstract_es"), _keys_text(session), names,
+             _people_text(session))
+    return any(q in fold(text) for text in texts)
 
 
 def search(q=None, day=None, venue=None, topic=None, aoi=None, level=None, kind=None, limit=100) -> list[dict]:

@@ -71,6 +71,8 @@ def _doc_text(s: dict) -> str:
         f"{s.get('title', '')}.", s.get("abstract") or "",
         f"Servicios: {s['services'].replace(';', ', ')}." if s.get("services") else "",
         f"Tópicos: {s['topic'].replace(';', ', ')}." if s.get("topic") else "",
+        f"Tecnologías: {s['tech'].replace(';', ', ')}." if s.get("tech") else "",
+        f"Conceptos: {s['concepts'].replace(';', ', ')}." if s.get("concepts") else "",
         f"Empresas: {companies}." if companies else "",
     ]
     return " ".join(p for p in parts if p)
@@ -79,7 +81,8 @@ def _doc_text(s: dict) -> str:
 def _lexical_text(s: dict) -> str:
     names = " ".join(p.get("name") or "" for p in s.get("people", []))
     title = s.get("title", "")
-    return " ".join((title, title, _doc_text(s), s.get("aoi") or "", names, catalog._people_text(s)))
+    return " ".join((title, title, _doc_text(s), s.get("aoi") or "", (s.get("concepts_en") or "").replace(";", " "),
+                     names, catalog._people_text(s)))
 
 
 # --- BM25 (por palabras) -----------------------------------------------------

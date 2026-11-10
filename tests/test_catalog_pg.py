@@ -88,3 +88,13 @@ def test_busqueda_ignora_tildes_y_mayusculas():
     con_tilde = {r["base"] for r in catalog.search(q="ITAÚ", limit=20)}
 
     assert "MAM207" in sin_tilde and sin_tilde == con_tilde
+
+
+def test_busqueda_por_texto_usa_las_claves_del_resumen():
+    s = {"title": "Charla", "abstract": "Build agents.", "tech": "Apache Iceberg;MCP",
+         "concepts": "costo de inferencia;agentes de IA", "concepts_en": "inference cost;AI agents"}
+
+    assert catalog._matches(catalog.fold("costo de inferencia"), s)
+    assert catalog._matches(catalog.fold("iceberg"), s)
+    assert catalog._matches(catalog.fold("inference cost"), s)
+    assert not catalog._matches(catalog.fold("ia costo"), s)  # no pega el final de una clave con otra

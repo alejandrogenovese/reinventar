@@ -1,7 +1,7 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
-import { People, SessionMiniCard, shortDay } from "./itinerary.js";
+import { Abstract, People, SessionMiniCard, shortDay } from "./itinerary.js";
 import { recordTalk } from "./today.js";
 import { Button, StatusPill, Tag, h, toast } from "./ui.js";
 
@@ -63,10 +63,12 @@ export async function viewCharla(view, base) {
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         [...(s.topic || []), ...(s.aoi || [])].map(Tag)) : null,
       h("div", { class: "actions" }, TalkRecordAction(s))),
-    s.abstract ? section("De qué se trata", h("p", { class: "ra-prose" }, s.abstract)) : null,
+    s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
     s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Horarios", h("ul", { class: "ra-slots" }, s.instances.map(Slot))) : null,
+    s.concepts?.length ? section("Conceptos", chips(s.concepts)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
+    s.tech?.length ? section("Otras tecnologías", chips(s.tech)) : null,
     s.recordings?.length ? section("Tus grabaciones", h("ul", { class: "ra-people" }, s.recordings.map((r) =>
       h("li", { class: "actions is-center" }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
     s.related.length ? section("Charlas relacionadas", cardList(s.related)) : null));

@@ -1,4 +1,6 @@
 """Prompts de traducción y resumen."""
+import json
+
 from . import config
 
 GLOSSARY = """Reglas de terminología:
@@ -18,6 +20,52 @@ Formato: vas a recibir líneas que empiezan con un marcador [[n]]. Devolvé exac
 def translate_user(items: list[tuple[int, str]], names: list[str] | tuple = ()) -> str:
     lines = "\n".join(f"[[{i}]] {t}" for i, t in items)
     return f"Nombres propios de esta charla: {', '.join(names)}\n\n{lines}" if names else lines
+
+
+ABSTRACT_TRANSLATE_SYSTEM = f"""Sos traductor técnico. Traducís los resúmenes oficiales (abstracts) de las charlas de AWS re:Invent del inglés a {config.TARGET_LANGUAGE}.
+Lo importante es que se entienda: escribí como lo diría un arquitecto argentino que le cuenta a un colega de qué trata la charla, no una traducción palabra por palabra. Reordená las frases si hace falta, pero no agregues ni quites información, ni opiniones.
+Usá voseo si el texto le habla al lector ("you will learn" → "vas a aprender").
+{GLOSSARY}
+- Los nombres de empresas clientes, los nombres de las charlas citadas y los códigos de sesión (ARC301, SEC212-S) quedan como están.
+- Excepción al glosario para estos resúmenes: si el término tiene una forma en castellano de uso habitual, usala y no armes híbridos. Agent → agente (agentes de IA, subagentes, coding agent → agente de programación), latency → latencia, throughput → rendimiento, reliability → confiabilidad, tool use → uso de herramientas. Siguen en inglés los que no tienen equivalente natural o que en Argentina se dicen en inglés: workload, workflow, pipeline, data lake, lakehouse, streaming, embeddings, fine-tuning, prompt, serverless, harness, vendor lock-in, frontier model (modelo frontier, nunca "de frontera").
+
+Vas a recibir un JSON {{"resumenes": [{{"id": "...", "titulo": "...", "texto": "..."}}]}}. El título es solo contexto: no lo traduzcas.
+Devolvé SOLO un JSON {{"traducciones": [{{"id": "...", "texto": "..."}}]}} con todos los ids recibidos, en el mismo orden. Conservá los saltos de párrafo del original."""
+
+
+def abstracts_user(items: list[tuple[str, str, str]]) -> str:
+    """items: (id, título, resumen en inglés)."""
+    payload = [{"id": i, "titulo": t, "texto": r} for i, t, r in items]
+    return "Resúmenes a traducir:\n" + json.dumps({"resumenes": payload}, ensure_ascii=False)
+
+
+# Valores fijos de "enfoque": qué tipo de contenido promete la charla (sirven como filtro en Explorar).
+ENFOQUES = ("novedades", "arquitectura", "buenas prácticas", "caso de cliente", "práctica guiada", "demo",
+            "estrategia", "migración", "comunidad")
+
+KEYS_EXTRACT_SYSTEM = f"""Extraés claves de búsqueda del resumen oficial (en inglés) de charlas de AWS re:Invent. Las usa un buscador para encontrar charlas por lo que tratan, más allá de las etiquetas oficiales.
+Solo lo que el resumen dice o implica de forma directa: no inventes ni completes con lo que suele ir junto.
+
+Para cada charla devolvé:
+- "servicios": servicios, productos o features de AWS mencionados, con el nombre oficial completo (Amazon Bedrock, AWS Lambda, Amazon SageMaker AI, Amazon Q Developer, Kiro, AWS Glue). Si el resumen dice "Bedrock", poné "Amazon Bedrock".
+- "tecnologias": productos, lenguajes, frameworks, modelos y estándares que NO son de AWS (Apache Iceberg, dbt, Kubernetes, Model Context Protocol (MCP), Qwen3, Gemma 4, OpenAI API, Terraform). También empresas cuyos productos se usan en la charla (Cloudera, Datadog). Nombre canónico, con la grafía del fabricante.
+- "conceptos": de 3 a 8 temas técnicos o de negocio. Son filtros que agrupan charlas, así que tienen que ser términos cortos (1 a 3 palabras) y reutilizables, los que aparecerían en el índice de un libro o como tag en un blog técnico: agentes de IA, costo de inferencia, latencia, gobierno de datos, catálogo de datos, data mesh, lakehouse, migración de mainframe, detección de fraude, observabilidad, onboarding de desarrolladores.
+  · Nunca frases de marketing ni del resumen ("de experimentación a producción", "IA abierta en entornos híbridos", "analítica de menor costo"): llevalas al tema que hay detrás (MLOps, nube híbrida, optimización de costos) o descartalas.
+  · Un tema por concepto: "costo y latencia" son dos conceptos.
+  · Forma general antes que específica de la charla: "versionado de prompts", no "versionado de prompts del agente de ventas".
+  · En castellano rioplatense y en minúscula salvo siglas. Si en la industria se dice en inglés, dejalo en inglés (lakehouse, data mesh, fine-tuning, RAG, harness, serverless, tool use, planning loops).
+  · No repitas servicios ni tecnologías.
+- "conceptos_en": los mismos conceptos en inglés, en el mismo orden y cantidad.
+- "enfoque": de 1 a 3 valores de esta lista, y solo de esta lista: {", ".join(ENFOQUES)}.
+
+Vas a recibir un JSON {{"charlas": [{{"id": "...", "titulo": "...", "tipo": "...", "texto": "..."}}]}}.
+Devolvé SOLO un JSON {{"charlas": [{{"id": "...", "servicios": [], "tecnologias": [], "conceptos": [], "conceptos_en": [], "enfoque": []}}]}} con todos los ids recibidos. Listas vacías si no aplica."""
+
+
+def keys_user(items: list[tuple[str, str, str, str]]) -> str:
+    """items: (id, título, tipo, resumen en inglés)."""
+    payload = [{"id": i, "titulo": t, "tipo": k, "texto": r} for i, t, k, r in items]
+    return "Charlas para extraer claves:\n" + json.dumps({"charlas": payload}, ensure_ascii=False)
 
 
 KIND_GUIDE = {

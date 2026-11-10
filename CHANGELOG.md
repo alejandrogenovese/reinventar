@@ -5,6 +5,13 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- Resumen de las charlas en castellano: la ficha y las tarjetas lo muestran traducido y tienen un botón para ver el
+  original en inglés. La elección queda recordada en el celular. La búsqueda por texto también busca en la traducción.
+- Claves extraídas del resumen de cada charla: servicios de AWS que menciona (completan los que AWS no etiquetó),
+  otras tecnologías (Iceberg, MCP, dbt…), conceptos en castellano e inglés y enfoque (novedades, arquitectura, caso
+  de cliente, práctica guiada…). Son filtros nuevos en Explorar, aparecen en la ficha de la charla y mejoran la búsqueda.
+
 ## [0.19.0] - 2026-11-06
 
 ### Agregado

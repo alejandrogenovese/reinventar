@@ -87,6 +87,14 @@ def _fake(system, user):
     if user.startswith("Pregunta:"):  # chat de búsqueda
         codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
         return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
+    if user.startswith("Charlas para extraer claves:"):  # claves del resumen
+        items = json.loads(user.split("\n", 1)[1])["charlas"]
+        return json.dumps({"charlas": [{"id": i["id"], "servicios": ["Amazon S3"], "tecnologias": ["Apache Iceberg"],
+                                        "conceptos": ["gobierno de datos"], "conceptos_en": ["data governance"],
+                                        "enfoque": ["arquitectura", "inventado"]} for i in items]})
+    if user.startswith("Resúmenes a traducir:"):  # resúmenes del catálogo
+        items = json.loads(user.split("\n", 1)[1])["resumenes"]
+        return json.dumps({"traducciones": [{"id": i["id"], "texto": f"Traducción de {i['id']}."} for i in items]})
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
         return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de Amazon S3." for i in ids)

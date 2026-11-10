@@ -256,6 +256,7 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .ra-abstract.is-folded { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ra-more { align-self: flex-start; background: none; border: 0; padding: var(--space-1) 0; min-height: 32px; cursor: pointer; font: var(--t-small-strong); color: var(--brand-ink); }
 .ra-more:hover { text-decoration: underline; }
+.ra-abstract-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
 
 /* sin overflow:hidden a propósito: Google Maps renderiza el InfoWindow adentro de este mismo contenedor y quedaba recortado */
 .mapbox { height: 320px; background: var(--surface-1); border-radius: var(--radius-m); }
