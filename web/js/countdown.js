@@ -6,7 +6,7 @@ import { sandboxNow } from "./sandbox.js";
 import { h, toast } from "./ui.js";
 
 const REFRESH_MS = 60_000;
-const HORIZON_MS = 12 * 3600_000;          // la franja muestra lo fijado de las próximas 12 h
+const HORIZON_MS = 12 * 3_600_000;          // la franja muestra lo fijado de las próximas 12 h
 const NO_LOCATION_LEAD_MIN = 20;           // sin ubicación: avisar 20 min antes
 const FIRED = "ra.alerts.fired";           // alertas ya mostradas (no se repiten)
 const HIDDEN = "ra.countdown.hidden";      // código cuya franja se ocultó
@@ -37,8 +37,8 @@ async function loadPinned() {
   const { days } = await Itinerary.get();
   pinned = days.flatMap((d) => d.sessions.filter((s) => s.locked && s.start).map((s) => {
     const start = startsAt(s.day, s.start);
-    let end = s.end ? startsAt(s.day, s.end) : new Date(start.getTime() + 3600_000);
-    if (end <= start) end = new Date(end.getTime() + 86400_000); // termina pasada la medianoche
+    let end = s.end ? startsAt(s.day, s.end) : new Date(start.getTime() + 3_600_000);
+    if (end <= start) end = new Date(end.getTime() + 86_400_000); // termina pasada la medianoche
     return { code: s.code, base: s.base, kind: s.kind || "talk", title: s.title, start, end, venue: s.venue };
   })).sort((a, b) => a.start - b.start);
 }
@@ -71,7 +71,7 @@ function state(it, now, lead) {
     fireOnce(`${it.code}:leave`, `Salí ahora para ${it.title}: empieza a las ${hhmm(it.start)}.`);
     return { tone: "urgent", text: `Salí ya · ${label(it)} en ${formatCountdown(toStart)}` };
   }
-  if (toStart <= 3600_000) return { tone: it.kind === "event" ? "event" : "soon", text: `${label(it)} en ${formatCountdown(toStart)} · salí ${hhmm(leave)}` };
+  if (toStart <= 3_600_000) return { tone: it.kind === "event" ? "event" : "soon", text: `${label(it)} en ${formatCountdown(toStart)} · salí ${hhmm(leave)}` };
   return { tone: it.kind === "event" ? "event" : "calm", text: `${label(it)} a las ${hhmm(it.start)}` };
 }
 

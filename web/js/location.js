@@ -36,7 +36,10 @@ export async function currentPosition() {
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (p) => { lastPosition = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() }; resolve(lastPosition); },
-      (err) => { if (err.code === err.PERMISSION_DENIED) denied = true; resolve(null); },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) { denied = true; }
+        resolve(null);
+      },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: POSITION_MAX_AGE_MS });
   });
 }
@@ -70,8 +73,8 @@ export async function walkingMinutes(origin, dest) {
     const ms = routes?.[0]?.durationMillis;
     if (!ms) throw new Error("sin ruta");
     value = { minutes: Math.ceil(ms / 60000), estimated: false };
-  } catch (err) {
-    console.warn("[llevame] Routes API no disponible, estimo por distancia:", err?.message || err);
+  } catch {
+    // Routes API no disponible (sin clave, sin red o sin ruta): se estima por distancia.
     value = { minutes: Math.ceil((distanceMeters(origin, dest) * DETOUR) / WALK_M_PER_MIN), estimated: true };
   }
   etaCache.set(key, { at: Date.now(), value });

@@ -11,7 +11,7 @@ let ticker = null;
 const fmt = (date) => date.toLocaleString("es-AR", {
   timeZone: "America/Los_Angeles", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit",
   hourCycle: "h23",
-}).replace(/\./g, "");
+}).replaceAll(".", "");
 
 /** La hora "de ahora" para la app: la simulada si el usuario está en modo prueba con reloj fijado. */
 export const sandboxNow = () => new Date(Date.now() + offsetMs);

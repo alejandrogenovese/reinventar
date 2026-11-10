@@ -119,22 +119,27 @@ def _start(card: dict) -> dt.datetime:
     return dt.datetime.fromisoformat(f"{card['day']}T{card['start']}").replace(tzinfo=sandbox.EVENT_TZ)
 
 
+def _notice(c: dict, now: dt.datetime) -> tuple[str, dict] | None:
+    """Aviso de "salí" o "empieza" para algo fijado del itinerario, si corresponde ahora."""
+    if not (c.get("locked") and c.get("start")):
+        return None
+    minutes = (_start(c) - now).total_seconds() / 60
+    venue = c.get("venue") or {}
+    where = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail"))))
+    url = f"/#/evento/{c['code']}" if c.get("kind") == "event" else f"/#/charla/{c['base']}"
+    if START_NOTICE_MIN < minutes <= LEAVE_LEAD_MIN:
+        return (f"leave:{c['code']}:{c['day']}",
+                {"title": f"Salí para {c['title']}", "body": f"Empieza a las {c['start']} · {where}", "url": url})
+    if 0 < minutes <= START_NOTICE_MIN:
+        return (f"start:{c['code']}:{c['day']}",
+                {"title": f"{c['title']} empieza en {round(minutes)} min", "body": where, "url": url})
+    return None
+
+
 def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     """[(clave única, mensaje)] de lo que corresponde avisar ahora a este usuario."""
-    out = []
-    for day in itinerary.get_current(username)["days"]:
-        for c in day["sessions"]:
-            if not (c.get("locked") and c.get("start")):
-                continue
-            minutes = (_start(c) - now).total_seconds() / 60
-            where = " · ".join(filter(None, ((c.get("venue") or {}).get("hotel"), (c.get("venue") or {}).get("detail"))))
-            url = f"/#/evento/{c['code']}" if c.get("kind") == "event" else f"/#/charla/{c['base']}"
-            if START_NOTICE_MIN < minutes <= LEAVE_LEAD_MIN:
-                out.append((f"leave:{c['code']}:{c['day']}", {"title": f"Salí para {c['title']}",
-                            "body": f"Empieza a las {c['start']} · {where}", "url": url}))
-            elif 0 < minutes <= START_NOTICE_MIN:
-                out.append((f"start:{c['code']}:{c['day']}", {"title": f"{c['title']} empieza en {round(minutes)} min",
-                            "body": where, "url": url}))
+    cards = (c for day in itinerary.get_current(username)["days"] for c in day["sessions"])
+    out = [n for c in cards if (n := _notice(c, now))]
     for ch in changes.pending(username):
         key = "change:" + hashlib.sha256(json.dumps([ch["code"], ch["messages"]]).encode()).hexdigest()[:16]
         out.append((key, {"title": "Cambió algo de tu itinerario", "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))

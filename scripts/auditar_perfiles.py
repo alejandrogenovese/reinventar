@@ -72,7 +72,7 @@ class Caso:
 
 @dataclass(frozen=True)
 class Veredicto:
-    veredicto: str
+    valor: str
     motivo: str
 
 
@@ -115,7 +115,7 @@ def leer_veredictos(respuesta: str, ids: list[int], *, parcial: bool = False) ->
                   for i, c in casos.items()}
     except (ValueError, KeyError, TypeError) as e:
         raise ValueError(f"respuesta ilegible: {e}") from e
-    malos = [i for i, v in salida.items() if v.veredicto not in prompts.PROFILE_VERDICTS]
+    malos = [i for i, v in salida.items() if v.valor not in prompts.PROFILE_VERDICTS]
     faltan, sobran = [i for i in ids if i not in salida], set(salida) - set(ids)
     if malos or sobran or (faltan and not parcial):
         raise ValueError(f"veredictos inválidos {malos} / faltan {faltan} / sobran {sorted(sobran)}")
@@ -148,8 +148,8 @@ def auditar(casos: list[Caso], *, modelo: str = MODELO, completar: Completar = l
 
 def comparar(veredictos: dict[int, Veredicto], esperado: dict[int, str]) -> tuple[collections.Counter, list[int]]:
     """Matriz (esperado, veredicto) y los ids donde el LLM contradice lo validado a mano (misma ↔ otra)."""
-    matriz = collections.Counter((esperado[i], v.veredicto) for i, v in veredictos.items() if i in esperado)
-    errores = [i for i, v in veredictos.items() if i in esperado and {esperado[i], v.veredicto} == {"misma", "otra"}]
+    matriz = collections.Counter((esperado[i], v.valor) for i, v in veredictos.items() if i in esperado)
+    errores = [i for i, v in veredictos.items() if i in esperado and {esperado[i], v.valor} == {"misma", "otra"}]
     return matriz, sorted(errores)
 
 
@@ -162,14 +162,14 @@ def guardar_csv(path: Path, casos: list[Caso], veredictos: dict[int, Veredicto])
     path.parent.mkdir(parents=True, exist_ok=True)
     orden = {"otra": 0, "dudosa": 1, "misma": 2}
     filas = sorted((c for c in casos if c.id_speaker in veredictos),
-                   key=lambda c: (orden[veredictos[c.id_speaker].veredicto], c.nombre.casefold()))
+                   key=lambda c: (orden[veredictos[c.id_speaker].valor], c.nombre.casefold()))
     with path.open("w", newline="", encoding="utf-8-sig") as f:  # BOM: Excel/Numbers lo abren con acentos bien
         w = csv.writer(f, delimiter=";")
         w.writerow(["veredicto", "motivo", "id_speaker", "nombre", "cargo_catalogo", "empresa_catalogo",
                     "cargo_linkedin", "empresa_linkedin", "ubicacion", "linkedin_url"])
         for c in filas:
             v = veredictos[c.id_speaker]
-            w.writerow([v.veredicto, v.motivo, c.id_speaker, c.nombre, c.cargo_catalogo, c.empresa_catalogo,
+            w.writerow([v.valor, v.motivo, c.id_speaker, c.nombre, c.cargo_catalogo, c.empresa_catalogo,
                         c.cargo, c.empresa, c.ubicacion, c.linkedin])
 
 
@@ -198,7 +198,7 @@ def main() -> None:
     print(f"> {len(casos)} perfiles a auditar · modelo {args.modelo}")
 
     veredictos, fallidos = auditar(casos, modelo=args.modelo, avisar=print)
-    print("\nVeredictos:", dict(collections.Counter(v.veredicto for v in veredictos.values())))
+    print("\nVeredictos:", dict(collections.Counter(v.valor for v in veredictos.values())))
     if esperado:
         matriz, errores = comparar(veredictos, esperado)
         print("\nValidado a mano → LLM:")
@@ -207,7 +207,7 @@ def main() -> None:
         por_id = {c.id_speaker: c for c in casos}
         for i in errores:
             c = por_id[i]
-            print(f"\n  ✗ [{i}] {c.nombre}: a mano {esperado[i]}, LLM {veredictos[i].veredicto}"
+            print(f"\n  ✗ [{i}] {c.nombre}: a mano {esperado[i]}, LLM {veredictos[i].valor}"
                   f"\n    catálogo: {c.cargo_catalogo} @ {c.empresa_catalogo} · LinkedIn: {c.cargo} @ {c.empresa}"
                   f"\n    {veredictos[i].motivo}")
     salida = SALIDA.with_name(SALIDA.stem + ("_validacion" if esperado else "") + SALIDA.suffix)

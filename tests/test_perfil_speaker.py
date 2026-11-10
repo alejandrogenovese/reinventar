@@ -14,13 +14,18 @@ def _fila(calidad: str | None) -> dict:
 
 def test_descartado_no_muestra_datos_de_otra_persona():
     p = knowledge._profile(_fila("descartado"))
-    assert p["found"] is False and p["match"] == "descartado"
-    assert "title" not in p and "linkedin" not in p and p["experience"] == []
+    assert p["found"] is False
+    assert p["match"] == "descartado"
+    assert "title" not in p
+    assert "linkedin" not in p
+    assert p["experience"] == []
 
 
 def test_revisar_se_muestra_con_aviso():
     p = knowledge._profile(_fila("revisar"))
-    assert p["found"] is True and p["unverified"] is True and p["title"] == "Principal SA"
+    assert p["found"] is True
+    assert p["unverified"] is True
+    assert p["title"] == "Principal SA"
 
 
 def test_confiable_sin_aviso():

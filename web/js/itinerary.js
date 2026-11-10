@@ -138,6 +138,23 @@ export async function viewCuestionario(view) {
   view.replaceChildren(form);
 }
 
+/** Una charla o evento del itinerario con Fijar y Quitar (con deshacer). onChanged vuelve a pintar la vista. */
+function ItineraryItem(s, onChanged) {
+  const refresh = () => refreshCountdown({ force: true });
+  const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refresh(); return onChanged(); }));
+  let card = null;
+  const show = (visible) => { card.hidden = !visible; };
+  const onRemove = () => withUndo(s.kind === "event" ? "Evento quitado del itinerario." : "Sesión quitada del itinerario.", {
+    apply: () => show(false),
+    commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(err.message); }),
+    undo: () => show(true),
+  });
+  card = s.kind === "event"
+    ? EventCard(s, { actions: [PinButton(s.locked, onLock), Button("Quitar", { variant: "danger", onclick: onRemove })] })
+    : SessionMiniCard(s, { locked: s.locked, onLock, onRemove });
+  return card;
+}
+
 export async function viewItinerario(view) {
   async function paint() {
     const data = await Itinerary.get();
@@ -183,19 +200,7 @@ export async function viewItinerario(view) {
     function paintList() {
       const day = data.days[dayIndex];
       dayHeading.textContent = day ? `Tu agenda del ${day.day}` : "";
-      list.replaceChildren(...(day?.sessions || []).map((s) => {
-        const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refreshCountdown({ force: true }); return paint(); }));
-        const onRemove = () => withUndo(s.kind === "event" ? "Evento quitado del itinerario." : "Sesión quitada del itinerario.", {
-          apply: () => { card.hidden = true; },
-          commit: () => Itinerary.remove(s.code).then(() => refreshCountdown({ force: true }))
-            .catch((err) => { card.hidden = false; toast(err.message); }),
-          undo: () => { card.hidden = false; },
-        });
-        const card = s.kind === "event"
-          ? EventCard(s, { actions: [PinButton(s.locked, onLock), Button("Quitar", { variant: "danger", onclick: onRemove })] })
-          : SessionMiniCard(s, { locked: s.locked, onLock, onRemove });
-        return card;
-      }));
+      list.replaceChildren(...(day?.sessions || []).map((s) => ItineraryItem(s, paint)));
     }
     paintTabs();
     paintList();

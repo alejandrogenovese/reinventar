@@ -125,8 +125,10 @@ def test_la_carga_guarda_la_sede_mas_cercana_y_el_resumen(conn):
 
     fila = conn.execute(f"SELECT e.tipo, s.nombre, e.metros_a_sede, e.organizadores FROM {conn.schema}.evento e "
                         f"JOIN {conn.schema}.sede s ON s.id_sede = e.id_sede_cercana").fetchone()
-    assert fila[0] == "happy hour" and fila[3] == ["Acme"]
-    assert fila[1] == "MGM Grand" and fila[2] < 1000
+    assert fila[0] == "happy hour"
+    assert fila[3] == ["Acme"]
+    assert fila[1] == "MGM Grand"
+    assert fila[2] < 1000
 
 
 def test_lo_que_sale_del_export_se_reporta_y_solo_se_borra_si_se_pide(conn):

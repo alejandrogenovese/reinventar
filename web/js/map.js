@@ -39,8 +39,9 @@ export async function renderMap(el, { days } = {}) {
   // "Vos": la ubicación del celular (o la simulada en modo prueba). No se manda a ningún lado.
   void currentPosition().then((here) => {
     if (!here) return;
-    new maps.Marker({ position: { lat: here.lat, lng: here.lng }, map, title: here.simulated ? "Vos (simulado)" : "Vos", zIndex: 999,
+    const me = new maps.Marker({ position: { lat: here.lat, lng: here.lng }, title: here.simulated ? "Vos (simulado)" : "Vos", zIndex: 999,
       icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#2970bc", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 } });
+    me.setMap(map);
   });
   let markers = [];
   let polyline = null;

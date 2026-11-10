@@ -145,12 +145,13 @@ def _upsert(conn, fila: dict) -> str:
       INSERT INTO evento ({}) VALUES ({})
       ON CONFLICT (id_evento) DO UPDATE SET {}, actualizado = now() WHERE ({}) IS DISTINCT FROM ({})
       RETURNING (xmax = 0) AS nuevo""").format(columnas, marcas, asignar, viejas, nuevas), fila).fetchone()
-    return "igual" if r is None else ("nuevo" if r[0] else "actualizado")
+    if r is None:
+        return "igual"
+    return "nuevo" if r[0] else "actualizado"
 
 
 def cargar(conn, eventos: list[Evento], *, schema: str = "reinvent", resumir: Callable | None = None,
-           limite_llm: int | None = None, borrar_bajas: bool = False,
-           avisar: Callable[[str], None] = lambda _: None) -> Reporte:
+           limite_llm: int | None = None, borrar_bajas: bool = False) -> Reporte:
     """Aplica los eventos dentro de la transacción de conn; quien llama decide COMMIT o ROLLBACK.
     resumir(eventos) → (resúmenes por id, lotes fallidos); None = sin LLM (se conserva lo que ya había)."""
     aplicar_migraciones(conn, schema)
@@ -229,7 +230,7 @@ def main() -> None:
     print("> " + ("APLICANDO cambios" if args.aplicar else "MODO PRUEBA (todo se deshace; LLM solo para 3)") + "\n")
     with psycopg.connect(url) as conn:
         r = cargar(conn, eventos, schema=args.schema, resumir=None if args.sin_llm else resumir_con_llm,
-                   limite_llm=None if args.aplicar else MUESTRA, borrar_bajas=args.borrar_bajas, avisar=print)
+                   limite_llm=None if args.aplicar else MUESTRA, borrar_bajas=args.borrar_bajas)
         _imprimir(r)
         if args.aplicar:
             conn.commit()

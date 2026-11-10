@@ -7,7 +7,7 @@ import { sandboxNow } from "./sandbox.js";
 import { Button, Tag, h, toast } from "./ui.js";
 
 const ALL = "todos";
-const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "numeric" }).replace(/\./g, "");
+const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "numeric" }).replaceAll(".", "");
 const when = (e) => [e.start, e.end].filter(Boolean).join("–");
 const destination = (e) => (e.venue?.lat != null
   ? { lat: e.venue.lat, lng: e.venue.lng, name: e.venue.hotel, placeId: e.venue.place_id, approx: e.venue.exact === false } : null);
@@ -78,8 +78,12 @@ export async function viewEventos(view) {
   function paint() {
     dayTabs.replaceChildren(...days.map((d) => chip(`${dayLabel(d.day)} (${d.events.length})`, d.day === state.day, () => { state.day = d.day; paint(); })));
     typeChips.replaceChildren(...types.map((t) => chip(t === ALL ? "Todos" : t, t === state.type, () => { state.type = t; paint(); })),
-      chip("↕ Más cerca", state.near, async () => { state.near = !state.near; here = here || await currentPosition();
-        if (state.near && !here) toast("Activá la ubicación para ordenar por cercanía."); paint(); }));
+      chip("↕ Más cerca", state.near, async () => {
+        state.near = !state.near;
+        here = here || await currentPosition();
+        if (state.near && !here) { toast("Activá la ubicación para ordenar por cercanía."); }
+        paint();
+      }));
     let shown = days.find((d) => d.day === state.day)?.events || [];
     if (state.type !== ALL) shown = shown.filter((e) => e.type === state.type);
     if (state.near && here) shown = [...shown].sort((a, b) => distanceMeters(here, a.venue) - distanceMeters(here, b.venue));

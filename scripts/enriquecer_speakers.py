@@ -152,15 +152,7 @@ def decidir(sp: Speaker, perfiles: list[dict]) -> Decision:
 
     actual = sorted((p for p in mismos if trabaja_en(p, "current")), key=cargo, reverse=True)
     if actual:
-        mejor = cargo(actual[0])
-        unico = len(actual) == 1 or mejor > cargo(actual[1])
-        if len(actual) > 1 and mejor == 0:
-            return Decision("descartado", actual[0], f"{len(actual)} personas con ese nombre en la empresa y ninguna con un cargo parecido")
-        if not unico:
-            return Decision("revisar", actual[0], f"{len(actual)} personas con ese nombre en la empresa")
-        if sp.es_amazon and mejor < MIN_CARGO_EMPRESA_GRANDE:
-            return Decision("revisar", actual[0], "nombre y empresa coinciden pero el cargo no (en Amazon hay muchos homónimos)")
-        return Decision("confiable", actual[0], "nombre, empresa actual y cargo" if mejor else "nombre y empresa actual")
+        return _decidir_actual(sp, actual, [cargo(p) for p in actual[:2]])
     antes = [p for p in mismos if trabaja_en(p, "past")]
     if len(antes) == 1:
         return Decision("revisar", antes[0], "la empresa aparece en un trabajo anterior")
@@ -168,6 +160,18 @@ def decidir(sp: Speaker, perfiles: list[dict]) -> Decision:
     if len(por_cargo) == 1:
         return Decision("revisar", por_cargo[0], "el cargo coincide con el de la charla, la empresa no")
     return Decision("descartado", max(mismos, key=cargo), "hay personas con ese nombre pero ninguna encaja")
+
+
+def _decidir_actual(sp: Speaker, actual: list[dict], cargos: list[float]) -> Decision:
+    """Candidatos que hoy trabajan en la empresa del catálogo, ordenados por parecido del cargo (cargos: los 2 mejores)."""
+    mejor, n = cargos[0], len(actual)
+    if n > 1 and mejor == 0:
+        return Decision("descartado", actual[0], f"{n} personas con ese nombre en la empresa y ninguna con un cargo parecido")
+    if n > 1 and mejor <= cargos[1]:
+        return Decision("revisar", actual[0], f"{n} personas con ese nombre en la empresa")
+    if sp.es_amazon and mejor < MIN_CARGO_EMPRESA_GRANDE:
+        return Decision("revisar", actual[0], "nombre y empresa coinciden pero el cargo no (en Amazon hay muchos homónimos)")
+    return Decision("confiable", actual[0], "nombre, empresa actual y cargo" if mejor else "nombre y empresa actual")
 
 
 def consultar(sp: Speaker, buscar: Buscar) -> Decision:

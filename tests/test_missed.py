@@ -61,7 +61,8 @@ def test_cambiar_a_otro_horario_conserva_el_pin(cli, repetida):
     r = cli.post(f"/api/itinerary/items/{primero['c']}/swap", headers=cli.H, json={"to": segundo["c"]}).json()
 
     codes = {s["code"]: s for d in r["days"] for s in d["sessions"]}
-    assert primero["c"] not in codes and codes[segundo["c"]]["locked"] is True
+    assert primero["c"] not in codes
+    assert codes[segundo["c"]]["locked"] is True
 
 
 def test_no_se_puede_cambiar_a_un_horario_de_otra_charla(cli, repetida):

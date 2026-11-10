@@ -136,8 +136,16 @@ async function timed(name, fn) {
 
 /** Lo que solo se puede probar en el celular: service worker, ubicación, mapa, Routes API y notificaciones. */
 const deviceChecks = () => Promise.all([
-  timed("Service worker", async () => { const r = await navigator.serviceWorker?.getRegistration(); if (!r) throw new Error("no registrado"); return "registrado"; }),
-  timed("Ubicación", async () => { const p = await currentPosition(); if (!p) throw new Error("sin permiso o apagada en Ajustes"); return p.simulated ? "simulada (modo prueba)" : "GPS del celular"; }),
+  timed("Service worker", async () => {
+    const r = await navigator.serviceWorker?.getRegistration();
+    if (!r) { throw new Error("no registrado"); }
+    return "registrado";
+  }),
+  timed("Ubicación", async () => {
+    const p = await currentPosition();
+    if (!p) { throw new Error("sin permiso o apagada en Ajustes"); }
+    return p.simulated ? "simulada (modo prueba)" : "GPS del celular";
+  }),
   timed("Mapa (Google Maps)", async () => { await loadGoogleMaps(); return "cargó"; }),
   timed("Tiempo caminando (Routes API)", async () => {
     const r = await walkingMinutes({ lat: 36.1216, lng: -115.1691 }, { lat: 36.102219, lng: -115.169517 });

@@ -6,7 +6,7 @@ import { Button, h, toast } from "./ui.js";
 const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
 // La clave VAPID viene en base64url; pushManager.subscribe la quiere en bytes.
-const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.charCodeAt(0));
+const keyBytes = (b64) => Uint8Array.from(atob(b64.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.codePointAt(0));
 
 async function currentSubscription() {
   const reg = await navigator.serviceWorker.ready;

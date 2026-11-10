@@ -45,7 +45,8 @@ def test_auditar_por_lotes_con_llm_falso():
 
     veredictos, fallidos = ap.auditar(casos, completar=completar, lote=3, hilos=2)
 
-    assert set(veredictos) == {1, 2, 3, 4} and not fallidos
+    assert set(veredictos) == {1, 2, 3, 4}
+    assert not fallidos
 
 
 def test_auditar_vuelve_a_pedir_los_casos_salteados():
@@ -60,7 +61,8 @@ def test_auditar_vuelve_a_pedir_los_casos_salteados():
 
     veredictos, fallidos = ap.auditar(casos, completar=completar, lote=3, hilos=1)
 
-    assert set(veredictos) == {1, 2, 3} and not fallidos
+    assert set(veredictos) == {1, 2, 3}
+    assert not fallidos
     assert pedidos == [[1, 2, 3], [3]]
 
 
@@ -86,4 +88,5 @@ def test_comparar_marca_solo_contradicciones():
     veredictos = {1: ap.Veredicto("misma", ""), 2: ap.Veredicto("otra", ""), 3: ap.Veredicto("dudosa", "")}
     matriz, errores = ap.comparar(veredictos, {1: "misma", 2: "misma", 3: "otra"})
     assert errores == [2]
-    assert matriz[("misma", "otra")] == 1 and matriz[("otra", "dudosa")] == 1
+    assert matriz[("misma", "otra")] == 1
+    assert matriz[("otra", "dudosa")] == 1
