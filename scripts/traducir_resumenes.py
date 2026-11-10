@@ -120,8 +120,9 @@ def main() -> None:
 
     with psycopg.connect(url) as conn:
         total = len(pendientes(conn, args.schema))
+        cuantas = len(args.codigos) if args.codigos else args.limite or MUESTRA
         print(f"> {total} resúmenes sin traducir · modelo {config.TRANSLATE_MODEL}"
-              + ("" if args.aplicar else f" · MODO PRUEBA: muestra de {len(args.codigos) if args.codigos else args.limite or MUESTRA}, no se guarda nada"))
+              + ("" if args.aplicar else f" · MODO PRUEBA: muestra de {cuantas}, no se guarda nada"))
         r = traducir(conn, schema=args.schema, aplicar=args.aplicar, limite=args.limite, codigos=args.codigos,
                      avisar=print)
 

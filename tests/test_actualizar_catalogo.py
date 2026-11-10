@@ -83,7 +83,8 @@ def test_homonimos_fusionados_se_separan_y_el_perfil_queda_con_su_dueno(conn):
 
     charlas = dict(_todos(conn, "SELECT ss.id_speech, k.id_speaker FROM {s}.speech_speaker ss JOIN {s}.speaker k "
                                 "USING (id_speaker) WHERE k.nombre = 'David Victoria'"))
-    assert charlas["COM400"] == 70 and charlas["DEV300"] != 70
+    assert charlas["COM400"] == 70
+    assert charlas["DEV300"] != 70
     assert [(h.id_speaker, h.aws_speaker_id) for h in reporte.homonimos] == [(70, "u-david-2")]
     assert _uno(conn, "SELECT count(*) FROM {s}.speaker_perfil")[0] == 1
 

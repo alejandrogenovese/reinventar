@@ -64,5 +64,6 @@ def test_aplicar_guarda_las_claves_y_no_toca_las_charlas_sin_resumen(conn):
 def test_modo_prueba_muestra_sin_escribir(conn):
     r = extraer(conn, schema=conn.schema, codigos=["DEV200"])
 
-    assert [i for i, _ in r.muestra] == ["DEV200"] and r.procesadas == 0
+    assert [i for i, _ in r.muestra] == ["DEV200"]
+    assert r.procesadas == 0
     assert len(pendientes(conn, conn.schema)) == 2
