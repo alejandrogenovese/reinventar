@@ -49,6 +49,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Perfil profesional de los speakers: los perfiles que resultaron ser de otra persona con el mismo nombre ya no se
   muestran (ni el cargo en la charla ni la trayectoria en la ficha). Los que no se pudieron confirmar llevan el aviso
   "Puede no ser esta persona". Se revisaron a mano y con un LLM unos 600 perfiles dudosos.
+- La app vive en `reinventar.app`. Entrar por `www.reinventar.app` redirige al dominio sin www, que es donde funcionan
+  las passkeys y los avisos. Las passkeys creadas en el dominio anterior hay que volver a registrarlas.
 
 ## [0.19.0] - 2026-11-06
 
