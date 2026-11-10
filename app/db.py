@@ -1,12 +1,18 @@
-"""Estado de la app en Postgres (schema DB_SCHEMA): grabaciones, usuarios, tokens e itinerarios."""
+"""Estado de la app en Postgres (schema DB_SCHEMA): grabaciones, usuarios, tokens e itinerarios.
+
+Las tablas de datos del usuario (DATOS_USUARIO) existen también en el schema de prueba (app/sandbox.py); las de cuentas
+(CUENTAS) solo en el real, así que un usuario en modo prueba se loguea igual pero escribe en el schema de prueba.
+"""
 import json
 import time
 import uuid
 from contextlib import contextmanager
 
-from . import config, legacy_import, passwords, pg, sectors
+from psycopg.types.json import Jsonb
 
-SCHEMA = """
+from . import config, legacy_import, passwords, pg, sandbox, sectors
+
+DATOS_USUARIO = """
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -38,36 +44,6 @@ CREATE TABLE IF NOT EXISTS blocks (
   es TEXT,
   PRIMARY KEY (session_id, idx)
 );
-CREATE TABLE IF NOT EXISTS users (
-  username TEXT PRIMARY KEY,
-  salt TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
-  created_at DOUBLE PRECISION NOT NULL
-);
--- Altas de columnas sobre tablas con datos reales: los usuarios existentes quedan obligados a cambiar la contraseña.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
-CREATE TABLE IF NOT EXISTS auth_tokens (
-  token TEXT PRIMARY KEY,
-  username TEXT NOT NULL,
-  created_at DOUBLE PRECISION NOT NULL
-);
-CREATE TABLE IF NOT EXISTS passkeys (
-  id TEXT PRIMARY KEY,                 -- credential id en base64url
-  username TEXT NOT NULL,
-  public_key BYTEA NOT NULL,
-  sign_count BIGINT NOT NULL DEFAULT 0,
-  device TEXT,
-  created_at DOUBLE PRECISION NOT NULL,
-  last_used_at DOUBLE PRECISION
-);
-CREATE TABLE IF NOT EXISTS webauthn_challenges (
-  id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL,                  -- register | login
-  username TEXT,                       -- solo en register
-  challenge BYTEA NOT NULL,
-  created_at DOUBLE PRECISION NOT NULL
-);
 CREATE TABLE IF NOT EXISTS itinerary_profile (
   username TEXT PRIMARY KEY,
   role TEXT, experience TEXT, interests TEXT, prompt TEXT,
@@ -85,7 +61,63 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
   added_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, code)
 );
+-- talk (charla del catálogo) o event (evento de networking, reinvent.evento): todo se maneja desde el itinerario.
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'talk';
+-- Cómo era al agregarlo (título, día, hora, sala, lleno): si AWS lo cambia, la app avisa (app/changes.py).
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS snapshot JSONB;
+-- Avisos de Web Push ya mandados (app/push.py): cada uno sale una sola vez.
+CREATE TABLE IF NOT EXISTS push_sent (
+  username TEXT NOT NULL,
+  key TEXT NOT NULL,
+  sent_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, key)
+);
 """
+TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "push_sent")
+
+CUENTAS = """
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  salt TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL
+);
+-- Altas de columnas sobre tablas con datos reales: los usuarios existentes quedan obligados a cambiar la contraseña.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+-- Modo prueba (app/sandbox.py): lo prende un admin; "prueba" guarda proveedores, reloj y ubicación simulados.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS modo_prueba BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS prueba JSONB;
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  token TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL
+);
+CREATE TABLE IF NOT EXISTS passkeys (
+  id TEXT PRIMARY KEY,                 -- credential id en base64url
+  username TEXT NOT NULL,
+  public_key BYTEA NOT NULL,
+  sign_count BIGINT NOT NULL DEFAULT 0,
+  device TEXT,
+  created_at DOUBLE PRECISION NOT NULL,
+  last_used_at DOUBLE PRECISION
+);
+CREATE TABLE IF NOT EXISTS push_subscriptions (    -- Web Push: un registro por dispositivo (app/push.py)
+  endpoint TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL
+);
+CREATE TABLE IF NOT EXISTS webauthn_challenges (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                  -- register | login
+  username TEXT,                       -- solo en register
+  challenge BYTEA NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL
+);
+"""
+SCHEMA = DATOS_USUARIO + CUENTAS
 
 KINDS = ("Keynote", "Chalk talk", "Workshop", "Breakout")
 PROCESSING = ("queued", "transcribing", "translating", "summarizing")
@@ -101,13 +133,31 @@ def conn():
 def init():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-    with conn() as c:
-        c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
-        c.execute(SCHEMA)
-        sectors.ensure(c)
-    with conn() as c:
-        legacy_import.run_once(c, config.LEGACY_SQLITE_PATH)
-    bootstrap_users()
+    with sandbox.real():
+        with conn() as c:
+            c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
+            c.execute(SCHEMA)
+            sectors.ensure(c)
+            _crear_schema_prueba(c)
+        with conn() as c:
+            legacy_import.run_once(c, config.LEGACY_SQLITE_PATH)
+        bootstrap_users()
+
+
+def _crear_schema_prueba(c) -> None:
+    """Solo las tablas de datos del usuario: lo demás (cuentas, cachés compartidos) se lee del schema real."""
+    c.execute(f"CREATE SCHEMA IF NOT EXISTS {sandbox.schema_prueba()}")
+    c.execute(f"SET LOCAL search_path TO {sandbox.schema_prueba()}")
+    c.execute(DATOS_USUARIO)
+
+
+def borrar_datos_prueba() -> int:
+    """Vacía las tablas del schema de prueba (de todos los usuarios en modo prueba). Devuelve las filas borradas."""
+    total = 0
+    with sandbox.real(), conn() as c:
+        for tabla in TABLAS_DATOS_USUARIO:
+            total += c.execute(f"DELETE FROM {sandbox.schema_prueba()}.{tabla}").rowcount
+    return total
 
 
 def _row(r):
@@ -266,11 +316,58 @@ def set_user_active(username, active):
         c.execute("UPDATE users SET is_active=%s WHERE username=%s", (active, username))
 
 
+# --- Web Push -------------------------------------------------------------------------------
+# Las suscripciones son del dispositivo: siempre en el schema real (no existen en el de prueba).
+
+def save_push_subscription(username, endpoint, p256dh, auth):
+    with conn() as c:
+        c.execute("INSERT INTO push_subscriptions (endpoint,username,p256dh,auth,created_at) VALUES (%s,%s,%s,%s,%s) "
+                  "ON CONFLICT (endpoint) DO UPDATE SET username=EXCLUDED.username, p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth",
+                  (endpoint, username, p256dh, auth, time.time()))
+
+
+def delete_push_subscription(endpoint, username=None):
+    with conn() as c:
+        if username:
+            c.execute("DELETE FROM push_subscriptions WHERE endpoint=%s AND username=%s", (endpoint, username))
+        else:
+            c.execute("DELETE FROM push_subscriptions WHERE endpoint=%s", (endpoint,))
+
+
+def push_subscriptions(username):
+    with conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM push_subscriptions WHERE username=%s", (username,)).fetchall()]
+
+
+def push_usernames():
+    with conn() as c:
+        return [r["username"] for r in c.execute("SELECT DISTINCT username FROM push_subscriptions").fetchall()]
+
+
+def mark_push_sent(username, key) -> bool:
+    """True si es la primera vez (hay que mandarlo); False si ya se había mandado."""
+    with conn() as c:
+        return c.execute("INSERT INTO push_sent (username,key,sent_at) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING",
+                         (username, key, time.time())).rowcount == 1
+
+
+def unmark_push_sent(username, key):
+    with conn() as c:
+        c.execute("DELETE FROM push_sent WHERE username=%s AND key=%s", (username, key))
+
+
+def set_user_sandbox(username, active, cfg):
+    """Prende o apaga el modo prueba de un usuario y guarda su configuración (proveedores, reloj, ubicación)."""
+    with sandbox.real(), conn() as c:
+        c.execute("UPDATE users SET modo_prueba=%s, prueba=%s WHERE username=%s",
+                  (active, Jsonb(cfg) if cfg is not None else None, username))
+
+
 def list_users():
     """Usuarios con su última sesión iniciada y cuántas sesiones abiertas tienen (para el admin)."""
     with conn() as c:
         rows = c.execute(
-            "SELECT u.username, u.created_at, u.must_change_password, u.is_active, "
+            "SELECT u.username, u.created_at, u.must_change_password, u.is_active, u.modo_prueba, u.prueba, "
             "       MAX(t.created_at) AS last_login, COUNT(t.token) AS open_sessions, "
             "       (SELECT COUNT(*) FROM itinerary_items i WHERE i.username = u.username) AS itinerary_items "
             "FROM users u LEFT JOIN auth_tokens t ON t.username = u.username "
@@ -391,21 +488,29 @@ def replace_itinerary_items(username, items):
     with conn() as c:
         c.execute("DELETE FROM itinerary_items WHERE username=%s AND locked=0", (username,))
         c.cursor().executemany(
-            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) "
-            "VALUES (%s,%s,%s,%s,%s,0,%s,%s) ON CONFLICT (username,code) DO NOTHING",
-            [(username, i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time()) for i in items],
+            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at,snapshot) "
+            "VALUES (%s,%s,%s,%s,%s,0,%s,%s,%s) ON CONFLICT (username,code) DO NOTHING",
+            [(username, i["code"], i["base"], i["day"], i["start"], i.get("reason"), time.time(),
+              Jsonb(i["snapshot"]) if i.get("snapshot") else None) for i in items],
         )
 
 
-def add_item(username, code, base, day, start, locked=False, reason=None):
+def add_item(username, code, base, day, start, locked=False, reason=None, kind="talk", snapshot=None):
     with conn() as c:
         c.execute(
-            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "INSERT INTO itinerary_items (username,code,base,day,start,locked,reason,added_at,kind,snapshot) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (username,code) DO UPDATE SET base=EXCLUDED.base, day=EXCLUDED.day, start=EXCLUDED.start, "
-            "locked=EXCLUDED.locked, reason=EXCLUDED.reason, added_at=EXCLUDED.added_at",
-            (username, code, base, day, start, int(locked), reason, time.time()),
+            "locked=EXCLUDED.locked, reason=EXCLUDED.reason, added_at=EXCLUDED.added_at, kind=EXCLUDED.kind, "
+            "snapshot=EXCLUDED.snapshot",
+            (username, code, base, day, start, int(locked), reason, time.time(), kind,
+             Jsonb(snapshot) if snapshot is not None else None),
         )
+
+
+def set_item_snapshot(username, code, snapshot):
+    with conn() as c:
+        c.execute("UPDATE itinerary_items SET snapshot=%s WHERE username=%s AND code=%s", (Jsonb(snapshot), username, code))
 
 
 def set_item_locked(username, code, locked):

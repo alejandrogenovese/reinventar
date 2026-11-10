@@ -5,14 +5,14 @@ import re
 
 import httpx
 
-from . import config
+from . import config, sandbox
 
 log = logging.getLogger("reinventar.llm")
 _anthropic = None
 
 
 def complete(model: str, system: str, user: str, max_tokens: int = 8000) -> str:
-    p = config.LLM_PROVIDER
+    p = sandbox.proveedor_llm()
     if p == "anthropic":
         return _claude(model, system, user, max_tokens)
     if p == "openai":
@@ -87,6 +87,10 @@ def _fake(system, user):
     if user.startswith("Pregunta:"):  # chat de búsqueda
         codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
         return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
+    if user.startswith("Eventos para resumir:"):  # eventos de networking
+        items = json.loads(user.split("\n", 1)[1])["eventos"]
+        return json.dumps({"eventos": [{"id": i["id"], "resumen_es": f"Evento {i['id']} de prueba.", "tipo": "happy hour",
+                                        "temas": ["observabilidad"], "organizadores": ["Acme"]} for i in items]})
     if user.startswith("Charlas para extraer claves:"):  # claves del resumen
         items = json.loads(user.split("\n", 1)[1])["charlas"]
         return json.dumps({"charlas": [{"id": i["id"], "servicios": ["Amazon S3"], "tecnologias": ["Apache Iceberg"],

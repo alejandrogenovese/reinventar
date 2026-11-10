@@ -62,6 +62,51 @@ Vas a recibir un JSON {{"charlas": [{{"id": "...", "titulo": "...", "tipo": "...
 Devolvé SOLO un JSON {{"charlas": [{{"id": "...", "servicios": [], "tecnologias": [], "conceptos": [], "conceptos_en": [], "enfoque": []}}]}} con todos los ids recibidos. Listas vacías si no aplica."""
 
 
+# Tipos de evento de networking (filtro en la sección Eventos).
+EVENT_TYPES = ("desayuno", "almuerzo", "happy hour", "fiesta", "cena", "meetup técnico", "workshop", "actividad",
+               "ejecutivos")
+
+EVENTS_SYSTEM = f"""Resumís eventos de networking que se arman alrededor de AWS re:Invent en Las Vegas (desayunos, happy hours, fiestas, meetups, cenas) para alguien que decide a cuál ir desde el celular. Escribís en {config.TARGET_LANGUAGE}, con voseo.
+Solo con lo que dicen el nombre y la descripción: no inventes datos (hora, lugar, precio, sponsors).
+
+Para cada evento devolvé:
+- "resumen_es": 2 o 3 oraciones. Qué es, para quién está pensado y por qué ir (charlas, demos, comida, gente que vas a cruzarte). Sin repetir la fecha ni la dirección.
+- "tipo": exactamente uno de: {", ".join(EVENT_TYPES)}. "actividad" es deporte o entretenimiento (Topgolf, carrera, juegos); "ejecutivos" es para CISOs, CTOs o líderes.
+- "temas": de 0 a 4 temas técnicos cortos en castellano (seguridad, IA generativa, observabilidad, datos, startups).
+- "organizadores": las empresas que lo organizan o patrocinan, con su nombre propio. Vacío si no se sabe.
+
+Vas a recibir un JSON {{"eventos": [{{"id": "...", "nombre": "...", "lugar": "...", "descripcion": "..."}}]}}.
+Devolvé SOLO un JSON {{"eventos": [{{"id": "...", "resumen_es": "...", "tipo": "...", "temas": [], "organizadores": []}}]}} con todos los ids recibidos."""
+
+
+def events_user(items: list[tuple[str, str, str, str]]) -> str:
+    """items: (id, nombre, lugar, descripción en inglés)."""
+    payload = [{"id": i, "nombre": n, "lugar": lugar, "descripcion": d} for i, n, lugar, d in items]
+    return "Eventos para resumir:\n" + json.dumps({"eventos": payload}, ensure_ascii=False)
+
+
+PROFILE_AUDIT_SYSTEM = """Revisás si un perfil profesional (sacado de LinkedIn por Crustdata) corresponde de verdad a un speaker de AWS re:Invent 2026, o a otra persona con el mismo nombre.
+
+De cada caso recibís:
+- "catalogo": lo que AWS publica del speaker para su charla de diciembre de 2026 (nombre, cargo, empresa, títulos de sus charlas). Es la verdad sobre quién da la charla.
+- "perfil": el perfil encontrado (cargo y empresa actuales, headline, ubicación, trayectoria, skills). Se capturó en octubre/noviembre de 2026.
+
+Cómo decidir:
+- "misma": el perfil muestra la misma función que el catálogo (Solutions Architect, Product Manager, TAM, ingeniería de software, ciencia aplicada, liderazgo técnico…) en la misma empresa, ahora o en un trabajo reciente de la trayectoria. Los títulos se escriben distinto (PMT = Product Manager - Technical, SA = Solutions Architect, SDM = Software Development Manager, SDE = Software Development Engineer, TAM = Technical Account Manager, GTM = go-to-market) y un ascenso o un cambio de área cercano es normal. Si dejó la empresa hace poco para otra, pero la trayectoria muestra el rol del catálogo, también es "misma". Annapurna Labs, Zoox, Twitch y Audible son de Amazon.
+- "otra": el perfil es claramente de otra persona: en la misma empresa pero en una función incompatible (depósito, operaciones de fulfillment, atención al cliente, recursos humanos, finanzas frente a un SA o un ingeniero), con una seniority incompatible (asistente frente a Principal), o la trayectoria no tiene nada que ver con el cargo del catálogo.
+- "dudosa": no alcanza la evidencia (perfil vacío, cargo genérico, catálogo sin cargo ni empresa y el perfil no confirma nada).
+Amazon y AWS tienen cientos de miles de empleados: que coincidan nombre y empresa no prueba nada; decide la función.
+
+Vas a recibir un JSON {"casos": [{"id": ..., "catalogo": {...}, "perfil": {...}}]}.
+Devolvé SOLO un JSON {"casos": [{"id": ..., "veredicto": "misma|otra|dudosa", "motivo": "una oración en castellano"}]} con todos los ids recibidos."""
+
+PROFILE_VERDICTS = ("misma", "otra", "dudosa")
+
+
+def profile_audit_user(casos: list[dict]) -> str:
+    return "Perfiles para auditar:\n" + json.dumps({"casos": casos}, ensure_ascii=False, default=str)
+
+
 def keys_user(items: list[tuple[str, str, str, str]]) -> str:
     """items: (id, título, tipo, resumen en inglés)."""
     payload = [{"id": i, "titulo": t, "tipo": k, "texto": r} for i, t, k, r in items]

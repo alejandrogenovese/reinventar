@@ -18,7 +18,7 @@ from collections import Counter
 
 import numpy as np
 
-from . import catalog, embeddings, pg
+from . import catalog, embeddings, pg, sandbox
 
 log = logging.getLogger("reinventar.search")
 
@@ -123,6 +123,7 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
+@sandbox.en_real
 def ensure_index(force: bool = False) -> None:
     """Sincroniza speech_embedding con el catálogo (calcula solo lo nuevo o cambiado) y arma la matriz en memoria."""
     global _matrix, _matrix_source

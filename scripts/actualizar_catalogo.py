@@ -40,7 +40,7 @@ _NOMBRE_SCHEMA = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 MINIMO_PARA_BORRAR = 0.5  # con --borrar-bajas, el catálogo nuevo tiene que traer al menos la mitad de los horarios
 _HOSTS_LOCALES = ("@localhost:", "@127.0.0.1:")
 LOCAL_CONTAINER = os.environ.get("LOCAL_CONTAINER", "reinvent-pg")
-BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "~/Documents/Proyectos/Scripts/backups_reinvent")).expanduser()
+BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "~/Documents/Proyectos/Scripts/reinventar/backups_reinvent")).expanduser()
 
 
 @dataclass(frozen=True)

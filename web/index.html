@@ -32,6 +32,11 @@
 <body>
   <a class="skip-link" href="#view">Saltar al contenido</a>
   <div class="app">
+    <div class="top-banners">
+      <div id="sandbox-banner" class="sandbox-banner" role="status" hidden></div>
+      <div id="changes-banner" class="changes-banner" role="alert" hidden></div>
+      <div id="countdown-banner" class="countdown-banner" hidden></div>
+    </div>
     <header class="topbar">
       <a class="brand" href="#/"><img src="/icons/icon.svg" alt="" width="28" height="28"><span class="brand-word">Reinvent<span>AR</span></span></a>
       <!-- En el celular esta misma nav se convierte en la barra inferior (styles.css) -->
@@ -39,6 +44,7 @@
         <a class="navitem" href="#/" data-match="^#/?$|^#/(s|grabar)/|^#/nueva$"><span data-icon="inicio"></span><span>Inicio</span></a>
         <a class="navitem" href="#/buscar" data-match="^#/(buscar|explorar|preguntar|charla|speaker|empresa)"><span data-icon="buscar"></span><span>Buscar</span></a>
         <a class="navitem" href="#/itinerario" data-match="^#/itinerario"><span data-icon="itinerario"></span><span>Itinerario</span></a>
+        <a class="navitem" href="#/eventos" data-match="^#/(eventos|evento)"><span data-icon="eventos"></span><span>Eventos</span></a>
       </nav>
       <div class="toolbar">
         <button class="iconbtn" id="themeBtn" type="button" aria-label="Cambiar tema"><span data-icon="oscuro"></span></button>

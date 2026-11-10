@@ -1,10 +1,13 @@
 """Módulo de admin (solo ADMIN_USERS): gestión de usuarios y uso de la app."""
+import datetime as dt
 import re
+import shutil
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, passwords, search
+from . import catalog, config, db, events, healthcheck, passwords, sandbox, search, venues
 from .auth import admin, is_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -25,6 +28,24 @@ class SetActive(BaseModel):
     active: bool
 
 
+class SandboxSettings(BaseModel):
+    """Modo prueba de un usuario. clock: hora simulada en Las Vegas (sin zona = hora de Las Vegas); None = reloj real."""
+    active: bool
+    stt: Literal["fake", "real"] = "fake"
+    llm: Literal["fake", "real"] = "fake"
+    clock: Optional[dt.datetime] = None
+    venue_id: Optional[int] = None
+
+
+class AdvanceClock(BaseModel):
+    minutes: int = Field(ge=-1440, le=1440)
+
+
+def _sandbox_view(user: dict) -> Optional[dict]:
+    sb = sandbox.desde_usuario(user)
+    return sandbox.info(sb, venues.by_id(sb.id_sede) if sb else None)
+
+
 def _user_or_404(username: str) -> dict:
     user = db.get_user(username)
     if not user:
@@ -34,7 +55,8 @@ def _user_or_404(username: str) -> dict:
 
 @router.get("/users")
 def list_users(_admin: str = Depends(admin)):
-    return {"users": [{**u, "is_admin": is_admin(u["username"])} for u in db.list_users()]}
+    return {"users": [{**{k: v for k, v in u.items() if k != "prueba"}, "is_admin": is_admin(u["username"]),
+                       "sandbox": _sandbox_view(u)} for u in db.list_users()]}
 
 
 @router.post("/users")
@@ -76,10 +98,55 @@ def revoke_sessions(username: str, _admin: str = Depends(admin)):
     return {"ok": True}
 
 
+@router.put("/users/{username}/sandbox")
+def set_sandbox(username: str, body: SandboxSettings, _admin: str = Depends(admin)):
+    """Prende, configura o apaga el modo prueba de un usuario. Sus datos reales no se tocan."""
+    _user_or_404(username)
+    if body.venue_id is not None and not venues.by_id(body.venue_id):
+        raise HTTPException(422, "Sede inexistente")
+    clock = body.clock.replace(tzinfo=sandbox.EVENT_TZ) if body.clock and body.clock.tzinfo is None else body.clock
+    cfg = sandbox.config_json(stt=body.stt, llm=body.llm, reloj=clock, id_sede=body.venue_id)
+    db.set_user_sandbox(username, body.active, cfg)
+    return {"ok": True, "sandbox": _sandbox_view(db.get_user(username))}
+
+
+@router.post("/users/{username}/sandbox/advance")
+def advance_sandbox_clock(username: str, body: AdvanceClock, _admin: str = Depends(admin)):
+    """Adelanta (o atrasa) el reloj simulado: para probar "Hoy", el countdown y las alertas sin esperar."""
+    user = _user_or_404(username)
+    sb = sandbox.desde_usuario(user)
+    if not sb or sb.reloj is None:
+        raise HTTPException(409, "Ese usuario no tiene el reloj simulado")
+    with sandbox.activar(sb):
+        nueva = sandbox.ahora() + dt.timedelta(minutes=body.minutes)
+    db.set_user_sandbox(username, True, sandbox.config_json(stt=sb.stt, llm=sb.llm, reloj=nueva, id_sede=sb.id_sede))
+    return {"ok": True, "sandbox": _sandbox_view(db.get_user(username))}
+
+
+@router.delete("/sandbox/data")
+def clear_sandbox_data(_admin: str = Depends(admin)):
+    """Borra todo lo creado en modo prueba (grabaciones, itinerarios), de todos los usuarios. Lo real no se toca."""
+    rows = db.borrar_datos_prueba()
+    shutil.rmtree(config.DATA_DIR / "prueba", ignore_errors=True)
+    return {"ok": True, "rows": rows}
+
+
+@router.get("/check")
+def functional_check(_admin: str = Depends(admin)):
+    """Chequeo funcional: cada parte de la app, sin tocar datos reales ni gastar en APIs."""
+    return {"checks": healthcheck.run_all()}
+
+
+@router.get("/venues")
+def list_venues(_admin: str = Depends(admin)):
+    return {"venues": venues.all_venues()}
+
+
 @router.post("/catalog/reload")
 def reload_catalog(_admin: str = Depends(admin)):
     """Relee el catálogo de Postgres (después de correr scripts/sync_to_railway.sh) sin reiniciar la app."""
     sessions = catalog.load()
+    events.load()
     search.warm_async()  # recalcula en segundo plano solo los embeddings de charlas nuevas o cambiadas
     return {"ok": True, "sessions": sessions}
 

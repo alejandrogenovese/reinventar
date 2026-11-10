@@ -9,11 +9,13 @@ import json
 import subprocess
 from pathlib import Path
 
-from . import config
+from . import config, sandbox
 
 
 def session_dir(sid: str) -> Path:
-    return config.SESSIONS_DIR / sid
+    """Las grabaciones del modo prueba van a otra carpeta, igual que sus datos van a otro schema."""
+    base = config.DATA_DIR / "prueba" / "sessions" if sandbox.actual() else config.SESSIONS_DIR
+    return base / sid
 
 
 def chunk_path(sid: str, part: int, seq: int) -> Path:

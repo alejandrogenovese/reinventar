@@ -5,7 +5,7 @@ Los horarios del catálogo están en hora de Las Vegas, así que "ahora" se calc
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from . import itinerary, talks
+from . import itinerary, sandbox, talks
 
 EVENT_TZ = ZoneInfo("America/Los_Angeles")
 
@@ -15,6 +15,8 @@ def _hhmm(minutes: int) -> str:
 
 
 def _with_end(card: dict) -> dict:
+    if card.get("end"):  # ya calculado por el itinerario (o el de la fuente, en eventos)
+        return {**card, "recording_kind": talks.recording_kind(card.get("type"))}
     end = itinerary._minutes(card["start"]) + itinerary._duration(card.get("type") or "")
     return {**card, "end": _hhmm(end), "recording_kind": talks.recording_kind(card.get("type"))}
 
@@ -44,4 +46,4 @@ def plan(days: list[dict], now: datetime) -> dict:
 
 
 def for_user(username: str) -> dict:
-    return plan(itinerary.get_current(username)["days"], datetime.now(EVENT_TZ))
+    return plan(itinerary.get_current(username)["days"], sandbox.ahora(EVENT_TZ))

@@ -12,9 +12,43 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   otras tecnologías (Iceberg, MCP, dbt…), conceptos en castellano e inglés y enfoque (novedades, arquitectura, caso
   de cliente, práctica guiada…). Son filtros nuevos en Explorar, aparecen en la ficha de la charla y mejoran la búsqueda.
 
+- Modo prueba por usuario, que se prende desde Admin › Usuarios. Lo que hace ese usuario queda aparte y sus datos reales
+  no se tocan. El admin elige si la transcripción y el LLM son de prueba (gratis) o reales, puede simular la hora y la
+  ubicación (una sede) para probar "Hoy" antes del evento, y adelantar el reloj. Arriba de la app se ve una franja
+  "MODO PRUEBA". Los datos de prueba se borran con un botón.
+
+- Ubicación y "Llevame":
+  - En "Hoy", la charla de ahora y la próxima muestran a cuánto quedan, cuánto se tarda caminando (Routes API de
+    Google) y a qué hora salir.
+  - Cada horario de una charla muestra la distancia.
+  - "Llevame" abre Google Maps con la navegación a pie.
+  - El mapa marca dónde estás.
+  - La ubicación se usa solo en el celular; se puede apagar en Ajustes.
+
+- Pestaña **Eventos**: desayunos, happy hours, fiestas y meetups alrededor de re:Invent, con imagen, resumen en
+  castellano, tipo, organizadores, anotados, precio, si piden aprobación y si están llenos. Filtros por día y tipo, y
+  orden por cercanía. Se agregan al itinerario (quedan fijados), aparecen en "Hoy" y avisan si se superponen con una charla.
+
+- Countdown de lo fijado: una franja arriba cuenta cuánto falta para la próxima charla o evento fijado, dice a qué hora
+  salir y cambia de color cuando hay que salir ya. Avisa "Salí ahora" y "Empieza en 5 min" (ajustables en Ajustes ›
+  Alertas). "Hoy" y la ficha de los eventos muestran el countdown.
+- Avisos de cambios: si AWS cambia el horario o la sala de algo de tu itinerario, lo da de baja, o un evento se llena,
+  aparece un aviso hasta que tocás "Entendido".
+- Notificaciones en el celular (Web Push), que se activan en Ajustes. Llegan con la app cerrada: cuándo salir, cuándo
+  empieza y los cambios. En iPhone funcionan con la app instalada en la pantalla de inicio.
+- Charlas repetidas: la ficha muestra los otros horarios, cuál tenés, con qué chocaría cada uno, y "Cambiar a este"
+  (conserva el 📌). "Me la perdí" ofrece los otros horarios y charlas parecidas que empiezan pronto. Después de una charla
+  fijada, la app pregunta si llegaste.
+- Admin › Chequeo funcional: prueba cada parte de la app (catálogo, búsqueda, datos de prueba aislados, reloj simulado,
+  proveedores, procesos, claves) y, en el celular, ubicación, mapa, Routes API y notificaciones.
+
 ### Cambiado
+- En el itinerario, "Bloquear" pasa a llamarse "📌 Fijar". Las charlas y eventos que se superponen se marcan.
 - Las sedes y sus coordenadas salen de un maestro en la base (`reinvent.sede`) en lugar de estar fijas en el código.
   Los bares y restaurantes dentro de un hotel (Canonita, Tableau…) se muestran como sala de ese hotel.
+- Perfil profesional de los speakers: los perfiles que resultaron ser de otra persona con el mismo nombre ya no se
+  muestran (ni el cargo en la charla ni la trayectoria en la ficha). Los que no se pudieron confirmar llevan el aviso
+  "Puede no ser esta persona". Se revisaron a mano y con un LLM unos 600 perfiles dudosos.
 
 ## [0.19.0] - 2026-11-06
 

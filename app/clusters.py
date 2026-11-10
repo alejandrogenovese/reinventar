@@ -12,7 +12,7 @@ from collections import Counter
 
 import numpy as np
 
-from . import catalog, config, embeddings, llm, pg, prompts, search
+from . import catalog, config, embeddings, llm, pg, prompts, sandbox, search
 
 log = logging.getLogger("reinventar.clusters")
 
@@ -154,6 +154,7 @@ def _compute(sessions: list[dict], X: np.ndarray) -> tuple[dict[str, str], bool]
     return {sessions[i]["base"]: names[gi] for gi, g in enumerate(groups) for i in g["members"]}, named_by_llm
 
 
+@sandbox.en_real
 def ensure() -> None:
     """Arma (o recupera de la base) los temas para el catálogo actual. Sin embeddings listos, no hace nada."""
     global _labels, _version

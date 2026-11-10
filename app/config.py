@@ -72,3 +72,8 @@ EMBED_BATCH = int(_env("EMBED_BATCH", "32"))
 
 # Mapa de venues: key de Google Maps JavaScript API (restringida por dominio en Google Cloud Console).
 GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")
+
+# Web Push (notificaciones con la app cerrada): generar las claves con `python -m app.push`.
+VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")
+VAPID_PRIVATE_KEY = _env("VAPID_PRIVATE_KEY")
+VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")

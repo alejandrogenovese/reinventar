@@ -8,7 +8,7 @@ import unicodedata
 
 import psycopg
 
-from . import pg, sectors, venues
+from . import pg, sandbox, sectors, venues
 
 log = logging.getLogger("reinventar.catalog")
 
@@ -21,7 +21,11 @@ WITH people AS (
   SELECT ss.id_speech,
          jsonb_agg(jsonb_build_object(
            'id', sk.id_speaker, 'name', sk.nombre,
-           'title', p.cargo_actual, 'seniority', p.seniority, 'linkedin', p.linkedin_url, 'match', p.calidad_match,
+           -- un perfil descartado es de un homónimo: no se usan sus datos
+           'title', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.cargo_actual END,
+           'seniority', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.seniority END,
+           'linkedin', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.linkedin_url END,
+           'match', p.calidad_match,
            'company_id', e.id_empresa, 'company', coalesce(e.nombre, ss.empresa_original),
            'industry', e.industria, 'sector', si.sector, 'is_amazon', coalesce(e.es_amazon, false)
          ) ORDER BY ss.orden) AS people
@@ -63,6 +67,7 @@ class CatalogUnavailable(Exception):
     """El schema reinvent no está cargado en Postgres (correr scripts/sync_to_railway.sh) o la base no responde."""
 
 
+@sandbox.en_real
 def load() -> int:
     """(Re)carga el catálogo desde Postgres; devuelve la cantidad de sesiones."""
     global _sessions

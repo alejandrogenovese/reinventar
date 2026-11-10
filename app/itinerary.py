@@ -1,7 +1,7 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
 import logging
 
-from . import catalog, config, db, llm, prompts, search
+from . import catalog, config, db, events, llm, prompts, search
 
 log = logging.getLogger("reinventar.itinerary")
 
@@ -38,19 +38,56 @@ def _earliest(session: dict) -> tuple[str, str]:
     return inst["d"], inst["st"]
 
 
+def _end(card: dict) -> str | None:
+    """Fin de una tarjeta: el de la fuente (eventos) o estimado por tipo de sesión (charlas)."""
+    if card.get("end") or not card.get("start"):
+        return card.get("end")
+    total = _minutes(card["start"]) + _duration(card.get("type") or "")
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def snapshot(card: dict) -> dict:
+    """Lo que se guarda de un ítem al agregarlo, para avisar si AWS (o el organizador) lo cambia: ver app/changes.py."""
+    venue = card.get("venue") or {}
+    return {"title": card.get("title"), "day": card.get("day"), "start": card.get("start"),
+            "venue": " · ".join(filter(None, (venue.get("hotel"), venue.get("detail")))), "full": bool(card.get("full"))}
+
+
+def _item_card(it: dict) -> dict | None:
+    if it.get("kind") == "event":
+        ev = events.get(it["code"])
+        return dict(ev) if ev else None
+    found = catalog.get_instance(it["code"])
+    return {**catalog.card(*found), "kind": "talk"} if found else None
+
+
+def _span(card: dict) -> tuple[int, int]:
+    """(inicio, fin) en minutos del día; lo que termina pasada la medianoche cuenta hasta el final del día."""
+    start = _minutes(card["start"])
+    end = _minutes(card["end"]) if card.get("end") else start + _DEFAULT_MINUTES
+    return start, end if end > start else 24 * 60
+
+
+def _mark_overlaps(day_items: list[dict]) -> None:
+    """overlaps = títulos de lo que se superpone en el mismo día (charlas y eventos entre sí)."""
+    spans = [(c, _span(c)) for c in day_items if c.get("start")]
+    for c, (s, e) in spans:
+        c["overlaps"] = [o["title"] for o, (os_, oe) in spans if o is not c and os_ < e and s < oe]
+
+
 def _build_response(items: list[dict]) -> dict:
     days: dict[str, list[dict]] = {}
     for it in items:
-        found = catalog.get_instance(it["code"])
-        if not found:
+        c = _item_card(it)
+        if not c:
             continue
-        session, instance = found
-        c = catalog.card(session, instance)
+        c["end"] = _end(c)
         c["locked"] = bool(it.get("locked"))
         c["reason"] = it.get("reason")
         days.setdefault(c["day"], []).append(c)
     for day_items in days.values():
         day_items.sort(key=lambda c: c["start"] or "")
+        _mark_overlaps(day_items)
     ordered = [{"day": d, "sessions": days[d]} for d in sorted(days)]
     return {"days": ordered, "total": sum(len(d["sessions"]) for d in ordered)}
 
@@ -91,6 +128,12 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
     taken: list[tuple[str, int, int, str]] = []
     confirmed_cards = []
     for it in locked:
+        if it.get("kind") == "event":  # los eventos fijados ocupan su horario: el LLM no propone charlas encima
+            ev = events.get(it["code"])
+            if ev and ev["start"]:
+                start, end = _span(ev)
+                taken.append((ev["day"], start, end - start, ev["code"]))
+            continue
         found = catalog.get_instance(it["code"])
         if not found:
             continue
@@ -133,7 +176,8 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
             skipped.append({"base": session["base"], "title": session["title"], "reason": reason, "conflict": conflict_card})
             continue
         taken.append((chosen["d"], _minutes(chosen["st"]), duration, chosen["c"]))
-        accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"], "reason": pick.get("reason", "")})
+        accepted.append({"code": chosen["c"], "base": session["base"], "day": chosen["d"], "start": chosen["st"],
+                         "reason": pick.get("reason", ""), "snapshot": snapshot(catalog.card(session, chosen))})
 
     db.replace_itinerary_items(username, accepted)
     db.save_run_meta(username, parsed.get("notes", ""), skipped)
@@ -144,11 +188,17 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
 
 
 def add_manual(username: str, code: str) -> dict:
+    """Agrega una charla (código de horario) o un evento (id) fijado: regenerar el itinerario no lo saca."""
+    ev = events.get(code)
+    if ev:
+        db.add_item(username, code, code, ev["day"], ev["start"], locked=True, kind="event", snapshot=snapshot(ev))
+        return get_current(username)
     found = catalog.get_instance(code)
     if not found:
         raise ValueError("Código de sesión inexistente")
     session, instance = found
-    db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True)
+    db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True,
+                snapshot=snapshot(catalog.card(session, instance)))
     return get_current(username)
 
 

@@ -50,14 +50,17 @@ def _talks_of(predicate) -> list[dict]:
 
 
 def _tags(session: dict) -> set[str]:
+    """Etiquetas para medir afinidad: las oficiales de AWS y las extraídas del resumen (conceptos y tecnologías)."""
     return set(catalog.split_field(session.get("topic")) + catalog.split_field(session.get("aoi"))
-               + catalog.split_field(session.get("services")))
+               + catalog.split_field(session.get("services")) + catalog.split_field(session.get("concepts"))
+               + catalog.split_field(session.get("tech")))
 
 
 # --- charla ----------------------------------------------------------------------------------
 
-def _related(session: dict) -> list[dict]:
-    """Charlas parecidas: tópicos/áreas/servicios en común y, con más peso, empresas en común (sin contar Amazon)."""
+def related_scored(session: dict) -> list[tuple[int, dict]]:
+    """(puntaje, sesión) de las charlas parecidas, de mayor a menor: etiquetas en común y, con más peso, empresas en
+    común (sin contar Amazon). La usan "Charlas relacionadas" y "Me la perdí" (app/missed.py)."""
     tags = _tags(session)
     companies = {p["company_id"] for p in session.get("people", []) if p.get("company_id") and not p.get("is_amazon")}
     scored = []
@@ -69,7 +72,11 @@ def _related(session: dict) -> list[dict]:
         if score:
             scored.append((score, other))
     scored.sort(key=lambda x: -x[0])
-    return [card for _, other in scored[:RELATED_LIMIT] if (card := catalog.first_card(other))]
+    return scored
+
+
+def _related(session: dict) -> list[dict]:
+    return [card for _, other in related_scored(session)[:RELATED_LIMIT] if (card := catalog.first_card(other))]
 
 
 def speech_detail(base: str) -> dict | None:
@@ -96,7 +103,12 @@ WHERE sk.id_speaker = %s
 
 
 def _profile(r: dict) -> dict:
+    """Perfil profesional (Crustdata). Uno descartado es de otra persona con el mismo nombre: no se muestra.
+    Uno a revisar se muestra con aviso (unverified): puede no ser esta persona."""
+    if r["calidad_match"] == "descartado":
+        return {"found": False, "match": "descartado", "unverified": False, "experience": [], "education": [], "skills": []}
     return {
+        "unverified": r["calidad_match"] == "revisar",
         "found": bool(r["encontrado"]), "title": r["cargo_actual"], "current_company": r["empresa_actual"],
         "seniority": r["seniority"], "since": r["cargo_desde"].isoformat() if r["cargo_desde"] else None,
         "industry": r["industria_empresa"], "headline": r["headline"], "location": r["ubicacion"],

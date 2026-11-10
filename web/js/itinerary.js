@@ -1,5 +1,9 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Itinerary } from "./api.js";
+import { refreshCountdown } from "./countdown.js";
+import { startsAt } from "./location.js";
+import { sandboxNow } from "./sandbox.js";
+import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { Button, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
@@ -60,6 +64,13 @@ export function Abstract(s, { fold = true, className = "ra-abstract" } = {}) {
   return [p, more || toggle ? h("div", { class: "ra-abstract-actions" }, more, toggle) : null];
 }
 
+/** 📌 Fijar: lo fijado queda aunque regeneres el itinerario (antes se llamaba "Bloquear"). */
+const PinButton = (pinned, onclick) => Button(pinned ? "📌 Fijada" : "📌 Fijar",
+  { onclick, "aria-pressed": String(Boolean(pinned)), title: pinned ? "Tocá para soltarla" : "Queda aunque regeneres el itinerario" });
+
+/** Ya terminó (con la hora simulada en modo prueba): para ofrecer "Me la perdí". */
+const isOver = (s) => Boolean(s.day && (s.end || s.start)) && startsAt(s.day, s.end || s.start) < sandboxNow();
+
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
@@ -76,9 +87,11 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
       People(s),
       Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
+      s.overlaps?.length ? h("p", { class: "notice err" }, `⚠ Se superpone con ${s.overlaps.join(", ")}`) : null,
       h("div", { class: "actions" },
         onAdd ? Button("Agregar", { onclick: onAdd }) : null,
-        onLock ? Button(locked ? "Desbloquear" : "Bloquear", { onclick: onLock }) : null,
+        onLock ? PinButton(locked, onLock) : null,
+        onRemove && isOver(s) ? Button("Me la perdí", { onclick: () => (location.hash = `#/perdida/${encodeURIComponent(s.code)}`) }) : null,
         onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null)));
 }
 
@@ -169,17 +182,18 @@ export async function viewItinerario(view) {
     }
     function paintList() {
       const day = data.days[dayIndex];
-      dayHeading.textContent = day ? `Charlas del ${day.day}` : "";
+      dayHeading.textContent = day ? `Tu agenda del ${day.day}` : "";
       list.replaceChildren(...(day?.sessions || []).map((s) => {
-        const card = SessionMiniCard(s, {
-          locked: s.locked,
-          onLock: () => toastOnError(Itinerary.lock(s.code, !s.locked).then(paint)),
-          onRemove: () => withUndo("Sesión quitada del itinerario.", {
-            apply: () => { card.hidden = true; },
-            commit: () => Itinerary.remove(s.code).catch((err) => { card.hidden = false; toast(err.message); }),
-            undo: () => { card.hidden = false; },
-          }),
+        const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refreshCountdown({ force: true }); return paint(); }));
+        const onRemove = () => withUndo(s.kind === "event" ? "Evento quitado del itinerario." : "Sesión quitada del itinerario.", {
+          apply: () => { card.hidden = true; },
+          commit: () => Itinerary.remove(s.code).then(() => refreshCountdown({ force: true }))
+            .catch((err) => { card.hidden = false; toast(err.message); }),
+          undo: () => { card.hidden = false; },
         });
+        const card = s.kind === "event"
+          ? EventCard(s, { actions: [PinButton(s.locked, onLock), Button("Quitar", { variant: "danger", onclick: onRemove })] })
+          : SessionMiniCard(s, { locked: s.locked, onLock, onRemove });
         return card;
       }));
     }
