@@ -3,11 +3,11 @@ from pathlib import Path
 
 import httpx
 
-from . import config
+from . import config, sandbox
 
 
 def transcribe(path: Path, offset: float) -> list[dict]:
-    provider = config.STT_PROVIDER
+    provider = sandbox.proveedor_stt()
     if provider == "openai":
         segs = _openai_compatible(path)
     elif provider == "local":

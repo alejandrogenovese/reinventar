@@ -33,7 +33,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts").map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts" && k !== "event-images").map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -62,6 +62,21 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
+  // Imágenes de los eventos (Luma): stale-while-revalidate en su propia caché, para verlas sin señal.
+  if (e.request.destination === "image" && url.hostname.endsWith("lumacdn.com")) {
+    e.respondWith((async () => {
+      const hit = await caches.match(e.request, { cacheName: "event-images" });
+      const net = fetch(e.request)
+        .then((r) => {
+          if (r.ok || r.type === "opaque") void cachePut("event-images", e.request, r.clone());
+          return r;
+        })
+        .catch(() => hit);
+      return hit || net;
+    })());
+    return;
+  }
+
   if (url.origin !== location.origin) return;
   // App shell: red primero (para tomar cambios), caché si no hay señal.
   e.respondWith(
@@ -72,4 +87,25 @@ self.addEventListener("fetch", (e) => {
       })
       .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
   );
+});
+
+// Web Push (app/push.py): avisos de lo fijado y de cambios, con la app cerrada. Tocar la notificación abre esa pantalla.
+self.addEventListener("push", (e) => {
+  let msg = {};
+  try { msg = e.data?.json() || {}; } catch { msg = { title: "ReinventAR", body: e.data?.text() || "" }; }
+  e.waitUntil(self.registration.showNotification(msg.title || "ReinventAR", {
+    body: msg.body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: msg.url || "/#/" },
+    tag: msg.title, renotify: true,
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || "/#/", self.location.origin).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const open = wins.find((w) => w.url.startsWith(self.location.origin));
+    if (open) { await open.focus(); return open.navigate(url); }
+    return self.clients.openWindow(url);
+  })());
 });

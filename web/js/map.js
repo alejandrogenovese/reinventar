@@ -1,9 +1,10 @@
 // Mapa interactivo de venues (Google Maps JavaScript API, se carga sólo cuando hace falta).
 import { Maps } from "./api.js";
+import { currentPosition } from "./location.js";
 
 let mapsPromise;
 
-function loadGoogleMaps() {
+export function loadGoogleMaps() {
   if (mapsPromise) return mapsPromise;
   mapsPromise = (async () => {
     if (window.google?.maps) return window.google.maps;
@@ -35,6 +36,13 @@ export async function renderMap(el, { days } = {}) {
     fullscreenControl: false,
   });
   const infoWindow = new maps.InfoWindow();
+  // "Vos": la ubicación del celular (o la simulada en modo prueba). No se manda a ningún lado.
+  void currentPosition().then((here) => {
+    if (!here) return;
+    const me = new maps.Marker({ position: { lat: here.lat, lng: here.lng }, title: here.simulated ? "Vos (simulado)" : "Vos", zIndex: 999,
+      icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#2970bc", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 } });
+    me.setMap(map);
+  });
   let markers = [];
   let polyline = null;
 

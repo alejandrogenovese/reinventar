@@ -63,9 +63,12 @@ jobs:
           --ignore=tests/test_briefing.py
           --ignore=tests/test_catalog_pg.py
           --ignore=tests/test_clusters.py
+          --ignore=tests/test_events_app.py
           --ignore=tests/test_explore.py
+          --ignore=tests/test_healthcheck.py
           --ignore=tests/test_itinerary.py
           --ignore=tests/test_knowledge.py
+          --ignore=tests/test_missed.py
           --ignore=tests/test_nl_filters.py
           --ignore=tests/test_search.py
           --ignore=tests/test_talk_link.py

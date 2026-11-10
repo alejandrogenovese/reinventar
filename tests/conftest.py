@@ -28,6 +28,7 @@ def _drop_test_schema():
 
     with pg.pool().connection() as c:
         c.execute(f"DROP SCHEMA IF EXISTS {config.DB_SCHEMA} CASCADE")
+        c.execute(f"DROP SCHEMA IF EXISTS {config.DB_SCHEMA}_prueba CASCADE")
     pg.close()
 
 

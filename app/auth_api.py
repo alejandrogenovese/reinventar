@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import config, db, passwords
+from . import config, db, passwords, sandbox, venues
 from .auth import auth, bearer, is_admin
 
 router = APIRouter()
@@ -22,10 +22,12 @@ class PasswordChange(BaseModel):
 
 
 def _session_info(user: dict) -> dict:
+    sb = sandbox.desde_usuario(user)
     return {
         "username": user["username"],
         "must_change_password": user["must_change_password"],
         "is_admin": is_admin(user["username"]),
+        "sandbox": sandbox.info(sb, venues.by_id(sb.id_sede) if sb else None),
     }
 
 

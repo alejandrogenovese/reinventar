@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, itinerary, today
+from . import catalog, changes, config, db, itinerary, missed, today
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -23,6 +23,43 @@ class Generate(BaseModel):
 
 class AddItem(BaseModel):
     code: str = Field(min_length=1, max_length=40)
+
+
+class Swap(BaseModel):
+    to: str = Field(min_length=1, max_length=40)
+
+
+class Acknowledge(BaseModel):
+    codes: list[str] = Field(max_length=200)
+
+
+@router.get("/api/itinerary/missed/{code}")
+def missed_options(code: str, username: str = Depends(auth)):
+    """"Me la perdí": otros horarios de la charla y parecidas que empiezan pronto."""
+    result = missed.options(username, code)
+    if result is None:
+        raise HTTPException(404, "Código de sesión inexistente")
+    return result
+
+
+@router.post("/api/itinerary/items/{code}/swap")
+def swap_item(code: str, body: Swap, username: str = Depends(auth)):
+    """"Cambiar a este": otro horario de la misma charla, conservando si estaba fijada."""
+    try:
+        return missed.swap(username, code, body.to.strip())
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.get("/api/itinerary/changes")
+def get_changes(username: str = Depends(auth)):
+    """Lo que cambió (sala, horario, baja, lleno) en lo que el usuario tiene en el itinerario."""
+    return {"changes": changes.pending(username)}
+
+
+@router.post("/api/itinerary/changes/ack")
+def ack_changes(body: Acknowledge, username: str = Depends(auth)):
+    return {"changes": changes.acknowledge(username, body.codes)}
 
 
 @router.get("/api/today")

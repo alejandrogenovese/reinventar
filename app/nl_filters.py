@@ -18,6 +18,8 @@ _LABELS = {
     "tema": "Tema emergente (grupo de charlas parecidas)",
     "sector": "Sector de la empresa", "industria": "Industria de la empresa", "empresa": "Empresa de los speakers",
     "seniority": "Seniority de los speakers", "topico": "Tópico", "area": "Área de interés", "servicio": "Servicio de AWS",
+    "tecnologia": "Tecnología que no es de AWS (Iceberg, MCP, dbt…)", "concepto": "Concepto que trata la charla",
+    "enfoque": "Enfoque (novedades, arquitectura, caso de cliente, práctica guiada…)",
     "tipo": "Tipo de sesión", "nivel": "Nivel (100 introductorio … 500 experto)", "lanzamiento": "Es un lanzamiento nuevo",
     "dia": "Día", "sede": "Sede (hotel)",
 }

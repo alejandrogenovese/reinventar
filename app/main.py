@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__, admin_api, audio, auth_api, catalog, config, db, itinerary_api, knowledge_api, passkey_api, pg, pipeline, search, talks
-from .auth import auth
+from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, itinerary_api,
+               knowledge_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
+from .auth import auth, bearer, sandbox_for_token
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -22,21 +24,43 @@ async def lifespan(_app):
         logging.warning("BOOTSTRAP_USERS vacío: nadie va a poder loguearse hasta que lo configures")
     try:
         catalog.load()
+        events.load()
         search.warm_async()  # embeddings en segundo plano: mientras tanto se busca solo por palabras
     except catalog.CatalogUnavailable as e:
         # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
         logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)
     pipeline.start_worker()
+    push.start_worker()
     yield
     pg.close()
 
 
+class SandboxMiddleware:
+    """Si el pedido es de un usuario en modo prueba, lo corre dentro de su sandbox (ver app/sandbox.py).
+    ASGI puro, no BaseHTTPMiddleware: así la contextvar llega al endpoint y al threadpool de los endpoints sync."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not scope["path"].startswith("/api/"):
+            return await self.app(scope, receive, send)
+        headers = dict(scope.get("headers") or [])
+        token = bearer(headers.get(b"authorization", b"").decode("latin-1"))
+        sb = await run_in_threadpool(sandbox_for_token, token) if token else None
+        with sandbox.activar(sb):
+            return await self.app(scope, receive, send)
+
+
 app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
+app.add_middleware(SandboxMiddleware)
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
 app.include_router(knowledge_api.router)
 app.include_router(itinerary_api.router)
+app.include_router(events_api.router)
+app.include_router(push_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)

@@ -9,17 +9,18 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, llm, prompts, stt, talks
+from . import audio, config, db, llm, prompts, sandbox, stt, talks
 
 log = logging.getLogger("reinventar.pipeline")
-_q: "queue.Queue[str]" = queue.Queue()
+# Cada trabajo lleva el contexto de quien lo encoló: una grabación en modo prueba se procesa en el schema de prueba.
+_q: "queue.Queue[tuple[str, sandbox.Sandbox | None]]" = queue.Queue()
 _started = False
 SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
 
 
 def enqueue(sid: str):
     db.update_session(sid, status="queued", error=None, progress=None)
-    _q.put(sid)
+    _q.put((sid, sandbox.actual()))
 
 
 def start_worker():
@@ -27,21 +28,28 @@ def start_worker():
     if _started:
         return
     _started = True
-    for sid in db.sessions_in(db.PROCESSING):
-        _q.put(sid)
+    with sandbox.real():
+        for sid in db.sessions_in(db.PROCESSING):
+            _q.put((sid, None))
+    # Las de prueba que quedaron a medias se terminan con proveedores fake (no se sabe quién las encoló).
+    prueba = sandbox.Sandbox(username="pipeline")
+    with sandbox.activar(prueba):
+        for sid in db.sessions_in(db.PROCESSING):
+            _q.put((sid, prueba))
     threading.Thread(target=_loop, name="pipeline", daemon=True).start()
 
 
 def _loop():
     while True:
-        sid = _q.get()
-        try:
-            process(sid)
-        except Exception as e:  # noqa: BLE001
-            log.error("sesión %s falló: %s", sid, traceback.format_exc())
-            db.update_session(sid, status="error", error=str(e)[:1000], progress=None)
-        finally:
-            _q.task_done()
+        sid, contexto = _q.get()
+        with sandbox.activar(contexto):
+            try:
+                process(sid)
+            except Exception as e:  # noqa: BLE001
+                log.error("sesión %s falló: %s", sid, traceback.format_exc())
+                db.update_session(sid, status="error", error=str(e)[:1000], progress=None)
+            finally:
+                _q.task_done()
 
 
 def hms(t: float) -> str:

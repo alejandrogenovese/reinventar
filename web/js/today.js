@@ -1,5 +1,7 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
 import { Sessions, Today } from "./api.js";
+import { CountdownBadge } from "./countdown.js";
+import { GoThere, startsAt } from "./location.js";
 import { Button, h, toast } from "./ui.js";
 
 const LATER_LIMIT = 4;
@@ -24,6 +26,7 @@ export async function recordTalk(s, btn) {
 
 /** Acción de la charla: si ya hay una grabación con ese código, abrirla; si no, grabar. */
 function TalkAction(s, recorded, variant) {
+  if (s.kind === "event") return Button("Ver evento", { variant, onclick: () => (location.hash = `#/evento/${encodeURIComponent(s.code)}`) });
   const mine = recorded.get(s.code);
   if (mine) {
     const live = mine.status === "recording" || mine.status === "uploading";
@@ -33,16 +36,23 @@ function TalkAction(s, recorded, variant) {
   return btn;
 }
 
+const destination = (s) => (s.venue?.lat != null
+  ? { lat: s.venue.lat, lng: s.venue.lng, name: s.venue.hotel, placeId: s.venue.place_id, approx: s.venue.exact === false } : null);
+
 function TalkCard(s, { label, recorded, variant, highlight }) {
   return h("article", { class: `ra-today${highlight ? " is-now" : ""}` },
     h("div", { class: "ra-today-when" }, h("span", { class: "label" }, label), h("span", { class: "ra-mono" }, `${s.start}–${s.end}`)),
-    h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
-    h("div", { class: "ra-card-meta" }, [s.code, place(s)].filter(Boolean).map((m) => h("span", {}, m))),
+    !highlight && s.day && s.start ? CountdownBadge(startsAt(s.day, s.start)) : null,
+    h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: s.kind === "event" ? `#/evento/${encodeURIComponent(s.code)}` : `#/charla/${s.base}` }, s.title)),
+    h("div", { class: "ra-card-meta" }, [s.kind === "event" ? "🎉 Evento" : s.code, place(s)].filter(Boolean).map((m) => h("span", {}, m))),
+    // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
+    GoThere(destination(s), { start: s.day && s.start ? startsAt(s.day, s.start) : null, eta: true }),
     h("div", { class: "actions" }, TalkAction(s, recorded, variant)));
 }
 
 const LaterList = (items) => items.length ? h("ul", { class: "ra-today-later" },
-  items.slice(0, LATER_LIMIT).map((s) => h("li", {}, h("span", { class: "ra-mono" }, s.start), h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title))),
+  items.slice(0, LATER_LIMIT).map((s) => h("li", {}, h("span", { class: "ra-mono" }, s.start),
+    h("a", { class: "ra-link", href: s.kind === "event" ? `#/evento/${encodeURIComponent(s.code)}` : `#/charla/${s.base}` }, s.kind === "event" ? `🎉 ${s.title}` : s.title))),
   items.length > LATER_LIMIT ? h("li", { class: "caption" }, h("a", { class: "ra-link", href: "#/itinerario" }, `y ${items.length - LATER_LIMIT} más en tu itinerario`)) : null) : null;
 
 const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { class: "caption" }, text), action);

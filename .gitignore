@@ -21,3 +21,9 @@ data/
 
 # Notas de trabajo de Claude Code
 .claude/
+
+# Material de trabajo local (catálogo crudo, contexto con datos del docker, diagramas exportados)
+CONTEXTO_*.md
+sessions.json
+datos/
+Diagramas/

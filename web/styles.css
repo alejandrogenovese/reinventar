@@ -97,6 +97,8 @@ button.ra-chip:hover { box-shadow: var(--shadow-1); }
 .ra-chip-on { border-color: var(--brand) !important; background: var(--brand-soft) !important; color: var(--ink) !important; font-weight: 600 !important; }
 .ra-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* Tag: dato, no se toca (sin borde ni sombra); el chip-botón tiene borde y estado */
+/* Aviso de perfil sin confirmar (web/js/knowledge.js): --warning como fondo, texto oscuro en los dos temas. */
+.ra-disclaimer { background: color-mix(in srgb, var(--warning) 35%, var(--surface-1)); color: var(--ink); font: var(--t-small); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }
 .ra-tag { font: var(--t-micro); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 6px; white-space: nowrap; }
 .ra-tag.is-new { background: var(--brand-soft); color: var(--ink); font-weight: 600; }
 :root[data-theme="dark"] .ra-tag.is-new { background: var(--surface-3); color: var(--brand-ink); }
@@ -112,6 +114,40 @@ button.ra-chip:hover { box-shadow: var(--shadow-1); }
 /* --- layout de la app ---------------------------------------------------- */
 .app { max-width: 720px; margin: 0 auto; padding: 0 var(--space-4) calc(var(--space-12) + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) { .app { max-width: 960px; } }
+/* Modo prueba (web/js/sandbox.js): --warning solo sirve como fondo; el texto va oscuro en los dos temas (≥ 8:1). */
+.top-banners { position: sticky; top: 0; z-index: 30; }
+.sandbox-banner { background: var(--warning); color: #1a1a1a; font: var(--t-small-strong); text-align: center; padding: var(--space-1) var(--space-4); }
+.sandbox-banner[hidden] { display: none; }
+
+/* Countdown de lo fijado (web/js/countdown.js): el tono cambia según cuánto falta. Texto oscuro sobre los fondos de color. */
+.countdown-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); font: var(--t-small-strong); background: var(--surface-1); box-shadow: var(--edge); }
+.countdown-banner[hidden] { display: none; }
+.countdown-banner.is-soon { background: var(--brand-soft); }
+.countdown-banner.is-urgent { background: var(--error); color: #ffffff; }
+.countdown-banner.is-event { background: color-mix(in srgb, #8a50f7 22%, var(--surface-1)); }
+.countdown-banner.is-live { background: color-mix(in srgb, #258825 22%, var(--surface-1)); }
+.countdown-text { flex: 1; color: inherit; text-decoration: none; font-variant-numeric: tabular-nums; }
+.countdown-close { background: none; border: 0; color: inherit; font-size: 1.25rem; min-width: 32px; min-height: 32px; cursor: pointer; }
+.changes-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); font: var(--t-small); background: var(--brand-soft); box-shadow: var(--edge); }
+.changes-banner[hidden] { display: none; }
+.changes-banner p { flex: 1; margin: 0; }
+.ra-check-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-check-list .is-ok strong { color: var(--success, #258825); }
+.ra-check-list .is-fail strong { color: var(--error); }
+.ra-countdown { font: var(--t-small-strong); font-variant-numeric: tabular-nums; color: var(--brand-ink); }
+
+/* "Llevame" (web/js/location.js): distancia y tiempo a pie, con el link a Google Maps. */
+.ra-go { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.ra-go-info { font: var(--t-small); color: var(--ink-muted); }
+.ra-go-btn { flex: 0 0 auto; text-decoration: none; }
+
+/* Eventos (web/js/events.js) */
+.ra-event { background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); overflow: hidden; display: flex; flex-direction: column; }
+.ra-event-cover { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; background: var(--surface-2, var(--surface-1)); }
+.ra-event-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-event-hero { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-m); }
+.ra-event-row { display: grid; grid-template-columns: 7rem 1fr; gap: var(--space-2); align-items: baseline; }
+
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   padding: calc(var(--space-3) + env(safe-area-inset-top)) 0 var(--space-3); margin-bottom: var(--space-4);
@@ -256,6 +292,7 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .ra-abstract.is-folded { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ra-more { align-self: flex-start; background: none; border: 0; padding: var(--space-1) 0; min-height: 32px; cursor: pointer; font: var(--t-small-strong); color: var(--brand-ink); }
 .ra-more:hover { text-decoration: underline; }
+.ra-abstract-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
 
 /* sin overflow:hidden a propósito: Google Maps renderiza el InfoWindow adentro de este mismo contenedor y quedaba recortado */
 .mapbox { height: 320px; background: var(--surface-1); border-radius: var(--radius-m); }
@@ -332,7 +369,7 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
   .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
   .navbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; gap: 0;
-    display: grid; grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; /* una columna por sección, sin importar cuántas */
     padding: var(--space-1) var(--space-2) calc(var(--space-1) + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line);
     background: color-mix(in srgb, var(--surface-1) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);

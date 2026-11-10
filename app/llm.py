@@ -5,14 +5,14 @@ import re
 
 import httpx
 
-from . import config
+from . import config, sandbox
 
 log = logging.getLogger("reinventar.llm")
 _anthropic = None
 
 
 def complete(model: str, system: str, user: str, max_tokens: int = 8000) -> str:
-    p = config.LLM_PROVIDER
+    p = sandbox.proveedor_llm()
     if p == "anthropic":
         return _claude(model, system, user, max_tokens)
     if p == "openai":
@@ -73,6 +73,9 @@ def _openai(model, system, user, max_tokens):
     return r.json()["choices"][0]["message"]["content"]
 
 
+_FAKE_SERVICE = "Amazon S3"  # servicio que devuelve el LLM falso de los tests
+
+
 def _fake(system, user):
     if user.startswith("Grupo 0:"):  # nombres de temas emergentes
         ids = re.findall(r"^Grupo (\d+):", user, re.M)
@@ -87,9 +90,21 @@ def _fake(system, user):
     if user.startswith("Pregunta:"):  # chat de búsqueda
         codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
         return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
+    if user.startswith("Eventos para resumir:"):  # eventos de networking
+        items = json.loads(user.split("\n", 1)[1])["eventos"]
+        return json.dumps({"eventos": [{"id": i["id"], "resumen_es": f"Evento {i['id']} de prueba.", "tipo": "happy hour",
+                                        "temas": ["observabilidad"], "organizadores": ["Acme"]} for i in items]})
+    if user.startswith("Charlas para extraer claves:"):  # claves del resumen
+        items = json.loads(user.split("\n", 1)[1])["charlas"]
+        return json.dumps({"charlas": [{"id": i["id"], "servicios": [_FAKE_SERVICE], "tecnologias": ["Apache Iceberg"],
+                                        "conceptos": ["gobierno de datos"], "conceptos_en": ["data governance"],
+                                        "enfoque": ["arquitectura", "inventado"]} for i in items]})
+    if user.startswith("Resúmenes a traducir:"):  # resúmenes del catálogo
+        items = json.loads(user.split("\n", 1)[1])["resumenes"]
+        return json.dumps({"traducciones": [{"id": i["id"], "texto": f"Traducción de {i['id']}."} for i in items]})
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
-        return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de Amazon S3." for i in ids)
+        return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de {_FAKE_SERVICE}." for i in ids)
     if "Candidatas disponibles" in user:  # itinerario
         bases = re.findall(r"- (\w+) \[", user)
         return json.dumps({
@@ -98,9 +113,9 @@ def _fake(system, user):
         })
     return json.dumps({
         "tldr": "Resumen de prueba.",
-        "announcements": [{"service": "Amazon S3", "text": "nueva función de prueba."}],
+        "announcements": [{"service": _FAKE_SERVICE, "text": "nueva función de prueba."}],
         "key_points": ["Punto uno.", "Punto dos."],
-        "services": ["Amazon S3"],
+        "services": [_FAKE_SERVICE],
         "quotes": [{"time": "00:00:05", "text": "Hoy lanzamos…"}],
         "takeaways": ["Evaluarlo para el Journey to Cloud."],
     })

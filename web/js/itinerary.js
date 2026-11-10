@@ -1,5 +1,9 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Itinerary } from "./api.js";
+import { refreshCountdown } from "./countdown.js";
+import { startsAt } from "./location.js";
+import { sandboxNow } from "./sandbox.js";
+import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { Button, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
@@ -27,18 +31,45 @@ export const shortDay = (iso) => (iso
   ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" }).replace(/[.,]/g, "")
   : "");
 
-/** Abstract plegado a 3 líneas; el botón lo despliega (aria-expanded para el lector de pantalla). */
-function Abstract(text) {
-  const p = h("p", { class: "ra-abstract" }, text);
-  if (text.length <= ABSTRACT_FOLD) return p;
-  p.classList.add("is-folded");
-  const btn = h("button", { type: "button", class: "ra-more", "aria-expanded": "false", onclick: () => {
+// Idioma del resumen que eligió la persona ("es" traducido, "en" original); queda guardado en este celular.
+const ABSTRACT_LANG = "ra.abstract-lang";
+const abstractLang = () => { try { return localStorage.getItem(ABSTRACT_LANG) || "es"; } catch { return "es"; } };
+const saveAbstractLang = (lang) => { try { localStorage.setItem(ABSTRACT_LANG, lang); } catch {} };
+
+/** Resumen oficial en castellano o en el inglés original, con botón para cambiar. En las tarjetas (fold) se pliega a
+ *  3 líneas con "Leer más" (aria-expanded para el lector de pantalla). Null si la charla no tiene resumen. */
+export function Abstract(s, { fold = true, className = "ra-abstract" } = {}) {
+  const texts = { es: s.abstract_es, en: s.abstract };
+  if (!texts.es && !texts.en) return null;
+  let lang = texts[abstractLang()] ? abstractLang() : (texts.en ? "en" : "es");
+  const p = h("p", { class: className });
+  const canFold = fold && Math.max((texts.es || "").length, (texts.en || "").length) > ABSTRACT_FOLD;
+  const more = canFold ? h("button", { type: "button", class: "ra-more", "aria-expanded": "false", onclick: () => {
     const open = p.classList.toggle("is-folded") === false;
-    btn.setAttribute("aria-expanded", String(open));
-    btn.textContent = open ? "Leer menos" : "Leer más";
-  } }, "Leer más");
-  return [p, btn];
+    more.setAttribute("aria-expanded", String(open));
+    more.textContent = open ? "Leer menos" : "Leer más";
+  } }, "Leer más") : null;
+  const toggle = texts.es && texts.en ? h("button", { type: "button", class: "ra-more", onclick: () => {
+    lang = lang === "es" ? "en" : "es";
+    saveAbstractLang(lang);
+    render();
+  } }) : null;
+  function render() {
+    p.textContent = texts[lang];
+    p.lang = lang === "es" ? "es-AR" : "en";
+    if (toggle) toggle.textContent = lang === "es" ? "Ver original en inglés" : "Ver en castellano";
+  }
+  if (canFold) p.classList.add("is-folded");
+  render();
+  return [p, more || toggle ? h("div", { class: "ra-abstract-actions" }, more, toggle) : null];
 }
+
+/** 📌 Fijar: lo fijado queda aunque regeneres el itinerario (antes se llamaba "Bloquear"). */
+const PinButton = (pinned, onclick) => Button(pinned ? "📌 Fijada" : "📌 Fijar",
+  { onclick, "aria-pressed": String(Boolean(pinned)), title: pinned ? "Tocá para soltarla" : "Queda aunque regeneres el itinerario" });
+
+/** Ya terminó (con la hora simulada en modo prueba): para ofrecer "Me la perdí". */
+const isOver = (s) => Boolean(s.day && (s.end || s.start)) && startsAt(s.day, s.end || s.start) < sandboxNow();
 
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
@@ -54,11 +85,13 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         tags.slice(0, 6).map(Tag)) : null,
       People(s),
-      s.abstract ? Abstract(s.abstract) : null,
+      Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
+      s.overlaps?.length ? h("p", { class: "notice err" }, `⚠ Se superpone con ${s.overlaps.join(", ")}`) : null,
       h("div", { class: "actions" },
         onAdd ? Button("Agregar", { onclick: onAdd }) : null,
-        onLock ? Button(locked ? "Desbloquear" : "Bloquear", { onclick: onLock }) : null,
+        onLock ? PinButton(locked, onLock) : null,
+        onRemove && isOver(s) ? Button("Me la perdí", { onclick: () => (location.hash = `#/perdida/${encodeURIComponent(s.code)}`) }) : null,
         onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null)));
 }
 
@@ -105,6 +138,23 @@ export async function viewCuestionario(view) {
   view.replaceChildren(form);
 }
 
+/** Una charla o evento del itinerario con Fijar y Quitar (con deshacer). onChanged vuelve a pintar la vista. */
+function ItineraryItem(s, onChanged) {
+  const refresh = () => refreshCountdown({ force: true });
+  const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refresh(); return onChanged(); }));
+  let card = null;
+  const show = (visible) => { card.hidden = !visible; };
+  const onRemove = () => withUndo(s.kind === "event" ? "Evento quitado del itinerario." : "Sesión quitada del itinerario.", {
+    apply: () => show(false),
+    commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(err.message); }),
+    undo: () => show(true),
+  });
+  card = s.kind === "event"
+    ? EventCard(s, { actions: [PinButton(s.locked, onLock), Button("Quitar", { variant: "danger", onclick: onRemove })] })
+    : SessionMiniCard(s, { locked: s.locked, onLock, onRemove });
+  return card;
+}
+
 export async function viewItinerario(view) {
   async function paint() {
     const data = await Itinerary.get();
@@ -149,19 +199,8 @@ export async function viewItinerario(view) {
     }
     function paintList() {
       const day = data.days[dayIndex];
-      dayHeading.textContent = day ? `Charlas del ${day.day}` : "";
-      list.replaceChildren(...(day?.sessions || []).map((s) => {
-        const card = SessionMiniCard(s, {
-          locked: s.locked,
-          onLock: () => toastOnError(Itinerary.lock(s.code, !s.locked).then(paint)),
-          onRemove: () => withUndo("Sesión quitada del itinerario.", {
-            apply: () => { card.hidden = true; },
-            commit: () => Itinerary.remove(s.code).catch((err) => { card.hidden = false; toast(err.message); }),
-            undo: () => { card.hidden = false; },
-          }),
-        });
-        return card;
-      }));
+      dayHeading.textContent = day ? `Tu agenda del ${day.day}` : "";
+      list.replaceChildren(...(day?.sessions || []).map((s) => ItineraryItem(s, paint)));
     }
     paintTabs();
     paintList();

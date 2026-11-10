@@ -8,7 +8,7 @@ import unicodedata
 
 import psycopg
 
-from . import pg, sectors, venues
+from . import pg, sandbox, sectors, venues
 
 log = logging.getLogger("reinventar.catalog")
 
@@ -21,7 +21,11 @@ WITH people AS (
   SELECT ss.id_speech,
          jsonb_agg(jsonb_build_object(
            'id', sk.id_speaker, 'name', sk.nombre,
-           'title', p.cargo_actual, 'seniority', p.seniority, 'linkedin', p.linkedin_url, 'match', p.calidad_match,
+           -- un perfil descartado es de un homónimo: no se usan sus datos
+           'title', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.cargo_actual END,
+           'seniority', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.seniority END,
+           'linkedin', CASE WHEN p.calidad_match IS DISTINCT FROM 'descartado' THEN p.linkedin_url END,
+           'match', p.calidad_match,
            'company_id', e.id_empresa, 'company', coalesce(e.nombre, ss.empresa_original),
            'industry', e.industria, 'sector', si.sector, 'is_amazon', coalesce(e.es_amazon, false)
          ) ORDER BY ss.orden) AS people
@@ -32,19 +36,25 @@ WITH people AS (
   LEFT JOIN sector_industria si ON si.industria = e.industria
   GROUP BY ss.id_speech
 ), instances AS (
-  SELECT id_speech,
-         min(fecha + hora_inicio) AS first_at,
+  SELECT h.id_speech,
+         min(h.fecha + h.hora_inicio) AS first_at,
          jsonb_agg(jsonb_build_object(
-           'c', codigo, 'd', fecha::text, 'st', to_char(hora_inicio, 'HH24:MI'),
-           'v', sede || coalesce('|' || replace(sala, ' · ', '|'), ''), 'seats', cupo, 'walk', walk_up
-         ) ORDER BY fecha, hora_inicio) AS instances
-  FROM reinvent.speech_horario
-  GROUP BY id_speech
+           'c', h.codigo, 'd', h.fecha::text, 'st', to_char(h.hora_inicio, 'HH24:MI'),
+           'v', sd.nombre || coalesce('|' || replace(h.sala, ' · ', '|'), ''), 'seats', h.cupo, 'walk', h.walk_up
+         ) ORDER BY h.fecha, h.hora_inicio) AS instances
+  FROM reinvent.speech_horario h
+  JOIN reinvent.sede sd ON sd.id_sede = h.id_sede
+  GROUP BY h.id_speech
 )
 SELECT s.id_speech AS base, s.titulo AS title, s.tipo AS type, coalesce(s.nivel::text, '') AS level,
-       array_to_string(s.topicos, ';') AS topic, array_to_string(s.servicios, ';') AS services,
+       array_to_string(s.topicos, ';') AS topic,
+       -- servicios oficiales + los que menciona el resumen (extraer_claves.py), sin repetir
+       array_to_string(ARRAY(SELECT DISTINCT unnest(s.servicios || coalesce(s.servicios_mencionados, '{}'))
+                             ORDER BY 1), ';') AS services,
+       array_to_string(s.tecnologias, ';') AS tech, array_to_string(s.conceptos, ';') AS concepts,
+       array_to_string(s.conceptos_en, ';') AS concepts_en, array_to_string(s.enfoque, ';') AS focus,
        coalesce(s.area_interes, '') AS aoi, s.formato AS features, s.es_lanzamiento AS newlaunch,
-       s.speakers_original AS speakers, s.resumen AS abstract,
+       s.speakers_original AS speakers, s.resumen AS abstract, s.resumen_es AS abstract_es,
        coalesce(i.instances, '[]'::jsonb) AS instances, coalesce(p.people, '[]'::jsonb) AS people
 FROM reinvent.speech s
 LEFT JOIN instances i ON i.id_speech = s.id_speech
@@ -57,6 +67,7 @@ class CatalogUnavailable(Exception):
     """El schema reinvent no está cargado en Postgres (correr scripts/sync_to_railway.sh) o la base no responde."""
 
 
+@sandbox.en_real
 def load() -> int:
     """(Re)carga el catálogo desde Postgres; devuelve la cantidad de sesiones."""
     global _sessions
@@ -64,6 +75,7 @@ def load() -> int:
         with pg.pool().connection() as c:
             sectors.ensure(c)  # el join con sector_industria no puede depender de que db.init() haya corrido antes
             rows = c.execute(_LOAD_SQL).fetchall()
+            venues.load(c.execute(venues.LOAD_SQL).fetchall())
     except (psycopg.Error, pg.DatabaseNotConfigured) as e:
         raise CatalogUnavailable(str(e)) from e
     if not rows:
@@ -120,9 +132,13 @@ def card(session: dict, instance: dict) -> dict:
         "topic": _split(session.get("topic")),
         "aoi": _split(session.get("aoi")),
         "services": _split(session.get("services")),
+        "tech": _split(session.get("tech")),
+        "concepts": _split(session.get("concepts")),
+        "focus": _split(session.get("focus")),
         "speakers": session.get("speakers"),
         "people": session.get("people", []),
         "abstract": session.get("abstract"),
+        "abstract_es": session.get("abstract_es"),  # traducción al castellano (None si todavía no se tradujo)
         "newlaunch": bool(session.get("newlaunch")),
         "day": instance.get("d"),
         "start": instance.get("st"),
@@ -171,10 +187,18 @@ def fold(text: str | None) -> str:
     return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
 
 
+def _keys_text(session: dict) -> str:
+    """Claves extraídas del resumen (tecnologías y conceptos en castellano e inglés), para la búsqueda por texto."""
+    # " · " separa las claves: una búsqueda por frase no debe calzar pegando el final de una con el principio de otra.
+    return " · ".join(v for k in ("tech", "concepts", "concepts_en") for v in _split(session.get(k)))
+
+
 def _matches(q: str, session: dict) -> bool:
     """Texto libre (q ya pasado por fold): título, resumen, speakers (nombre) y su empresa/industria/sector/cargo."""
     names = " ".join(p.get("name") or "" for p in session.get("people", []))
-    return any(q in fold(text) for text in (session.get("title"), session.get("abstract"), names, _people_text(session)))
+    texts = (session.get("title"), session.get("abstract"), session.get("abstract_es"), _keys_text(session), names,
+             _people_text(session))
+    return any(q in fold(text) for text in texts)
 
 
 def search(q=None, day=None, venue=None, topic=None, aoi=None, level=None, kind=None, limit=100) -> list[dict]:

@@ -5,16 +5,22 @@
   cuántas charlas sumaría "Salud".
 - día y sede se evalúan sobre el mismo horario: "2026-12-02" + "Caesars Palace" = se da ese día en esa sede.
 """
+from collections import Counter
+
 from . import catalog, clusters
 
-SESSION_FACETS = ("tema", "sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tipo", "nivel", "lanzamiento")
+SESSION_FACETS = ("tema", "sector", "industria", "empresa", "seniority", "topico", "area", "servicio", "tecnologia",
+                  "concepto", "enfoque", "tipo", "nivel", "lanzamiento")
 INSTANCE_FACETS = ("dia", "sede")
 FACETS = SESSION_FACETS + INSTANCE_FACETS
 GROUPS_LIMIT = 30
+# Un concepto que aparece en pocas charlas no sirve para filtrar (no agrupa): se omite de la faceta, no de la búsqueda.
+MIN_CONCEPT_SESSIONS = 3
 GROUP_RESULTS_LIMIT = 10
 
 _PEOPLE_FIELD = {"sector": "sector", "industria": "industry", "empresa": "company", "seniority": "seniority"}
-_SPLIT_FIELD = {"topico": "topic", "area": "aoi", "servicio": "services"}
+_SPLIT_FIELD = {"topico": "topic", "area": "aoi", "servicio": "services", "tecnologia": "tech", "concepto": "concepts",
+                "enfoque": "focus"}
 _SORT_BY_VALUE = {"dia", "nivel"}
 
 _entries: list[dict] | None = None
@@ -35,7 +41,7 @@ def _session_values(s: dict) -> dict[str, set[str]]:
 
 def _entry(s: dict) -> dict:
     names = " ".join(p.get("name") or "" for p in s.get("people", []))
-    text = " ".join(filter(None, (s.get("title"), s.get("abstract"), names, catalog._people_text(s))))
+    text = " ".join(filter(None, (s.get("title"), s.get("abstract"), s.get("abstract_es"), catalog._keys_text(s), names, catalog._people_text(s))))
     instances = [(i["d"], (i.get("v") or "").split("|")[0].strip(), i) for i in s.get("instances", [])]
     return {"session": s, "values": _session_values(s), "instances": instances, "text": catalog.fold(text)}
 
@@ -45,8 +51,15 @@ def _all_entries() -> list[dict]:
     global _entries, _entries_source, _entries_clusters
     sessions = catalog.all_sessions()
     if _entries is None or _entries_source is not sessions or _entries_clusters != clusters.version():
-        _entries, _entries_source, _entries_clusters = [_entry(s) for s in sessions], sessions, clusters.version()
+        _entries = _without_rare_concepts([_entry(s) for s in sessions])
+        _entries_source, _entries_clusters = sessions, clusters.version()
     return _entries
+
+
+def _without_rare_concepts(entries: list[dict]) -> list[dict]:
+    uses = Counter(c for e in entries for c in e["values"]["concepto"])
+    keep = {c for c, n in uses.items() if n >= MIN_CONCEPT_SESSIONS}
+    return [{**e, "values": {**e["values"], "concepto": e["values"]["concepto"] & keep}} for e in entries]
 
 
 def _matching_instances(entry: dict, filters: dict[str, set[str]], skip: str | None) -> list:

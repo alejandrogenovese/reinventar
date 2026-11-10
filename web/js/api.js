@@ -52,6 +52,10 @@ export const Itinerary = {
   add: (code) => api("/api/itinerary/items", { method: "POST", json: { code } }),
   lock: (code, locked = true) => api(`/api/itinerary/items/${code}/lock?locked=${locked}`, { method: "POST" }),
   remove: (code) => api(`/api/itinerary/items/${code}`, { method: "DELETE" }),
+  changes: () => api("/api/itinerary/changes"),
+  missed: (code) => api(`/api/itinerary/missed/${enc(code)}`),
+  swap: (code, to) => api(`/api/itinerary/items/${enc(code)}/swap`, { method: "POST", json: { to } }),
+  ackChanges: (codes) => api("/api/itinerary/changes/ack", { method: "POST", json: { codes } }),
 };
 
 export const Auth = {
@@ -82,6 +86,23 @@ export const Admin = {
   revokeSessions: (username) => api(`/api/admin/users/${enc(username)}/sessions`, { method: "DELETE" }),
   usage: () => api("/api/admin/usage"),
   reloadCatalog: () => api("/api/admin/catalog/reload", { method: "POST" }),
+  setSandbox: (username, settings) => api(`/api/admin/users/${enc(username)}/sandbox`, { method: "PUT", json: settings }),
+  advanceSandbox: (username, minutes) => api(`/api/admin/users/${enc(username)}/sandbox/advance`, { method: "POST", json: { minutes } }),
+  clearSandboxData: () => api("/api/admin/sandbox/data", { method: "DELETE" }),
+  venues: () => api("/api/admin/venues"),
+  check: () => api("/api/admin/check"),
+};
+
+export const Push = {
+  key: () => api("/api/push/key"),
+  subscribe: (sub) => api("/api/push/subscribe", { method: "POST", json: sub }),
+  unsubscribe: (endpoint) => api("/api/push/unsubscribe", { method: "POST", json: { endpoint } }),
+  test: () => api("/api/push/test", { method: "POST" }),
+};
+
+export const Events = {
+  list: () => api("/api/events"),
+  get: (code) => api(`/api/events/${enc(code)}`),
 };
 
 export const Knowledge = {

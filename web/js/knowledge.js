@@ -1,7 +1,9 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
-import { People, SessionMiniCard, shortDay } from "./itinerary.js";
+import { Abstract, People, SessionMiniCard, shortDay } from "./itinerary.js";
+import { refreshCountdown } from "./countdown.js";
+import { GoThere } from "./location.js";
 import { recordTalk } from "./today.js";
 import { Button, StatusPill, Tag, h, toast } from "./ui.js";
 
@@ -12,7 +14,12 @@ const safeUrl = (url) => (typeof url === "string" && url.startsWith("https://") 
 const external = (label, url) => (safeUrl(url) ? h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, label) : null);
 const period = (from, to) => [from, to || "hoy"].filter(Boolean).join(" – ");
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
+  try {
+    const r = await Itinerary.add(code);
+    const mine = r.days.flatMap((d) => d.sessions).find((s) => s.code === code);
+    toast(mine?.overlaps?.length ? `Agregada y fijada. ⚠ Se superpone con ${mine.overlaps.join(", ")}.` : "Agregada y fijada en tu itinerario.");
+    void refreshCountdown({ force: true });
+  } catch (e) { toast(e.message); }
 };
 const cardList = (talks) => h("div", { class: "daylist" }, talks.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
 
@@ -37,12 +44,34 @@ function TalkRecordAction(s) {
 }
 
 /** Horario como tarjeta tocable: riel de hora/día, sede y Agregar. */
-const Slot = (i) => h("li", { class: "ra-slot" },
-  h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, i.start || "—"), h("span", { class: "ra-rail-day" }, shortDay(i.day))),
-  h("div", { class: "ra-slot-body" },
-    h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
-    i.code !== i.base ? h("span", { class: "caption" }, i.code) : null),
-  Button("Agregar", { onclick: addToItinerary(i.code), "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` }));
+const minutes = (hhmm) => { const [hh, mm] = hhmm.split(":").map(Number); return hh * 60 + mm; };
+
+/** Lo que tenés ese día y se superpone con este horario (sin contar la misma charla). Duración estimada: 1 h. */
+const clashesWith = (i, mine) => mine.filter((m) => m.day === i.day && m.base !== i.base && m.start && i.start
+  && minutes(m.start) < minutes(i.start) + 60 && minutes(i.start) < minutes(m.end || m.start) + (m.end ? 0 : 60)).map((m) => m.title);
+
+/** Un horario de la charla: si está en tu itinerario, con qué choca, y "Cambiar a este" si tenés otro horario de la misma. */
+function Slot(i, mine, onChange) {
+  const own = mine.find((m) => m.code === i.code);
+  const other = mine.find((m) => m.base === i.base && m.code !== i.code);
+  const clashes = clashesWith(i, mine);
+  const swap = async () => {
+    try { await Itinerary.swap(other.code, i.code); toast("Listo: cambiaste al nuevo horario."); void refreshCountdown({ force: true }); onChange(); }
+    catch (err) { toast(err.message); }
+  };
+  let action;
+  if (own) action = h("span", { class: "ra-tag is-new" }, own.locked ? "En tu itinerario 📌" : "En tu itinerario");
+  else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
+  else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
+  return h("li", { class: "ra-slot" },
+    h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, i.start || "—"), h("span", { class: "ra-rail-day" }, shortDay(i.day))),
+    h("div", { class: "ra-slot-body" },
+      h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
+      i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
+      !own && clashes.length ? h("span", { class: "caption" }, `⚠ choca con ${clashes.join(", ")}`) : null,
+      GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
+    action);
+}
 
 function PersonLink(p, extra) {
   const where = [p.title, p.company].filter(Boolean).join(" · ");
@@ -54,7 +83,9 @@ function PersonLink(p, extra) {
 
 // --- charla ------------------------------------------------------------------
 export async function viewCharla(view, base) {
-  const s = await Knowledge.speech(base);
+  const [s, current] = await Promise.all([Knowledge.speech(base), Itinerary.get().catch(() => ({ days: [] }))]);
+  const mine = current.days.flatMap((d) => d.sessions);
+  const rerender = () => { view.replaceChildren(); void viewCharla(view, base); };
   view.append(h("div", { class: "stack-lg" },
     h("header", { class: "stack" },
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
@@ -63,10 +94,12 @@ export async function viewCharla(view, base) {
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         [...(s.topic || []), ...(s.aoi || [])].map(Tag)) : null,
       h("div", { class: "actions" }, TalkRecordAction(s))),
-    s.abstract ? section("De qué se trata", h("p", { class: "ra-prose" }, s.abstract)) : null,
+    s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
-    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Horarios", h("ul", { class: "ra-slots" }, s.instances.map(Slot))) : null,
+    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Otros horarios", h("ul", { class: "ra-slots" }, s.instances.map((i) => Slot(i, mine, rerender)))) : null,
+    s.concepts?.length ? section("Conceptos", chips(s.concepts)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
+    s.tech?.length ? section("Otras tecnologías", chips(s.tech)) : null,
     s.recordings?.length ? section("Tus grabaciones", h("ul", { class: "ra-people" }, s.recordings.map((r) =>
       h("li", { class: "actions is-center" }, h("a", { class: "ra-link", href: `#/s/${r.id}` }, r.title), StatusPill(r.status))))) : null,
     s.related.length ? section("Charlas relacionadas", cardList(s.related)) : null));
@@ -78,6 +111,8 @@ function Profile(p) {
   const links = [external("LinkedIn", p.linkedin), external("GitHub", p.github),
     p.x ? external("X", `https://x.com/${encodeURIComponent(p.x.replace(/^@/, ""))}`) : null].filter(Boolean);
   return h("div", { class: "stack" },
+    p.unverified ? h("p", { class: "ra-disclaimer", role: "note" },
+      "⚠ Puede no ser esta persona: el perfil se encontró por nombre y empresa, pero no lo pudimos confirmar.") : null,
     p.headline && !p.headline.startsWith(p.title || "\u0000") ? h("p", {}, p.headline) : null,
     h("p", { class: "caption" }, [p.seniority, p.location, p.since ? `en el cargo desde ${p.since.slice(0, 7)}` : null].filter(Boolean).join(" · ")),
     links.length ? h("div", { class: "actions" }, links) : null,

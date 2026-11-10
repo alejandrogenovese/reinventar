@@ -4,8 +4,15 @@ import { viewAdmin, viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
+import { viewEvento, viewEventos } from "./events.js";
+import { viewPerdida } from "./missed.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
+import { refreshChanges } from "./changes.js";
+import { refreshCountdown } from "./countdown.js";
+import { alertSettings, locationEnabled, saveAlertSettings, setLocationEnabled } from "./location.js";
+import { PushSettings } from "./notifications.js";
+import { refreshSandbox } from "./sandbox.js";
 import { viewSearch } from "./search.js";
 import { TalkPicker } from "./talkpicker.js";
 import { TodayPanel } from "./today.js";
@@ -53,6 +60,9 @@ const routes = [
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/s\/([\w-]+)$/, viewDetail],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
+  [/^#\/eventos$/, () => viewEventos(view)],
+  [/^#\/perdida\/([^/?#]+)$/, (code) => viewPerdida(view, code)],
+  [/^#\/evento\/([^/?#]+)$/, (code) => viewEvento(view, code)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
   // Rutas viejas: Explorar y Preguntar ahora son los dos modos de Buscar.
@@ -118,6 +128,9 @@ async function route() {
   if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
   if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
   markNav(hash);
+  await refreshSandbox(); // antes de dibujar: la hora y la ubicación simuladas se usan en las pantallas
+  void refreshCountdown();
+  void refreshChanges();
   for (const [re, fn] of routes) {
     const m = hash.match(re);
     if (m) {
@@ -439,6 +452,25 @@ function viewLogin() {
 }
 
 // --- ajustes -----------------------------------------------------------------
+function AlertSettings() {
+  const s = alertSettings();
+  const number = (id, value, key) => h("input", { type: "number", id, min: 0, max: 60, value, inputmode: "numeric",
+    onchange: (e) => { saveAlertSettings({ [key]: Math.max(0, Math.min(60, Number(e.target.value) || 0)) }); toast("Alertas guardadas"); } });
+  return h("div", { class: "stack" },
+    h("h2", { class: "label" }, "Alertas"),
+    h("label", { class: "field" }, h("span", { class: "label" }, "Margen para salir (min)"), number("leave-margin", s.leaveMarginMin, "leaveMarginMin")),
+    h("label", { class: "field" }, h("span", { class: "label" }, "Aviso de inicio (min antes)"), number("start-notice", s.startNoticeMin, "startNoticeMin")),
+    h("p", { class: "caption" }, "Para lo que fijaste 📌 en el itinerario: la franja de arriba cuenta cuánto falta y te avisa cuándo salir y cuándo empieza."));
+}
+
+function LocationSetting() {
+  const box = h("input", { type: "checkbox", id: "use-location", checked: locationEnabled(),
+    onchange: () => { setLocationEnabled(box.checked); toast(box.checked ? "Vas a ver distancias y tiempo caminando" : "Ubicación apagada"); } });
+  return h("div", { class: "stack" },
+    h("label", { class: "actions is-center", for: "use-location" }, box, "Usar mi ubicación"),
+    h("p", { class: "caption" }, "Para mostrar a cuánto queda cada charla y cuándo salir. Tu ubicación se usa solo en este celular: no se guarda ni se manda al servidor. \"Llevame\" abre Google Maps igual aunque la apagues."));
+}
+
 async function viewSettings() {
   const pending = h("p", { class: "caption" });
   store.allChunks()
@@ -462,6 +494,9 @@ async function viewSettings() {
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       me.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
+    LocationSetting(),
+    AlertSettings(),
+    PushSettings(),
     PasskeySettings(),
     InstallPrompt(),
     pending,

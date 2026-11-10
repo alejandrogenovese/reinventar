@@ -88,3 +88,22 @@ def test_busqueda_ignora_tildes_y_mayusculas():
     con_tilde = {r["base"] for r in catalog.search(q="ITAÚ", limit=20)}
 
     assert "MAM207" in sin_tilde and sin_tilde == con_tilde
+
+
+def test_busqueda_por_texto_usa_las_claves_del_resumen():
+    s = {"title": "Charla", "abstract": "Build agents.", "tech": "Apache Iceberg;MCP",
+         "concepts": "costo de inferencia;agentes de IA", "concepts_en": "inference cost;AI agents"}
+
+    assert catalog._matches(catalog.fold("costo de inferencia"), s)
+    assert catalog._matches(catalog.fold("iceberg"), s)
+    assert catalog._matches(catalog.fold("inference cost"), s)
+    assert not catalog._matches(catalog.fold("ia costo"), s)  # no pega el final de una clave con otra
+
+
+def test_las_coordenadas_de_la_sede_vienen_del_maestro():
+    mgm = next(i for s in catalog.all_sessions() for i in s["instances"] if i["v"].startswith("MGM Grand|"))
+    varios = next(i for s in catalog.all_sessions() for i in s["instances"] if i["v"] == "Various Locations")
+
+    venue = catalog.card({"base": "X", "title": "X"}, mgm)["venue"]
+    assert (venue["hotel"], venue["lat"], venue["lng"]) == ("MGM Grand", 36.102219, -115.169517)
+    assert catalog.card({"base": "X", "title": "X"}, varios)["venue"]["lat"] is None

@@ -47,6 +47,7 @@ ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 LLM_BASE_URL = _env("LLM_BASE_URL")
 LLM_API_KEY = _env("LLM_API_KEY")
 TRANSLATE_MODEL = _env("TRANSLATE_MODEL", "claude-sonnet-5-5")
+EXTRACT_MODEL = _env("EXTRACT_MODEL", "claude-opus-5-5")  # claves del resumen de cada charla (scripts/extraer_claves.py)
 SUMMARY_MODEL = _env("SUMMARY_MODEL", "claude-opus-5-5")
 TARGET_LANGUAGE = _env("TARGET_LANGUAGE", "castellano rioplatense (Argentina)")
 
@@ -71,3 +72,8 @@ EMBED_BATCH = int(_env("EMBED_BATCH", "32"))
 
 # Mapa de venues: key de Google Maps JavaScript API (restringida por dominio en Google Cloud Console).
 GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")
+
+# Web Push (notificaciones con la app cerrada): generar las claves con `python -m app.push`.
+VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")
+VAPID_PRIVATE_KEY = _env("VAPID_PRIVATE_KEY")
+VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
