@@ -81,15 +81,15 @@ CREATE TEMP TABLE n_speech (id_speech text, titulo text, tipo text, nivel smalli
   area_interes text, formato text, roles text[], industria text[], es_lanzamiento boolean, es_sponsoreada boolean,
   speakers_ocultos boolean, duracion_min smallint, resumen text, speakers_original text, modificado timestamptz);
 CREATE TEMP TABLE n_horario (codigo text, id_speech text, fecha date, hora_inicio time, hora_fin time, sede text,
-  sala text, cupo integer, walk_up boolean, aws_session_id text, aws_time_id text);
+  sala text, cupo integer, walk_up boolean, aws_session_id text, aws_time_id text, id_sede smallint);
 CREATE TEMP TABLE n_part (id_speech text, aws_speaker_id text, nombre text, orden smallint, rol text, cargo text,
   empresa_original text);
 CREATE TEMP TABLE sk_map (aws_speaker_id text, id_speaker integer, nombre text, nombre_clave text);
 """
 
 
-def _copiar(conn, tabla: str, filas) -> None:
-    with conn.cursor().copy(f"COPY {tabla} FROM STDIN") as cp:
+def _copiar(conn, tabla: str, filas, columnas: str = "") -> None:
+    with conn.cursor().copy(f"COPY {tabla} {columnas} FROM STDIN") as cp:
         for fila in filas:
             cp.write_row([list(v) if isinstance(v, tuple) else v for v in fila])
 
@@ -101,17 +101,31 @@ def _cargar_temporales(conn, cat: Catalogo) -> None:
                                 c.speakers_ocultos, c.duracion_min, c.resumen, c.speakers_original, c.modificado)
                                for c in cat.charlas))
     _copiar(conn, "n_horario", ((h.codigo, h.id_speech, h.fecha, h.hora_inicio, h.hora_fin, h.sede, h.sala, h.cupo,
-                                 h.walk_up, h.aws_session_id, h.aws_time_id) for h in cat.horarios))
+                                 h.walk_up, h.aws_session_id, h.aws_time_id) for h in cat.horarios),
+            "(codigo, id_speech, fecha, hora_inicio, hora_fin, sede, sala, cupo, walk_up, aws_session_id, aws_time_id)")
     _copiar(conn, "n_part", ((p.id_speech, p.aws_speaker_id, p.nombre, p.orden, p.rol, p.cargo, p.empresa_original)
                              for p in cat.participaciones))
 
 
 # ---------- Charlas y horarios ----------
 
+def _resolver_sedes(conn) -> None:
+    """Texto de AWS → id_sede por sede_alias; un lugar dentro de la sede (bar, restaurante) queda como sala.
+    Una sede que AWS agregue corta la carga antes de tocar nada: hay que sumarla a sede y sede_alias."""
+    sin_mapear = [r[0] for r in conn.execute(
+        "SELECT DISTINCT sede FROM n_horario n WHERE NOT EXISTS (SELECT 1 FROM sede_alias a WHERE a.alias = n.sede) "
+        "ORDER BY 1").fetchall()]
+    if sin_mapear:
+        raise ValueError(f"Sedes nuevas sin mapear en sede_alias: {', '.join(sin_mapear)}. Agregalas con una "
+                         "migración en scripts/migraciones (sede con sus coordenadas y sede_alias) y volvé a correr.")
+    conn.execute("UPDATE n_horario n SET id_sede = a.id_sede, sala = coalesce(n.sala, a.lugar) "
+                 "FROM sede_alias a WHERE a.alias = n.sede")
+
+
 _COLS_SPEECH = ("titulo", "tipo", "nivel", "topicos", "servicios", "area_interes", "formato", "roles", "industria",
                 "es_lanzamiento", "es_sponsoreada", "speakers_ocultos", "duracion_min", "resumen", "speakers_original",
                 "modificado")
-_COLS_HORARIO = ("id_speech", "fecha", "hora_inicio", "hora_fin", "sede", "sala", "cupo", "walk_up",
+_COLS_HORARIO = ("id_speech", "fecha", "hora_inicio", "hora_fin", "id_sede", "sala", "cupo", "walk_up",
                  "aws_session_id", "aws_time_id")
 
 
@@ -302,6 +316,7 @@ def actualizar(conn: psycopg.Connection, cat: Catalogo, *, schema: str = "reinve
     """Aplica el catálogo dentro de la transacción de conn; quien llama decide COMMIT o ROLLBACK."""
     aplicar_migraciones(conn, schema)
     _cargar_temporales(conn, cat)
+    _resolver_sedes(conn)
     cambios: dict[str, int] = {"Resúmenes a reprocesar (traducción y claves)": _invalidar_derivados(conn)}
     cambios["Charlas nuevas"], cambios["Charlas actualizadas"] = _upsert(conn, "speech", "n_speech", "id_speech",
                                                                          _COLS_SPEECH)
@@ -398,7 +413,11 @@ def main() -> None:
     backup = _backup(args.schema) if args.aplicar else None
     print("> " + ("APLICANDO cambios" if args.aplicar else "MODO PRUEBA (todo se deshace al final)") + "\n")
     with psycopg.connect(url) as conn:
-        reporte = actualizar(conn, cat, schema=args.schema, borrar_bajas=args.borrar_bajas)
+        try:
+            reporte = actualizar(conn, cat, schema=args.schema, borrar_bajas=args.borrar_bajas)
+        except ValueError as e:  # sedes sin mapear, catálogo sospechosamente chico: no se aplicó nada
+            conn.rollback()
+            sys.exit(f"No se aplicó nada: {e}")
         huerfanos = huerfanos_app(conn, args.schema, args.schema_app) if _tiene_app(conn, args.schema_app) else None
         _imprimir(reporte, huerfanos)
         if args.aplicar:

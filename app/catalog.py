@@ -32,14 +32,15 @@ WITH people AS (
   LEFT JOIN sector_industria si ON si.industria = e.industria
   GROUP BY ss.id_speech
 ), instances AS (
-  SELECT id_speech,
-         min(fecha + hora_inicio) AS first_at,
+  SELECT h.id_speech,
+         min(h.fecha + h.hora_inicio) AS first_at,
          jsonb_agg(jsonb_build_object(
-           'c', codigo, 'd', fecha::text, 'st', to_char(hora_inicio, 'HH24:MI'),
-           'v', sede || coalesce('|' || replace(sala, ' · ', '|'), ''), 'seats', cupo, 'walk', walk_up
-         ) ORDER BY fecha, hora_inicio) AS instances
-  FROM reinvent.speech_horario
-  GROUP BY id_speech
+           'c', h.codigo, 'd', h.fecha::text, 'st', to_char(h.hora_inicio, 'HH24:MI'),
+           'v', sd.nombre || coalesce('|' || replace(h.sala, ' · ', '|'), ''), 'seats', h.cupo, 'walk', h.walk_up
+         ) ORDER BY h.fecha, h.hora_inicio) AS instances
+  FROM reinvent.speech_horario h
+  JOIN reinvent.sede sd ON sd.id_sede = h.id_sede
+  GROUP BY h.id_speech
 )
 SELECT s.id_speech AS base, s.titulo AS title, s.tipo AS type, coalesce(s.nivel::text, '') AS level,
        array_to_string(s.topicos, ';') AS topic,
@@ -69,6 +70,7 @@ def load() -> int:
         with pg.pool().connection() as c:
             sectors.ensure(c)  # el join con sector_industria no puede depender de que db.init() haya corrido antes
             rows = c.execute(_LOAD_SQL).fetchall()
+            venues.load(c.execute(venues.LOAD_SQL).fetchall())
     except (psycopg.Error, pg.DatabaseNotConfigured) as e:
         raise CatalogUnavailable(str(e)) from e
     if not rows:

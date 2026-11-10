@@ -12,6 +12,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   otras tecnologías (Iceberg, MCP, dbt…), conceptos en castellano e inglés y enfoque (novedades, arquitectura, caso
   de cliente, práctica guiada…). Son filtros nuevos en Explorar, aparecen en la ficha de la charla y mejoran la búsqueda.
 
+### Cambiado
+- Las sedes y sus coordenadas salen de un maestro en la base (`reinvent.sede`) en lugar de estar fijas en el código.
+  Los bares y restaurantes dentro de un hotel (Canonita, Tableau…) se muestran como sala de ese hotel.
+
 ## [0.19.0] - 2026-11-06
 
 ### Agregado

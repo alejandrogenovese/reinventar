@@ -98,3 +98,12 @@ def test_busqueda_por_texto_usa_las_claves_del_resumen():
     assert catalog._matches(catalog.fold("iceberg"), s)
     assert catalog._matches(catalog.fold("inference cost"), s)
     assert not catalog._matches(catalog.fold("ia costo"), s)  # no pega el final de una clave con otra
+
+
+def test_las_coordenadas_de_la_sede_vienen_del_maestro():
+    mgm = next(i for s in catalog.all_sessions() for i in s["instances"] if i["v"].startswith("MGM Grand|"))
+    varios = next(i for s in catalog.all_sessions() for i in s["instances"] if i["v"] == "Various Locations")
+
+    venue = catalog.card({"base": "X", "title": "X"}, mgm)["venue"]
+    assert (venue["hotel"], venue["lat"], venue["lng"]) == ("MGM Grand", 36.102219, -115.169517)
+    assert catalog.card({"base": "X", "title": "X"}, varios)["venue"]["lat"] is None

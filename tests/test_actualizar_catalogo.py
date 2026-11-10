@@ -150,8 +150,8 @@ def test_cadena_de_renombres_sobre_un_codigo_existente(conn):
 
 def test_renombre_a_un_codigo_ocupado_se_reporta_sin_romper(conn):
     _cargar(conn, V1)
-    conn.execute(f"INSERT INTO {conn.schema}.speech_horario (codigo, id_speech, fecha, hora_inicio, sede) "
-                 f"VALUES ('PEX218', 'PEX321', '2026-12-01', '09:00', 'X')")
+    conn.execute(f"INSERT INTO {conn.schema}.speech_horario (codigo, id_speech, fecha, hora_inicio, id_sede) "
+                 f"VALUES ('PEX218', 'PEX321', '2026-12-01', '09:00', 5)")
 
     reporte = _cargar(conn, V2)
 
@@ -222,3 +222,21 @@ def test_si_aws_cambia_el_resumen_se_vacian_su_traduccion_y_sus_claves(conn):
     assert reporte.cambios["Resúmenes a reprocesar (traducción y claves)"] == 1
     assert _todos(conn, "SELECT id_speech FROM {s}.speech WHERE resumen_es IS NULL AND conceptos IS NULL") == [
         ("COM400",)]
+
+
+def test_la_sede_se_guarda_como_id_y_el_lugar_dentro_del_hotel_como_sala(conn):
+    cat = catalogo_v1()
+    cat["sectionList"][0]["items"][0]["times"][0]["room"] = "Canonita (located in The Venetian)"
+
+    _cargar(conn, parsear(cat))
+
+    assert _uno(conn, "SELECT h.id_sede, s.nombre, h.sala FROM {s}.speech_horario h JOIN {s}.sede s USING (id_sede) "
+                      "WHERE h.codigo = 'ARC100'") == (7, "Venetian", "Canonita")
+
+
+def test_una_sede_nueva_sin_mapear_corta_la_carga(conn):
+    cat = catalogo_v1()
+    cat["sectionList"][0]["items"][0]["times"][0]["room"] = "Sphere | Level 1"
+
+    with pytest.raises(ValueError, match="Sphere"):
+        _cargar(conn, parsear(cat))
