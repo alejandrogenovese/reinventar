@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, itinerary_api,
                knowledge_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
 from .auth import auth, bearer, sandbox_for_token
+from .canonical_host import WwwRedirectMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -54,6 +55,7 @@ class SandboxMiddleware:
 
 app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
 app.add_middleware(SandboxMiddleware)
+app.add_middleware(WwwRedirectMiddleware)  # el último que se agrega corre primero: www. redirige antes que nada
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
