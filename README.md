@@ -80,7 +80,7 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 2. **Volume**: en el servicio, *Attach Volume* con mount path **`/data`**. Ahí quedan los audios; sin volumen, cada deploy los borra.
    **Postgres**: *New → Template → pgvector* (Postgres con la extensión `vector`). En la app, `DATABASE_URL=${{<servicio postgres>.DATABASE_URL}}` (red privada).
    Para conectarte desde afuera, activá *Settings → Networking → TCP Proxy* (puerto `5432`); la URL pública es `postgresql://<PGUSER>:<PGPASSWORD>@<RAILWAY_TCP_PROXY_DOMAIN>:<RAILWAY_TCP_PROXY_PORT>/<PGDATABASE>` (variables del servicio pgvector; el dominio HTTP no sirve para Postgres). Los colaboradores entran con el rol de solo lectura `colaborador`, que ve el schema `reinvent` y no el `app`.
-   Cargá el catálogo desde la Mac con `RAILWAY_DATABASE_URL='<URL pública>' scripts/sync_to_railway.sh`; repetilo cada vez que corrijas la base local (solo pisa el schema `reinvent`).
+   Cargá el catálogo desde la Mac con `scripts/sync_to_railway.sh` (te pide los datos del TCP Proxy, o exportá `RAILWAY_DATABASE_URL`): sin flags corre en **modo prueba** (todo en una transacción con ROLLBACK, muestra la verificación) y con `--aplicar` hace backup de Railway y confirma. Repetilo cada vez que corrijas la base local (solo pisa el schema `reinvent`) y después reiniciá la app.
    Si el volumen tenía el SQLite anterior (`/data/reinventar.db`), el primer arranque lo importa solo a Postgres y lo renombra a `reinventar.db.migrated`.
 3. **Variables** (*Variables → Raw Editor*):
    ```
