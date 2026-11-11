@@ -8,7 +8,7 @@ import unicodedata
 
 import psycopg
 
-from . import pg, sandbox, sectors, venues
+from . import pg, sandbox, sectors, travel, venues
 
 log = logging.getLogger("reinventar.catalog")
 
@@ -76,6 +76,9 @@ def load() -> int:
             sectors.ensure(c)  # el join con sector_industria no puede depender de que db.init() haya corrido antes
             rows = c.execute(_LOAD_SQL).fetchall()
             venues.load(c.execute(venues.LOAD_SQL).fetchall())
+            # sede_tiempo llega con el sync del catálogo: si todavía no está, los viajes se estiman por línea recta.
+            tiempos = c.execute(travel.LOAD_SQL).fetchall() if c.execute(travel.EXISTE_SQL).fetchone()["existe"] else []
+            travel.load(tiempos)
     except (psycopg.Error, pg.DatabaseNotConfigured) as e:
         raise CatalogUnavailable(str(e)) from e
     if not rows:
