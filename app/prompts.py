@@ -303,3 +303,35 @@ Devolvé SOLO un objeto JSON: {{"groups": [{{"id": 0, "name": "..."}}]}} con tod
 
 def clusters_user(groups: list[dict]) -> str:
     return "\n\n".join(f"Grupo {i}:\n" + "\n".join(f"- {t}" for t in g["titles"]) for i, g in enumerate(groups))
+
+
+INTERVIEW_FOLLOWUP_SYSTEM = """Ayudás a conocer a una persona que va a AWS re:Invent 2026 para recomendarle charlas.
+Recibís sus respuestas a una entrevista. Si algo quedó corto o ambiguo y aclararlo cambiaría qué charlas le conviene ver,
+hacé hasta 2 repreguntas concretas, en castellano rioplatense con voseo, de una oración cada una.
+Ejemplos: "¿Los grafos los consultan personas (analistas) o sistemas (agentes, APIs)?", "¿Ya evaluaron Neptune o usan otra base de grafos?".
+No preguntes lo que ya respondió ni cosas personales. Si no hace falta repreguntar, devolvé la lista vacía.
+
+Devolvé SOLO un objeto JSON: {"repreguntas": ["…", "…"]}"""
+
+
+def interview_followup_user(respuestas: str) -> str:
+    return f"Entrevista para repreguntar:\n{respuestas}"
+
+
+PROFILE_FICHA_SYSTEM = """Armás la ficha de una persona que va a AWS re:Invent 2026, a partir de sus respuestas a una entrevista.
+La ficha la usa un recomendador de charlas: tiene que reflejar qué le sirve de verdad, no lo que suena bien.
+
+Reglas:
+- Usá solo lo que la persona dijo. No inventes empresa, nombre, años ni tecnologías que no aparecen.
+- "resumen": 2-4 oraciones en castellano, en tercera persona: rol, equipo, trayectoria, perfil técnico y desafío actual.
+- "prioridades": 3-6 temas ordenados por importancia, con "peso" 3 (central para su desafío), 2 (importante) o 1 (le suma).
+  "claves" son términos de búsqueda en inglés tal como aparecen en el catálogo de AWS (servicios, tecnologías, conceptos): por ejemplo "Amazon Neptune", "GraphRAG", "fine-grained access control".
+- "evitar": temas o formatos que pidió evitar, en frases cortas (lista vacía si no dijo nada).
+- "consulta_busqueda": 1-3 oraciones en inglés que describan las charlas ideales para esta persona, para una búsqueda semántica sobre los resúmenes del catálogo.
+
+Devolvé SOLO un objeto JSON con esta forma:
+{"resumen": "…", "prioridades": [{"tema": "…", "peso": 3, "claves": ["…"]}], "evitar": ["…"], "consulta_busqueda": "…"}"""
+
+
+def profile_ficha_user(respuestas: str) -> str:
+    return f"Entrevista para la ficha:\n{respuestas}"
