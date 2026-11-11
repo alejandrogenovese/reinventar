@@ -105,6 +105,12 @@ def _fake(system, user):
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
         return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de {_FAKE_SERVICE}." for i in ids)
+    if user.startswith("Entrevista para repreguntar:"):
+        return json.dumps({"repreguntas": ["¿Quiénes consultan los datos: personas o sistemas?"]})
+    if user.startswith("Entrevista para la ficha:"):
+        return json.dumps({"resumen": "Persona de prueba (fake).", "evitar": [],
+                           "prioridades": [{"tema": "Tema de prueba", "peso": 3, "claves": [_FAKE_SERVICE]}],
+                           "consulta_busqueda": "data architecture on AWS"})
     if "Candidatas disponibles" in user:  # itinerario
         bases = re.findall(r"- (\w+) \[", user)
         return json.dumps({

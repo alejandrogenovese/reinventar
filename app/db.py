@@ -65,6 +65,10 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
 ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'talk';
 -- Cómo era al agregarlo (título, día, hora, sala, lleno): si AWS lo cambia, la app avisa (app/changes.py).
 ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS snapshot JSONB;
+-- Itinerario guiado (app/interview.py): respuestas de la entrevista y la ficha que arma el LLM.
+ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS respuestas JSONB;
+ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha JSONB;
+ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha_texto TEXT;
 -- Avisos de Web Push ya mandados (app/push.py): cada uno sale una sola vez.
 CREATE TABLE IF NOT EXISTS push_sent (
   username TEXT NOT NULL,
@@ -473,6 +477,40 @@ def save_run_meta(username, notes, skipped):
             "UPDATE itinerary_profile SET notes=%s, skipped=%s WHERE username=%s",
             (notes, json.dumps(skipped, ensure_ascii=False), username),
         )
+
+
+def get_interview(username) -> dict:
+    """{respuestas, ficha, ficha_texto} de la entrevista guiada (vacío si nunca empezó)."""
+    with conn() as c:
+        r = c.execute("SELECT respuestas, ficha, ficha_texto FROM itinerary_profile WHERE username=%s",
+                      (username,)).fetchone()
+    return dict(r) if r else {"respuestas": None, "ficha": None, "ficha_texto": None}
+
+
+def save_answers(username, respuestas: dict):
+    """Guarda las respuestas (ya combinadas y validadas). No toca el perfil del armado rápido ni la ficha."""
+    with conn() as c:
+        c.execute(
+            "INSERT INTO itinerary_profile (username, respuestas, updated_at) VALUES (%s,%s,%s) "
+            "ON CONFLICT (username) DO UPDATE SET respuestas=EXCLUDED.respuestas, updated_at=EXCLUDED.updated_at",
+            (username, Jsonb(respuestas), time.time()),
+        )
+
+
+def save_ficha(username, ficha: dict, texto: str):
+    with conn() as c:
+        c.execute(
+            "INSERT INTO itinerary_profile (username, ficha, ficha_texto, updated_at) VALUES (%s,%s,%s,%s) "
+            "ON CONFLICT (username) DO UPDATE SET ficha=EXCLUDED.ficha, ficha_texto=EXCLUDED.ficha_texto, "
+            "updated_at=EXCLUDED.updated_at",
+            (username, Jsonb(ficha), texto, time.time()),
+        )
+
+
+def delete_interview(username):
+    with conn() as c:
+        c.execute("UPDATE itinerary_profile SET respuestas=NULL, ficha=NULL, ficha_texto=NULL WHERE username=%s",
+                  (username,))
 
 
 def list_itinerary_items(username):

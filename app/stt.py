@@ -6,12 +6,14 @@ import httpx
 from . import config, sandbox
 
 
-def transcribe(path: Path, offset: float) -> list[dict]:
+def transcribe(path: Path, offset: float, language: str | None = None) -> list[dict]:
+    """language: código ISO (por defecto STT_LANGUAGE, el de las charlas; la entrevista pasa "es")."""
     provider = sandbox.proveedor_stt()
+    language = language or config.STT_LANGUAGE
     if provider == "openai":
-        segs = _openai_compatible(path)
+        segs = _openai_compatible(path, language)
     elif provider == "local":
-        segs = _faster_whisper(path)
+        segs = _faster_whisper(path, language)
     elif provider == "fake":
         segs = _fake(path)
     else:
@@ -19,14 +21,14 @@ def transcribe(path: Path, offset: float) -> list[dict]:
     return [{"start": s["start"] + offset, "end": s["end"] + offset, "text": s["text"].strip()} for s in segs if s["text"].strip()]
 
 
-def _openai_compatible(path: Path) -> list[dict]:
+def _openai_compatible(path: Path, language: str) -> list[dict]:
     if not config.STT_API_KEY:
         raise RuntimeError("Falta STT_API_KEY")
     with path.open("rb") as f:
         r = httpx.post(
             f"{config.STT_BASE_URL.rstrip('/')}/audio/transcriptions",
             headers={"Authorization": f"Bearer {config.STT_API_KEY}"},
-            data={"model": config.STT_MODEL, "language": config.STT_LANGUAGE, "response_format": "verbose_json", "temperature": "0"},
+            data={"model": config.STT_MODEL, "language": language, "response_format": "verbose_json", "temperature": "0"},
             files={"file": (path.name, f, "audio/ogg")},
             timeout=httpx.Timeout(600, connect=20),
         )
@@ -42,14 +44,14 @@ def _openai_compatible(path: Path) -> list[dict]:
 _model = None
 
 
-def _faster_whisper(path: Path) -> list[dict]:
+def _faster_whisper(path: Path, language: str) -> list[dict]:
     global _model
     from faster_whisper import WhisperModel  # opcional: pip install faster-whisper
 
     if _model is None:
         _model = WhisperModel(config.STT_MODEL if "/" in config.STT_MODEL or config.STT_MODEL.startswith("large") else "large-v3-turbo",
                               device="cpu", compute_type="int8")
-    segments, _ = _model.transcribe(str(path), language=config.STT_LANGUAGE, vad_filter=True)
+    segments, _ = _model.transcribe(str(path), language=language, vad_filter=True)
     return [{"start": s.start, "end": s.end, "text": s.text} for s in segments]
 
 
