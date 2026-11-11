@@ -54,6 +54,9 @@ def snapshot(card: dict) -> dict:
 
 
 def _item_card(it: dict) -> dict | None:
+    if it.get("kind") == "mine":
+        from . import my_events  # import diferido: my_events usa snapshot() de este módulo
+        return my_events.card_for_item(it["username"], it["code"])
     if it.get("kind") == "event":
         ev = events.get(it["code"])
         return dict(ev) if ev else None
@@ -212,5 +215,8 @@ def set_lock(username: str, code: str, locked: bool) -> dict:
 
 
 def remove(username: str, code: str) -> dict:
+    from . import my_events
+    if code.startswith(my_events.PREFIJO):  # sacar un evento propio del itinerario es borrarlo
+        my_events.borrar(username, code[len(my_events.PREFIJO):])
     db.remove_item(username, code)
     return get_current(username)

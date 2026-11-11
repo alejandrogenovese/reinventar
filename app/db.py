@@ -81,6 +81,24 @@ CREATE TABLE IF NOT EXISTS itinerary_pending (
   added_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, base)
 );
+-- Mis eventos (app/my_events.py): los de proveedores que carga cada uno. Entran al itinerario como kind = 'mine'.
+CREATE TABLE IF NOT EXISTS user_events (
+  username TEXT NOT NULL,
+  id TEXT NOT NULL,
+  nombre TEXT NOT NULL,
+  dia TEXT NOT NULL,
+  inicio TEXT NOT NULL,
+  fin TEXT,
+  id_sede SMALLINT,
+  place_id TEXT,
+  lugar TEXT NOT NULL,
+  direccion TEXT,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  nota TEXT NOT NULL DEFAULT '',
+  created_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, id)
+);
 -- Avisos de Web Push ya mandados (app/push.py): cada uno sale una sola vez.
 CREATE TABLE IF NOT EXISTS push_sent (
   username TEXT NOT NULL,
@@ -90,7 +108,7 @@ CREATE TABLE IF NOT EXISTS push_sent (
 );
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
-                        "push_sent")
+                        "user_events", "push_sent")
 
 CUENTAS = """
 CREATE TABLE IF NOT EXISTS users (
@@ -599,6 +617,39 @@ def add_pending(username, base, dia_marcada):
 def remove_pending(username, base):
     with conn() as c:
         c.execute("DELETE FROM itinerary_pending WHERE username=%s AND base=%s", (username, base))
+
+
+_USER_EVENT_COLS = ("nombre", "dia", "inicio", "fin", "id_sede", "place_id", "lugar", "direccion", "lat", "lng", "nota")
+
+
+def save_user_event(username, id_, data: dict):
+    """Alta o edición de un evento propio (data con las columnas de _USER_EVENT_COLS)."""
+    valores = [data.get(k) for k in _USER_EVENT_COLS]
+    with conn() as c:
+        c.execute(
+            f"INSERT INTO user_events (username, id, {', '.join(_USER_EVENT_COLS)}, created_at) "
+            f"VALUES (%s, %s, {', '.join(['%s'] * len(_USER_EVENT_COLS))}, %s) "
+            "ON CONFLICT (username, id) DO UPDATE SET "
+            + ", ".join(f"{k}=EXCLUDED.{k}" for k in _USER_EVENT_COLS),
+            (username, id_, *valores, time.time()),
+        )
+
+
+def get_user_event(username, id_) -> dict | None:
+    with conn() as c:
+        r = c.execute("SELECT * FROM user_events WHERE username=%s AND id=%s", (username, id_)).fetchone()
+    return dict(r) if r else None
+
+
+def list_user_events(username) -> list[dict]:
+    with conn() as c:
+        rows = c.execute("SELECT * FROM user_events WHERE username=%s ORDER BY dia, inicio", (username,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_user_event(username, id_) -> bool:
+    with conn() as c:
+        return c.execute("DELETE FROM user_events WHERE username=%s AND id=%s", (username, id_)).rowcount > 0
 
 
 def remove_item(username, code):

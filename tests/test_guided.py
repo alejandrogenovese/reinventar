@@ -257,3 +257,16 @@ def test_una_charla_que_choca_con_otra_agendada_no_se_propone(client, con_ficha)
     r = _next(client, con_ficha, after="PREV1")
 
     assert "MISMA" not in {o["card"]["base"] for o in r["opciones"]}  # 09:45-10:45 pisa la de las 10
+
+
+def test_un_evento_propio_ocupa_su_horario(client, con_ficha):
+    client.post("/api/itinerary/items", headers=con_ficha, json={"code": "PREV1"})
+    r = client.post("/api/my-events", headers=con_ficha, json={
+        "nombre": "Reunión con Datadog", "dia": DIA, "inicio": "09:30", "fin": "10:15", "id_sede": 5})
+    assert r.status_code == 200, r.text
+
+    bases = {o["card"]["base"] for o in _next(client, con_ficha, after="PREV1")["opciones"]}
+
+    assert {"MISMA", "FORUM"}.isdisjoint(bases)  # 09:45 y 09:30 caen encima de la reunión
+    for ev in db.list_user_events(TEST_ADMIN):
+        db.delete_user_event(TEST_ADMIN, ev["id"])
