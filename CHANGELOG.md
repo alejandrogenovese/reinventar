@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [0.20.0] - 2026-11-10
+
 ### Agregado
 - **Armado guiado del itinerario** (la opción recomendada; el cuestionario de siempre queda como "Armado rápido"):
   - **Te conocemos**: una entrevista de una pregunta por pantalla (rol, día a día, equipo, desafío, trayectoria,
@@ -125,7 +127,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.1.0...v0.18.0
 [0.1.0]: https://github.com/alejandrogenovese/reinventar/releases/tag/v0.1.0
