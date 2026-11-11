@@ -58,6 +58,29 @@ model_list:
   - model_name: rx-briefing
     litellm_params: *sonnet
 
+  # --- STT (app/stt.py con STT_PROVIDER=litellm: "stt-<uso>"). Claude no transcribe: Whisper en Groq. ---
+  # Charlas: Whisper large-v3 completo, más preciso que el turbo con acentos y ruido de sala; da los segmentos con
+  # timestamps (verbose_json) que la app necesita para armar los bloques.
+  - model_name: stt-charlas
+    litellm_params:
+      model: groq/whisper-large-v3
+      api_key: os.environ/GROQ_API_KEY
+      timeout: 600
+      # LiteLLM no trae precio para Whisper en Groq: sin esto el gasto del STT figura en $0. USD 0,111 por hora de
+      # audio (groq.com/pricing, nov 2026; mínimo 10 s por pedido).
+      input_cost_per_second: 0.0000308333
+    model_info:
+      mode: audio_transcription
+  # Voz de la entrevista (castellano, audio corto): el turbo, rápido y barato.
+  - model_name: stt-voz
+    litellm_params:
+      model: groq/whisper-large-v3-turbo
+      api_key: os.environ/GROQ_API_KEY
+      timeout: 120
+      input_cost_per_second: 0.0000111111  # USD 0,04 por hora de audio
+    model_info:
+      mode: audio_transcription
+
 litellm_settings:
   # Trazas en Langfuse Cloud (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST=https://us.cloud.langfuse.com).
   success_callback: ["langfuse"]

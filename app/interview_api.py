@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from . import db, interview, stt
 from .auth import auth
 from .interview import Ficha, Respuestas
+from .llm_router import UsoSTT
 
 log = logging.getLogger("reinventar.interview")
 router = APIRouter(dependencies=[Depends(auth)])
@@ -82,7 +83,7 @@ def _transcribir(data: bytes, extension: str) -> str:
     with tempfile.TemporaryDirectory(prefix="voz-") as tmp:
         path = Path(tmp) / f"respuesta{extension}"
         path.write_bytes(data)
-        return " ".join(s["text"] for s in stt.transcribe(path, 0, language=interview.IDIOMA_VOZ)).strip()
+        return " ".join(s["text"] for s in stt.transcribe(path, 0, language=interview.IDIOMA_VOZ, uso=UsoSTT.VOZ)).strip()
 
 
 @router.post("/api/itinerary/interview/voz")

@@ -9,19 +9,20 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, llm, prompts, sandbox, stt, talks
+from . import audio, config, db, llm, llm_router, prompts, sandbox, stt, talks
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.pipeline")
-# Cada trabajo lleva el contexto de quien lo encoló: una grabación en modo prueba se procesa en el schema de prueba.
-_q: "queue.Queue[tuple[str, sandbox.Sandbox | None]]" = queue.Queue()
+# Cada trabajo lleva el contexto de quien lo encoló: una grabación en modo prueba se procesa en el schema de prueba, y
+# las llamadas al STT y al LLM quedan a nombre de quien grabó (gasto por persona en el gateway).
+_q: "queue.Queue[tuple[str, sandbox.Sandbox | None, str | None]]" = queue.Queue()
 _started = False
 SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
 
 
 def enqueue(sid: str):
     db.update_session(sid, status="queued", error=None, progress=None)
-    _q.put((sid, sandbox.actual()))
+    _q.put((sid, sandbox.actual(), llm_router.usuario_actual()))
 
 
 def start_worker():
@@ -31,26 +32,31 @@ def start_worker():
     _started = True
     with sandbox.real():
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, None))
+            _q.put((sid, None, None))
     # Las de prueba que quedaron a medias se terminan con proveedores fake (no se sabe quién las encoló).
     prueba = sandbox.Sandbox(username="pipeline")
     with sandbox.activar(prueba):
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, prueba))
+            _q.put((sid, prueba, None))
     threading.Thread(target=_loop, name="pipeline", daemon=True).start()
 
 
 def _loop():
     while True:
-        sid, contexto = _q.get()
-        with sandbox.activar(contexto):
-            try:
-                process(sid)
-            except Exception as e:  # noqa: BLE001
-                log.error("sesión %s falló: %s", sid, traceback.format_exc())
-                db.update_session(sid, status="error", error=str(e)[:1000], progress=None)
-            finally:
-                _q.task_done()
+        trabajo = _q.get()
+        try:
+            _procesar(*trabajo)
+        finally:
+            _q.task_done()
+
+
+def _procesar(sid: str, contexto: "sandbox.Sandbox | None", usuario: str | None):
+    with sandbox.activar(contexto), llm_router.como_usuario(usuario):
+        try:
+            process(sid)
+        except Exception as e:  # noqa: BLE001
+            log.error("sesión %s falló: %s", sid, traceback.format_exc())
+            db.update_session(sid, status="error", error=str(e)[:1000], progress=None)
 
 
 def hms(t: float) -> str:

@@ -4,6 +4,7 @@
   modelo de una parte es cambiar ese alias y reiniciar LiteLLM, sin deployar la app.
 - Con el proveedor directo (anthropic u openai), cada tarea usa el modelo de hoy (las variables *_MODEL de config).
 - LLM_RUTA_<TAREA> fuerza el modelo de una tarea (para probar uno nuevo sin tocar el gateway).
+- El STT tiene sus propios usos (UsoSTT: charlas y voz), con alias "stt-<uso>" en el mismo gateway (STT_PROVIDER=litellm).
 Cada llamada lleva la tarea como tag y el usuario (contextvar que fija el middleware de app.main), así el consumo de cada
 parte se ve por separado en el panel de LiteLLM y en Langfuse.
 """
@@ -45,6 +46,11 @@ _DIRECTO: dict[Tarea, Callable[[], str]] = {
     Tarea.CATALOGO_TRADUCCION: lambda: config.TRANSLATE_MODEL,
 }
 
+class UsoSTT(StrEnum):
+    CHARLAS = "charlas"  # grabaciones de charlas (inglés, con timestamps por segmento)
+    VOZ = "voz"          # respuestas por voz de la entrevista (castellano, audio corto)
+
+
 _usuario: ContextVar[str | None] = ContextVar("llm_usuario", default=None)
 
 
@@ -58,6 +64,19 @@ def modelo(tarea: Tarea, proveedor: str) -> str:
     if forzado:
         return forzado
     return alias(tarea) if proveedor == "litellm" else _DIRECTO[tarea]()
+
+
+def alias_stt(uso: UsoSTT) -> str:
+    """Nombre del modelo de transcripción en el gateway (model_name en infra/litellm/config.yaml)."""
+    return f"stt-{uso.value}"
+
+
+def modelo_stt(uso: UsoSTT, proveedor: str) -> str:
+    """Por el gateway, el alias del uso; directo, el STT_MODEL de siempre. LLM_RUTA_STT_<USO> lo fuerza."""
+    forzado = os.environ.get(f"LLM_RUTA_STT_{uso.name}")
+    if forzado:
+        return forzado
+    return alias_stt(uso) if proveedor == "litellm" else config.STT_MODEL
 
 
 @contextmanager
