@@ -1,10 +1,11 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
-import { Catalog, Itinerary } from "./api.js";
+import { Catalog, Guided, Interview, Itinerary } from "./api.js";
 import { refreshCountdown } from "./countdown.js";
 import { startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
+import { MyEventCard } from "./myEvents.js";
 import { Button, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
@@ -71,7 +72,17 @@ const PinButton = (pinned, onclick) => Button(pinned ? "📌 Fijada" : "📌 Fij
 /** Ya terminó (con la hora simulada en modo prueba): para ofrecer "Me la perdí". */
 const isOver = (s) => Boolean(s.day && (s.end || s.start)) && startsAt(s.day, s.end || s.start) < sandboxNow();
 
-export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
+const minusMinutes = (hhmm, minutes) => {
+  const [hh, mm] = hhmm.split(":").map(Number);
+  const total = hh * 60 + mm - minutes;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+};
+
+/** ✓ Reservada: sin reserva en el portal de AWS hay que hacer la cola 30 min antes (lo usa el armado guiado). */
+const BookedButton = (booked, onclick) => Button(booked ? "✓ Reservada" : "Marcar reservada",
+  { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
+
+export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
     h("div", { class: "ra-rail" },
@@ -87,10 +98,12 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, locked } = {}) {
       People(s),
       Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
+      s.salir_antes && s.end ? h("p", { class: "notice" }, `🟠 Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`) : null,
       s.overlaps?.length ? h("p", { class: "notice err" }, `⚠ Se superpone con ${s.overlaps.join(", ")}`) : null,
       h("div", { class: "actions" },
         onAdd ? Button("Agregar", { onclick: onAdd }) : null,
         onLock ? PinButton(locked, onLock) : null,
+        onBook ? BookedButton(s.reservada, onBook) : null,
         onRemove && isOver(s) ? Button("Me la perdí", { onclick: () => (location.hash = `#/perdida/${encodeURIComponent(s.code)}`) }) : null,
         onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null)));
 }
@@ -144,14 +157,17 @@ function ItineraryItem(s, onChanged) {
   const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refresh(); return onChanged(); }));
   let card = null;
   const show = (visible) => { card.hidden = !visible; };
-  const onRemove = () => withUndo(s.kind === "event" ? "Evento quitado del itinerario." : "Sesión quitada del itinerario.", {
+  const onBook = () => toastOnError(Guided.booked(s.code, !s.reservada).then(() => onChanged()));
+  const removed = { event: "Evento quitado del itinerario.", mine: "Evento borrado." }[s.kind] || "Sesión quitada del itinerario.";
+  const onRemove = () => withUndo(removed, {
     apply: () => show(false),
     commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(err.message); }),
     undo: () => show(true),
   });
-  card = s.kind === "event"
-    ? EventCard(s, { actions: [PinButton(s.locked, onLock), Button("Quitar", { variant: "danger", onclick: onRemove })] })
-    : SessionMiniCard(s, { locked: s.locked, onLock, onRemove });
+  const quitar = Button("Quitar", { variant: "danger", onclick: onRemove });
+  if (s.kind === "mine") card = MyEventCard(s, [quitar]);
+  else if (s.kind === "event") card = EventCard(s, { actions: [PinButton(s.locked, onLock), quitar] });
+  else card = SessionMiniCard(s, { locked: s.locked, onLock, onRemove, onBook });
   return card;
 }
 
@@ -163,9 +179,9 @@ export async function viewItinerario(view) {
       view.append(h("div", { class: "stack-lg" },
         h("div", { class: "empty" },
           h("p", {}, "Todavía no armaste tu itinerario."),
-          h("p", { class: "caption" }, "Contestá un par de preguntas y la IA te recomienda sesiones.")),
+          h("p", { class: "caption" }, "Te conocemos y armamos cada día charla por charla, o lo armamos rápido con un par de preguntas.")),
         h("div", { class: "actions" },
-          Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/cuestionario") }),
+          Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/nuevo") }),
           Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") }))));
       return;
     }
@@ -178,7 +194,9 @@ export async function viewItinerario(view) {
     view.append(h("div", { class: "stack-lg" },
       h("h1", { class: "title" }, "Tu itinerario"),
       h("div", { class: "actions" },
-        Button("Rehacer cuestionario", { onclick: () => (location.hash = "#/itinerario/cuestionario") }),
+        Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
+        Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),
+        Button("＋ Mi evento", { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,
@@ -206,4 +224,27 @@ export async function viewItinerario(view) {
     paintList();
   }
   await paint();
+}
+
+/** Entrada: armado guiado (entrevista + día por día, recomendado) o armado rápido (el cuestionario de siempre). */
+export async function viewNuevoItinerario(view) {
+  const { ficha, faltan } = await Interview.get();
+  const empezada = faltan.length < 8;
+  const guiado = ficha
+    ? [Button("Seguir armando día por día →", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
+      Button("Ver o editar tu ficha", { onclick: () => (location.hash = "#/itinerario/ficha") }),
+      Button("Rehacer la entrevista", { variant: "ghost", onclick: () => (location.hash = "#/itinerario/entrevista") })]
+    : [Button(empezada ? "Seguir la entrevista →" : "Empezar →", { variant: "primary", onclick: () => (location.hash = "#/itinerario/entrevista") })];
+  view.replaceChildren(h("div", { class: "stack-lg" },
+    h("h1", { class: "title" }, "Armá tu itinerario"),
+    h("article", { class: "ra-path is-recommended" },
+      h("span", { class: "ra-kind" }, "Recomendado · 5 minutos"),
+      h("h2", { class: "subtitle" }, "Armado guiado"),
+      h("p", {}, "Primero te conocemos: tu rol, tu día a día y tu desafío (podés responder con la voz). Después armamos cada día charla por charla: elegís con qué arrancás y te propongo lo que sigue, avisándote si llegás caminando, si tenés que salir antes o hacer la cola."),
+      h("div", { class: "actions" }, guiado)),
+    h("article", { class: "ra-path" },
+      h("span", { class: "ra-kind" }, "1 minuto"),
+      h("h2", { class: "subtitle" }, "Armado rápido"),
+      h("p", {}, "Rol, experiencia e intereses, y la IA te arma una agenda completa de una."),
+      h("div", { class: "actions" }, Button("Armado rápido", { onclick: () => (location.hash = "#/itinerario/cuestionario") })))));
 }

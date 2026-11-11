@@ -241,6 +241,17 @@ def test_salir_antes_y_reservada_quedan_en_el_itinerario(client, con_ficha):
                       json={"reservada": True}).status_code == 404
 
 
+def test_no_propone_lo_que_obliga_a_irse_antes_de_que_empiece_la_anterior(client, con_ficha):
+    # PREV 08:00-09:00. LEJOS (Venetian 09:00, 25 min): cola 08:30 → salir 08:05, se pisa 55 min: es roja posible.
+    # Si la anterior fuera de 08:30 a 09:00, salir 08:05 sería antes de que empiece: no tiene sentido mostrarla.
+    ctx = guided._Contexto(FICHA, {"venue": {"hotel": "MGM Grand"}}, guided.minutos("08:30"), guided.minutos("09:00"),
+                           [], set(), {}, {})
+    roja = {"estado": guided.SE_SUPERPONE, "salir_antes_min": 55}
+
+    assert guided._posible(roja, ctx) is False
+    assert guided._posible({**roja, "salir_antes_min": 25}, ctx) is True
+
+
 def test_las_rojas_que_interesan_menos_que_las_que_se_llega_no_se_muestran():
     def o(estado, af):
         return {"estado": estado, "afinidad": af, "puntaje": af, "misma_sede": False, "card": {"base": f"{estado}{af}"}}

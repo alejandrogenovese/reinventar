@@ -6,6 +6,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Armado guiado del itinerario** (la opción recomendada; el cuestionario de siempre queda como "Armado rápido"):
+  - **Te conocemos**: una entrevista de una pregunta por pantalla (rol, día a día, equipo, desafío, trayectoria,
+    nivel, qué usan, qué te querés llevar, qué evitar y ritmo del día). Las respuestas largas se pueden dictar con 🎤.
+    La IA hace hasta dos repreguntas y arma tu ficha, que podés corregir.
+  - **Armá tu día**: elegís con qué arrancás y te propone lo que sigue según tu ficha y la distancia, con un estado
+    por opción: 🟢 a tiempo, 🟡 justo, 🟠 salí N min antes (y a qué hora), 🔴 se superpone (con cuántos minutos). Si la
+    charla no está reservada, cuenta 30 min de cola. "☆ Para otro día" guarda una charla en pendientes y vuelve primera
+    cuando se repite. También: pausa, arrancar más tarde y "Completá el resto del día por mí".
+  - En el itinerario, cada charla muestra si salís antes y se puede marcar como **✓ Reservada**.
+- **Mis eventos**: cargá los eventos que te dan los proveedores (Eventos › "＋ Mi evento"), con sede, lugar de Google
+  o dirección. Quedan fijados en tu itinerario, ocupan su horario, aparecen en "Hoy" y avisan cuándo salir.
 - Resumen de las charlas en castellano: la ficha y las tarjetas lo muestran traducido y tienen un botón para ver el
   original en inglés. La elección queda recordada en el celular. La búsqueda por texto también busca en la traducción.
 - Claves extraídas del resumen de cada charla: servicios de AWS que menciona (completan los que AWS no etiquetó),

@@ -149,6 +149,7 @@ def _busqueda(ficha: Ficha) -> dict[str, float]:
 class _Contexto:
     ficha: Ficha
     previa: dict | None
+    inicio_previa: int | None
     fin_previa: int | None
     ocupado: list[tuple[int, int]]     # otros ítems del día (inicio, fin)
     agendadas: set[str]
@@ -171,9 +172,9 @@ def _contexto(username: str, day: str, after: str | None) -> _Contexto:
         previa = next((c for c in del_dia if c["code"] == after), None)
         if previa is None:
             raise ItemInexistente(f"{after} no está en tu itinerario de ese día")
-    fin_previa = itinerary._span(previa)[1] if previa else None
+    inicio_previa, fin_previa = itinerary._span(previa) if previa else (None, None)
     ocupado = [itinerary._span(c) for c in del_dia if c is not previa and c.get("start")]
-    return _Contexto(ficha, previa, fin_previa, ocupado,
+    return _Contexto(ficha, previa, inicio_previa, fin_previa, ocupado,
                      {it["base"] for it in db.list_itinerary_items(username)},
                      {p["base"]: p["dia_marcada"] for p in db.list_pending(username)}, _busqueda(ficha))
 
@@ -224,6 +225,11 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
             "viaje_estimado": v.estimado if v else None, "misma_sede": misma_sede, "afinidad": round(af, 2),
             "puntaje": round(puntaje, 2), "motivos": motivos, "pendiente": ctx.pendientes.get(session["base"]),
             "razon": None}
+
+
+def _posible(o: dict, ctx: _Contexto) -> bool:
+    """Una roja que obliga a irse antes de que empiece la anterior no es una opción: es elegir otra cosa."""
+    return ctx.inicio_previa is None or o["salir_antes_min"] < ctx.fin_previa - ctx.inicio_previa
 
 
 def _mejor_por_charla(opciones_: list[dict]) -> list[dict]:
@@ -278,7 +284,7 @@ def _razones(ficha_texto: str, elegidas: list[dict]) -> dict[str, str]:
 
 def opciones(username: str, day: str, after: str | None = None, desde: str | None = None) -> dict:
     ctx = _contexto(username, day, after)
-    candidatas = _mejor_por_charla([_opcion(s, i, ctx) for s, i in _ventana(day, ctx, desde)])
+    candidatas = _mejor_por_charla([o for s, i in _ventana(day, ctx, desde) if _posible(o := _opcion(s, i, ctx), ctx)])
     elegidas = _elegir(candidatas)
     razones = _razones(db.get_interview(username)["ficha_texto"] or "", elegidas)
     previa = ctx.previa

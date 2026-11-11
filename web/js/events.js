@@ -3,6 +3,7 @@
 import { Events, Itinerary } from "./api.js";
 import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, startsAt } from "./location.js";
+import { MyEventsSection } from "./myEvents.js";
 import { sandboxNow } from "./sandbox.js";
 import { Button, Tag, h, toast } from "./ui.js";
 
@@ -56,10 +57,10 @@ export function EventCard(e, { onAdded, actions = null } = {}) {
 
 // --- lista ---------------------------------------------------------------------
 export async function viewEventos(view) {
-  let { days } = await Events.list();
+  let [{ days }, mios] = await Promise.all([Events.list(), MyEventsSection()]);
   const all = days.flatMap((d) => d.events);
   if (!all.length) {
-    view.append(h("div", { class: "stack" }, h("h1", { class: "title" }, "Eventos"),
+    view.append(h("div", { class: "stack" }, h("h1", { class: "title" }, "Eventos"), mios,
       h("p", { class: "caption" }, "Todavía no hay eventos cargados.")));
     return;
   }
@@ -97,7 +98,7 @@ export async function viewEventos(view) {
   view.append(h("div", { class: "stack-lg" },
     h("header", { class: "stack" }, h("h1", { class: "title" }, "Eventos"),
       h("p", { class: "caption" }, "Desayunos, happy hours, fiestas y meetups alrededor de re:Invent. Agregalos al itinerario y quedan fijados.")),
-    dayTabs, typeChips, list));
+    mios, dayTabs, typeChips, list));
 }
 
 // --- ficha ---------------------------------------------------------------------

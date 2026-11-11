@@ -49,7 +49,7 @@ export const Itinerary = {
   profile: () => api("/api/itinerary/profile"),
   generate: (profile, prompt) => api("/api/itinerary/generate", { method: "POST", json: { profile, prompt } }),
   get: () => api("/api/itinerary"),
-  add: (code) => api("/api/itinerary/items", { method: "POST", json: { code } }),
+  add: (code, reason) => api("/api/itinerary/items", { method: "POST", json: { code, reason } }),
   lock: (code, locked = true) => api(`/api/itinerary/items/${code}/lock?locked=${locked}`, { method: "POST" }),
   remove: (code) => api(`/api/itinerary/items/${code}`, { method: "DELETE" }),
   changes: () => api("/api/itinerary/changes"),
@@ -119,4 +119,34 @@ export const Knowledge = {
 
 export const Maps = {
   key: () => api("/api/maps-key"),
+};
+
+// Itinerario guiado: entrevista y ficha (app/interview_api.py).
+export const Interview = {
+  get: () => api("/api/itinerary/interview"),
+  save: (respuestas) => api("/api/itinerary/interview", { method: "PUT", json: respuestas }),
+  followups: () => api("/api/itinerary/interview/repreguntas", { method: "POST" }),
+  createFicha: () => api("/api/itinerary/ficha", { method: "POST" }),
+  editFicha: (ficha) => api("/api/itinerary/ficha", { method: "PUT", json: ficha }),
+  voice: (blob) => api("/api/itinerary/interview/voz", { method: "POST", body: blob, headers: { "Content-Type": blob.type || "audio/webm" } }),
+};
+
+// Armado día por día (app/guided_api.py).
+export const Guided = {
+  next: ({ day, after = null, desde = null }) => api("/api/itinerary/guided/next", { method: "POST", json: { day, after, desde } }),
+  pending: () => api("/api/itinerary/pending"),
+  addPending: (base, day) => api("/api/itinerary/pending", { method: "POST", json: { base, day } }),
+  removePending: (base) => api(`/api/itinerary/pending/${enc(base)}`, { method: "DELETE" }),
+  leaveEarly: (code, minutos) => api(`/api/itinerary/items/${enc(code)}/salir-antes`, { method: "PUT", json: { minutos } }),
+  booked: (code, reservada) => api(`/api/itinerary/items/${enc(code)}/reservada`, { method: "PUT", json: { reservada } }),
+};
+
+// Mis eventos (app/my_events_api.py).
+export const MyEvents = {
+  list: () => api("/api/my-events"),
+  venues: () => api("/api/my-events/sedes"),
+  create: (data) => api("/api/my-events", { method: "POST", json: data }),
+  edit: (id, data) => api(`/api/my-events/${enc(id)}`, { method: "PUT", json: data }),
+  remove: (id) => api(`/api/my-events/${enc(id)}`, { method: "DELETE" }),
+  autocomplete: (q, sesion) => api(`/api/places/autocomplete?${new URLSearchParams({ q, sesion })}`),
 };
