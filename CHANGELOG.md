@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+- **"Convertir en filtros" responde más rápido y cuesta mucho menos**: usa Claude Haiku 5.5 y reaprovecha (prompt
+  caching) la lista de facetas, que es la mayor parte del pedido. Los filtros se siguen validando contra los valores
+  reales del catálogo.
+
 ## [0.20.0] - 2026-11-10
 
 ### Agregado

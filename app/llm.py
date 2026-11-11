@@ -54,6 +54,12 @@ def thinking_params(model: str) -> dict:
     return {"output_config": {"effort": DEFAULT_EFFORT}}
 
 
+def _system_cacheable(system: str) -> list[dict]:
+    """El system de cada tarea es fijo: se marca para el prompt caching de Anthropic (si es más corto que el mínimo
+    cacheable del modelo, Anthropic lo ignora sin error). Por el gateway lo hace LiteLLM (cache_control_injection_points)."""
+    return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+
+
 def _claude(model, system, user, max_tokens):
     global _anthropic
     import anthropic
@@ -63,7 +69,7 @@ def _claude(model, system, user, max_tokens):
             raise RuntimeError("Falta ANTHROPIC_API_KEY")
         _anthropic = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=4, timeout=600)
     msg = _anthropic.messages.create(
-        model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}],
+        model=model, max_tokens=max_tokens, system=_system_cacheable(system), messages=[{"role": "user", "content": user}],
         # extra_body porque "thinking"/"output_config" no son parámetros tipados en anthropic==0.40.0.
         extra_body=thinking_params(model),
     )

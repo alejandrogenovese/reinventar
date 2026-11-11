@@ -286,11 +286,16 @@ Devolvé SOLO un objeto JSON:
 {"filters": {"faceta": ["valor", "..."]}, "q": ""}"""
 
 
-def nl_filters_user(catalog_text: str, text: str) -> str:
-    return f"""Facetas y valores válidos:
-{catalog_text}
+def nl_filters_system(catalog_text: str) -> str:
+    # El catálogo va en el system, que es igual en cada pedido: así se cachea (es la mayor parte del prompt).
+    return f"""{NL_FILTERS_SYSTEM}
 
-Pedido de filtros: {text}"""
+Facetas y valores válidos:
+{catalog_text}"""
+
+
+def nl_filters_user(text: str) -> str:
+    return f"Pedido de filtros: {text}"
 
 
 CLUSTERS_SYSTEM = f"""Le ponés nombre a grupos de charlas de AWS re:Invent 2026 que se armaron automáticamente por similitud.

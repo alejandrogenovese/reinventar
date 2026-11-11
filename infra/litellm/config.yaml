@@ -1,15 +1,35 @@
 # Un alias por tarea de la app (app/llm_router.py: Tarea → "rx-<tarea>").
 # Cambiar el modelo de una parte de la app = cambiar su litellm_params acá y reiniciar el servicio litellm.
-# Hoy todos apuntan a los mismos modelos que la app usaba directo: el cambio a LiteLLM no altera nada visible.
+# Arrancaron con los mismos modelos que la app usaba directo (LLM_PROVIDER=anthropic sigue igual); de a poco cada
+# tarea pasa al modelo que le conviene (ver los comentarios de cada bloque).
 # Secretos: solo como os.environ/<VARIABLE> (variables del servicio en Railway). El repo es público.
+# Prompt caching: cada alias marca el system como cacheable (cache_control_injection_points). El system de cada tarea es
+# fijo, así que desde el segundo pedido se paga al 10%; si es más corto que el mínimo del modelo, Anthropic lo ignora.
 
 model_list:
+  # --- Haiku: tareas de mucho volumen y poco razonamiento ---
+  # Filtros: ~26K tokens de catálogo (en el system, cacheado) para devolver un JSON chico. Las respuestas igual se validan
+  # contra los valores reales (app/nl_filters.py). Haiku 5.5 piensa por default: se apaga (vale con effort ≤ high).
+  - model_name: rx-filtros
+    litellm_params:
+      model: anthropic/claude-haiku-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 600
+      cache_control_injection_points:
+        - location: message
+          role: system
+      thinking:
+        type: disabled
+
   # --- calidad: resumen de grabaciones y scripts del catálogo ---
   - model_name: rx-resumen
     litellm_params: &opus
       model: anthropic/claude-opus-5-5
       api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 600
+      cache_control_injection_points: &cache_system
+        - location: message
+          role: system
   - model_name: rx-catalogo
     litellm_params: *opus
 
@@ -20,6 +40,7 @@ model_list:
       model: anthropic/claude-sonnet-5-5
       api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 600
+      cache_control_injection_points: *cache_system
       thinking:
         type: between_tools
   - model_name: rx-catalogo-traduccion
@@ -31,8 +52,6 @@ model_list:
   - model_name: rx-razones
     litellm_params: *sonnet
   - model_name: rx-chat
-    litellm_params: *sonnet
-  - model_name: rx-filtros
     litellm_params: *sonnet
   - model_name: rx-temas
     litellm_params: *sonnet
