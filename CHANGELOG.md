@@ -6,6 +6,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Cambiado
+- **Responder con la voz, más claro**: un botón compacto con el micrófono y, mientras graba, una barra con punto rojo,
+  tiempo y nivel del micrófono (como al grabar una charla), para terminar o cancelar. Al terminar muestra "Pasando a
+  texto…".
+- **Chips de intereses y filtros más prolijos**: forma de píldora, tilde al elegirlos y el mismo estilo en el armado
+  rápido, la entrevista y Buscar.
 - **"Convertir en filtros" responde más rápido y cuesta mucho menos**: usa Claude Haiku 5.5 y reaprovecha (prompt
   caching) la lista de facetas, que es la mayor parte del pedido. Los filtros se siguen validando contra los valores
   reales del catálogo.

@@ -1,5 +1,6 @@
 // Itinerario guiado, paso 1: la entrevista ("Te conocemos"), una pregunta por pantalla, y la ficha que arma la IA.
 import { Interview } from "./api.js";
+import { icon } from "./icons.js";
 import { Button, h, toast } from "./ui.js";
 
 const MIN_DIA_A_DIA = 80;   // mismos mínimos que app/interview.py
@@ -33,37 +34,93 @@ function Choice(options, { multi = false, value } = {}) {
 const pairs = (xs) => xs.map((x) => [x, x]);
 
 // Grabar una respuesta con la voz: el servidor la pasa a texto (en castellano) y se suma al campo para revisarla.
+// Mientras graba se ve una barra compacta (punto rojo, tiempo y nivel del micrófono), con el mismo lenguaje que la
+// pantalla de grabar charlas: que no quede duda de que está escuchando.
 const VOICE_MIME = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
   .find((m) => window.MediaRecorder?.isTypeSupported?.(m));
+const VOICE_BARS = 5;
+const VOICE_GAIN = 4;  // la voz a un metro llega baja: se amplifica para que las barras se muevan
+
+const mmss = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+/** Nivel del micrófono (0 a 1) leído del stream, cada cuadro; devuelve la función para cortarlo. */
+function listenLevel(stream, onLevel) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return () => {};
+  const ctx = new Ctx();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  let raf = 0;
+  const loop = () => {
+    analyser.getByteTimeDomainData(data);
+    const rms = Math.sqrt(data.reduce((acc, v) => acc + ((v - 128) / 128) ** 2, 0) / data.length);
+    onLevel(Math.min(1, rms * VOICE_GAIN));
+    raf = requestAnimationFrame(loop);
+  };
+  loop();
+  return () => { cancelAnimationFrame(raf); void ctx.close(); };
+}
 
 function VoiceButton(textarea) {
   if (!VOICE_MIME || !navigator.mediaDevices?.getUserMedia) return null;
-  let rec = null;
-  const btn = Button("🎤 Responder con la voz", { onclick: () => (rec ? rec.stop() : start()) });
+  let rec = null, cancelled = false, stopLevel = () => {}, clock = 0;
+  const wrap = h("div", { class: "ra-voice" });
+
+  const idle = () => wrap.replaceChildren(
+    h("button", { type: "button", class: "ra-voice-start", onclick: start }, icon("grabar", 18), "Responder con la voz"));
+
+  function recording() {
+    const time = h("span", { class: "ra-voice-time", "aria-live": "off" }, "0:00");
+    const bars = Array.from({ length: VOICE_BARS }, () => h("span"));
+    const t0 = Date.now();
+    clock = setInterval(() => { time.textContent = mmss(Date.now() - t0); }, 250);
+    wrap.replaceChildren(h("div", { class: "ra-voicebar is-recording", role: "status", "aria-label": "Grabando tu respuesta" },
+      h("span", { class: "ra-voice-dot", "aria-hidden": "true" }),
+      h("span", { class: "ra-voice-word" }, "Grabando"), time,
+      h("span", { class: "ra-voice-level", "aria-hidden": "true" }, bars),
+      h("button", { type: "button", class: "ra-voice-cancel", onclick: () => { cancelled = true; rec?.stop(); } }, "Cancelar"),
+      h("button", { type: "button", class: "ra-voice-stop", "aria-label": "Terminar y pasar a texto", onclick: () => rec?.stop() },
+        h("span", { class: "ra-voice-stop-glyph", "aria-hidden": "true" }))));
+    // Cada barra toma el nivel con un peso distinto: se ve como una onda y no como cinco barras iguales.
+    return (level) => bars.forEach((b, i) => {
+      const peso = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 140 + i * 1.3));
+      b.style.transform = `scaleY(${Math.max(0.18, level * peso)})`;
+    });
+  }
+
+  const transcribing = () => wrap.replaceChildren(h("div", { class: "ra-voicebar is-busy", role: "status" },
+    h("span", { class: "ra-voice-spinner", "aria-hidden": "true" }), h("span", { class: "ra-voice-word" }, "Pasando a texto…")));
+
   async function start() {
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
     catch { toast("No pude usar el micrófono: revisá el permiso."); return; }
     const parts = [];
+    cancelled = false;
     rec = new MediaRecorder(stream, { mimeType: VOICE_MIME });
     rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
     rec.onstop = async () => {
+      clearInterval(clock);
+      stopLevel();
       stream.getTracks().forEach((t) => t.stop());
       rec = null;
-      btn.disabled = true;
-      btn.textContent = "Pasando a texto…";
+      if (cancelled) { idle(); return; }
+      transcribing();
       try {
         const { texto } = await Interview.voice(new Blob(parts, { type: VOICE_MIME.split(";")[0] }));
         textarea.value = [textarea.value.trim(), texto].filter(Boolean).join(" ");
         textarea.dispatchEvent(new Event("input"));
       } catch (err) { toast(err.message); }
-      btn.disabled = false;
-      btn.textContent = "🎤 Responder con la voz";
+      idle();
     };
+    stopLevel = listenLevel(stream, recording());
     rec.start();
-    btn.textContent = "⏹ Terminar de grabar";
   }
-  return btn;
+
+  idle();
+  return wrap;
 }
 
 function LongText(value, { min = 0, placeholder = "" } = {}) {
