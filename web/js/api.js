@@ -55,6 +55,7 @@ export const Itinerary = {
   changes: () => api("/api/itinerary/changes"),
   missed: (code) => api(`/api/itinerary/missed/${enc(code)}`),
   swap: (code, to) => api(`/api/itinerary/items/${enc(code)}/swap`, { method: "POST", json: { to } }),
+  calendar: () => api("/api/itinerary/calendar.ics", { raw: true }).then((r) => r.blob()),
   ackChanges: (codes) => api("/api/itinerary/changes/ack", { method: "POST", json: { codes } }),
 };
 

@@ -5,7 +5,7 @@ Los horarios del catálogo están en hora de Las Vegas, así que "ahora" se calc
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from . import itinerary, sandbox, talks
+from . import itinerary, leave, sandbox, talks
 
 EVENT_TZ = ZoneInfo("America/Los_Angeles")
 
@@ -15,10 +15,12 @@ def _hhmm(minutes: int) -> str:
 
 
 def _with_end(card: dict) -> dict:
-    if card.get("end"):  # ya calculado por el itinerario (o el de la fuente, en eventos)
-        return {**card, "recording_kind": talks.recording_kind(card.get("type"))}
-    end = itinerary._minutes(card["start"]) + itinerary._duration(card.get("type") or "")
-    return {**card, "end": _hhmm(end), "recording_kind": talks.recording_kind(card.get("type"))}
+    """Con fin (el calculado por el itinerario, el de la fuente o estimado por tipo), la hora de la cola si no está
+    reservada y la hora de salida si eligió irse antes (armado guiado)."""
+    end = card.get("end") or _hhmm(itinerary._minutes(card["start"]) + itinerary._duration(card.get("type") or ""))
+    full = {**card, "end": end, "recording_kind": talks.recording_kind(card.get("type"))}
+    return {**full, "cola_desde": leave.arrive_by(full) if leave.needs_queue(full) else None,
+            "salis_a": leave.leave_early_at(full)}
 
 
 def plan(days: list[dict], now: datetime) -> dict:

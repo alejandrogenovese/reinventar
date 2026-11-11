@@ -2,8 +2,9 @@
 
 - Cifrado del mensaje: RFC 8291 (aes128gcm, RFC 8188). Firma del servidor: VAPID (RFC 8292, JWT ES256).
 - Claves: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (base64url, generar con `python -m app.push`) y VAPID_SUBJECT.
-- Cada minuto, para quienes activaron las notificaciones: "Salí para…" (20 min antes de lo fijado: el servidor no conoce
-  la ubicación), "Empieza en 5 min" y los cambios del itinerario (app/changes.py). Cada aviso sale una sola vez.
+- Cada minuto, para quienes activaron las notificaciones: "Salí para…" (20 min antes de lo fijado, o de la hora de la
+  cola si la charla no está reservada: el servidor no conoce la ubicación), "Empieza en 5 min", "Salí a las HH:MM para
+  llegar a…" (si eligió irse antes en el armado guiado) y los cambios del itinerario (app/changes.py). Cada aviso sale una sola vez.
   En modo prueba usa el reloj simulado del usuario.
 En iPhone funciona solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 """
@@ -25,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, itinerary, sandbox
+from . import changes, config, db, itinerary, leave, sandbox
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -115,31 +116,61 @@ def notify(username: str, message: dict) -> int:
 
 # ---------- qué avisar ----------
 
-def _start(card: dict) -> dt.datetime:
-    return dt.datetime.fromisoformat(f"{card['day']}T{card['start']}").replace(tzinfo=sandbox.EVENT_TZ)
+def _at(day: str, hhmm_: str) -> dt.datetime:
+    return dt.datetime.fromisoformat(f"{day}T{hhmm_}").replace(tzinfo=sandbox.EVENT_TZ)
+
+
+def _url(c: dict) -> str:
+    return {"event": f"/#/evento/{c['code']}", "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
 
 
 def _notice(c: dict, now: dt.datetime) -> tuple[str, dict] | None:
-    """Aviso de "salí" o "empieza" para algo fijado del itinerario, si corresponde ahora."""
+    """Aviso de "salí" (contra la hora de la cola si no está reservada) o "empieza" para algo fijado, si corresponde."""
     if not (c.get("locked") and c.get("start")):
         return None
-    minutes = (_start(c) - now).total_seconds() / 60
     venue = c.get("venue") or {}
     where = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail"))))
-    url = {"event": f"/#/evento/{c['code']}", "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
-    if START_NOTICE_MIN < minutes <= LEAVE_LEAD_MIN:
+    to_arrive = (_at(c["day"], leave.arrive_by(c)) - now).total_seconds() / 60
+    if START_NOTICE_MIN < to_arrive <= LEAVE_LEAD_MIN:
+        cuando = (f"Sin reserva: hacé la cola desde las {leave.arrive_by(c)}" if leave.needs_queue(c)
+                  else f"Empieza a las {c['start']}")
         return (f"leave:{c['code']}:{c['day']}",
-                {"title": f"Salí para {c['title']}", "body": f"Empieza a las {c['start']} · {where}", "url": url})
-    if 0 < minutes <= START_NOTICE_MIN:
+                {"title": f"Salí para {c['title']}", "body": f"{cuando} · {where}", "url": _url(c)})
+    to_start = (_at(c["day"], c["start"]) - now).total_seconds() / 60
+    if 0 < to_start <= START_NOTICE_MIN:
         return (f"start:{c['code']}:{c['day']}",
-                {"title": f"{c['title']} empieza en {round(minutes)} min", "body": where, "url": url})
+                {"title": f"{c['title']} empieza en {round(to_start)} min", "body": where, "url": _url(c)})
     return None
+
+
+def _early_notice(c: dict, siguiente: dict | None, now: dt.datetime) -> tuple[str, dict] | None:
+    """ "Salí a las HH:MM para llegar a X": para la charla de la que eligió irse antes (armado guiado)."""
+    sale = leave.leave_early_at(c)
+    if not sale or not siguiente:
+        return None
+    falta = (_at(c["day"], sale) - now).total_seconds() / 60
+    if not 0 < falta <= START_NOTICE_MIN:
+        return None
+    destino = (siguiente.get("venue") or {}).get("hotel") or ""
+    return (f"early:{c['code']}:{c['day']}",
+            {"title": f"Salí a las {sale} para llegar a {siguiente['title']}",
+             "body": " · ".join(filter(None, (destino, f"empieza a las {siguiente['start']}"))), "url": _url(siguiente)})
+
+
+def day_notices(cards: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    """Avisos de un día del itinerario (cards en orden de inicio)."""
+    con_hora = [c for c in cards if c.get("start")]
+    out = [n for c in con_hora if (n := _notice(c, now))]
+    for i, c in enumerate(con_hora):
+        n = _early_notice(c, con_hora[i + 1] if i + 1 < len(con_hora) else None, now)
+        if n:
+            out.append(n)
+    return out
 
 
 def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     """[(clave única, mensaje)] de lo que corresponde avisar ahora a este usuario."""
-    cards = (c for day in itinerary.get_current(username)["days"] for c in day["sessions"])
-    out = [n for c in cards if (n := _notice(c, now))]
+    out = [n for day in itinerary.get_current(username)["days"] for n in day_notices(day["sessions"], now)]
     for ch in changes.pending(username):
         key = "change:" + hashlib.sha256(json.dumps([ch["code"], ch["messages"]]).encode()).hexdigest()[:16]
         out.append((key, {"title": "Cambió algo de tu itinerario", "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))

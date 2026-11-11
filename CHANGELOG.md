@@ -15,6 +15,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
     charla no está reservada, cuenta 30 min de cola. "☆ Para otro día" guarda una charla en pendientes y vuelve primera
     cuando se repite. También: pausa, arrancar más tarde y "Completá el resto del día por mí".
   - En el itinerario, cada charla muestra si salís antes y se puede marcar como **✓ Reservada**.
+- **Avisos de cola y de "salí antes"**: si una charla no está reservada, el aviso push, el banner y "Hoy" cuentan
+  30 min de cola ("hacé la cola desde las 09:30"). Si elegiste irte antes de una charla para llegar a la siguiente, te
+  avisa a esa hora ("Salí a las 09:26 para llegar a…").
+- **Pasar a mi calendario**: desde el itinerario, un `.ics` con todo (charlas, eventos y Mis eventos) para el calendario
+  del teléfono, con alarma a la hora de la cola si no está reservada.
+- Al terminar un día en el armado guiado: resumen, lo que quedó afuera y eventos para la noche que no se pisan.
 - **Mis eventos**: cargá los eventos que te dan los proveedores (Eventos › "＋ Mi evento"), con sede, lugar de Google
   o dirección. Quedan fijados en tu itinerario, ocupan su horario, aparecen en "Hoy" y avisan cuándo salir.
 - Resumen de las charlas en castellano: la ficha y las tarjetas lo muestran traducido y tienen un botón para ver el

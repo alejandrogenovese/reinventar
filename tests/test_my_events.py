@@ -164,3 +164,13 @@ def test_autocompletar_sin_key_avisa(client, headers, monkeypatch):
 
 def test_lista_las_sedes_con_coordenadas_para_el_formulario(client, headers):
     assert client.get("/api/my-events/sedes", headers=headers).json()["sedes"] == [{"id": 5, "nombre": "MGM Grand"}]
+
+
+def test_el_itinerario_se_descarga_como_calendario(client, headers):
+    _alta(client, headers, nota="Llevar tarjetas")
+
+    r = client.get("/api/itinerary/calendar.ics", headers=headers)
+
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/calendar")
+    assert "attachment" in r.headers["content-disposition"]
+    assert "SUMMARY:Cena Datadog" in r.text and "Llevar tarjetas" in r.text

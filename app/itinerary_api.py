@@ -2,9 +2,10 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from . import catalog, changes, config, db, itinerary, missed, today
+from . import catalog, changes, config, db, ics, itinerary, missed, today
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -104,6 +105,14 @@ def generate_itinerary(body: Generate, username: str = Depends(auth)):
         return itinerary.generate(username, body.profile.model_dump(), body.prompt.strip())
     except ValueError as e:
         raise HTTPException(422, str(e))
+
+
+@router.get("/api/itinerary/calendar.ics")
+def itinerary_calendar(username: str = Depends(auth)):
+    """El itinerario para importar en el calendario del teléfono (con alarma de cola si no está reservada)."""
+    cards = [c for d in itinerary.get_current(username)["days"] for c in d["sessions"]]
+    return Response(ics.calendario(cards), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="reinvent-itinerario.ics"'})
 
 
 @router.get("/api/itinerary")

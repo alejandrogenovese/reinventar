@@ -151,6 +151,24 @@ export async function viewCuestionario(view) {
   view.replaceChildren(form);
 }
 
+/** Pasa el itinerario al calendario del teléfono: compartir el .ics (iPhone/Android lo abren con Calendario) o, si el
+ *  navegador no comparte archivos, descargarlo. */
+async function exportCalendar() {
+  const blob = await Itinerary.calendar();
+  const file = new File([blob], "reinvent-itinerario.ics", { type: "text/calendar" });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "Itinerario re:Invent" }); return; }
+    catch (err) { if (err?.name === "AbortError") return; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = h("a", { href: url, download: file.name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  toast("Listo: abrí el archivo para sumarlo a tu calendario.");
+}
+
 /** Una charla o evento del itinerario con Fijar y Quitar (con deshacer). onChanged vuelve a pintar la vista. */
 function ItineraryItem(s, onChanged) {
   const refresh = () => refreshCountdown({ force: true });
@@ -197,6 +215,7 @@ export async function viewItinerario(view) {
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),
         Button("＋ Mi evento", { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
+        Button("📅 Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,

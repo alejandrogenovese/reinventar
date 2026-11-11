@@ -51,7 +51,9 @@ function TalkCard(s, { label, recorded, variant, highlight }) {
     h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: itemHref(s) }, s.title)),
     h("div", { class: "ra-card-meta" }, [itemLabel(s), place(s)].filter(Boolean).map((m) => h("span", {}, m))),
     // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
-    GoThere(destination(s), { start: s.day && s.start ? startsAt(s.day, s.start) : null, eta: true }),
+    s.cola_desde ? h("p", { class: "notice" }, `🕒 Sin reserva: hacé la cola desde las ${s.cola_desde}.`) : null,
+    s.salis_a ? h("p", { class: "notice" }, `🟠 Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`) : null,
+    GoThere(destination(s), { start: s.day && s.start ? startsAt(s.day, s.cola_desde || s.start) : null, eta: true }),
     h("div", { class: "actions" }, TalkAction(s, recorded, variant)));
 }
 

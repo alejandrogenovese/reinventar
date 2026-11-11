@@ -1,6 +1,7 @@
 // Itinerario guiado, paso 2: armar cada día charla por charla, con traslados, cola y "salí antes".
-import { Catalog, Guided, Interview, Itinerary } from "./api.js";
+import { Catalog, Events, Guided, Interview, Itinerary } from "./api.js";
 import { refreshCountdown } from "./countdown.js";
+import { EventCard } from "./events.js";
 import { shortDay } from "./itinerary.js";
 import { sandboxNow } from "./sandbox.js";
 import { Button, Skeleton, Tag, h, toast } from "./ui.js";
@@ -8,6 +9,8 @@ import { Button, Skeleton, Tag, h, toast } from "./ui.js";
 const PAUSA_MIN = 60;                                    // "Hacer una pausa": la próxima, una hora después
 const OBJETIVO_POR_DIA = { "3-4": 4, "5-6": 6, todas: 12 }; // "Completá por mí" llena hasta esto
 const MAX_VUELTAS = 15;
+const NOCHE = "17:00";      // al cerrar el día: eventos de networking desde esta hora
+const MAX_NOCHE = 4;
 const LLEGABLES = ["a_tiempo", "justo"];
 const ESTADOS = {
   a_tiempo: ["🟢", "a tiempo"], justo: ["🟡", "justo"], salir_antes: ["🟠", "salí antes"], se_superpone: ["🔴", "se superpone"],
@@ -160,10 +163,34 @@ export async function viewArmar(view) {
     } catch (err) { toast(err.message); }
   }
 
-  function terminarDia() {
+  function seguirConElOtroDia() {
     const i = days.indexOf(state.day);
-    if (i < days.length - 1) { state.day = days[i + 1]; state.desde = null; toast(`Listo el ${shortDay(days[i])}. Sigamos con el ${shortDay(state.day)}.`); void paint(); }
+    if (i < days.length - 1) { state.day = days[i + 1]; state.desde = null; void paint(); }
     else location.hash = "#/itinerario";
+  }
+
+  /** Cierre del día: cuántas charlas quedaron, lo que quedó afuera sin repetición y eventos para la noche. */
+  async function terminarDia() {
+    next.replaceChildren(Skeleton(2));
+    try {
+      const [{ days: eventos }, itinerario, { pendientes }] = await Promise.all([Events.list(), Itinerary.get(), Guided.pending()]);
+      const items = itinerario.days.find((d) => d.day === state.day)?.sessions || [];
+      const afuera = pendientes.filter((p) => p.dia_marcada === state.day && !p.horarios.some((x) => x.day > state.day));
+      const quiereNoche = entrevista.ficha.ritmo?.eventos_noche !== false;
+      // Desde las NOCHE o desde que termina lo último del día, lo que sea más tarde: así no se pisan.
+      const libreDesde = items.map((s) => s.end || s.start).filter(Boolean).reduce((a, b) => (b > a ? b : a), NOCHE);
+      const noche = quiereNoche ? (eventos.find((d) => d.day === state.day)?.events || [])
+        .filter((e) => e.start >= libreDesde && !e.in_itinerary).slice(0, MAX_NOCHE) : [];
+      const i = days.indexOf(state.day);
+      next.replaceChildren(h("div", { class: "stack" },
+        h("h2", { class: "subtitle" }, `Cierre del ${shortDay(state.day)}`),
+        h("p", { class: "caption" }, `${items.filter((s) => s.kind === "talk").length} charlas y ${items.filter((s) => s.kind !== "talk").length} eventos.`),
+        afuera.length ? h("p", { class: "notice" }, `Te quedó afuera (no se repite): ${afuera.map((p) => `«${p.title}»`).join(", ")}. Si te interesa más, cambiala por la que se superpone.`) : null,
+        noche.length ? [h("h3", { class: "label" }, "¿Algo para la noche?"), noche.map((e) => EventCard(e, { onAdded: terminarDia }))] : null,
+        h("div", { class: "actions" },
+          Button(i < days.length - 1 ? `Seguir con el ${shortDay(days[i + 1])} →` : "Ver mi itinerario", { variant: "primary", onclick: seguirConElOtroDia }),
+          Button("Volver a este día", { onclick: () => void paint() }))));
+    } catch (err) { toast(err.message); }
   }
 
   /** Elige la mejor opción a la que se llega (verde o amarilla), una tras otra, hasta el ritmo que pidió. */
