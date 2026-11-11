@@ -18,14 +18,15 @@ def auth(authorization: Optional[str] = Header(None)) -> str:
     return username
 
 
-def sandbox_for_token(token: str):
-    """El sandbox del dueño del token si está en modo prueba (None si no, o si el token no vale).
-    Lo usa el middleware de app.main en cada pedido; se lee siempre del schema real."""
+def context_for_token(token: str):
+    """(usuario, sandbox) del dueño del token: el sandbox si está en modo prueba (None si no) y el usuario para las
+    trazas del LLM. (None, None) si el token no vale. Lo usa el middleware de app.main en cada pedido; se lee siempre
+    del schema real."""
     if not token:
-        return None
+        return None, None
     with sandbox.real():
         username = db.resolve_auth_token(token)
-        return sandbox.desde_usuario(db.get_user(username)) if username else None
+        return (username, sandbox.desde_usuario(db.get_user(username))) if username else (None, None)
 
 
 def is_admin(username: str) -> bool:

@@ -8,10 +8,15 @@ import threading
 import time
 from collections.abc import Callable
 
+import httpx
+
 from . import catalog, config, db, events, explore, itinerary, llm, push, sandbox, search, today, venues
+from .llm_router import Tarea
 
 CHECK_USER = "__chequeo__"
 
+
+LITELLM_TIMEOUT_S = 5
 
 def _catalogo() -> str:
     sessions = catalog.all_sessions()
@@ -78,12 +83,26 @@ def _reloj_simulado() -> str:
 
 def _llm() -> str:
     with sandbox.activar(sandbox.Sandbox(CHECK_USER, llm="fake")):
-        llm.complete("fake", "Sos un test.", "Pregunta: hola", 50)
+        llm.complete(Tarea.CHAT, "Sos un test.", "Pregunta: hola", 50)
     real = config.LLM_PROVIDER
-    configurado = real == "fake" or (real == "anthropic" and config.ANTHROPIC_API_KEY) or (real == "openai" and config.LLM_BASE_URL)
+    configurado = (real == "fake" or (real == "anthropic" and config.ANTHROPIC_API_KEY)
+                   or (real in ("openai", "litellm") and config.LLM_BASE_URL))
     if not configurado:
         raise AssertionError(f"LLM_PROVIDER={real} sin credenciales")
+    if real == "litellm":
+        return f"gateway LiteLLM {_litellm_vivo()} (no se llamó a ningún modelo)"
     return f"proveedor {real} configurado (no se llamó a la API paga)"
+
+
+def _litellm_vivo() -> str:
+    """El gateway responde (endpoint de salud de LiteLLM, sin costo)."""
+    try:
+        r = httpx.get(f"{config.LLM_BASE_URL.rstrip('/')}/health/liveliness", timeout=LITELLM_TIMEOUT_S)
+    except httpx.HTTPError as e:
+        raise AssertionError(f"LiteLLM no responde en {config.LLM_BASE_URL}: {e}") from e
+    if r.status_code != 200:
+        raise AssertionError(f"LiteLLM respondió {r.status_code}")
+    return "responde"
 
 
 def _stt() -> str:

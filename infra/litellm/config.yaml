@@ -1,0 +1,57 @@
+# Un alias por tarea de la app (app/llm_router.py: Tarea → "rx-<tarea>").
+# Cambiar el modelo de una parte de la app = cambiar su litellm_params acá y reiniciar el servicio litellm.
+# Hoy todos apuntan a los mismos modelos que la app usaba directo: el cambio a LiteLLM no altera nada visible.
+# Secretos: solo como os.environ/<VARIABLE> (variables del servicio en Railway). El repo es público.
+
+model_list:
+  # --- calidad: resumen de grabaciones y scripts del catálogo ---
+  - model_name: rx-resumen
+    litellm_params: &opus
+      model: anthropic/claude-opus-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 600
+  - model_name: rx-catalogo
+    litellm_params: *opus
+
+  # --- Sonnet: el resto de las tareas. Sonnet 5.5 apaga el thinking con "between_tools" (no usamos tools):
+  #     más rápido y barato, igual que hacía la app directo (app/llm.py: thinking_params).
+  - model_name: rx-traduccion
+    litellm_params: &sonnet
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 600
+      thinking:
+        type: between_tools
+  - model_name: rx-catalogo-traduccion
+    litellm_params: *sonnet
+  - model_name: rx-entrevista
+    litellm_params: *sonnet
+  - model_name: rx-itinerario
+    litellm_params: *sonnet
+  - model_name: rx-razones
+    litellm_params: *sonnet
+  - model_name: rx-chat
+    litellm_params: *sonnet
+  - model_name: rx-filtros
+    litellm_params: *sonnet
+  - model_name: rx-temas
+    litellm_params: *sonnet
+  - model_name: rx-briefing
+    litellm_params: *sonnet
+
+litellm_settings:
+  # Trazas en Langfuse Cloud (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST=https://us.cloud.langfuse.com).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  request_timeout: 600
+
+router_settings:
+  # Reintentos ante 429/5xx/overloaded del proveedor, antes de devolver el error a la app.
+  num_retries: 2
+  retry_after: 5
+
+general_settings:
+  # Panel (dominio público) y claves virtuales: entrar con la master key; la app y los scripts usan claves virtuales.
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Base "litellm" aparte, en el mismo Postgres de Railway (CREATE DATABASE litellm): gasto por tag, claves y panel.
+  database_url: os.environ/DATABASE_URL

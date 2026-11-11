@@ -2,7 +2,8 @@
 import logging
 import re
 
-from . import catalog, config, llm, prompts, search
+from . import catalog, llm, prompts, search
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.ask")
 
@@ -26,10 +27,10 @@ def answer(question: str, ficha: str | None = None) -> dict:
     """ficha: la de la entrevista guiada de quien pregunta, para priorizar lo que le sirve (None si no la tiene)."""
     hits = search.hybrid(question, ASK_CANDIDATES)
     try:
-        text = llm.complete(config.ASK_MODEL, prompts.ASK_SYSTEM, prompts.ask_user(question, hits, ficha),
+        text = llm.complete(Tarea.CHAT, prompts.ASK_SYSTEM, prompts.ask_user(question, hits, ficha),
                             ASK_MAX_TOKENS).strip()
     except Exception as e:
-        log.exception("El chat de búsqueda no pudo consultar al LLM (%s)", config.ASK_MODEL)
+        log.exception("El chat de búsqueda no pudo consultar al LLM (tarea %s)", Tarea.CHAT)
         raise AskUnavailable from e
     cited = _cited(text)
     extra = [s["base"] for s in hits if s["base"] not in cited and s.get("instances")][:EXTRA_SESSIONS]

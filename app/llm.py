@@ -1,25 +1,41 @@
-"""Cliente LLM intercambiable: Claude directo o un endpoint OpenAI-compatible (LiteLLM)."""
+"""Cliente LLM intercambiable: Claude directo, un endpoint OpenAI-compatible o el gateway LiteLLM.
+
+Cada llamada pide una tarea (app/llm_router.py), no un modelo: el router decide el modelo según el proveedor.
+"""
 import json
 import logging
 import re
 
 import httpx
 
-from . import config, sandbox
+from . import config, llm_router, sandbox
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.llm")
 _anthropic = None
 
 
-def complete(model: str, system: str, user: str, max_tokens: int = 8000) -> str:
+def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000) -> str:
     p = sandbox.proveedor_llm()
+    if p == "fake":
+        return _fake(system, user)
+    model = llm_router.modelo(tarea, p)
     if p == "anthropic":
         return _claude(model, system, user, max_tokens)
     if p == "openai":
         return _openai(model, system, user, max_tokens)
-    if p == "fake":
-        return _fake(system, user)
+    if p == "litellm":
+        return _openai(model, system, user, max_tokens, extra=_metadata(tarea))
     raise ValueError(f"LLM_PROVIDER desconocido: {p}")
+
+
+def _metadata(tarea: Tarea) -> dict:
+    """Para el gateway: la tarea como tag (gasto por parte en el panel de LiteLLM) y traza y usuario para Langfuse."""
+    usuario = llm_router.usuario_actual()
+    meta = {"tags": [tarea.value], "trace_name": tarea.value, "generation_name": tarea.value}
+    if usuario:
+        meta["trace_user_id"] = usuario
+    return {"metadata": meta, **({"user": usuario} if usuario else {})}
 
 
 DEFAULT_EFFORT = "medium"
@@ -58,19 +74,19 @@ def _claude(model, system, user, max_tokens):
     return text
 
 
-def _openai(model, system, user, max_tokens):
+def _openai(model, system, user, max_tokens, extra: dict | None = None):
     if not config.LLM_BASE_URL:
         raise RuntimeError("Falta LLM_BASE_URL")
     r = httpx.post(
         f"{config.LLM_BASE_URL.rstrip('/')}/chat/completions",
         headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
         json={"model": model, "max_tokens": max_tokens,
-              "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
+              "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], **(extra or {})},
         timeout=600,
     )
     if r.status_code >= 400:
         raise RuntimeError(f"LLM {r.status_code}: {r.text[:500]}")
-    return r.json()["choices"][0]["message"]["content"]
+    return r.json()["choices"][0]["message"].get("content") or ""
 
 
 _FAKE_SERVICE = "Amazon S3"  # servicio que devuelve el LLM falso de los tests

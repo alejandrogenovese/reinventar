@@ -12,8 +12,9 @@ import logging
 import re
 from dataclasses import dataclass
 
-from . import catalog, config, db, itinerary, llm, prompts, search, travel, venues
+from . import catalog, db, itinerary, llm, prompts, search, travel, venues
 from .interview import Ficha
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.guided")
 
@@ -274,7 +275,7 @@ def _razones(ficha_texto: str, elegidas: list[dict]) -> dict[str, str]:
     items = [{"code": o["card"]["code"], "title": o["card"]["title"], "type": o["card"]["type"],
               "level": o["card"]["level"], "resumen": (o["card"].get("abstract") or "")[:500]} for o in elegidas]
     try:
-        data = llm.parse_json(llm.complete(config.GUIDED_MODEL, prompts.GUIDED_REASONS_SYSTEM,
+        data = llm.parse_json(llm.complete(Tarea.RAZONES, prompts.GUIDED_REASONS_SYSTEM,
                                            prompts.guided_reasons_user(ficha_texto, items), max_tokens=2000))
         return {str(r["code"]): str(r["razon"])[:300] for r in data.get("razones", []) if r.get("code")}
     except Exception as e:  # noqa: BLE001 - las razones son un extra: sin ellas el armado sigue

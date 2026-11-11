@@ -6,7 +6,8 @@ mayúsculas) y se devuelven con la grafía canónica. Lo que no existe se inform
 import datetime
 import logging
 
-from . import catalog, config, explore, llm, prompts
+from . import catalog, explore, llm, prompts
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.nl_filters")
 
@@ -70,7 +71,7 @@ def parse(text: str) -> dict:
     """{"filters": {faceta: [valores]}, "q": texto libre restante, "ignored": ["faceta: valor"]}."""
     allowed = _allowed()
     try:
-        raw = llm.complete(config.ASK_MODEL, prompts.NL_FILTERS_SYSTEM, prompts.nl_filters_user(_catalog_text(allowed), text), NL_MAX_TOKENS)
+        raw = llm.complete(Tarea.FILTROS, prompts.NL_FILTERS_SYSTEM, prompts.nl_filters_user(_catalog_text(allowed), text), NL_MAX_TOKENS)
         proposed = llm.parse_json(raw)
     except Exception as e:
         log.exception("No se pudo traducir a filtros (pedido de %d caracteres)", len(text))

@@ -10,6 +10,7 @@ import threading
 import traceback
 
 from . import audio, config, db, llm, prompts, sandbox, stt, talks
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.pipeline")
 # Cada trabajo lleva el contexto de quien lo encoló: una grabación en modo prueba se procesa en el schema de prueba.
@@ -111,18 +112,18 @@ def process(sid: str):
     batches = [pending[i:i + config.TRANSLATE_BATCH] for i in range(0, len(pending), config.TRANSLATE_BATCH)]
     for n, batch in enumerate(batches, 1):
         db.update_session(sid, progress=f"Traduciendo {n}/{len(batches)}")
-        out = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user(batch, names))
+        out = llm.complete(Tarea.TRADUCCION, prompts.TRANSLATE_SYSTEM, prompts.translate_user(batch, names))
         got = {int(i): t.strip() for i, t in re.findall(r"\[\[(\d+)\]\]\s*(.*?)(?=\n?\[\[\d+\]\]|\Z)", out, re.S)}
         missing = [(i, t) for i, t in batch if not got.get(i)]
         for i, t in missing:  # reintento uno por uno si el modelo se comió alguna línea
-            one = llm.complete(config.TRANSLATE_MODEL, prompts.TRANSLATE_SYSTEM, prompts.translate_user([(i, t)], names), 2000)
+            one = llm.complete(Tarea.TRADUCCION, prompts.TRANSLATE_SYSTEM, prompts.translate_user([(i, t)], names), 2000)
             got[i] = re.sub(r"^\s*\[\[\d+\]\]\s*", "", one).strip()
         db.set_translations(sid, [(i, got[i]) for i, _ in batch])
 
     # 4. Resumir sobre el original en inglés (más fiel) con timestamps.
     db.update_session(sid, status="summarizing", progress=None)
     transcript = "\n".join(f"[{hms(b['start_s'])}] {b['en']}" for b in db.get_blocks(sid))
-    raw = llm.complete(config.SUMMARY_MODEL, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), SUMMARY_MAX_TOKENS)
+    raw = llm.complete(Tarea.RESUMEN, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), SUMMARY_MAX_TOKENS)
     summary = llm.parse_json(raw)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
 

@@ -10,7 +10,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
-from . import config, llm, prompts
+from . import llm, prompts
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.interview")
 
@@ -188,7 +189,7 @@ def repreguntas(r: Respuestas) -> list[Repregunta]:
     """Hasta 2 repreguntas. Son opcionales: si el LLM falla, se sigue sin ellas."""
     exigir_completas(r)
     try:
-        data = llm.parse_json(llm.complete(config.ITINERARY_MODEL, prompts.INTERVIEW_FOLLOWUP_SYSTEM,
+        data = llm.parse_json(llm.complete(Tarea.ENTREVISTA, prompts.INTERVIEW_FOLLOWUP_SYSTEM,
                                            prompts.interview_followup_user(respuestas_a_texto(r)), max_tokens=2000))
         return [Repregunta(pregunta=str(q)[:300]) for q in data.get("repreguntas", []) if str(q).strip()][:MAX_REPREGUNTAS]
     except Exception as e:  # noqa: BLE001 - cualquier falla del LLM deja la entrevista sin repreguntas, no la frena
@@ -212,7 +213,7 @@ def armar_ficha(data: dict, r: Respuestas) -> Ficha:
 
 def generar_ficha(r: Respuestas) -> Ficha:
     exigir_completas(r)
-    texto = llm.complete(config.ITINERARY_MODEL, prompts.PROFILE_FICHA_SYSTEM,
+    texto = llm.complete(Tarea.ENTREVISTA, prompts.PROFILE_FICHA_SYSTEM,
                          prompts.profile_ficha_user(respuestas_a_texto(r)), max_tokens=4000)
     try:
         return armar_ficha(llm.parse_json(texto), r)
