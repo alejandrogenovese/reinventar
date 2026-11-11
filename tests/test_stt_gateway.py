@@ -41,11 +41,11 @@ def test_cada_uso_tiene_su_alias_en_la_config_por_groq():
 
     for uso in UsoSTT:
         m = modelos[llm_router.alias_stt(uso)]
-        assert m["litellm_params"]["model"].startswith("groq/whisper-large-v3")
+        # El completo, no el turbo: el turbo se equivoca más con nombres propios (Neptune, lakehouse).
+        assert m["litellm_params"]["model"] == "groq/whisper-large-v3"
         assert m["litellm_params"]["api_key"] == "os.environ/GROQ_API_KEY"
         assert m["model_info"]["mode"] == "audio_transcription"
         assert m["litellm_params"]["input_cost_per_second"] > 0  # si no, el gasto del STT figura en $0
-    assert modelos["stt-charlas"]["litellm_params"]["model"] == "groq/whisper-large-v3"  # el completo, no el turbo
 
 
 def test_las_charlas_van_a_su_alias_con_tag_usuario_y_segmentos(gateway, audio):
@@ -107,3 +107,27 @@ def test_la_grabacion_se_procesa_a_nombre_de_quien_la_encolo(monkeypatch):
     pipeline._procesar(*cola[0])  # fuera del pedido: el usuario viaja en la cola
 
     assert vistos == [("s1", "ale")] and llm_router.usuario_actual() is None
+
+
+@pytest.mark.parametrize("uso, palabras", [
+    (UsoSTT.CHARLAS, ["Trainium", "SageMaker", "Bedrock", "lakehouse"]),
+    (UsoSTT.VOZ, ["lakehouse", "Neptune", "Redshift", "Teradata", "disponibilizar"]),
+])
+def test_cada_uso_le_pasa_su_vocabulario_al_stt(gateway, audio, uso, palabras):
+    stt.transcribe(audio, 0, uso=uso)
+
+    prompt = gateway[0][2]["prompt"]
+    assert all(p in prompt for p in palabras)
+    assert len(prompt) <= stt.LARGO_MAXIMO_VOCABULARIO  # Whisper solo mira los últimos ~224 tokens del prompt
+
+
+def test_directo_tambien_pasa_el_vocabulario(monkeypatch, audio):
+    pedidos = []
+    monkeypatch.setattr(config, "STT_PROVIDER", "openai")
+    monkeypatch.setattr(config, "STT_BASE_URL", "https://api.groq.com/openai/v1")
+    monkeypatch.setattr(config, "STT_API_KEY", "clave-de-prueba")
+    monkeypatch.setattr(stt.httpx, "post", lambda url, headers, data, files, timeout: pedidos.append(data) or httpx.Response(200, json=VERBOSE))
+
+    stt.transcribe(audio, 0, language="es", uso=UsoSTT.VOZ)
+
+    assert pedidos[0]["prompt"] == stt.VOCABULARIO[UsoSTT.VOZ]

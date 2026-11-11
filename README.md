@@ -127,7 +127,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 
 ### Gateway de LLM (LiteLLM + Langfuse)
 
-Cada parte de la app pide una **tarea** (`app/llm_router.py`: resumen, traducción, entrevista, razones, chat, filtros…) y el gateway decide el modelo: `infra/litellm/config.yaml` tiene un alias `rx-<tarea>` por tarea, y uno `stt-<uso>` por uso del STT (`stt-charlas`: Whisper large-v3 completo; `stt-voz`: el turbo). Cambiar el modelo de una parte es editar ese alias y reiniciar el servicio `litellm`, sin deployar la app. Cada llamada va con la tarea como tag y el usuario, así el gasto de cada parte se ve en el panel de LiteLLM y las trazas en Langfuse.
+Cada parte de la app pide una **tarea** (`app/llm_router.py`: resumen, traducción, entrevista, razones, chat, filtros…) y el gateway decide el modelo: `infra/litellm/config.yaml` tiene un alias `rx-<tarea>` por tarea, y uno `stt-<uso>` por uso del STT (`stt-charlas` y `stt-voz`: Whisper large-v3 completo, con un vocabulario por uso en `app/stt.py`). Cambiar el modelo de una parte es editar ese alias y reiniciar el servicio `litellm`, sin deployar la app. Cada llamada va con la tarea como tag y el usuario, así el gasto de cada parte se ve en el panel de LiteLLM y las trazas en Langfuse.
 
 1. **Base**: en el Postgres de Railway, `CREATE DATABASE litellm;` (aparte de la de la app; ahí guarda el gasto por tag, las claves virtuales y el panel).
 2. **Servicio** `litellm`: *New → GitHub repo* (este), *Settings → Root Directory* = `infra/litellm` (usa su `Dockerfile`). *Networking*: dominio público con puerto `4000` (el panel queda en `/ui`).

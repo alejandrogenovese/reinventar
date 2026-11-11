@@ -71,13 +71,14 @@ model_list:
       input_cost_per_second: 0.0000308333
     model_info:
       mode: audio_transcription
-  # Voz de la entrevista (castellano, audio corto): el turbo, rápido y barato.
+  # Voz de la entrevista (castellano, audio corto): también el completo. El turbo confundía nombres propios
+  # ("lighthouse" por lakehouse) y la diferencia es de centavos (una respuesta de 30 s: USD 0,0009 contra 0,0003).
   - model_name: stt-voz
     litellm_params:
-      model: groq/whisper-large-v3-turbo
+      model: groq/whisper-large-v3
       api_key: os.environ/GROQ_API_KEY
       timeout: 120
-      input_cost_per_second: 0.0000111111  # USD 0,04 por hora de audio
+      input_cost_per_second: 0.0000308333  # USD 0,111 por hora de audio
     model_info:
       mode: audio_transcription
 
