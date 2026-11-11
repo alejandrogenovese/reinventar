@@ -23,6 +23,11 @@ def by_id(id_sede: int | None) -> dict | None:
     return _by_id.get(id_sede) if id_sede is not None else None
 
 
+def id_by_name(nombre: str | None) -> int | None:
+    """id_sede de una sede del maestro por su nombre (el hotel de una tarjeta), o None."""
+    return next((v["id"] for v in _by_id.values() if v["name"] == nombre), None) if nombre else None
+
+
 def all_venues() -> list[dict]:
     return list(_by_id.values())
 

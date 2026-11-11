@@ -69,6 +69,18 @@ ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS snapshot JSONB;
 ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS respuestas JSONB;
 ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha JSONB;
 ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha_texto TEXT;
+-- Armado guiado (app/guided.py): salir N min antes de que termine (para llegar a la siguiente) y si la persona
+-- tiene la charla reservada en el portal de AWS (si no, hay que hacer la cola de walk-up).
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS salir_antes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS reservada BOOLEAN NOT NULL DEFAULT FALSE;
+-- "☆ Me interesa, para otro día": charlas que quedaron afuera por choque y vuelven cuando se repiten.
+CREATE TABLE IF NOT EXISTS itinerary_pending (
+  username TEXT NOT NULL,
+  base TEXT NOT NULL,
+  dia_marcada TEXT NOT NULL,
+  added_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, base)
+);
 -- Avisos de Web Push ya mandados (app/push.py): cada uno sale una sola vez.
 CREATE TABLE IF NOT EXISTS push_sent (
   username TEXT NOT NULL,
@@ -77,7 +89,8 @@ CREATE TABLE IF NOT EXISTS push_sent (
   PRIMARY KEY (username, key)
 );
 """
-TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "push_sent")
+TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
+                        "push_sent")
 
 CUENTAS = """
 CREATE TABLE IF NOT EXISTS users (
@@ -556,6 +569,36 @@ def set_item_locked(username, code, locked):
         c.execute(
             "UPDATE itinerary_items SET locked=%s WHERE username=%s AND code=%s", (int(locked), username, code)
         )
+
+
+def set_item_leave_early(username, code, minutos: int) -> bool:
+    with conn() as c:
+        return c.execute("UPDATE itinerary_items SET salir_antes=%s WHERE username=%s AND code=%s",
+                         (minutos, username, code)).rowcount > 0
+
+
+def set_item_booked(username, code, reservada: bool) -> bool:
+    with conn() as c:
+        return c.execute("UPDATE itinerary_items SET reservada=%s WHERE username=%s AND code=%s",
+                         (reservada, username, code)).rowcount > 0
+
+
+def list_pending(username) -> list[dict]:
+    with conn() as c:
+        rows = c.execute("SELECT base, dia_marcada, added_at FROM itinerary_pending WHERE username=%s ORDER BY added_at",
+                         (username,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def add_pending(username, base, dia_marcada):
+    with conn() as c:
+        c.execute("INSERT INTO itinerary_pending (username, base, dia_marcada, added_at) VALUES (%s,%s,%s,%s) "
+                  "ON CONFLICT (username, base) DO NOTHING", (username, base, dia_marcada, time.time()))
+
+
+def remove_pending(username, base):
+    with conn() as c:
+        c.execute("DELETE FROM itinerary_pending WHERE username=%s AND base=%s", (username, base))
 
 
 def remove_item(username, code):

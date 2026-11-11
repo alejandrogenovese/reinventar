@@ -105,6 +105,10 @@ def _fake(system, user):
     if "[[" in user:  # traducción
         ids = re.findall(r"\[\[(\d+)\]\]", user)
         return "\n".join(f"[[{i}]] Hoy lanzamos la función {i} de {_FAKE_SERVICE}." for i in ids)
+    if user.startswith("Opciones para explicar:"):  # razones del armado guiado
+        items = json.loads(user.split("\n", 1)[1])["opciones"]
+        return json.dumps({"razones": [{"code": i["code"], "razon": f"Calza con tu ficha (fake {i['code']})."}
+                                       for i in items]})
     if user.startswith("Entrevista para repreguntar:"):
         return json.dumps({"repreguntas": ["¿Quiénes consultan los datos: personas o sistemas?"]})
     if user.startswith("Entrevista para la ficha:"):

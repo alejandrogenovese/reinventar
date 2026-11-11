@@ -335,3 +335,14 @@ Devolvé SOLO un objeto JSON con esta forma:
 
 def profile_ficha_user(respuestas: str) -> str:
     return f"Entrevista para la ficha:\n{respuestas}"
+
+
+GUIDED_REASONS_SYSTEM = """Explicás por qué cada charla de AWS re:Invent 2026 le sirve a una persona, mientras arma su día charla por charla desde el celular.
+Recibís su ficha y unas pocas opciones. Para cada una escribí UNA oración corta (máximo 20 palabras), en castellano rioplatense con voseo, que conecte la charla con su desafío o sus prioridades concretas.
+No repitas el título, no inventes contenido que no esté en el resumen y no uses frases genéricas como "te va a servir".
+
+Devolvé SOLO un objeto JSON: {"razones": [{"code": "código exacto", "razon": "…"}]}"""
+
+
+def guided_reasons_user(ficha_texto: str, opciones: list[dict]) -> str:
+    return "Opciones para explicar:\n" + json.dumps({"ficha": ficha_texto, "opciones": opciones}, ensure_ascii=False)

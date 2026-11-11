@@ -84,6 +84,8 @@ def _build_response(items: list[dict]) -> dict:
         c["end"] = _end(c)
         c["locked"] = bool(it.get("locked"))
         c["reason"] = it.get("reason")
+        c["salir_antes"] = it.get("salir_antes") or 0
+        c["reservada"] = bool(it.get("reservada"))
         days.setdefault(c["day"], []).append(c)
     for day_items in days.values():
         day_items.sort(key=lambda c: c["start"] or "")
@@ -187,8 +189,9 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
     return result
 
 
-def add_manual(username: str, code: str) -> dict:
-    """Agrega una charla (código de horario) o un evento (id) fijado: regenerar el itinerario no lo saca."""
+def add_manual(username: str, code: str, reason: str | None = None) -> dict:
+    """Agrega una charla (código de horario) o un evento (id) fijado: regenerar el itinerario no lo saca.
+    Si la charla estaba en pendientes ("☆ para otro día"), sale de ahí."""
     ev = events.get(code)
     if ev:
         db.add_item(username, code, code, ev["day"], ev["start"], locked=True, kind="event", snapshot=snapshot(ev))
@@ -197,8 +200,9 @@ def add_manual(username: str, code: str) -> dict:
     if not found:
         raise ValueError("Código de sesión inexistente")
     session, instance = found
-    db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True,
+    db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True, reason=reason,
                 snapshot=snapshot(catalog.card(session, instance)))
+    db.remove_pending(username, session["base"])
     return get_current(username)
 
 
