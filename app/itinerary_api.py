@@ -23,6 +23,7 @@ class Generate(BaseModel):
 
 class AddItem(BaseModel):
     code: str = Field(min_length=1, max_length=40)
+    reason: Optional[str] = Field(None, max_length=400)  # la razón del armado guiado, si viene de ahí
 
 
 class Swap(BaseModel):
@@ -113,7 +114,7 @@ def get_itinerary(username: str = Depends(auth)):
 @router.post("/api/itinerary/items")
 def add_item(body: AddItem, username: str = Depends(auth)):
     try:
-        return itinerary.add_manual(username, body.code.strip())
+        return itinerary.add_manual(username, body.code.strip(), body.reason)
     except ValueError as e:
         raise HTTPException(404, str(e))
 

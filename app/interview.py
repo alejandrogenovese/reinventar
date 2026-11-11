@@ -17,7 +17,7 @@ log = logging.getLogger("reinventar.interview")
 Industria = Literal["banca", "retail", "salud", "gobierno", "tech", "otra"]
 Anios = Literal["0-2", "3-5", "6-10", "+10"]
 Origen = Literal["desarrollo", "infra/ops", "datos", "seguridad", "negocio", "otro"]
-NivelCharla = Literal[100, 200, 300, 400]
+NivelCharla = Literal[100, 200, 300, 400, 500]
 Formato = Literal["Breakout session", "Chalk talk", "Workshop", "Builders' session", "Code talk", "Lightning talk",
                   "Keynote"]
 Objetivo = Literal["aprender algo puntual", "ver el roadmap", "casos de clientes", "networking", "conocer proveedores"]
@@ -49,7 +49,7 @@ class Trayectoria(BaseModel):
 
 
 class Nivel(BaseModel):
-    niveles: list[NivelCharla] = Field(min_length=1, max_length=4)
+    niveles: list[NivelCharla] = Field(min_length=1, max_length=5)
     formatos: list[Formato] = Field(default_factory=list, max_length=7)
 
 
@@ -90,7 +90,7 @@ class Prioridad(BaseModel):
 class Ficha(BaseModel):
     resumen: str = Field(min_length=1, max_length=1500)
     prioridades: list[Prioridad] = Field(min_length=1, max_length=8)
-    nivel: list[NivelCharla] = Field(min_length=1, max_length=4)
+    nivel: list[NivelCharla] = Field(min_length=1, max_length=5)
     formatos: list[Formato] = Field(default_factory=list, max_length=7)
     evitar: list[Corto] = Field(default_factory=list, max_length=10)
     industria: Industria
