@@ -1,17 +1,27 @@
-"""Speech-to-text intercambiable. Devuelve segmentos [{start, end, text}] en segundos."""
+"""Speech-to-text intercambiable. Devuelve segmentos [{start, end, text}] en segundos.
+
+- openai: un endpoint compatible con OpenAI (hoy Groq) con STT_BASE_URL, STT_API_KEY y STT_MODEL.
+- litellm: el mismo gateway que el LLM (LLM_BASE_URL y LLM_API_KEY), con el alias de cada uso (stt-charlas, stt-voz),
+  el uso como tag y el usuario del pedido, igual que las tareas del LLM.
+"""
+import json
 from pathlib import Path
 
 import httpx
 
-from . import config, sandbox
+from . import config, llm_router, sandbox
+from .llm_router import UsoSTT
 
 
-def transcribe(path: Path, offset: float, language: str | None = None) -> list[dict]:
+def transcribe(path: Path, offset: float, language: str | None = None, uso: UsoSTT = UsoSTT.CHARLAS) -> list[dict]:
     """language: código ISO (por defecto STT_LANGUAGE, el de las charlas; la entrevista pasa "es")."""
     provider = sandbox.proveedor_stt()
     language = language or config.STT_LANGUAGE
     if provider == "openai":
-        segs = _openai_compatible(path, language)
+        segs = _openai_compatible(path, language, config.STT_BASE_URL, config.STT_API_KEY, config.STT_MODEL)
+    elif provider == "litellm":
+        segs = _openai_compatible(path, language, config.LLM_BASE_URL, config.LLM_API_KEY,
+                                  llm_router.modelo_stt(uso, provider), _metadata(uso))
     elif provider == "local":
         segs = _faster_whisper(path, language)
     elif provider == "fake":
@@ -21,14 +31,26 @@ def transcribe(path: Path, offset: float, language: str | None = None) -> list[d
     return [{"start": s["start"] + offset, "end": s["end"] + offset, "text": s["text"].strip()} for s in segs if s["text"].strip()]
 
 
-def _openai_compatible(path: Path, language: str) -> list[dict]:
-    if not config.STT_API_KEY:
-        raise RuntimeError("Falta STT_API_KEY")
+def _metadata(uso: UsoSTT) -> dict:
+    """Campos extra del form para el gateway: el uso como tag y traza, y el usuario (gasto por parte y por persona)."""
+    tag = llm_router.alias_stt(uso)
+    usuario = llm_router.usuario_actual()
+    meta = {"tags": [tag], "trace_name": tag, "generation_name": tag, **({"trace_user_id": usuario} if usuario else {})}
+    return {"metadata": json.dumps(meta), **({"user": usuario} if usuario else {})}
+
+
+def _openai_compatible(path: Path, language: str, base_url: str, api_key: str | None, model: str,
+                       extra: dict | None = None) -> list[dict]:
+    if not api_key:
+        raise RuntimeError("Falta la clave del STT (STT_API_KEY, o LLM_API_KEY con el gateway)")
+    if not base_url:
+        raise RuntimeError("Falta la URL del STT (STT_BASE_URL, o LLM_BASE_URL con el gateway)")
     with path.open("rb") as f:
         r = httpx.post(
-            f"{config.STT_BASE_URL.rstrip('/')}/audio/transcriptions",
-            headers={"Authorization": f"Bearer {config.STT_API_KEY}"},
-            data={"model": config.STT_MODEL, "language": language, "response_format": "verbose_json", "temperature": "0"},
+            f"{base_url.rstrip('/')}/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data={"model": model, "language": language, "response_format": "verbose_json", "temperature": "0",
+                  **(extra or {})},
             files={"file": (path.name, f, "audio/ogg")},
             timeout=httpx.Timeout(600, connect=20),
         )

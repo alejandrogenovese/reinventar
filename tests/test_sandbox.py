@@ -126,4 +126,4 @@ def test_el_pipeline_procesa_en_el_contexto_de_quien_encolo(monkeypatch):
     with sandbox.activar(sb):
         pipeline.enqueue("s1")
 
-    assert encolados == [("s1", sb)]
+    assert encolados == [("s1", sb, None)]  # sin usuario en el contexto (el del pedido lo pone el middleware)

@@ -109,6 +109,10 @@ def _stt() -> str:
     real = config.STT_PROVIDER
     if real == "openai" and not config.STT_API_KEY:
         raise AssertionError("STT_PROVIDER=openai sin STT_API_KEY")
+    if real == "litellm":
+        if not (config.LLM_BASE_URL and config.LLM_API_KEY):
+            raise AssertionError("STT_PROVIDER=litellm sin LLM_BASE_URL o LLM_API_KEY")
+        return f"gateway LiteLLM {_litellm_vivo()} (no se transcribió nada)"
     return f"proveedor {real} configurado"
 
 

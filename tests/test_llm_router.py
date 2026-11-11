@@ -130,8 +130,10 @@ def _params_por_alias() -> dict[str, dict]:
     return {m["model_name"]: m["litellm_params"] for m in yaml.safe_load(LITELLM_CONFIG.read_text())["model_list"]}
 
 
-def test_todos_los_alias_cachean_el_system():
+def test_todos_los_alias_del_llm_cachean_el_system():
     for alias, params in _params_por_alias().items():
+        if alias.startswith("stt-"):
+            continue
         assert {"location": "message", "role": "system"} in params.get("cache_control_injection_points", []), alias
 
 
