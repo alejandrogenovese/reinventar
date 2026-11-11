@@ -12,7 +12,8 @@ from pydantic import BaseModel, Field
 
 from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, guided_api, interview_api,
                itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
-from .auth import auth, bearer, sandbox_for_token
+from .auth import auth, bearer, context_for_token
+from .llm_router import como_usuario
 from .canonical_host import WwwRedirectMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -37,8 +38,9 @@ async def lifespan(_app):
 
 
 class SandboxMiddleware:
-    """Si el pedido es de un usuario en modo prueba, lo corre dentro de su sandbox (ver app/sandbox.py).
-    ASGI puro, no BaseHTTPMiddleware: así la contextvar llega al endpoint y al threadpool de los endpoints sync."""
+    """Si el pedido es de un usuario en modo prueba, lo corre dentro de su sandbox (ver app/sandbox.py), y deja el
+    usuario a mano para las trazas del LLM (app/llm_router.py: gasto y trazas por persona).
+    ASGI puro, no BaseHTTPMiddleware: así las contextvars llegan al endpoint y al threadpool de los endpoints sync."""
 
     def __init__(self, app):
         self.app = app
@@ -48,8 +50,8 @@ class SandboxMiddleware:
             return await self.app(scope, receive, send)
         headers = dict(scope.get("headers") or [])
         token = bearer(headers.get(b"authorization", b"").decode("latin-1"))
-        sb = await run_in_threadpool(sandbox_for_token, token) if token else None
-        with sandbox.activar(sb):
+        username, sb = await run_in_threadpool(context_for_token, token) if token else (None, None)
+        with sandbox.activar(sb), como_usuario(username):
             return await self.app(scope, receive, send)
 
 

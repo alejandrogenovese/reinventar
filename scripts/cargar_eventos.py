@@ -33,6 +33,7 @@ from app import config, llm, prompts
 from scripts import lotes_llm
 from scripts.actualizar_catalogo import _HOSTS_LOCALES, _backup, aplicar_migraciones
 from scripts.eventos_fuentes import Evento, completar_con_pagina_luma, desde_json_luma, sede_mas_cercana
+from app.llm_router import Tarea
 
 CACHE_DIR = Path(os.environ.get("LUMA_CACHE_DIR", "~/Documents/Proyectos/Scripts/reinventar/out/luma")).expanduser()
 SEGUNDOS_ENTRE_PAGINAS = 1.0
@@ -117,7 +118,7 @@ def resumir_con_llm(eventos: list[Evento], avisar: Callable[[str], None] = lambd
 
     def llamar(lote: list[Evento]) -> dict[str, dict]:
         items = [(e.id_evento, e.nombre, e.lugar or "", (e.descripcion or "")[:MAX_DESCRIPCION]) for e in lote]
-        respuesta = llm.complete(config.EXTRACT_MODEL, prompts.EVENTS_SYSTEM, prompts.events_user(items), MAX_TOKENS)
+        respuesta = llm.complete(Tarea.CATALOGO, prompts.EVENTS_SYSTEM, prompts.events_user(items), MAX_TOKENS)
         return leer_resumenes(respuesta, [e.id_evento for e in lote])
 
     fallidos = lotes_llm.procesar(lotes_llm.en_lotes(eventos, LOTE), llamar, lambda _l, r: resultado.update(r),

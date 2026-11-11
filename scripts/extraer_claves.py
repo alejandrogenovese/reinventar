@@ -23,6 +23,8 @@ from psycopg import sql
 
 from app import config, llm, prompts
 from scripts import lotes_llm, unificar_conceptos
+from app import llm_router
+from app.llm_router import Tarea
 
 LOTE = 15
 HILOS = 4
@@ -125,7 +127,7 @@ def extraer(conn: psycopg.Connection, *, schema: str = "reinvent", aplicar: bool
     guardadas, muestra = [0], []
 
     def llamar(lt: list[Pendiente]) -> dict[str, Claves]:
-        respuesta = completar(config.EXTRACT_MODEL, prompts.KEYS_EXTRACT_SYSTEM, prompts.keys_user(lt), MAX_TOKENS)
+        respuesta = completar(Tarea.CATALOGO, prompts.KEYS_EXTRACT_SYSTEM, prompts.keys_user(lt), MAX_TOKENS)
         return leer_claves(respuesta, [p[0] for p in lt], oficiales)
 
     def al_volver(lt: list[Pendiente], claves: dict[str, Claves]) -> None:
@@ -165,7 +167,7 @@ def main() -> None:
     with psycopg.connect(url) as conn:
         total = len(pendientes(conn, args.schema))
         cuantas = len(args.codigos) if args.codigos else args.limite or MUESTRA
-        print(f"> {total} charlas sin claves · modelo {config.EXTRACT_MODEL}"
+        print(f"> {total} charlas sin claves · modelo {llm_router.modelo(Tarea.CATALOGO, config.LLM_PROVIDER)}"
               + ("" if args.aplicar else f" · MODO PRUEBA: muestra de {cuantas}, no se guarda nada"))
         r = extraer(conn, schema=args.schema, aplicar=args.aplicar, limite=args.limite, codigos=args.codigos,
                     avisar=print)

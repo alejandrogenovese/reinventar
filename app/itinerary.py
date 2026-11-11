@@ -2,6 +2,7 @@
 import logging
 
 from . import catalog, config, db, events, llm, prompts, search
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.itinerary")
 
@@ -108,19 +109,19 @@ def get_current(username: str) -> dict:
 def _ask_llm(profile: dict, prompt: str, candidates: list[dict], confirmed_cards: list[dict], ficha: str | None = None) -> dict:
     user = prompts.itinerary_user(profile, prompt, candidates, confirmed_cards, ficha)
 
-    raw = llm.complete(config.ITINERARY_MODEL, prompts.ITINERARY_SYSTEM, user, 4000)
+    raw = llm.complete(Tarea.ITINERARIO, prompts.ITINERARY_SYSTEM, user, 4000)
     try:
         return llm.parse_json(raw)
     except ValueError:
         log.warning("El LLM (%s) no devolvió JSON en el primer intento. Reintentando. Primeros 300 caracteres: %r",
-                    config.ITINERARY_MODEL, raw[:300])
+                    Tarea.ITINERARIO, raw[:300])
 
     retry_user = user + "\n\nTu respuesta anterior no cumplió el formato. Respondé ÚNICAMENTE con el objeto JSON pedido: sin texto antes, sin texto después, sin markdown."
-    raw = llm.complete(config.ITINERARY_MODEL, prompts.ITINERARY_SYSTEM, retry_user, 4000)
+    raw = llm.complete(Tarea.ITINERARIO, prompts.ITINERARY_SYSTEM, retry_user, 4000)
     try:
         return llm.parse_json(raw)
     except ValueError:
-        log.error("El LLM (%s) no devolvió JSON tras reintentar. Primeros 500 caracteres: %r", config.ITINERARY_MODEL, raw[:500])
+        log.error("El LLM (%s) no devolvió JSON tras reintentar. Primeros 500 caracteres: %r", Tarea.ITINERARIO, raw[:500])
         snippet = raw.strip()[:200] or "(respuesta vacía)"
         raise ValueError(f"El modelo no devolvió un itinerario válido tras 2 intentos. Respuesta: «{snippet}»") from None
 

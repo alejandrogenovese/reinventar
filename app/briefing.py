@@ -10,6 +10,8 @@ import logging
 import time
 
 from . import catalog, config, db, knowledge, llm, pg, prompts
+from . import llm_router
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.briefing")
 
@@ -149,10 +151,10 @@ def _valid(parsed: dict) -> bool:
 
 def _ask(user: str) -> dict:
     try:
-        raw = llm.complete(config.BRIEFING_MODEL, prompts.BRIEFING_SYSTEM, user, BRIEFING_MAX_TOKENS)
+        raw = llm.complete(Tarea.BRIEFING, prompts.BRIEFING_SYSTEM, user, BRIEFING_MAX_TOKENS)
         parsed = llm.parse_json(raw)
     except Exception as e:
-        log.exception("No se pudo generar el briefing (%s)", config.BRIEFING_MODEL)
+        log.exception("No se pudo generar el briefing (tarea %s)", Tarea.BRIEFING)
         raise BriefingUnavailable from e
     if not _valid(parsed):
         log.error("Briefing sin la forma esperada: %r", str(parsed)[:300])
@@ -168,7 +170,7 @@ def get(username: str, kind: str, entity_id: int, refresh: bool = False) -> dict
     text, talks = entity
     profile = _profile_text(db.get_profile(username) or {}, db.get_interview(username)["ficha_texto"])
     user = prompts.briefing_user(kind, text, profile, _recordings_text(talks))
-    input_hash = hashlib.sha256(f"{config.BRIEFING_MODEL}\n{user}".encode()).hexdigest()
+    input_hash = hashlib.sha256(f"{llm_router.modelo(Tarea.BRIEFING, config.LLM_PROVIDER)}\n{user}".encode()).hexdigest()
 
     cached = None if refresh else _load(username, kind, entity_id)
     if cached and cached["input_hash"] == input_hash:

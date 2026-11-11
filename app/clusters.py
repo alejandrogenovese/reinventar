@@ -12,7 +12,8 @@ from collections import Counter
 
 import numpy as np
 
-from . import catalog, config, embeddings, llm, pg, prompts, sandbox, search
+from . import catalog, embeddings, llm, pg, prompts, sandbox, search
+from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.clusters")
 
@@ -109,7 +110,7 @@ def _unique(names: list[str]) -> list[str]:
 
 def _llm_names(groups: list[dict]) -> list[str] | None:
     try:
-        raw = llm.complete(config.ASK_MODEL, prompts.CLUSTERS_SYSTEM, prompts.clusters_user(groups), NAMING_MAX_TOKENS)
+        raw = llm.complete(Tarea.TEMAS, prompts.CLUSTERS_SYSTEM, prompts.clusters_user(groups), NAMING_MAX_TOKENS)
         by_id = {int(g["id"]): str(g["name"]).strip() for g in llm.parse_json(raw).get("groups", [])}
     except Exception:
         log.exception("No se pudieron nombrar los temas emergentes; se usan nombres de respaldo")

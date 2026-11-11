@@ -116,13 +116,26 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `STT_PROVIDER` | `openai` (endpoint compatible) | `local` (faster-whisper, instalalo y subí la RAM), `fake` |
 | `STT_BASE_URL` | `https://api.groq.com/openai/v1` | `https://api.openai.com/v1` con `STT_MODEL=whisper-1`; tu LiteLLM |
 | `STT_MODEL` | `whisper-large-v3-turbo` | `whisper-large-v3` (más preciso, más lento) |
-| `LLM_PROVIDER` | `anthropic` | `openai` + `LLM_BASE_URL` para pasar por LiteLLM |
+| `LLM_PROVIDER` | `anthropic` | `litellm` + `LLM_BASE_URL` + `LLM_API_KEY`: cada tarea va a su alias del gateway (ver *Gateway de LLM*); `openai` para otro endpoint compatible |
+| `LLM_RUTA_<TAREA>` | — | fuerza el modelo de una tarea (ej. `LLM_RUTA_RAZONES=rx-razones-haiku`); tareas en `app/llm_router.py` |
 | `TRANSLATE_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar |
 | `SUMMARY_MODEL` | `claude-opus-5-5` | `claude-sonnet-5-5` |
 | `BRIEFING_MODEL` | `claude-sonnet-5-5` | modelo de la ficha para conversar |
 | `ASK_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar el chat de búsqueda |
 | `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
 | `EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | otro modelo de fastembed (se recalculan todos los vectores) |
+
+### Gateway de LLM (LiteLLM + Langfuse)
+
+Cada parte de la app pide una **tarea** (`app/llm_router.py`: resumen, traducción, entrevista, razones, chat, filtros…) y el gateway decide el modelo: `infra/litellm/config.yaml` tiene un alias `rx-<tarea>` por tarea. Cambiar el modelo de una parte es editar ese alias y reiniciar el servicio `litellm`, sin deployar la app. Cada llamada va con la tarea como tag y el usuario, así el gasto de cada parte se ve en el panel de LiteLLM y las trazas en Langfuse.
+
+1. **Base**: en el Postgres de Railway, `CREATE DATABASE litellm;` (aparte de la de la app; ahí guarda el gasto por tag, las claves virtuales y el panel).
+2. **Servicio** `litellm`: *New → GitHub repo* (este), *Settings → Root Directory* = `infra/litellm` (usa su `Dockerfile`). *Networking*: dominio público con puerto `4000` (el panel queda en `/ui`).
+3. **Variables del servicio** (las keys van solo acá): `LITELLM_MASTER_KEY` (empieza con `sk-`), `ANTHROPIC_API_KEY`, `DATABASE_URL=postgresql://${{pgvector.PGUSER}}:${{pgvector.PGPASSWORD}}@${{pgvector.PGHOST}}:${{pgvector.PGPORT}}/litellm` (variables de referencia de Railway: la base `litellm`, sin copiar la clave), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST=https://us.cloud.langfuse.com` (plan Hobby gratis de Langfuse Cloud).
+4. **Claves virtuales**: en el panel, una para la app y otra para los scripts de la Mac (nunca la master).
+5. **App**: `LLM_PROVIDER=litellm`, `LLM_BASE_URL=http://litellm.railway.internal:4000` (red privada), `LLM_API_KEY=<clave virtual de la app>`. Admin › Chequeo funcional confirma que el gateway responde.
+6. **Scripts locales**: en el `.env` de la Mac, `LLM_PROVIDER=litellm`, `LLM_BASE_URL=https://<dominio público del gateway>` y `LLM_API_KEY=<clave virtual de scripts>`.
+7. **Volver atrás**: `LLM_PROVIDER=anthropic` en la app y vuelve a llamar directo con los `*_MODEL` de siempre.
 
 ## Usuarios
 

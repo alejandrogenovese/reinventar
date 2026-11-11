@@ -23,6 +23,8 @@ from psycopg import sql
 
 from app import config, llm, prompts
 from scripts import lotes_llm
+from app import llm_router
+from app.llm_router import Tarea
 
 LOTE = 15  # resúmenes por llamada (~610 caracteres cada uno: entra holgado en la respuesta)
 HILOS = 4
@@ -67,7 +69,7 @@ def pendientes(conn: psycopg.Connection, schema: str = "reinvent", limite: int |
 
 
 def _traducir_lote(lote: list[Pendiente], completar: Completar) -> dict[str, str]:
-    respuesta = completar(config.TRANSLATE_MODEL, prompts.ABSTRACT_TRANSLATE_SYSTEM, prompts.abstracts_user(lote),
+    respuesta = completar(Tarea.CATALOGO_TRADUCCION, prompts.ABSTRACT_TRANSLATE_SYSTEM, prompts.abstracts_user(lote),
                           MAX_TOKENS)
     return leer_traducciones(respuesta, [p[0] for p in lote])
 
@@ -121,7 +123,7 @@ def main() -> None:
     with psycopg.connect(url) as conn:
         total = len(pendientes(conn, args.schema))
         cuantas = len(args.codigos) if args.codigos else args.limite or MUESTRA
-        print(f"> {total} resúmenes sin traducir · modelo {config.TRANSLATE_MODEL}"
+        print(f"> {total} resúmenes sin traducir · modelo {llm_router.modelo(Tarea.CATALOGO_TRADUCCION, config.LLM_PROVIDER)}"
               + ("" if args.aplicar else f" · MODO PRUEBA: muestra de {cuantas}, no se guarda nada"))
         r = traducir(conn, schema=args.schema, aplicar=args.aplicar, limite=args.limite, codigos=args.codigos,
                      avisar=print)
