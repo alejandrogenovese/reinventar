@@ -13,7 +13,7 @@ def _llm_returns(monkeypatch, payload):
 
     def fake(model, system, user, *a, **k):
         # Solo las llamadas del filtro: al arrancar, un hilo en segundo plano también nombra los temas con el LLM.
-        if system == prompts.NL_FILTERS_SYSTEM:
+        if system.startswith(prompts.NL_FILTERS_SYSTEM):
             calls.append((system, user))
         return json.dumps(payload)
 
@@ -56,15 +56,16 @@ def test_descarta_facetas_y_valores_que_no_existen(monkeypatch):
         assert set(body["ignored"]) == {"precio: barato", "sector: Marte"}
 
 
-def test_el_prompt_lista_los_dias_con_su_nombre_y_los_valores_validos(monkeypatch):
+def test_el_catalogo_va_en_el_system_y_el_pedido_aparte(monkeypatch):
     calls = _llm_returns(monkeypatch, {"filters": {}, "q": ""})
     with TestClient(app) as c:
         _parse(c, login_headers(c), "lo del martes")
 
     system, user = calls[0]
-    assert system == prompts.NL_FILTERS_SYSTEM
-    assert "2026-12-01 (martes)" in user and "Finanzas" in user and "Nubank" in user
-    assert user.rstrip().endswith("lo del martes")
+    # El catálogo va en el system (fijo, cacheable) y el pedido solo en el mensaje del usuario.
+    assert system.startswith(prompts.NL_FILTERS_SYSTEM)
+    assert "2026-12-01 (martes)" in system and "Finanzas" in system and "Nubank" in system
+    assert user == "Pedido de filtros: lo del martes"
 
 
 def test_los_filtros_devueltos_sirven_tal_cual_para_explorar(monkeypatch):

@@ -124,3 +124,35 @@ def test_el_gateway_no_corre_como_root():
     usuarios = re.findall(r"^USER\s+(\S+)", (ROOT / "infra" / "litellm" / "Dockerfile").read_text(), re.MULTILINE)
 
     assert usuarios and usuarios[-1] not in ("root", "0")
+
+
+def _params_por_alias() -> dict[str, dict]:
+    return {m["model_name"]: m["litellm_params"] for m in yaml.safe_load(LITELLM_CONFIG.read_text())["model_list"]}
+
+
+def test_todos_los_alias_cachean_el_system():
+    for alias, params in _params_por_alias().items():
+        assert {"location": "message", "role": "system"} in params.get("cache_control_injection_points", []), alias
+
+
+def test_filtros_va_por_haiku_sin_thinking():
+    params = _params_por_alias()["rx-filtros"]
+
+    assert params["model"] == "anthropic/claude-haiku-5-5"
+    assert params["thinking"] == {"type": "disabled"}
+
+
+def test_directo_a_claude_el_system_va_cacheable(monkeypatch):
+    enviados = []
+
+    class Mensajes:
+        def create(self, **kw):
+            enviados.append(kw)
+            return type("R", (), {"content": [type("B", (), {"type": "text", "text": "ok"})()], "stop_reason": "end_turn"})()
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(llm, "_anthropic", type("C", (), {"messages": Mensajes()})())
+
+    assert llm.complete(Tarea.FILTROS, "sistema fijo", "pedido", 10) == "ok"
+    assert enviados[0]["system"] == [{"type": "text", "text": "sistema fijo", "cache_control": {"type": "ephemeral"}}]
+    assert enviados[0]["messages"] == [{"role": "user", "content": "pedido"}]
