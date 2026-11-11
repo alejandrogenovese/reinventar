@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, guided_api, interview_api,
-               itinerary_api, knowledge_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
+               itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
 from .auth import auth, bearer, sandbox_for_token
 from .canonical_host import WwwRedirectMiddleware
 
@@ -63,6 +63,7 @@ app.include_router(knowledge_api.router)
 app.include_router(itinerary_api.router)
 app.include_router(interview_api.router)
 app.include_router(guided_api.router)
+app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(push_api.router)
 

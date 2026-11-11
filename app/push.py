@@ -126,7 +126,7 @@ def _notice(c: dict, now: dt.datetime) -> tuple[str, dict] | None:
     minutes = (_start(c) - now).total_seconds() / 60
     venue = c.get("venue") or {}
     where = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail"))))
-    url = f"/#/evento/{c['code']}" if c.get("kind") == "event" else f"/#/charla/{c['base']}"
+    url = {"event": f"/#/evento/{c['code']}", "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
     if START_NOTICE_MIN < minutes <= LEAVE_LEAD_MIN:
         return (f"leave:{c['code']}:{c['day']}",
                 {"title": f"Salí para {c['title']}", "body": f"Empieza a las {c['start']} · {where}", "url": url})
