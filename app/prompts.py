@@ -172,11 +172,13 @@ Devolvé SOLO un objeto JSON con esta forma:
 }"""
 
 
-def itinerary_user(profile: dict, prompt: str, candidates: list[dict], confirmed: list[dict]) -> str:
+def itinerary_user(profile: dict, prompt: str, candidates: list[dict], confirmed: list[dict], ficha: str | None = None) -> str:
     perfil = f"""Rol: {profile.get('role') or '(sin especificar)'}
 Experiencia: {profile.get('experience') or '(sin especificar)'}
 Intereses elegidos: {', '.join(profile.get('interests') or []) or '(ninguno)'}
 Lo que pide en sus palabras: {prompt or '(sin prompt adicional)'}"""
+    if ficha:  # completó la entrevista guiada: su ficha dice mucho más que rol + intereses
+        perfil += f"\nSu ficha (de la entrevista):\n{ficha}"
 
     confirmadas = "\n".join(
         f"- {c['base']} · {c['day']} {c['start']} · {(c.get('venue') or {}).get('hotel', '')} · {c['title']}"
@@ -211,10 +213,11 @@ Reglas:
 - Cuando sume, decí quién la da y de qué empresa (los clientes son lo más interesante; Amazon/AWS es el anfitrión).
 - Los resúmenes están en inglés: explicalos en castellano. Los nombres de servicios y productos quedan como están.
 - Si ninguna candidata responde bien la pregunta, decilo y sugerí cómo reformularla. No inventes charlas, horarios ni speakers.
+- Si te pasan quién pregunta (su ficha), priorizá las charlas que mejor le sirven a esa persona y decí en pocas palabras por qué.
 - Sin markdown: nada de negritas, títulos ni tablas."""
 
 
-def ask_user(question: str, candidates: list[dict]) -> str:
+def ask_user(question: str, candidates: list[dict], ficha: str | None = None) -> str:
     def speakers(s: dict) -> str:
         people = [f"{p['name']} ({', '.join(x for x in (p.get('title'), p.get('company')) if x)})" for p in s.get("people", [])[:4]]
         return "; ".join(people) or (s.get("speakers") or "sin speakers")
@@ -227,10 +230,11 @@ def ask_user(question: str, candidates: list[dict]) -> str:
         + (s.get("abstract") or "")[:400]
         for s in candidates
     )
+    quien = f"\n\nQuién pregunta (su ficha):\n{ficha}" if ficha else ""
     return f"""Pregunta: {question}
 
 Charlas candidatas:
-{lines}"""
+{lines}{quien}"""
 
 
 BRIEFING_SYSTEM = f"""Preparás a una persona para conversar en AWS re:Invent 2026 con un speaker o con gente de una empresa.

@@ -20,7 +20,13 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   avisa a esa hora ("Salí a las 09:26 para llegar a…").
 - **Pasar a mi calendario**: desde el itinerario, un `.ics` con todo (charlas, eventos y Mis eventos) para el calendario
   del teléfono, con alarma a la hora de la cola si no está reservada.
-- Al terminar un día en el armado guiado: resumen, lo que quedó afuera y eventos para la noche que no se pisan.
+- Al terminar un día en el armado guiado: resumen, lo que quedó afuera, **personas para conocer** (speakers de tus
+  charlas de ese día, primero los de clientes, con link a su ficha para charlar) y eventos para la noche que no se pisan.
+- **Importar reservas de AWS**: subí el calendario (.ics) que exportás desde tu agenda del portal de re:Invent y esas
+  charlas quedan en tu itinerario como "✓ Reservada" (sin cola). Si ya tenías la charla en otro horario, la pasa al
+  reservado.
+- La ficha de la entrevista también se usa en el **chat de búsqueda** (prioriza lo que te sirve), en la **ficha para
+  charlar con un speaker o empresa** y en el **armado rápido**.
 - **Mis eventos**: cargá los eventos que te dan los proveedores (Eventos › "＋ Mi evento"), con sede, lugar de Google
   o dirección. Quedan fijados en tu itinerario, ocupan su horario, aparecen en "Hoy" y avisan cuándo salir.
 - Resumen de las charlas en castellano: la ficha y las tarjetas lo muestran traducido y tienen un botón para ver el

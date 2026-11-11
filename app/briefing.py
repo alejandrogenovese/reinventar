@@ -109,7 +109,10 @@ def _recordings_text(talks: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _profile_text(profile: dict) -> str:
+def _profile_text(profile: dict, ficha: str | None = None) -> str:
+    """Quién pregunta: la ficha de la entrevista guiada si la completó (más rica), si no el perfil del armado rápido."""
+    if ficha:
+        return ficha
     return "\n".join([
         f"Rol: {profile.get('role') or '(sin especificar)'}",
         f"Experiencia: {profile.get('experience') or '(sin especificar)'}",
@@ -163,7 +166,8 @@ def get(username: str, kind: str, entity_id: int, refresh: bool = False) -> dict
     if entity is None:
         return None
     text, talks = entity
-    user = prompts.briefing_user(kind, text, _profile_text(db.get_profile(username) or {}), _recordings_text(talks))
+    profile = _profile_text(db.get_profile(username) or {}, db.get_interview(username)["ficha_texto"])
+    user = prompts.briefing_user(kind, text, profile, _recordings_text(talks))
     input_hash = hashlib.sha256(f"{config.BRIEFING_MODEL}\n{user}".encode()).hexdigest()
 
     cached = None if refresh else _load(username, kind, entity_id)
