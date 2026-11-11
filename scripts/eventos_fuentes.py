@@ -6,9 +6,10 @@ Otra fuente se suma con su par de funciones desde_json_<fuente> / completar_con_
 """
 import datetime as dt
 import json
-import math
 import re
 from dataclasses import dataclass, replace
+
+from app.travel import metros
 
 _NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
 
@@ -108,13 +109,6 @@ def completar_con_pagina_luma(ev: Evento, html: str) -> Evento:
         precio=precio,
         requiere_aprobacion=aprobacion,
     )
-
-
-def metros(a: tuple[float, float], b: tuple[float, float]) -> float:
-    """Distancia en línea recta (haversine) entre (lat, lng)."""
-    lat1, lng1, lat2, lng2 = map(math.radians, (*a, *b))
-    x = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
-    return 2 * 6371000 * math.asin(math.sqrt(x))
 
 
 def sede_mas_cercana(ev: Evento, sedes: list[tuple[int, float, float]]) -> tuple[int | None, int | None]:
