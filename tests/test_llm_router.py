@@ -118,3 +118,9 @@ def test_el_chequeo_avisa_si_el_gateway_no_responde(monkeypatch):
     monkeypatch.setattr(healthcheck.httpx, "get", caido)
     with pytest.raises(AssertionError, match="LiteLLM no responde"):
         healthcheck._llm()
+
+
+def test_el_gateway_no_corre_como_root():
+    usuarios = re.findall(r"^USER\s+(\S+)", (ROOT / "infra" / "litellm" / "Dockerfile").read_text(), re.MULTILINE)
+
+    assert usuarios and usuarios[-1] not in ("root", "0")
