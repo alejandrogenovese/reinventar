@@ -11,6 +11,7 @@ const OBJETIVO_POR_DIA = { "3-4": 4, "5-6": 6, todas: 12 }; // "Completá por m�
 const MAX_VUELTAS = 15;
 const NOCHE = "17:00";      // al cerrar el día: eventos de networking desde esta hora
 const MAX_NOCHE = 4;
+const MAX_PERSONAS = 5;     // "Personas para conocer" al cerrar el día
 const LLEGABLES = ["a_tiempo", "justo"];
 const ESTADOS = {
   a_tiempo: ["🟢", "a tiempo"], justo: ["🟡", "justo"], salir_antes: ["🟠", "salí antes"], se_superpone: ["🔴", "se superpone"],
@@ -53,6 +54,22 @@ function OptionCard(o, previa, { onChoose, onLater }) {
     h("div", { class: "actions" },
       Button("Elegir", { variant: o.estado === "se_superpone" ? "secondary" : "primary", onclick: (e) => { e.target.disabled = true; onChoose(o); } }),
       Button("☆ Para otro día", { variant: "ghost", onclick: () => onLater(o) })));
+}
+
+/** Speakers de las charlas del día, primero los de clientes (Amazon/AWS es el anfitrión), sin repetir. */
+function PeopleToMeet(items) {
+  const vistos = new Set();
+  const personas = items.filter((s) => s.kind === "talk").flatMap((s) => (s.people || []).map((p) => ({ ...p, charla: s })))
+    .filter((p) => p.id && !vistos.has(p.id) && vistos.add(p.id))
+    .sort((a, b) => Number(Boolean(a.is_amazon)) - Number(Boolean(b.is_amazon)))
+    .slice(0, MAX_PERSONAS);
+  if (!personas.length) return null;
+  return h("section", { class: "stack" },
+    h("h3", { class: "label" }, "Personas para conocer"),
+    h("p", { class: "caption" }, "Hablan en tus charlas de hoy. Tocá un nombre y armá la ficha para charlar con esa persona."),
+    h("ul", { class: "stack" }, personas.map((p) => h("li", {},
+      h("a", { class: "ra-link", href: `#/speaker/${p.id}` }, h("strong", {}, p.name)),
+      h("span", { class: "caption" }, ` · ${[p.title, p.company].filter(Boolean).join(", ")} · en «${p.charla.title}» (${p.charla.start})`)))));
 }
 
 /** Lo que ya elegiste ese día, con la marca de reservada (cambia la cola) y quitar. */
@@ -186,6 +203,7 @@ export async function viewArmar(view) {
         h("h2", { class: "subtitle" }, `Cierre del ${shortDay(state.day)}`),
         h("p", { class: "caption" }, `${items.filter((s) => s.kind === "talk").length} charlas y ${items.filter((s) => s.kind !== "talk").length} eventos.`),
         afuera.length ? h("p", { class: "notice" }, `Te quedó afuera (no se repite): ${afuera.map((p) => `«${p.title}»`).join(", ")}. Si te interesa más, cambiala por la que se superpone.`) : null,
+        PeopleToMeet(items),
         noche.length ? [h("h3", { class: "label" }, "¿Algo para la noche?"), noche.map((e) => EventCard(e, { onAdded: terminarDia }))] : null,
         h("div", { class: "actions" },
           Button(i < days.length - 1 ? `Seguir con el ${shortDay(days[i + 1])} →` : "Ver mi itinerario", { variant: "primary", onclick: seguirConElOtroDia }),

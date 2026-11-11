@@ -105,8 +105,8 @@ def get_current(username: str) -> dict:
     return result
 
 
-def _ask_llm(profile: dict, prompt: str, candidates: list[dict], confirmed_cards: list[dict]) -> dict:
-    user = prompts.itinerary_user(profile, prompt, candidates, confirmed_cards)
+def _ask_llm(profile: dict, prompt: str, candidates: list[dict], confirmed_cards: list[dict], ficha: str | None = None) -> dict:
+    user = prompts.itinerary_user(profile, prompt, candidates, confirmed_cards, ficha)
 
     raw = llm.complete(config.ITINERARY_MODEL, prompts.ITINERARY_SYSTEM, user, 4000)
     try:
@@ -147,11 +147,15 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
         taken.append((instance["d"], _minutes(instance["st"]), _duration(session.get("type")), instance["c"]))
         confirmed_cards.append(catalog.card(session, instance))
 
-    candidates = [c for c in search.prefilter(profile, prompt, config.ITINERARY_CANDIDATE_LIMIT) if c["base"] not in locked_bases]
+    # Si completó la entrevista guiada, su ficha suma a la búsqueda de candidatas y al pedido al LLM.
+    entrevista = db.get_interview(username)
+    consulta = (entrevista["ficha"] or {}).get("consulta_busqueda", "")
+    candidates = [c for c in search.prefilter(profile, " ".join(filter(None, (prompt, consulta))), config.ITINERARY_CANDIDATE_LIMIT)
+                  if c["base"] not in locked_bases]
     if not candidates:
         raise ValueError("No encontramos sesiones que calcen con tu perfil. Probá con un prompt más amplio.")
 
-    parsed = _ask_llm(profile, prompt, candidates, confirmed_cards)
+    parsed = _ask_llm(profile, prompt, candidates, confirmed_cards, entrevista["ficha_texto"])
 
     # Se resuelven en orden cronológico (no en el orden en que las devolvió el LLM): así el resultado
     # no depende de que el modelo haya listado primero las más relevantes aunque choquen entre sí.

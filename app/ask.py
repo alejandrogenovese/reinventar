@@ -22,10 +22,12 @@ def _cited(text: str) -> list[str]:
     return list(dict.fromkeys(real))
 
 
-def answer(question: str) -> dict:
+def answer(question: str, ficha: str | None = None) -> dict:
+    """ficha: la de la entrevista guiada de quien pregunta, para priorizar lo que le sirve (None si no la tiene)."""
     hits = search.hybrid(question, ASK_CANDIDATES)
     try:
-        text = llm.complete(config.ASK_MODEL, prompts.ASK_SYSTEM, prompts.ask_user(question, hits), ASK_MAX_TOKENS).strip()
+        text = llm.complete(config.ASK_MODEL, prompts.ASK_SYSTEM, prompts.ask_user(question, hits, ficha),
+                            ASK_MAX_TOKENS).strip()
     except Exception as e:
         log.exception("El chat de búsqueda no pudo consultar al LLM (%s)", config.ASK_MODEL)
         raise AskUnavailable from e

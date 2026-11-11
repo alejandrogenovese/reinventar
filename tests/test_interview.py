@@ -157,3 +157,40 @@ def test_voz_vacia_o_demasiado_grande(client, headers):
     assert client.post("/api/itinerary/interview/voz", headers=h, content=b"").status_code == 422
     grande = b"0" * (interview.MAX_VOZ_BYTES + 1)
     assert client.post("/api/itinerary/interview/voz", headers=h, content=grande).status_code == 413
+
+
+# ---------- la ficha en el resto de la app ----------
+
+FICHA_TEXTO = "Líder de arquitectura de datos en banca.\nPrioridades:\n  ●●● Grafos (Amazon Neptune)"
+
+
+def test_el_chat_le_pasa_la_ficha_al_llm(monkeypatch):
+    from app import ask, llm, search
+    pedidos = []
+    monkeypatch.setattr(search, "hybrid", lambda q, n: [])
+    monkeypatch.setattr(llm, "complete", lambda model, system, user, max_tokens: pedidos.append(user) or "Nada (fake).")
+
+    ask.answer("¿qué hay de grafos?", FICHA_TEXTO)
+    ask.answer("¿qué hay de grafos?")
+
+    assert "Quién pregunta (su ficha):" in pedidos[0] and "Amazon Neptune" in pedidos[0]
+    assert "Quién pregunta" not in pedidos[1]
+
+
+def test_el_briefing_usa_la_ficha_si_existe():
+    from app import briefing
+    perfil = {"role": "Arquitecto", "experience": "Senior", "interests": ["Analytics"], "prompt": ""}
+
+    assert briefing._profile_text(perfil, FICHA_TEXTO) == FICHA_TEXTO
+    assert briefing._profile_text(perfil).startswith("Rol: Arquitecto")
+
+
+def test_el_armado_rapido_suma_la_ficha_al_pedido():
+    from app import prompts
+    perfil = {"role": "Arquitecto", "experience": "Senior", "interests": []}
+
+    con = prompts.itinerary_user(perfil, "", [], [], FICHA_TEXTO)
+    sin = prompts.itinerary_user(perfil, "", [], [])
+
+    assert "Su ficha (de la entrevista):" in con and "Amazon Neptune" in con
+    assert "Su ficha" not in sin

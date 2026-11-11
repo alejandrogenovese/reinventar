@@ -1,10 +1,10 @@
 """Endpoints del armado guiado: qué sigue, pendientes ("☆ para otro día"), salir antes y reservada."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import db, guided, itinerary
+from . import db, guided, itinerary, reservas_aws
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -75,3 +75,15 @@ def booked(code: str, body: Booked, username: str = Depends(auth)):
     if not db.set_item_booked(username, code, body.reservada):
         raise HTTPException(404, "No está en tu itinerario")
     return itinerary.get_current(username)
+
+
+@router.post("/api/itinerary/import-ics")
+async def import_reservations(request: Request, username: str = Depends(auth)):
+    """El .ics que exporta el portal de AWS → esas charlas al itinerario, fijadas y marcadas como reservadas."""
+    data = await request.body()
+    if len(data) > reservas_aws.MAX_BYTES:
+        raise HTTPException(413, "El archivo es demasiado grande")
+    try:
+        return reservas_aws.importar(username, data.decode("utf-8", errors="replace"))
+    except reservas_aws.CalendarioInvalido as e:
+        raise HTTPException(422, str(e)) from e

@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import ask, briefing, explore, knowledge, nl_filters, talks
+from . import ask, briefing, db, explore, knowledge, nl_filters, talks
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -77,9 +77,9 @@ class AskQuery(BaseModel):
 
 
 @router.post("/ask")
-def ask_catalog(body: AskQuery):
+def ask_catalog(body: AskQuery, username: str = Depends(auth)):
     try:
-        return ask.answer(body.q.strip())
+        return ask.answer(body.q.strip(), db.get_interview(username)["ficha_texto"])
     except ask.AskUnavailable:
         raise HTTPException(502, "No pude responder ahora. Probá de nuevo en un rato o usá Explorar.") from None
 

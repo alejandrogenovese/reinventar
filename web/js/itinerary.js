@@ -169,6 +169,27 @@ async function exportCalendar() {
   toast("Listo: abrí el archivo para sumarlo a tu calendario.");
 }
 
+/** Importa las reservas del portal de AWS (.ics): quedan en el itinerario fijadas y "✓ Reservada" (sin cola). */
+function importReservations(onDone) {
+  const input = h("input", { type: "file", accept: ".ics,text/calendar", hidden: true });
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file) return;
+    try {
+      const r = await Itinerary.importReservations(file);
+      const partes = [`${r.importadas.length} reservas importadas`,
+        r.cambiadas.length ? `${r.cambiadas.length} cambiadas al horario reservado` : null,
+        r.ya_estaban.length ? `${r.ya_estaban.length} ya estaban` : null,
+        r.sin_encontrar.length ? `${r.sin_encontrar.length} no son charlas del catálogo` : null];
+      toast(partes.filter(Boolean).join(" · ") + ".");
+      await onDone();
+    } catch (err) { toast(err.message); }
+  });
+  document.body.append(input);
+  input.click();
+}
+
 /** Una charla o evento del itinerario con Fijar y Quitar (con deshacer). onChanged vuelve a pintar la vista. */
 function ItineraryItem(s, onChanged) {
   const refresh = () => refreshCountdown({ force: true });
@@ -216,6 +237,7 @@ export async function viewItinerario(view) {
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),
         Button("＋ Mi evento", { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
         Button("📅 Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
+        Button("📥 Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,
