@@ -160,3 +160,7 @@ def test_autocompletar_sin_key_avisa(client, headers, monkeypatch):
     monkeypatch.setattr(places, "autocomplete", sin_key)
 
     assert client.get("/api/places/autocomplete", headers=headers, params={"q": "topgolf"}).status_code == 503
+
+
+def test_lista_las_sedes_con_coordenadas_para_el_formulario(client, headers):
+    assert client.get("/api/my-events/sedes", headers=headers).json()["sedes"] == [{"id": 5, "nombre": "MGM Grand"}]

@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from . import my_events, places
+from . import my_events, places, venues
 from .auth import auth
 from .my_events import MiEvento
 
@@ -27,6 +27,12 @@ def _guardar(accion, *args) -> dict:
 @router.get("/api/my-events")
 def list_my_events(username: str = Depends(auth)):
     return {"eventos": my_events.listar(username)}
+
+
+@router.get("/api/my-events/sedes")
+def venues_for_form():
+    """Sedes de re:Invent con coordenadas, para elegir dónde es un evento propio."""
+    return {"sedes": [{"id": v["id"], "nombre": v["name"]} for v in venues.all_venues() if v["lat"] is not None]}
 
 
 @router.post("/api/my-events")

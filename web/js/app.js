@@ -17,6 +17,9 @@ import { viewSearch } from "./search.js";
 import { TalkPicker } from "./talkpicker.js";
 import { TodayPanel } from "./today.js";
 import * as it from "./itinerary.js";
+import { viewArmar } from "./dayBuilder.js";
+import { viewEntrevista, viewFicha } from "./interview.js";
+import { viewMiEvento } from "./myEvents.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast, toastOnError } from "./ui.js";
@@ -64,6 +67,12 @@ const routes = [
   [/^#\/perdida\/([^/?#]+)$/, (code) => viewPerdida(view, code)],
   [/^#\/evento\/([^/?#]+)$/, (code) => viewEvento(view, code)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],
+  [/^#\/itinerario\/nuevo$/, () => it.viewNuevoItinerario(view)],
+  [/^#\/itinerario\/entrevista$/, () => viewEntrevista(view)],
+  [/^#\/itinerario\/ficha$/, () => viewFicha(view)],
+  [/^#\/itinerario\/armar$/, () => viewArmar(view)],
+  [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
+  [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
   // Rutas viejas: Explorar y Preguntar ahora son los dos modos de Buscar.
   [/^#\/itinerario\/explorar$/, () => location.replace("#/buscar")],
