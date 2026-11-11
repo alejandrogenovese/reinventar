@@ -10,7 +10,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   caching) la lista de facetas, que es la mayor parte del pedido. Los filtros se siguen validando contra los valores
   reales del catálogo.
 - **Transcripción de charlas más precisa** (cuando el STT pasa por el gateway): usa Whisper large-v3 completo en vez del
-  turbo, que se equivoca menos con acentos y ruido de sala. Las respuestas por voz de la entrevista siguen con el turbo.
+  turbo, que se equivoca menos con acentos y ruido de sala.
+- **Menos errores con nombres técnicos al transcribir**: el STT recibe un vocabulario de AWS y datos (lakehouse,
+  Neptune, Trainium, Redshift…), en las charlas y en las respuestas por voz de la entrevista, que además pasan a
+  Whisper large-v3 completo.
 
 ## [0.20.0] - 2026-11-10
 

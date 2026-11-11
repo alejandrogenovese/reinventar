@@ -12,16 +12,33 @@ import httpx
 from . import config, llm_router, sandbox
 from .llm_router import UsoSTT
 
+# Vocabulario que se le pasa a Whisper como "prompt": sin contexto confunde nombres propios ("lighthouse" por lakehouse,
+# "Neptium" por Neptune, "Tranium" por Trainium). Va escrito como el texto esperado, en el idioma de cada uso.
+LARGO_MAXIMO_VOCABULARIO = 600  # Whisper solo mira los últimos ~224 tokens del prompt
+VOCABULARIO: dict[UsoSTT, str] = {
+    UsoSTT.CHARLAS: (
+        "AWS re:Invent session about Amazon Bedrock, AgentCore, SageMaker, Amazon Q, Kiro, Trainium, Inferentia, "
+        "Graviton, Nova, S3, S3 Tables, Apache Iceberg, lakehouse, Redshift, Aurora, DynamoDB, Neptune, OpenSearch, "
+        "Glue, Athena, EMR, Lake Formation, DataZone, Kinesis, MSK, Lambda, EKS, Fargate, IAM and agentic AI."
+    ),
+    UsoSTT.VOZ: (
+        "Respuestas sobre arquitectura de datos en AWS: migración de Teradata a la nube, Redshift, un lakehouse con "
+        "Apache Iceberg y S3, Glue, Athena, EMR, Lake Formation, DataZone, Neptune para grafos, SageMaker, Bedrock, "
+        "agentes de IA, gobierno de datos y disponibilizar los datos para los analistas de negocio."
+    ),
+}
+
 
 def transcribe(path: Path, offset: float, language: str | None = None, uso: UsoSTT = UsoSTT.CHARLAS) -> list[dict]:
     """language: código ISO (por defecto STT_LANGUAGE, el de las charlas; la entrevista pasa "es")."""
     provider = sandbox.proveedor_stt()
     language = language or config.STT_LANGUAGE
     if provider == "openai":
-        segs = _openai_compatible(path, language, config.STT_BASE_URL, config.STT_API_KEY, config.STT_MODEL)
+        segs = _openai_compatible(path, language, config.STT_BASE_URL, config.STT_API_KEY, config.STT_MODEL,
+                                  {"prompt": VOCABULARIO[uso]})
     elif provider == "litellm":
         segs = _openai_compatible(path, language, config.LLM_BASE_URL, config.LLM_API_KEY,
-                                  llm_router.modelo_stt(uso, provider), _metadata(uso))
+                                  llm_router.modelo_stt(uso, provider), {"prompt": VOCABULARIO[uso], **_metadata(uso)})
     elif provider == "local":
         segs = _faster_whisper(path, language)
     elif provider == "fake":
