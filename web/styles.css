@@ -90,11 +90,21 @@
 /* --- chips y etiquetas (R3 separa Tag pasivo de FilterChip) -------------- */
 .ra-chip { font: var(--t-micro); background: var(--surface-3); color: var(--ink); border-radius: var(--radius-s); padding: 3px 8px; white-space: nowrap; }
 button.ra-chip {
-  cursor: pointer; border: 1px solid var(--line-strong); background: var(--surface-1); min-height: 32px; padding: 0 10px;
-  font: 500 13px/18px var(--font-ui); transition: background var(--ease-chip), border-color var(--ease-chip), box-shadow var(--ease-chip);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface-2);
+  min-height: 34px; padding: 0 14px; border-radius: var(--radius-pill); font: 500 13px/18px var(--font-ui);
+  transition: background var(--ease-chip), border-color var(--ease-chip), box-shadow var(--ease-chip), color var(--ease-chip);
 }
-button.ra-chip:hover { box-shadow: var(--shadow-1); }
+button.ra-chip:hover { border-color: var(--line-strong); background: var(--surface-3); }
+button.ra-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ra-chip-on { border-color: var(--brand) !important; background: var(--brand-soft) !important; color: var(--ink) !important; font-weight: 600 !important; }
+/* Tilde al elegir: el estado no depende solo del color */
+button.ra-chip.ra-chip-on::before, .chipgroup input:checked + label::before {
+  content: ""; width: 14px; height: 14px; flex: none; background: var(--brand-ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: ra-check-in 160ms ease-out;
+}
+@keyframes ra-check-in { from { transform: scale(.4); opacity: 0; } }
 .ra-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* Tag: dato, no se toca (sin borde ni sombra); el chip-botón tiene borde y estado */
 /* Aviso de perfil sin confirmar (web/js/knowledge.js): --warning como fondo, texto oscuro en los dos temas. */
@@ -265,12 +275,13 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .chipgroup { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chipgroup input { position: absolute; opacity: 0; pointer-events: none; }
 .chipgroup label {
-  display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: var(--radius-s); border: 1px solid var(--line-strong);
-  background: var(--surface-1); cursor: pointer; font: 500 14px/18px var(--font-ui); color: var(--ink); transition: background var(--ease-chip), border-color var(--ease-chip);
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; font: 500 14px/18px var(--font-ui); color: var(--ink);
+  transition: background var(--ease-chip), border-color var(--ease-chip), color var(--ease-chip); user-select: none;
 }
-.chipgroup label:hover { background: var(--surface-3); }
+.chipgroup label:hover { border-color: var(--line-strong); background: var(--surface-3); }
+.chipgroup label:active { transform: scale(.97); }
 .chipgroup input:checked + label { background: var(--brand-soft); border-color: var(--brand); font-weight: 600; }
-.chipgroup input:checked + label::before { content: "✓"; margin-right: 6px; color: var(--brand-ink); }
 .chipgroup input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .ra-minicard {
@@ -488,3 +499,45 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
   border-radius: var(--radius-s); background: var(--surface-1); color: var(--ink); cursor: pointer; }
 .ra-suggestion:hover { background: var(--surface-3); }
 .ra-followup { font: var(--t-body-strong); color: var(--ink); margin: 0; }
+
+/* --- voz de la entrevista (web/js/interview.js): botón compacto y barra de grabación ------------- */
+.ra-voice { display: flex; }
+.ra-voice-start {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 18px 0 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface-2); color: var(--ink);
+  font: var(--t-small-strong); transition: background var(--ease), border-color var(--ease);
+}
+.ra-voice-start .ra-icon { color: var(--rec); }
+.ra-voice-start:hover { background: var(--surface-3); border-color: var(--line-strong); }
+.ra-voice-start:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-voicebar {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 52px; padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-pill); background: var(--surface-1); box-shadow: var(--edge); animation: ra-pop var(--ease);
+}
+.ra-voicebar.is-recording { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rec) 60%, transparent), 0 0 0 4px color-mix(in srgb, var(--rec) 14%, transparent); }
+.ra-voice-dot { width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--rec); flex: none; animation: ra-blink 1.2s ease-in-out infinite; }
+.ra-voice-word { font: var(--t-small-strong); color: var(--rec); }
+.ra-voicebar.is-busy .ra-voice-word { color: var(--ink-muted); }
+.ra-voice-time { font: var(--t-data); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ra-voice-level { display: flex; align-items: center; gap: 3px; height: 22px; margin-left: auto; }
+.ra-voice-level span { width: 3px; height: 100%; border-radius: 2px; background: var(--rec); transform: scaleY(.18); transition: transform 80ms linear; }
+.ra-voice-cancel {
+  border: 0; background: none; color: var(--ink-muted); font: var(--t-small); cursor: pointer; padding: 8px; border-radius: var(--radius-s);
+}
+.ra-voice-cancel:hover { color: var(--ink); }
+.ra-voice-stop {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center; cursor: pointer; border: 0; border-radius: var(--radius-pill);
+  background: var(--rec); box-shadow: var(--shadow-1); transition: transform var(--ease);
+}
+.ra-voice-stop:active { transform: scale(.94); }
+.ra-voice-stop:focus-visible, .ra-voice-cancel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-voice-stop-glyph { width: 14px; height: 14px; border-radius: 3px; background: var(--on-rec); }
+.ra-voice-spinner {
+  width: 16px; height: 16px; flex: none; border-radius: var(--radius-pill); border: 2px solid var(--line-strong); border-top-color: var(--brand);
+  animation: ra-spin .8s linear infinite;
+}
+@keyframes ra-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ra-voice-dot, .ra-voice-spinner { animation: none; }
+  .ra-voice-level span { transition: none; }
+}
