@@ -67,7 +67,8 @@ BRIEFING_MODEL = _env("BRIEFING_MODEL", "claude-sonnet-5-5")  # ficha para conve
 
 # Búsqueda por significado (embeddings). local = modelo multilingüe dentro del contenedor; off = solo por palabras.
 EMBED_PROVIDER = _env("EMBED_PROVIDER", "local")
-EMBED_MODEL = _env("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+# embeddinggemma-300m: el mejor en scripts/evaluar_busqueda.py (recall@10 0,84 contra 0,74 de MiniLM) y lee 2048 tokens.
+EMBED_MODEL = _env("EMBED_MODEL", "google/embeddinggemma-300m")
 EMBED_CACHE_DIR = DATA_DIR / "models"  # en el volumen: el modelo se baja una sola vez
 EMBED_BATCH = int(_env("EMBED_BATCH", "32"))
 

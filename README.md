@@ -125,7 +125,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `BRIEFING_MODEL` | `claude-sonnet-5-5` | modelo de la ficha para conversar |
 | `ASK_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar el chat de búsqueda |
 | `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
-| `EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | otro modelo de fastembed (se recalculan todos los vectores) |
+| `EMBED_MODEL` | `google/embeddinggemma-300m` | otro modelo de fastembed (se recalculan todos los vectores; los prefijos de consulta y documento van en `PREFIJOS` de `app/embeddings.py`). Volver a `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` es instantáneo: sus vectores quedan guardados |
 
 ### Gateway de LLM (LiteLLM + Langfuse)
 
