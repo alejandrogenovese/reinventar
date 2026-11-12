@@ -4,13 +4,17 @@ Las tablas de datos del usuario (DATOS_USUARIO) existen también en el schema de
 (CUENTAS) solo en el real, así que un usuario en modo prueba se loguea igual pero escribe en el schema de prueba.
 """
 import json
+import logging
 import time
 import uuid
 from contextlib import contextmanager
 
+import psycopg
 from psycopg.types.json import Jsonb
 
 from . import config, legacy_import, passwords, pg, sandbox, sectors
+
+log = logging.getLogger("reinventar.db")
 
 DATOS_USUARIO = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -110,6 +114,24 @@ CREATE TABLE IF NOT EXISTS push_sent (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent")
 
+# Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
+# base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
+FRAGMENTOS = """
+CREATE TABLE IF NOT EXISTS fragmentos (
+  session_id TEXT NOT NULL,
+  idx INTEGER NOT NULL,
+  start_s DOUBLE PRECISION NOT NULL,
+  end_s DOUBLE PRECISION NOT NULL,
+  es TEXT,
+  en TEXT NOT NULL,
+  modelo TEXT,                         -- modelo de embeddings del vector (NULL si los embeddings están apagados)
+  vector vector,                       -- sin dimensión fija: depende del modelo
+  tsv tsvector NOT NULL,               -- para la parte por palabras (texto ya sin tildes, configuración simple)
+  PRIMARY KEY (session_id, idx)
+);
+"""
+vector_disponible = False
+
 CUENTAS = """
 CREATE TABLE IF NOT EXISTS users (
   username TEXT PRIMARY KEY,
@@ -172,6 +194,7 @@ def init():
         with conn() as c:
             c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
             c.execute(SCHEMA)
+            _crear_fragmentos(c)
             sectors.ensure(c)
             _crear_schema_prueba(c)
         with conn() as c:
@@ -182,15 +205,35 @@ def init():
 def _crear_schema_prueba(c) -> None:
     """Solo las tablas de datos del usuario: lo demás (cuentas, cachés compartidos) se lee del schema real."""
     c.execute(f"CREATE SCHEMA IF NOT EXISTS {sandbox.schema_prueba()}")
-    c.execute(f"SET LOCAL search_path TO {sandbox.schema_prueba()}")
+    c.execute(f"SET LOCAL search_path TO {sandbox.schema_prueba()}, public")  # public: el tipo vector de pgvector
     c.execute(DATOS_USUARIO)
+    if vector_disponible:
+        c.execute(FRAGMENTOS)
+
+
+def _crear_fragmentos(c) -> None:
+    """Habilita pgvector (en public, así lo ven el schema real y el de prueba) y crea la tabla de fragmentos.
+    Si falta la extensión o el permiso para crearla, deja la búsqueda en lo grabado apagada sin tumbar el arranque."""
+    global vector_disponible
+    try:
+        with c.transaction():  # savepoint: si falla, la transacción del init sigue viva
+            c.execute("CREATE EXTENSION IF NOT EXISTS vector SCHEMA public")
+            c.execute(FRAGMENTOS)
+        vector_disponible = True
+    except psycopg.Error as e:
+        vector_disponible = False
+        log.warning("Sin pgvector (%s): la búsqueda en lo grabado queda apagada", e)
+
+
+def tablas_datos_usuario() -> tuple[str, ...]:
+    return TABLAS_DATOS_USUARIO + (("fragmentos",) if vector_disponible else ())
 
 
 def borrar_datos_prueba() -> int:
     """Vacía las tablas del schema de prueba (de todos los usuarios en modo prueba). Devuelve las filas borradas."""
     total = 0
     with sandbox.real(), conn() as c:
-        for tabla in TABLAS_DATOS_USUARIO:
+        for tabla in tablas_datos_usuario():
             total += c.execute(f"DELETE FROM {sandbox.schema_prueba()}.{tabla}").rowcount
     return total
 
@@ -247,6 +290,8 @@ def update_session(sid, **fields):
 
 def delete_session(sid):
     with conn() as c:
+        if vector_disponible:
+            c.execute("DELETE FROM fragmentos WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM chunks WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM sessions WHERE id=%s", (sid,))
@@ -274,6 +319,8 @@ def chunk_index(sid):
 def replace_blocks(sid, blocks):
     with conn() as c:
         c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
+        if vector_disponible:  # los fragmentos se arman de los bloques: si cambian, se vuelven a indexar
+            c.execute("DELETE FROM fragmentos WHERE session_id=%s", (sid,))
         c.cursor().executemany(
             "INSERT INTO blocks (session_id,idx,start_s,end_s,en,es) VALUES (%s,%s,%s,%s,%s,%s)",
             [(sid, i, b["start"], b["end"], b["en"], b.get("es")) for i, b in enumerate(blocks)],

@@ -33,6 +33,7 @@ export const Sessions = {
   retry: (id, fromScratch = false) => api(`/api/sessions/${id}/retry?from_scratch=${fromScratch}`, { method: "POST" }),
   remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
+  search: (q, signal) => api(`/api/grabaciones/buscar?q=${encodeURIComponent(q)}`, { signal }),
 };
 
 export const Catalog = {

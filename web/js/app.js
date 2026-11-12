@@ -10,6 +10,7 @@ import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import { refreshChanges } from "./changes.js";
 import { refreshCountdown } from "./countdown.js";
+import { RecordingSearch, scrollToMoment } from "./grabado.js";
 import { alertSettings, locationEnabled, saveAlertSettings, setLocationEnabled } from "./location.js";
 import { PushSettings } from "./notifications.js";
 import { refreshSandbox } from "./sandbox.js";
@@ -62,6 +63,7 @@ const routes = [
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/s\/([\w-]+)$/, viewDetail],
+  [/^#\/s\/([\w-]+)\/t\/(\d+)$/, viewDetail],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/eventos$/, () => viewEventos(view)],
   [/^#\/perdida\/([^/?#]+)$/, (code) => viewPerdida(view, code)],
@@ -167,6 +169,7 @@ async function viewList() {
   // Los dos bloques que llegan de la API reservan su lugar con un skeleton: así no empujan la pantalla (CLS).
   const list = h("div", { class: "stack" }, h("div", { class: "ra-skel ra-skel-card" }));
   const banner = h("div");
+  const searchSlot = h("div");
   const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
   const newBtn = Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") });
   view.append(h("div", { class: "stack-lg" },
@@ -174,16 +177,19 @@ async function viewList() {
     todaySlot,
     h("div", { class: "actions" }, newBtn),
     InstallPrompt({ dismissible: true }), PasskeyOffer(), banner,
-    h("h2", { class: "label" }, "Tus grabaciones"), list));
+    h("h2", { class: "label" }, "Tus grabaciones"), searchSlot, list));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
   const onUp = (e) => showPending(e.detail);
   uploader.addEventListener("change", onUp);
-  cleanup = () => uploader.removeEventListener("change", onUp);
+  let search = null;
+  cleanup = () => { uploader.removeEventListener("change", onUp); search?.dispose(); };
   toastOnError(uploader.refresh()); uploader.kick();
 
   const sessions = await Sessions.list();
+  // Buscar en lo grabado: solo tiene sentido cuando hay alguna grabación procesada.
+  if (sessions.some((s) => s.status === "ready")) searchSlot.replaceChildren(search = RecordingSearch());
   TodayPanel(sessions)
     .then(({ el, hasTalk }) => {
       todaySlot.replaceChildren(el);
@@ -371,8 +377,10 @@ async function viewRecord(id) {
 }
 
 // --- detalle -----------------------------------------------------------------
-async function viewDetail(id) {
-  let tab = "resumen";
+async function viewDetail(id, at) {
+  // #/s/<id>/t/<segundo> (desde Buscar en lo grabado): abre la transcripción en ese momento.
+  let tab = at != null ? "transcripcion" : "resumen";
+  let jumpTo = at != null ? Number(at) : null;
   let timer;
   const head = h("div");
   const body = h("div", { class: "stack" });
@@ -408,6 +416,11 @@ async function viewDetail(id) {
       content = s.blocks?.length ? h("div", {}, s.blocks.map(TranscriptBlock)) : h("div", { class: "empty" }, "Sin transcripción todavía.");
     }
     body.replaceChildren(tabs, content);
+    if (jumpTo != null && tab === "transcripcion" && s.blocks?.length) {
+      const seconds = jumpTo;
+      jumpTo = null; // una sola vez: las recargas mientras procesa no vuelven a mover la vista
+      setTimeout(() => scrollToMoment(content, seconds)); // después del scrollTo(0, 0) del router
+    }
 
     clearTimeout(timer);
     if (PROCESSING.includes(s.status)) timer = setTimeout(() => load().catch(renderError), 4000);

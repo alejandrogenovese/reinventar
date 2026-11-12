@@ -59,6 +59,8 @@ def test_flujo_completo():
         assert 17 <= s["duration_s"] <= 19
         assert s["blocks"] and all(b["es"] for b in s["blocks"])
         assert s["summary"]["tldr"]
+        encontrados = c.get("/api/grabaciones/buscar", headers=H, params={"q": s["blocks"][0]["en"]}).json()
+        assert any(r["session_id"] == sid for r in encontrados["resultados"])  # el pipeline la indexó
 
         md = c.get(f"/api/sessions/{sid}/export.md", headers=H).text
         assert "# Lakehouse con Iceberg" in md and "## Para llevar a Galicia" in md

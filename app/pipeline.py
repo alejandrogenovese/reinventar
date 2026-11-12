@@ -9,7 +9,7 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, llm, llm_router, prompts, sandbox, stt, talks
+from . import audio, config, db, fragmentos, llm, llm_router, prompts, sandbox, stt, talks
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.pipeline")
@@ -131,6 +131,8 @@ def process(sid: str):
     transcript = "\n".join(f"[{hms(b['start_s'])}] {b['en']}" for b in db.get_blocks(sid))
     raw = llm.complete(Tarea.RESUMEN, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), SUMMARY_MAX_TOKENS)
     summary = llm.parse_json(raw)
+    # 5. Fragmentos para buscar en lo grabado, antes de marcarla lista (si falla, la grabación igual queda lista).
+    fragmentos.indexar_sin_fallar(sid)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
 
 
