@@ -9,6 +9,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Buscar en lo que grabaste**: en Inicio, arriba de tus grabaciones, un buscador que encuentra el momento de cada
   charla donde se habló de algo ("¿qué dijeron de Neptune?", "migrar Teradata"), por significado y por palabras, en
   castellano o en inglés. Cada resultado abre la transcripción en ese minuto. Las grabaciones viejas se indexan solas.
+- **El chat de Buscar también responde con lo que grabaste**: además de las charlas del catálogo, usa lo que realmente
+  se dijo en tus grabaciones y lo cita con un link al minuto (▶ 01:30). Debajo de la respuesta aparecen esos momentos.
 - **Set para medir la búsqueda del catálogo** (`python -m scripts.evaluar_busqueda`): 30 preguntas con sus charlas
   relevantes, para comparar cambios en la búsqueda con números (acierto, recall y MRR en los primeros 10).
 

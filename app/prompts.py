@@ -204,12 +204,17 @@ Candidatas disponibles (elegí de esta lista únicamente):
 {candidatas}"""
 
 
+MOMENTO_MAX_CHARS = 600  # ~40 s de charla traducida
+
 ASK_SYSTEM = f"""Sos el asistente de AWS re:Invent 2026 dentro de una app para preparar la agenda y las conversaciones del evento.
-Respondés la pregunta de la persona usando ÚNICAMENTE las charlas candidatas que te pasan (salieron de una búsqueda sobre el catálogo).
+Respondés la pregunta de la persona usando ÚNICAMENTE lo que te pasan: charlas candidatas (salieron de una búsqueda sobre el catálogo)
+y, a veces, momentos de charlas que la persona grabó (lo que realmente se dijo, transcripto y traducido).
 
 Reglas:
 - Escribís en {config.TARGET_LANGUAGE}, breve y concreto: 2 a 6 oraciones, o una lista con "- " al principio de cada línea.
 - Citá cada charla que menciones con su código exacto entre corchetes, por ejemplo [ARC407]. Nunca inventes códigos.
+- Si un momento grabado responde la pregunta, usalo primero (es lo que se dijo de verdad) y citalo con su referencia,
+  por ejemplo [G1]. Ignorá los momentos que no tengan que ver: no los nombres. Nunca inventes referencias.
 - Cuando sume, decí quién la da y de qué empresa (los clientes son lo más interesante; Amazon/AWS es el anfitrión).
 - Los resúmenes están en inglés: explicalos en castellano. Los nombres de servicios y productos quedan como están.
 - Si ninguna candidata responde bien la pregunta, decilo y sugerí cómo reformularla. No inventes charlas, horarios ni speakers.
@@ -217,7 +222,13 @@ Reglas:
 - Sin markdown: nada de negritas, títulos ni tablas."""
 
 
-def ask_user(question: str, candidates: list[dict], ficha: str | None = None) -> str:
+def _momento(n: int, m: dict) -> str:
+    charla = f"{m['title']} ({m['code']})" if m.get("code") else m["title"]
+    texto = (m.get("es") or m["en"])[:MOMENTO_MAX_CHARS]
+    return f"[G{n}] {charla}, minuto {int(m['start_s'] // 60)}: {texto}"
+
+
+def ask_user(question: str, candidates: list[dict], ficha: str | None = None, momentos: list[dict] | None = None) -> str:
     def speakers(s: dict) -> str:
         people = [f"{p['name']} ({', '.join(x for x in (p.get('title'), p.get('company')) if x)})" for p in s.get("people", [])[:4]]
         return "; ".join(people) or (s.get("speakers") or "sin speakers")
@@ -231,10 +242,12 @@ def ask_user(question: str, candidates: list[dict], ficha: str | None = None) ->
         for s in candidates
     )
     quien = f"\n\nQuién pregunta (su ficha):\n{ficha}" if ficha else ""
+    grabado = "\n".join(_momento(n, m) for n, m in enumerate(momentos or [], 1))
+    grabado = f"\n\nMomentos de charlas que grabó:\n{grabado}" if grabado else ""
     return f"""Pregunta: {question}
 
 Charlas candidatas:
-{lines}{quien}"""
+{lines}{grabado}{quien}"""
 
 
 BRIEFING_SYSTEM = f"""Preparás a una persona para conversar en AWS re:Invent 2026 con un speaker o con gente de una empresa.
