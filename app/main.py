@@ -4,13 +4,13 @@ import shutil
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, guided_api, interview_api,
+from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, fragmentos, guided_api, interview_api,
                itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
 from .auth import auth, bearer, context_for_token
 from .llm_router import como_usuario
@@ -31,6 +31,7 @@ async def lifespan(_app):
     except catalog.CatalogUnavailable as e:
         # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
         logging.warning("No se pudo cargar el catálogo de re:Invent (%s): /api/catalog y /api/itinerary van a fallar", e)
+    fragmentos.indexar_pendientes_async()  # grabaciones viejas o sin indexar: en segundo plano
     pipeline.start_worker()
     push.start_worker()
     yield
@@ -111,6 +112,12 @@ def create_session(body: NewSession):
 @app.get("/api/sessions", dependencies=[Depends(auth)])
 def list_sessions():
     return db.list_sessions()
+
+
+@app.get("/api/grabaciones/buscar", dependencies=[Depends(auth)])
+def buscar_en_grabaciones(q: str = Query(min_length=2, max_length=fragmentos.LARGO_MAXIMO_CONSULTA)):
+    """Fragmentos de lo grabado que responden a la consulta, con el segundo donde arrancan."""
+    return {"disponible": db.vector_disponible, "resultados": fragmentos.buscar(q)}
 
 
 @app.get("/api/sessions/{sid}", dependencies=[Depends(auth)])

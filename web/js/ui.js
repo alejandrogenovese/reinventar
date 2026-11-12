@@ -67,7 +67,7 @@ export function SessionCard(s, onClick) {
 }
 
 export const TranscriptBlock = (b) =>
-  h("div", { class: "ra-tb" },
+  h("div", { class: "ra-tb", "data-start": String(b.start_s) },
     h("span", { class: "ra-tc" }, hms(b.start_s)),
     h("div", { class: "ra-tb-body" },
       b.es ? h("p", { class: "ra-tb-es", lang: "es" }, h("span", { class: "ra-tb-lang" }, "ES"), b.es) : null,
