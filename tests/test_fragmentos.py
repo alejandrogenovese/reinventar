@@ -144,3 +144,11 @@ def test_por_significado_descarta_lo_que_no_se_parece(cliente, monkeypatch):
 
     assert not [r for r in fragmentos.buscar("receta de empanadas tucumanas") if r["session_id"] == sid]
     assert [r for r in fragmentos.buscar("escalado serverless de aurora") if r["session_id"] == sid]
+
+
+def test_en_lo_grabado_el_plural_encuentra_el_singular(cliente, monkeypatch):
+    sid = _grabacion("Mainframe", [("We moved the mainframe to AWS.", "Movimos el mainframe a AWS.")])
+    fragmentos.indexar(sid)
+    monkeypatch.setattr(fragmentos, "_por_significado", lambda c, q: [])  # solo la parte por palabras
+
+    assert [r for r in fragmentos.buscar("migrar mainframes") if r["session_id"] == sid]

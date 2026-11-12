@@ -23,6 +23,10 @@ from . import catalog, embeddings, pg, sandbox
 log = logging.getLogger("reinventar.search")
 
 RRF_K = 60
+# Peso de la parte por palabras en la fusión. Bajarlo a 0,5 sube un poco el recall de las preguntas por tema, pero
+# rompe la búsqueda por nombre (un speaker que el modelo no conoce queda debajo de 60 resultados por significado):
+# su charla salía entre las 5 primeras en 1 de 40 nombres, contra 36 de 40 a la par. Se queda en 1,0.
+LEXICAL_WEIGHT = 1.0
 SEMANTIC_TOP = 100
 LEXICAL_TOP = 100
 INTEREST_BOOST = 0.5 / RRF_K  # cada interés elegido que coincide con el tópico/área de la charla
@@ -56,8 +60,18 @@ _warm_failed_at = 0.0
 
 
 # --- textos ------------------------------------------------------------------
+def singular(token: str) -> str:
+    """Plural simple a singular, en castellano e inglés, para que "mainframes" encuentre "mainframe" y "migraciones"
+    encuentre "migracion". No es un stemmer: alcanza con que consulta e índice pasen por la misma función."""
+    if len(token) > 4 and token.endswith("es") and token[-3] in "rlndz":
+        return token[:-2]
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
 def _tokens(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(catalog.fold(text)) if t not in _STOPWORDS]
+    return [singular(t) for t in _TOKEN.findall(catalog.fold(text)) if t not in _STOPWORDS]
 
 
 def _companies(s: dict) -> str:
@@ -206,7 +220,7 @@ def _semantic_ranking(query: str, top: int) -> list[int]:
     if vectors is None:
         return []
     try:
-        query_vector = embeddings.embed([query])[0]
+        query_vector = embeddings.embed([query], embeddings.CONSULTA)[0]
     except Exception:
         log.exception("No se pudo calcular el embedding de la consulta; se busca solo por palabras")
         return []
@@ -224,9 +238,10 @@ def ranked(query: str, limit: int, interests=()) -> list[tuple[dict, float]]:
     scores = [0.0] * len(sessions)
     query = (query or "").strip()
     if query:
-        for ranking in (_lexical_ranking(query, LEXICAL_TOP), _semantic_ranking(query, SEMANTIC_TOP)):
+        for weight, ranking in ((LEXICAL_WEIGHT, _lexical_ranking(query, LEXICAL_TOP)),
+                                (1.0, _semantic_ranking(query, SEMANTIC_TOP))):
             for position, idx in enumerate(ranking):
-                scores[idx] += 1 / (RRF_K + position + 1)
+                scores[idx] += weight / (RRF_K + position + 1)
     wanted = set(interests or ())
     for idx, s in enumerate(sessions):
         if wanted:

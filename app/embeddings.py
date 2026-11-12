@@ -16,6 +16,14 @@ from . import catalog, config
 log = logging.getLogger("reinventar.embeddings")
 
 FAKE_DIM = 256
+
+# Algunos modelos esperan un prefijo distinto para la consulta y para el documento (así fueron entrenados).
+# (prefijo de consulta, prefijo de documento); los que no figuran no llevan prefijo.
+PREFIJOS = {
+    "google/embeddinggemma-300m": ("task: search result | query: ", "title: none | text: "),
+    "intfloat/multilingual-e5-large": ("query: ", "passage: "),
+}
+CONSULTA, DOCUMENTO = "consulta", "documento"
 _model = None
 _model_lock = threading.Lock()
 
@@ -53,12 +61,20 @@ def _local_model():
         return _model
 
 
-def embed(texts: list[str]) -> np.ndarray:
-    """Una fila normalizada (norma 1) por texto: el producto punto entre filas es la similitud coseno."""
+def con_prefijo(texts: list[str], tipo: str) -> list[str]:
+    consulta, documento = PREFIJOS.get(config.EMBED_MODEL, ("", ""))
+    prefijo = consulta if tipo == CONSULTA else documento
+    return [prefijo + t for t in texts]
+
+
+def embed(texts: list[str], tipo: str = DOCUMENTO) -> np.ndarray:
+    """Una fila normalizada (norma 1) por texto: el producto punto entre filas es la similitud coseno.
+    tipo: CONSULTA para lo que escribe la persona, DOCUMENTO para lo que se indexa (charlas, fragmentos)."""
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
     if config.EMBED_PROVIDER == "fake":
         return fake_embed(texts)
     if config.EMBED_PROVIDER == "local":
-        return _normalized(np.array(list(_local_model().embed(texts, batch_size=config.EMBED_BATCH))))
+        textos = con_prefijo(texts, tipo)
+        return _normalized(np.array(list(_local_model().embed(textos, batch_size=config.EMBED_BATCH))))
     raise RuntimeError(f"Embeddings deshabilitados (EMBED_PROVIDER={config.EMBED_PROVIDER})")

@@ -15,6 +15,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   relevantes, para comparar cambios en la búsqueda con números (acierto, recall y MRR en los primeros 10).
 
 ### Cambiado
+- **La búsqueda entiende mejor lo que pedís**: nuevo modelo de embeddings (embeddinggemma, multilingüe y con textos
+  largos) y plurales que encuentran el singular ("mainframes" → "mainframe"). En el set de 30 preguntas, de las charlas
+  que tienen que aparecer entre las 10 primeras se encuentran el 81 % (antes 74 %). Mejora Buscar, el chat, el armado
+  guiado y la búsqueda en lo grabado.
 - **Responder con la voz, más claro**: un botón compacto con el micrófono y, mientras graba, una barra con punto rojo,
   tiempo y nivel del micrófono (como al grabar una charla), para terminar o cancelar. Al terminar muestra "Pasando a
   texto…".
