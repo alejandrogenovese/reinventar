@@ -11,7 +11,8 @@ const MAX_CHARS = 300;
 /** Link a la transcripción de una grabación en un segundo dado (ver la ruta #/s/<id>/t/<segundo> en app.js). */
 export const momentHash = (sid, seconds) => `#/s/${sid}/t/${Math.floor(seconds)}`;
 
-function ResultCard(r) {
+/** Tarjeta de un momento grabado: hora, charla y lo que se dijo. La usan este buscador y el chat (ask.js). */
+export function MomentCard(r) {
   const meta = [r.kind, r.code].filter(Boolean).join(" · ");
   return h("a", { class: "ra-hit", href: momentHash(r.session_id, r.start_s) },
     h("div", { class: "ra-hit-top" },
@@ -40,7 +41,7 @@ export function RecordingSearch() {
       if (!r.disponible) { status.textContent = "La búsqueda en lo grabado no está disponible en este servidor."; results.replaceChildren(); return; }
       const n = r.resultados.length;
       status.textContent = !n ? "No aparece en lo que grabaste." : n === 1 ? "1 momento en lo que grabaste" : `${n} momentos en lo que grabaste`;
-      results.replaceChildren(...r.resultados.map(ResultCard));
+      results.replaceChildren(...r.resultados.map(MomentCard));
     } catch (err) {
       if (err?.name === "AbortError") return;
       status.textContent = err?.message || "No se pudo buscar. Probá de nuevo.";

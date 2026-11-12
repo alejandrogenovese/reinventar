@@ -110,8 +110,9 @@ def _fake(system, user):
             "temas": [{"tema": "Tema de prueba", "por_que": "Porque sí."}] * 3, "preguntas": ["¿Pregunta?"], "cuidado": "",
         })
     if user.startswith("Pregunta:"):  # chat de búsqueda
-        codes = re.findall(r"^\[([\w-]+)\]", user, re.M)[:2]
-        return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + " (fake)."
+        codes = [c for c in re.findall(r"^\[([\w-]+)\]", user, re.M) if not re.fullmatch(r"G\d+", c)][:2]
+        dicho = " Lo dijeron en [G1]." if re.search(r"^\[G1\]", user, re.M) else ""
+        return "Te recomiendo " + " y ".join(f"[{c}]" for c in codes) + f" (fake).{dicho}"
     if user.startswith("Eventos para resumir:"):  # eventos de networking
         items = json.loads(user.split("\n", 1)[1])["eventos"]
         return json.dumps({"eventos": [{"id": i["id"], "resumen_es": f"Evento {i['id']} de prueba.", "tipo": "happy hour",

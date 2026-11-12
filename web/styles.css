@@ -566,3 +566,5 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-tb.is-hit { background: color-mix(in srgb, var(--brand) 10%, transparent); border-radius: var(--radius-s); animation: ra-hit-fade 2.4s ease-out 1s forwards; }
 @keyframes ra-hit-fade { to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .ra-tb.is-hit { animation: none; } }
+/* referencia a un momento grabado dentro de la respuesta del chat: ▶ 01:30 */
+.ra-moment-ref { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--rec); }
