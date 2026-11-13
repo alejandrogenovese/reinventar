@@ -19,7 +19,7 @@ const EXAMPLES = [
 let history = [];
 
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
+  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); return false; }
 };
 
 const MOMENT_REF = /\[(G\d{1,2})\]/g;

@@ -83,6 +83,46 @@ const minusMinutes = (hhmm, minutes) => {
 const BookedButton = (booked, onclick) => Button(booked ? IconText("listo", "Reservada") : "Marcar reservada",
   { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
 
+// Códigos que ya están en tu itinerario: se piden una vez por pantalla y se olvidan al agregar o quitar.
+let codesPromise = null;
+export const itineraryCodes = () => (codesPromise ??= Itinerary.get()
+  .then((r) => new Set(r.days.flatMap((d) => d.sessions).map((s) => s.code)))
+  .catch(() => new Set()));
+export const forgetItineraryCodes = () => { codesPromise = null; };
+
+/** Agregar que confirma: queda en naranja como «Agregada» y otro toque la quita (por si fue sin querer).
+ *  `onAdd` hace el agregado y su aviso; devuelve false si falló. */
+export function AddButton(code, onAdd) {
+  let added = false;
+  const btn = Button("Agregar", { onclick: toggle, "aria-pressed": "false" });
+  const paint = () => {
+    btn.replaceChildren(added ? IconText("listo", "Agregada") : "Agregar");
+    btn.classList.toggle("ra-btn-primary", added);
+    btn.classList.toggle("ra-btn-secondary", !added);
+    btn.setAttribute("aria-pressed", String(added));
+    btn.setAttribute("aria-label", added ? "Agregada al itinerario. Tocá para quitarla." : "Agregar al itinerario");
+  };
+  async function toggle() {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try {
+      if (added) {
+        await Itinerary.remove(code);
+        added = false;
+        toast("Quitada del itinerario.");
+        void refreshCountdown({ force: true });
+      } else if (await onAdd() !== false) {
+        added = true;
+      }
+      forgetItineraryCodes();
+      paint();
+    } catch (e) { toast(e.message); }
+    finally { btn.disabled = false; }
+  }
+  if (code) void itineraryCodes().then((codes) => { if (codes.has(code)) { added = true; paint(); } });
+  return btn;
+}
+
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
@@ -102,7 +142,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } =
       s.salir_antes && s.end ? Hint(`Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
       s.overlaps?.length ? Hint(`Se superpone con ${s.overlaps.join(", ")}`, { tone: "error" }) : null,
       h("div", { class: "actions" },
-        onAdd ? Button("Agregar", { onclick: onAdd }) : null,
+        onAdd ? AddButton(s.code, onAdd) : null,
         onLock ? PinButton(locked, onLock) : null,
         onBook ? BookedButton(s.reservada, onBook) : null,
         onRemove && isOver(s) ? Button("Me la perdí", { onclick: () => (location.hash = `#/perdida/${encodeURIComponent(s.code)}`) }) : null,
@@ -211,6 +251,10 @@ function ItineraryItem(s, onChanged) {
   return card;
 }
 
+/** Entrada a «Tu re:Invent en números» (horas, choques, caminata y el catálogo en gráficos). */
+const NumerosLink = (href = "#/itinerario/numeros", text = "Tu semana en números") =>
+  h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href }, h("span", {}, text), icon("seguir", 16));
+
 export async function viewItinerario(view) {
   async function paint() {
     const data = await Itinerary.get();
@@ -222,7 +266,8 @@ export async function viewItinerario(view) {
           h("p", { class: "caption" }, "Te conocemos y armamos cada día charla por charla, o lo armamos rápido con un par de preguntas.")),
         h("div", { class: "actions" },
           Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/nuevo") }),
-          Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") }))));
+          Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
+        NumerosLink("#/itinerario/numeros?modo=catalogo", "El catálogo en números")));
       return;
     }
 
@@ -232,7 +277,7 @@ export async function viewItinerario(view) {
     const list = h("div", { class: "daylist" });
     const dayHeading = h("h2", { class: "sr-only" }); // título para el lector de pantalla: las pestañas no son encabezados
     view.append(h("div", { class: "stack-lg" },
-      h("h1", { class: "title" }, "Tu itinerario"),
+      h("div", { class: "ra-sec-head" }, h("h1", { class: "title" }, "Tu itinerario"), NumerosLink()),
       h("div", { class: "actions" },
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),

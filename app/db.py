@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at DOUBLE PRECISION NOT NULL,
   updated_at DOUBLE PRECISION NOT NULL
 );
+-- Quién grabó (username): para «Tu re:Invent en números». Las grabaciones de antes quedan en NULL (no son de nadie).
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
 CREATE TABLE IF NOT EXISTS chunks (
   session_id TEXT NOT NULL,
   part INTEGER NOT NULL,
@@ -270,14 +272,14 @@ def _row(r):
     return d
 
 
-def create_session(title, kind, code=None, venue=None, speaker=None):
+def create_session(title, kind, code=None, venue=None, speaker=None, created_by=None):
     sid = uuid.uuid4().hex[:12]
     now = time.time()
     with conn() as c:
         c.execute(
-            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_at,updated_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (sid, title, kind, code, venue, speaker, "recording", now, now),
+            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_by,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (sid, title, kind, code, venue, speaker, "recording", created_by, now, now),
         )
     return get_session(sid)
 
@@ -382,6 +384,14 @@ def ready_summaries_for(codes):
             (list(codes),),
         ).fetchall()
     return [{**dict(r), "summary": json.loads(r["summary"])} for r in rows]
+
+
+def grabado_por(username) -> dict:
+    """Cuántas grabaciones hizo la persona y cuántos segundos suman (las que todavía no se procesaron, sin duración)."""
+    with conn() as c:
+        r = c.execute("SELECT COUNT(*) AS n, COALESCE(SUM(duration_s), 0) AS s FROM sessions WHERE created_by=%s",
+                      (username,)).fetchone()
+    return {"grabaciones": r["n"], "segundos": round(float(r["s"]))}
 
 
 def sessions_in(statuses):

@@ -20,7 +20,10 @@ def _ahora(hhmm):
     return dt.datetime.fromisoformat(f"2026-12-01T{hhmm}").replace(tzinfo=EVENT_TZ)
 
 
-def _avisos(cards, hhmm, *, sede=None, prefs=r.Preferencias(), grabando=(), ultimo=None):
+PREFS_POR_DEFECTO = r.Preferencias()
+
+
+def _avisos(cards, hhmm, *, sede=None, prefs=PREFS_POR_DEFECTO, grabando=(), ultimo=None):
     return r.recordatorios(cards, _ahora(hhmm), sede=sede, prefs=prefs, grabando=lambda code: code in grabando,
                            viaje_min=lambda a, b: VIAJES.get((a, b)), minutos_desde_ultimo=ultimo)
 

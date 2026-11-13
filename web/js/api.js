@@ -44,8 +44,18 @@ export const Catalog = {
   get: (base) => api(`/api/catalog/sessions/${base}`),
 };
 
+export const Numeros = {
+  catalogo: () => api("/api/numeros/catalogo"),
+  mio: () => api("/api/numeros/mio"),
+};
+
 export const Today = {
   get: () => api("/api/today"),
+};
+
+// Anuncios sin reserva para Inicio (app/anuncios.py).
+export const Anuncios = {
+  get: () => api("/api/anuncios"),
 };
 
 export const Itinerary = {

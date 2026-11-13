@@ -1,0 +1,55 @@
+# Actualizaciones de dependencias: PRs semanales contra dev (nunca contra main, que es producción).
+# Minors y patches van agrupados en un solo PR por ecosistema; los majors llegan sueltos para revisarlos uno por uno.
+#
+# Ojo con pip: Dependabot actualiza requirements*.txt pero no regenera los locks con hashes. Antes de mergear,
+# regenerá requirements.lock y requirements-dev.lock (CONTRIBUTING.md → Dependencias) en la misma rama.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+      include: scope
+    groups:
+      pip-menores:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions-menores:
+        update-types: [minor, patch]
+
+  # Dos Dockerfiles: la app (raíz) y el gateway de LiteLLM (infra/litellm, se prueba antes de mergear).
+  - package-ecosystem: docker
+    directories: [/, /infra/litellm]
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 2
+    ignore:
+      # Pasar de Python 3.12 a otro minor se hace a mano y junto con CI (setup-python) y los locks (--python-version).
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+    commit-message:
+      prefix: "chore"
+      include: scope
+    groups:
+      docker-menores:
+        update-types: [minor, patch]

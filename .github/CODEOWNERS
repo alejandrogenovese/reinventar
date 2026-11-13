@@ -1,0 +1,11 @@
+# Quién revisa qué: GitHub pide la revisión de estos usuarios en cada PR que toque sus archivos.
+# El último patrón que coincide gana.
+
+*                     @alejandrogenovese
+
+# Lo sensible: CI/CD, promoción a producción, dependencias e infraestructura.
+/.github/             @alejandrogenovese
+/Dockerfile           @alejandrogenovese
+/infra/               @alejandrogenovese
+/requirements*.txt    @alejandrogenovese
+/requirements*.lock   @alejandrogenovese

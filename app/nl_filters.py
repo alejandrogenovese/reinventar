@@ -22,7 +22,8 @@ _LABELS = {
     "tecnologia": "Tecnología que no es de AWS (Iceberg, MCP, dbt…)", "concepto": "Concepto que trata la charla",
     "enfoque": "Enfoque (novedades, arquitectura, caso de cliente, práctica guiada…)",
     "tipo": "Tipo de sesión", "nivel": "Nivel (100 introductorio … 500 experto)", "lanzamiento": "Es un lanzamiento nuevo",
-    "dia": "Día", "sede": "Sede (hotel)",
+    "dia": "Día", "sede": "Sede (hotel)", "hora": "Hora de inicio (ej. 13 h = entre 13:00 y 13:59)",
+    "anuncio": "Anuncio sin reserva: keynote, mainstage, lanzamiento o novedades a los que se entra por la cola",
 }
 
 

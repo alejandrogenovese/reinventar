@@ -36,7 +36,7 @@ def _local(day: str, hhmm: str) -> dt.datetime:
 
 
 def _utc(d: dt.datetime) -> str:
-    return d.astimezone(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return d.astimezone(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def _rango(c: dict) -> tuple[dt.datetime, dt.datetime]:
@@ -83,7 +83,7 @@ def _vevent(c: dict, ahora: dt.datetime) -> list[str]:
 
 
 def calendario(cards: list[dict], ahora: dt.datetime | None = None) -> str:
-    ahora = ahora or dt.datetime.now(dt.timezone.utc)
+    ahora = ahora or dt.datetime.now(dt.UTC)
     lineas = ["BEGIN:VCALENDAR", "VERSION:2.0", f"PRODID:{PRODID}", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
               "X-WR-CALNAME:re:Invent · ReinventAR"]
     for c in cards:

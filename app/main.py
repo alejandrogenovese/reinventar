@@ -3,22 +3,46 @@ import itertools
 import logging
 import shutil
 from contextlib import asynccontextmanager
-from typing import Optional
-
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
-from . import (__version__, admin_api, audio, auth_api, cabeceras, catalog, config, cuerpo, db, events, events_api, fragmentos, guided_api, interview_api,
-               itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks,
-               ubicacion_api)
+from . import (
+    __version__,
+    admin_api,
+    audio,
+    auth_api,
+    cabeceras,
+    catalog,
+    config,
+    cuerpo,
+    db,
+    events,
+    events_api,
+    fragmentos,
+    guided_api,
+    interview_api,
+    itinerary_api,
+    knowledge_api,
+    my_events_api,
+    numeros_api,
+    passkey_api,
+    pg,
+    pipeline,
+    push,
+    push_api,
+    sandbox,
+    search,
+    talks,
+    ubicacion_api,
+)
 from .auth import auth, bearer, context_for_token
-from .llm_router import como_usuario
 from .canonical_host import WwwRedirectMiddleware
+from .llm_router import como_usuario
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -75,6 +99,7 @@ app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(push_api.router)
 app.include_router(ubicacion_api.router)
+app.include_router(numeros_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)
@@ -93,9 +118,9 @@ def _session_or_404(sid: str):
 class NewSession(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     kind: str
-    code: Optional[str] = Field(None, max_length=40)
-    venue: Optional[str] = Field(None, max_length=120)
-    speaker: Optional[str] = Field(None, max_length=200)
+    code: str | None = Field(None, max_length=40)
+    venue: str | None = Field(None, max_length=120)
+    speaker: str | None = Field(None, max_length=200)
 
 
 # Topes de una grabación: parte = tramo entre pausas o cambios de micrófono; pedazo = 10 s de audio
@@ -117,11 +142,12 @@ def health():
     return {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
 
 
-@app.post("/api/sessions", dependencies=[Depends(auth)])
-def create_session(body: NewSession):
+@app.post("/api/sessions")
+def create_session(body: NewSession, username: str = Depends(auth)):
     if body.kind not in db.KINDS:
         raise HTTPException(422, f"kind debe ser uno de {db.KINDS}")
-    return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker)
+    return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker,
+                             created_by=username)
 
 
 @app.get("/api/sessions", dependencies=[Depends(auth)])

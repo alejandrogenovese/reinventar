@@ -36,7 +36,7 @@ def test_la_pagina_suma_fin_direccion_precio_y_anotados():
 
     assert (ev.lugar, ev.direccion_exacta, ev.google_place_id) == ("Topgolf Las Vegas", True, "ChIJtopgolf")
     assert (ev.lat, ev.lng) == (36.1072, -115.1641)
-    assert ev.fin == dt.datetime(2026, 12, 2, 6, tzinfo=dt.timezone.utc)
+    assert ev.fin == dt.datetime(2026, 12, 2, 6, tzinfo=dt.UTC)
     assert (ev.precio, ev.requiere_aprobacion, ev.anotados, ev.descripcion) == ("Gratis", True, 312, "Join us for drinks.")
 
 
@@ -67,7 +67,7 @@ def test_texto_de_mirror_respeta_parrafos_y_listas():
 
 
 def test_sede_mas_cercana():
-    ev = Evento("x", "luma", "u", "n", dt.datetime(2026, 12, 1, tzinfo=dt.timezone.utc), lat=36.1216, lng=-115.1691)
+    ev = Evento("x", "luma", "u", "n", dt.datetime(2026, 12, 1, tzinfo=dt.UTC), lat=36.1216, lng=-115.1691)
 
     assert sede_mas_cercana(ev, [(5, 36.102219, -115.169517), (7, 36.1216, -115.1691)]) == (7, 0)
 

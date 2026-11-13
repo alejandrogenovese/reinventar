@@ -31,7 +31,13 @@ import psycopg
 from psycopg import sql
 
 from scripts.catalogo_oficial import (
-    Catalogo, Homonimo, SpeakerExistente, clave, parsear, planear_speakers, speakers_oficiales,
+    Catalogo,
+    Homonimo,
+    SpeakerExistente,
+    clave,
+    parsear,
+    planear_speakers,
+    speakers_oficiales,
 )
 
 MIGRACIONES = Path(__file__).parent / "migraciones"
@@ -324,7 +330,7 @@ def actualizar(conn: psycopg.Connection, cat: Catalogo, *, schema: str = "reinve
     bajas, bajas_horarios, bajas_charlas = _bajas(conn, borrar_bajas, conflictos)
     speakers, homonimos = _speakers(conn, cat)
     cambios |= horarios | bajas | speakers | _vinculos(conn)
-    estado = dict(zip(_CONCEPTOS_ESTADO, conn.execute(_ESTADO).fetchone()))
+    estado = dict(zip(_CONCEPTOS_ESTADO, conn.execute(_ESTADO).fetchone(), strict=False))
     return Reporte(cambios, estado, homonimos, renombres, conflictos, bajas_horarios, bajas_charlas)
 
 

@@ -82,7 +82,7 @@ def test_no_repite_fragmentos_vecinos_de_la_misma_grabacion(cliente):
 
     idxs = sorted(r["idx"] for r in fragmentos.buscar("iceberg") if r["session_id"] == sid)
 
-    assert idxs and all(b - a > 1 for a, b in zip(idxs, idxs[1:]))
+    assert idxs and all(b - a > 1 for a, b in zip(idxs, idxs[1:], strict=False))
 
 
 def test_reemplazar_o_borrar_la_grabacion_borra_sus_fragmentos(cliente):

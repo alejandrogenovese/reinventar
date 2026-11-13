@@ -37,9 +37,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://reinvent@localhost:5433/reinvent
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
           cache: pip
@@ -54,6 +54,11 @@ jobs:
         # pip no ejecuta scripts de instalación de paquetes fuente.
         run: |
           pip install --require-hashes --only-binary :all: -r requirements-dev.lock
+
+      # Lint con la configuración de pyproject.toml (ruff viene en requirements-dev.lock). Sin chequeo de formato:
+      # el estilo compacto del código es deliberado.
+      - name: ruff check
+        run: ruff check --output-format=github .
 
       # Los tests que usan el catálogo de re:Invent (charlas reales como ARC407) necesitan
       # el schema reinvent cargado y no corren en CI: se corren local con pytest -q.
@@ -87,7 +92,7 @@ jobs:
       group: promote-main
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: dev
           fetch-depth: 0

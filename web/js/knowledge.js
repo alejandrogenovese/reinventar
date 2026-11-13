@@ -1,7 +1,7 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
-import { Abstract, People, SessionMiniCard, shortDay } from "./itinerary.js";
+import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
 import { recordTalk } from "./today.js";
@@ -19,7 +19,7 @@ const addToItinerary = (code) => async () => {
     const mine = r.days.flatMap((d) => d.sessions).find((s) => s.code === code);
     toast(mine?.overlaps?.length ? `Agregada y fijada. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregada y fijada en tu itinerario.");
     void refreshCountdown({ force: true });
-  } catch (e) { toast(e.message); }
+  } catch (e) { toast(e.message); return false; }
 };
 const cardList = (talks) => h("div", { class: "daylist" }, talks.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
 
@@ -59,9 +59,15 @@ function Slot(i, mine, onChange) {
     try { await Itinerary.swap(other.code, i.code); toast("Listo: cambiaste al nuevo horario."); void refreshCountdown({ force: true }); onChange(); }
     catch (err) { toast(err.message); }
   };
+  const remove = async () => {
+    try { await Itinerary.remove(i.code); toast("Quitada del itinerario."); forgetItineraryCodes(); void refreshCountdown({ force: true }); onChange(); }
+    catch (err) { toast(err.message); }
+  };
   let action;
-  if (own) action = own.locked ? IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 })
-    : h("span", { class: "ra-tag is-new" }, "En tu itinerario");
+  if (own) action = h("div", { class: "actions" },
+    own.locked ? IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 })
+      : h("span", { class: "ra-tag is-new" }, "En tu itinerario"),
+    Button("Quitar", { onclick: remove, "aria-label": `Quitar el horario ${shortDay(i.day)} ${i.start} del itinerario` }));
   else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
   else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
   return h("li", { class: "ra-slot" },

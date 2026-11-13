@@ -1,13 +1,12 @@
 """Autenticación por token de sesión: Depends(auth) resuelve el token a un username (o 401); Depends(admin) exige ADMIN_USERS."""
 import time
-from typing import Optional
 
 from fastapi import Depends, Header, HTTPException
 
 from . import config, db, sandbox
 
 
-def bearer(authorization: Optional[str]) -> str:
+def bearer(authorization: str | None) -> str:
     return (authorization or "").removeprefix("Bearer ").strip()
 
 
@@ -17,7 +16,7 @@ DEBE_CAMBIAR_CONTRASENA = "must_change_password"
 LOGIN_RECIENTE_SEGUNDOS = 15 * 60
 
 
-def _sesion(authorization: Optional[str]) -> dict:
+def _sesion(authorization: str | None) -> dict:
     token = bearer(authorization)
     sesion = token and db.resolve_session(token)
     if not sesion:
@@ -25,20 +24,20 @@ def _sesion(authorization: Optional[str]) -> dict:
     return sesion
 
 
-def auth_pendiente(authorization: Optional[str] = Header(None)) -> str:
+def auth_pendiente(authorization: str | None = Header(None)) -> str:
     """Como auth, pero acepta a quien todavía tiene que cambiar la contraseña temporal. Solo para /api/me y
     /api/password: todo lo demás exige haberla cambiado."""
     return _sesion(authorization)["username"]
 
 
-def auth(authorization: Optional[str] = Header(None)) -> str:
+def auth(authorization: str | None = Header(None)) -> str:
     sesion = _sesion(authorization)
     if sesion["must_change_password"]:
         raise HTTPException(403, DEBE_CAMBIAR_CONTRASENA)
     return sesion["username"]
 
 
-def login_reciente(authorization: Optional[str] = Header(None)) -> str:
+def login_reciente(authorization: str | None = Header(None)) -> str:
     """auth, y además que la sesión se haya abierto hace menos de LOGIN_RECIENTE_SEGUNDOS."""
     username = auth(authorization)
     if _sesion(authorization)["created_at"] < time.time() - LOGIN_RECIENTE_SEGUNDOS:
