@@ -5,6 +5,7 @@ import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, startsAt } from "./location.js";
 import { MyEventsSection } from "./myEvents.js";
 import { sandboxNow } from "./sandbox.js";
+import { icon } from "./icons.js";
 import { Button, Hint, IconText, Tag, h, toast } from "./ui.js";
 
 const ALL = "todos";
@@ -130,6 +131,6 @@ export async function viewEvento(view, code) {
       e.full ? Hint("Está lleno: anotate en la lista de espera de Luma.", { tone: "error" }) : null),
     e.clashes?.length ? Hint(`Choca con: ${e.clashes.map((c) => `${c.title} (${c.start})`).join(", ")}`, { tone: "error" }) : null,
     h("div", { class: "actions" },
-      safeUrl(e.url) ? h("a", { class: "ra-btn ra-btn-primary", href: e.url, target: "_blank", rel: "noopener noreferrer" }, "Anotarme en Luma ↗") : null,
+      safeUrl(e.url) ? h("a", { class: "ra-btn ra-btn-primary", href: e.url, target: "_blank", rel: "noopener noreferrer" }, "Anotarme en Luma", icon("externo", 16)) : null,
       AddButton(e, () => { view.replaceChildren(); void viewEvento(view, code); }))));
 }

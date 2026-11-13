@@ -7,7 +7,7 @@ import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
 import { icon } from "./icons.js";
-import { Button, Hint, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
+import { Button, Hint, IconText, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
@@ -79,8 +79,8 @@ const minusMinutes = (hhmm, minutes) => {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 };
 
-/** ✓ Reservada: sin reserva en el portal de AWS hay que hacer la cola 30 min antes (lo usa el armado guiado). */
-const BookedButton = (booked, onclick) => Button(booked ? "✓ Reservada" : "Marcar reservada",
+/** Reservada (con tilde): sin reserva en el portal de AWS hay que hacer la cola 30 min antes (lo usa el armado guiado). */
+const BookedButton = (booked, onclick) => Button(booked ? IconText("listo", "Reservada") : "Marcar reservada",
   { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
 
 const COMPACT_TAGS = 3;
@@ -90,7 +90,7 @@ const COMPACT_TAGS = 3;
 function CompactCard(s, onAdd) {
   const tags = [...(s.topic || []), ...(s.aoi || [])].slice(0, s.newlaunch ? COMPACT_TAGS - 1 : COMPACT_TAGS);
   const where = [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
-  const kind = [s.type, s.level].filter(Boolean).join(" · ");
+  const kind = [s.type, s.level ? `Nivel ${s.level}` : null].filter(Boolean).join(" · ");
   return h("article", { class: "ra-minicard is-compact" },
     h("div", { class: "ra-rail" },
       h("span", { class: "ra-rail-time" }, s.start || "—"),
@@ -195,7 +195,7 @@ async function exportCalendar() {
   toast("Listo: abrí el archivo para sumarlo a tu calendario.");
 }
 
-/** Importa las reservas del portal de AWS (.ics): quedan en el itinerario fijadas y "✓ Reservada" (sin cola). */
+/** Importa las reservas del portal de AWS (.ics): quedan en el itinerario fijadas y reservadas (sin cola). */
 function importReservations(onDone) {
   const input = h("input", { type: "file", accept: ".ics,text/calendar", hidden: true });
   input.addEventListener("change", async () => {
@@ -261,7 +261,7 @@ export async function viewItinerario(view) {
       h("div", { class: "actions" },
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),
-        Button("＋ Mi evento", { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
+        Button(IconText("agregar", "Mi evento"), { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
         Button("Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
         Button("Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),

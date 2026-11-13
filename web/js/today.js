@@ -95,7 +95,9 @@ export async function TodayPanel(sessions) {
         Button("Armar itinerario", { onclick: () => (location.hash = "#/itinerario") })));
   }
 
-  const el = h("section", { class: "stack", "aria-labelledby": "hoy-title" },
-    h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "hoy-title" }, "Hoy"), h("span", { class: "caption" }, dayLabel(data.date))), body);
+  // La sección se nombra con el título y la fecha («Hoy martes, 2 dic»), aunque se vean separados.
+  const el = h("section", { class: "stack", "aria-labelledby": "hoy-title hoy-fecha" },
+    h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "hoy-title" }, "Hoy"),
+      h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), body);
   return { el, hasTalk: Boolean(data.now || data.next) };
 }

@@ -1,6 +1,7 @@
 // Íconos de la app en la grilla de 24 px. Inicio, Explorar, Itinerario, Preguntar, Buscar y Filtrar vienen de @brick-v2/icons
 // (Home, Compass, Calendar, MessagesBubble, Search1Regular, Filter); el resto se dibujó con el mismo peso porque Brick no los trae.
-// Ubicación, reloj, caminar, alerta, fijar, llevar, reproducir, etc. reemplazan a los emojis que se usaban como íconos.
+// Ubicación, reloj, caminar, alerta, fijar, llevar, reproducir, listo, externo, etc. reemplazan a los emojis y glifos
+// (✓ ✕ ＋ ↗) que se usaban como íconos.
 // Toman el color del texto (currentColor). Son decorativos: el botón o link que los contiene lleva el nombre accesible.
 const ICONS = {
   inicio: "<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" fill=\"currentColor\" d=\"M11.402 1.201a1 1 0 0 1 1.205 0l9.66 7.29c.027.02.053.041.077.064A2.05 2.05 0 0 1 23 10v11.135A1.873 1.873 0 0 1 21.133 23h-5.8a1 1 0 0 1-1-1v-4.664a2.333 2.333 0 1 0-4.666 0V22a1 1 0 0 1-1 1H2.866A1.872 1.872 0 0 1 1 21.134V10c0-.018 0-.037.002-.055a2.045 2.045 0 0 1 .731-1.455l9.67-7.289ZM3 10.046V21h4.667v-3.664a4.333 4.333 0 1 1 8.666 0V21H21V10.047a.052.052 0 0 0-.003-.01l-8.993-6.785-9.001 6.786a.05.05 0 0 0-.003.008Z\"/>",
@@ -23,6 +24,8 @@ const ICONS = {
   agregar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 5v14M5 12h14\"/></g>",
   cerrar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 6l12 12M18 6 6 18\"/></g>",
   seguir: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 6 6 6-6 6\"/></g>",
+  listo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m5 12 5 5 9-10\"/></g>",
+  externo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 17 17 7M9 7h8v8\"/></g>",
   reproducir: "<path fill=\"currentColor\" d=\"M7 5v14l11-7Z\"/>",
 };
 

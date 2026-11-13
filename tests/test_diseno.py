@@ -45,11 +45,26 @@ def contraste(a: str, b: str) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
+CSS = re.sub(r"/\*.*?\*/", "", STYLES, flags=re.S)  # sin comentarios: pueden traer llaves o selectores de ejemplo
+
+
+def _reglas() -> list[tuple[str, str]]:
+    """(selector, cuerpo) de cada regla de styles.css, incluidas las que están dentro de @media."""
+    return [(sel.strip(), cuerpo) for sel, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", CSS)]
+
+
 def _regla(selector: str) -> str:
-    """Cuerpo de la primera regla de styles.css que empieza exactamente con `selector {`."""
-    m = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", STYLES)
-    assert m, f"falta la regla {selector}"
-    return m.group(1)
+    """Cuerpos (unidos, en orden) de las reglas cuyo selector es exactamente `selector`, no `.x selector` ni `selector.y`."""
+    cuerpos = [cuerpo for sel, cuerpo in _reglas() if sel == selector]
+    assert cuerpos, f"falta la regla {selector}"
+    return "\n".join(cuerpos)
+
+
+def _token(selector: str, propiedad: str) -> str:
+    """Token de `propiedad` (color o background) en las reglas de `selector`; gana la última declaración, como en la cascada."""
+    valores = re.findall(rf"(?<![-\w]){propiedad}:\s*var\((--[\w-]+)\)", _regla(selector))
+    assert valores, f"{selector} no toma {propiedad} de un token"
+    return valores[-1]
 
 
 # --- tokens -------------------------------------------------------------------------------------------
@@ -80,19 +95,36 @@ def test_el_evento_usa_info_y_no_el_violeta():
 
 # --- contraste ----------------------------------------------------------------------------------------
 
-PARES = [
-    ("--ink-muted", "--surface-1"), ("--ink-muted", "--bg"), ("--ink", "--surface-3"),
-    ("--brand-ink", "--brand-soft"), ("--brand-ink", "--surface-1"),
-    ("--on-success-soft", "--success-soft"), ("--on-warning-soft", "--warning-soft"),
-    ("--on-error-soft", "--error-soft"), ("--on-info-soft", "--info-soft"),
-    ("--accent-on-ink", "--ink"),  # acción del toast (Deshacer): el toast tiene fondo --ink
+# Pares texto/fondo tal como los declara styles.css: (regla del texto, regla del fondo o token del fondo).
+# Si una regla cambia de token, el test mide el par nuevo y no uno supuesto.
+PARES_USADOS = [
+    (".label", "--bg"), (".label", "--surface-1"),
+    (".toast", ".toast"), (".toast-action", ".toast"),  # Deshacer sobre el fondo del toast
+    (".ra-tag", ".ra-tag"), (".ra-tag.is-new", ".ra-tag.is-new"),
+    (".countdown-banner", ".countdown-banner.is-soon"),  # el texto lo hereda de la franja base
+    (".countdown-banner.is-urgent", ".countdown-banner.is-urgent"),
+    (".countdown-banner.is-event", ".countdown-banner.is-event"),
+    (".countdown-banner.is-live", ".countdown-banner.is-live"),
+    (".ra-chip-on, .chipgroup input:checked + label", ".ra-chip-on, .chipgroup input:checked + label"),
+    (".ra-pill-recording", ".ra-pill-recording"),
+    (".ra-pill-uploading, .ra-pill-queued", ".ra-pill-uploading, .ra-pill-queued"),
+    (".ra-pill-transcribing, .ra-pill-translating, .ra-pill-summarizing",
+     ".ra-pill-transcribing, .ra-pill-translating, .ra-pill-summarizing"),
+    (".ra-pill-ready", ".ra-pill-ready"), (".ra-pill-error", ".ra-pill-error"),
+    (".ra-hint", ".ra-hint"), (".ra-hint.is-warn", ".ra-hint.is-warn"),
+    (".ra-hint.is-error", ".ra-hint.is-error"), (".ra-hint.is-info", ".ra-hint.is-info"),
+    (".ra-cite", ".ra-cite"), (".ra-cite.ra-moment-ref", ".ra-cite.ra-moment-ref"), (".ra-hit-time", ".ra-hit-time"),
+    (".ra-check-list .is-ok strong", "--surface-1"), (".ra-check-list .is-fail strong", "--surface-1"),
 ]
 
 
 @pytest.mark.parametrize("tema", [CLARO, OSCURO], ids=["claro", "oscuro"])
-@pytest.mark.parametrize("texto,fondo", PARES)
+@pytest.mark.parametrize("texto,fondo", PARES_USADOS, ids=[f"{t} sobre {f}" for t, f in PARES_USADOS])
 def test_texto_sobre_fondo_pasa_aa(tema, texto, fondo):
-    assert contraste(_color(tema, texto), _color(tema, fondo)) >= AA
+    color = _token(texto, "color")
+    fondo_token = fondo if fondo.startswith("--") else _token(fondo, "background")
+    ratio = contraste(_color(tema, color), _color(tema, fondo_token))
+    assert ratio >= AA, f"{color} sobre {fondo_token}: {ratio:.2f}:1"
 
 
 def test_ink_muted_tiene_mas_contraste_que_antes():
@@ -118,9 +150,9 @@ def test_las_pestanas_se_pegan_debajo_del_encabezado_real():
 def test_un_solo_bloque_pegado_arriba():
     index = (WEB / "index.html").read_text()
     assert 'id="masthead"' in index
-    assert "sticky" in _regla(".masthead")
-    assert "sticky" not in _regla(".topbar")
-    assert ".top-banners { position: sticky" not in STYLES
+    pegadas = {sel for sel, cuerpo in _reglas() if re.search(r"position:\s*sticky", cuerpo)}
+    # el encabezado (franjas + barra) y las pestañas, que se pegan debajo de él
+    assert pegadas == {".masthead", ".tabs"}
 
 
 def test_ra_mono_tiene_regla():
@@ -148,19 +180,124 @@ def test_sin_emojis_como_iconos(nombre, codigo):
     assert not usados, f"{nombre} usa {usados}"
 
 
+def _primer_argumento(codigo: str, abre: int) -> str:
+    """Texto del primer argumento de la llamada cuyo paréntesis abre en `abre` (respeta paréntesis y comillas)."""
+    nivel, comilla = 0, None
+    for i in range(abre + 1, len(codigo)):
+        c = codigo[i]
+        if comilla:
+            comilla = None if c == comilla and codigo[i - 1] != "\\" else comilla
+        elif c in "\"'`":
+            comilla = c
+        elif c in "([{":
+            nivel += 1
+        elif c in ")]}" and nivel:
+            nivel -= 1
+        elif c in ",)" and not nivel:
+            return codigo[abre + 1:i].strip()
+    raise AssertionError("llamada sin cerrar")
+
+
+def _literales_de_icono(expr: str) -> set[str]:
+    """Strings de la expresión que pueden ser el nombre: las ramas de un ternario, no lo que se compara (=== "event")."""
+    return {nombre for op, nombre in re.findall(r"([!=]==?\s*)?\"(\w+)\"", expr) if not op}
+
+
+def _primeros_de(objeto: str, codigo: str) -> set[str]:
+    """Primer elemento de cada arreglo de `const OBJETO = { clave: ["nombre", ...] }`."""
+    cuerpo = re.search(rf"const {objeto} = \{{(.*?)\}};", codigo).group(1)
+    return set(re.findall(r"\[\s*\"(\w+)\"", cuerpo))
+
+
+def _iconos_dinamicos() -> dict[str, set[str]]:
+    """Para cada argumento no literal de icon()/IconText(), los nombres que puede tomar."""
+    todo = "\n".join(JS.values())
+    hint = set(re.findall(r"\"(\w+)\"", re.search(r"const HINT_ICON = \{([^}]*)\}", JS["ui.js"]).group(1)))
+    tema = re.search(r"const next = ([^;]+);", JS["app.js"]).group(1)
+    kind = _primeros_de("KIND_ICON", JS["today.js"])
+    return {
+        "slot.dataset.icon": set(re.findall(r'data-icon="(\w+)"', (WEB / "index.html").read_text())),
+        "next": _literales_de_icono(tema),
+        "iconName": hint | set(re.findall(r"\biconName:\s*\"(\w+)\"", todo)),  # Hint: por tono o explícito
+        "name": set(),  # dentro de IconText: sus llamadas se revisan una por una
+        "...KIND_ICON[s.kind]": kind, "KIND_ICON[s.kind][0]": kind,
+    }
+
+
 def test_cada_icono_usado_esta_definido():
     definidos = set(re.findall(r"^  (\w+): \"", JS["icons.js"], re.M))
-    usados = set()
-    for codigo in JS.values():
-        usados |= set(re.findall(r"\bicon\(\"(\w+)\"", codigo))
-        usados |= set(re.findall(r"\bIconText\(\"(\w+)\"", codigo))
-    hint = re.search(r"const HINT_ICON = \{([^}]*)\}", JS["ui.js"]).group(1)
-    usados |= set(re.findall(r"\"(\w+)\"", hint))
+    dinamicos = _iconos_dinamicos()
+    usados, sin_resolver = set(), []
+    for archivo, codigo in JS.items():
+        for m in re.finditer(r"(?<!function )\b(?:icon|IconText)\(", codigo):
+            expr = _primer_argumento(codigo, m.end() - 1)
+            literales = _literales_de_icono(expr)
+            if literales:
+                usados |= literales
+            elif expr in dinamicos:
+                usados |= dinamicos[expr]
+            else:
+                sin_resolver.append(f"{archivo}: {expr}")
+    assert not sin_resolver, f"ícono con nombre dinámico que el test no sabe resolver: {sin_resolver}"
+    assert {"reloj", "eventos", "fijar", "claro", "oscuro", "caminar", "alerta"} <= usados  # countdown, tema y Hint
     assert usados - definidos == set()
-    assert {"ubicacion", "reloj", "caminar", "alerta", "fijar", "llevar", "reproducir", "agregar", "cerrar"} <= definidos
+    assert {"ubicacion", "reloj", "caminar", "alerta", "fijar", "llevar", "reproducir", "agregar", "cerrar",
+            "listo", "externo"} <= definidos
 
 
-def test_el_service_worker_precachea_los_archivos_del_diseno():
+GLIFOS_DE_UI = ["✕", "✓", "✗", "＋", "↗"]
+
+
+@pytest.mark.parametrize("nombre,codigo", sorted(JS.items()))
+def test_sin_glifos_como_iconos(nombre, codigo):
+    # ✕ ✓ ＋ ↗ como texto de botón se ven distintos en cada sistema y el lector los lee raro: van con icon().
+    sin_comentarios = re.sub(r"/\*.*?\*/|//[^\n]*", "", codigo, flags=re.S)
+    usados = [g for g in GLIFOS_DE_UI if g in sin_comentarios]
+    assert not usados, f"{nombre} usa {usados}"
+
+
+def _modulos_del_arranque() -> set[str]:
+    """Módulos que carga app.js, recorriendo sus imports estáticos."""
+    vistos, pendientes = set(), ["app.js"]
+    while pendientes:
+        archivo = pendientes.pop()
+        if archivo in vistos:
+            continue
+        vistos.add(archivo)
+        pendientes += re.findall(r"""^(?:import|export)\b[^;]*?\bfrom\s*["']\./([\w.]+)["']""", JS[archivo], re.M)
+    return vistos
+
+
+def test_el_service_worker_precachea_todo_el_shell():
     sw = (WEB / "sw.js").read_text()
-    for archivo in ("/css/tokens.css", "/css/base.css", "/styles.css", "/js/icons.js", "/js/ui.js"):
-        assert f'"{archivo}"' in sw
+    shell = set(re.findall(r'"(/[^"]*)"', re.search(r"const SHELL = \[(.*?)\];", sw, re.S).group(1)))
+    index = (WEB / "index.html").read_text()
+    estilos = set(re.findall(r'<link rel="stylesheet" href="(/[^"?]+)"', index))
+    modulos = {f"/js/{m}" for m in _modulos_del_arranque()}
+    assert {"/css/tokens.css", "/css/base.css", "/styles.css"} <= estilos
+    assert {"/js/countdown.js", "/js/notifications.js", "/js/adminLlm.js"} <= modulos  # el recorrido llega lejos
+    assert (estilos | modulos) - shell == set()
+
+
+def test_sin_tamanos_ni_radios_fuera_de_la_escala():
+    # La letra sale de los 6 pasos (y --t-time / --t-data); los radios, de 6/12/16/pill. Solo quedan
+    # los detalles de 2-3 px de barritas y del glifo de stop.
+    assert re.findall(r"font:\s*\d{3}\s+\d+px", CSS) == []
+    radios = [int(px) for valor in re.findall(r"border-radius:\s*([^;}]+)", CSS) for px in re.findall(r"(\d+)px", valor)]
+    assert all(px <= 3 for px in radios), radios
+
+
+def test_hint_de_info_con_su_tinte():
+    regla = _regla(".ra-hint.is-info")
+    assert "var(--info-soft)" in regla and "var(--on-info-soft)" in regla
+    assert 'class: `ra-hint is-${tone}`' in JS["ui.js"]
+
+
+def test_la_seccion_hoy_se_nombra_con_la_fecha():
+    assert '"aria-labelledby": "hoy-title hoy-fecha"' in JS["today.js"]
+    assert 'id: "hoy-fecha"' in JS["today.js"]
+
+
+def test_tarjeta_compacta_dice_nivel():
+    compacta = JS["itinerary.js"][JS["itinerary.js"].index("function CompactCard"):]
+    assert "`Nivel ${s.level}`" in compacta[:compacta.index("\n}\n")]

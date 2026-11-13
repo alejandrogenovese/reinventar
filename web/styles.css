@@ -94,6 +94,7 @@
 .ra-hint .ra-icon { margin-top: 2px; }
 .ra-hint.is-warn { background: var(--warning-soft); color: var(--on-warning-soft); }
 .ra-hint.is-error { background: var(--error-soft); color: var(--on-error-soft); }
+.ra-hint.is-info { background: var(--info-soft); color: var(--on-info-soft); }
 
 /* --- transcripción ------------------------------------------------------- */
 .ra-tb { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
@@ -102,7 +103,7 @@
 .ra-tb-lang { font: var(--t-micro); letter-spacing: var(--track-micro); margin-right: var(--space-2); }
 .ra-tb-en { font: var(--t-small); color: var(--ink-muted); }
 .ra-tb-en .ra-tb-lang { color: var(--ink-muted); }
-.ra-tb-es { font: 400 17px/26px var(--font-ui); color: var(--ink); padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--brand); }
+.ra-tb-es { font: var(--t-body); color: var(--ink); padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--brand); }
 .ra-tb-es .ra-tb-lang { color: var(--brand-ink); }
 
 /* --- chips y etiquetas (R3 separa Tag pasivo de FilterChip) -------------- */
@@ -111,7 +112,7 @@
 .ra-chip { font: var(--t-micro); background: var(--surface-3); color: var(--ink); border-radius: var(--radius-s); padding: 3px 8px; white-space: nowrap; }
 button.ra-chip, .chipgroup label {
   cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--surface-1);
-  min-height: var(--touch); padding: 0 var(--space-4); border-radius: var(--radius-pill); font: 500 14px/20px var(--font-ui); color: var(--ink);
+  min-height: var(--touch); padding: 0 var(--space-4); border-radius: var(--radius-pill); font: var(--t-small); color: var(--ink);
   transition: background var(--ease-chip), border-color var(--ease-chip), box-shadow var(--ease-chip), color var(--ease-chip);
 }
 button.ra-chip:hover, .chipgroup label:hover { background: var(--surface-3); }
@@ -136,7 +137,7 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 /* Tag: dato, no se toca (sin borde ni sombra); el chip-botón tiene borde y estado */
 /* Aviso de perfil sin confirmar (web/js/knowledge.js): --warning como fondo, texto oscuro en los dos temas. */
 .ra-disclaimer { background: var(--warning-soft); color: var(--on-warning-soft); font: var(--t-small); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }
-.ra-tag { font: 500 12px/16px var(--font-ui); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 8px; white-space: nowrap; }
+.ra-tag { font: var(--t-micro); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 8px; white-space: nowrap; }
 .ra-tag.is-new { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 
 /* --- resumen ------------------------------------------------------------- */
@@ -144,7 +145,7 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 .ra-sum h3 { font: var(--t-heading); color: var(--ink); margin: 0 0 var(--space-2); }
 .ra-sum p, .ra-sum li { font: var(--t-body); color: var(--ink); }
 .ra-sum ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--space-2); }
-.ra-tldr { font: 400 18px/28px var(--font-ui) !important; }
+.ra-tldr { font: var(--t-heading) !important; }
 .ra-hl { background: var(--brand-soft); color: var(--ink); border-radius: var(--radius-s); padding: 0 4px; font-weight: 600; }
 
 /* --- layout de la app ---------------------------------------------------- */
@@ -173,6 +174,7 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
 .ra-check-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .ra-check-list .is-ok strong { color: var(--on-success-soft); }
 .ra-check-list .is-fail strong { color: var(--on-error-soft); }
+.ra-check-list strong { display: inline-flex; align-items: center; gap: var(--space-1); vertical-align: bottom; }
 
 /* Tablero de LLM del admin (web/js/adminLlm.js): números grandes y barras horizontales simples. */
 .ra-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
@@ -204,7 +206,7 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   min-height: 60px; padding: var(--space-2) 0; margin-bottom: var(--space-4); border-bottom: 1px solid var(--line); background: var(--bg);
 }
-.brand { display: inline-flex; align-items: center; gap: var(--space-2, 8px); font: 800 22px/1 var(--font-ui); letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: var(--space-2, 8px); font: var(--t-title); font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
 .brand img { border-radius: var(--radius-s); flex: none; }
 .brand-word span { color: var(--brand-ink); }
 /* Botones de ícono (tema, ajustes): 44×44, nombre accesible en aria-label */
@@ -256,7 +258,7 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .fieldset-plain > legend { margin-bottom: var(--space-2); }
 .notice.is-plain { text-decoration: none; display: block; }
 .empty { padding: var(--space-12) var(--space-4); text-align: center; color: var(--ink-muted); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }
-.ra-detail-title { font: 700 24px/30px var(--font-ui); }  /* el título de una charla en 390 px: 2-3 líneas, no 4 */
+.ra-detail-title { font: var(--t-title); }  /* el título de una charla en 390 px: 2-3 líneas, no 4 (display lo llevaba a 4) */
 
 /* --- formularios ---------------------------------------------------------- */
 .field { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -364,6 +366,7 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .ra-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font: var(--t-small); color: var(--ink); }
 .ra-link { color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; transition: text-decoration-color var(--ease); }
 .ra-link:hover, .ra-link:focus-visible { text-decoration-color: currentColor; }
+.ra-link > .ra-icon { display: inline-block; vertical-align: -3px; margin-left: var(--space-1); }  /* ↗ de los links que abren otra pestaña */
 .caption .ra-link, p > .ra-link { color: var(--brand-ink); }
 
 /* --- explorar --------------------------------------------------------------- */
@@ -381,7 +384,7 @@ h2.caption { font: var(--t-small); text-transform: none; }
 /* --- buscar: modos, campo, agrupar ------------------------------------------- */
 .ra-segtabs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); padding: var(--space-1); background: var(--surface-3); border-radius: var(--radius-m); }
 .ra-segtab {
-  min-height: 40px; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+  min-height: 40px; border: 0; border-radius: var(--radius-s); background: transparent; cursor: pointer;
   font: var(--t-small-strong); color: var(--ink-muted); transition: background var(--ease), color var(--ease);
 }
 .ra-segtab[aria-selected="true"] { background: var(--surface-1); color: var(--ink); box-shadow: var(--edge), var(--shadow-1); }
@@ -433,7 +436,7 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
     padding: var(--space-1) var(--space-2) calc(var(--space-1) + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line); background: var(--surface-1);  /* sólido: el blur costaba batería y bajaba el contraste */
   }
-  .navitem { flex-direction: column; justify-content: center; gap: 4px; min-height: 56px; padding: 0; font: 600 12px/16px var(--font-ui); }
+  .navitem { flex-direction: column; justify-content: center; gap: 4px; min-height: 56px; padding: 0; font: var(--t-micro); }
   .navitem:hover { background: transparent; }
   .navitem[aria-current="page"]::after { top: 0; bottom: auto; left: 30%; right: 30%; }
   .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }  /* por encima de la barra inferior */
@@ -481,7 +484,7 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-entity { display: flex; gap: var(--space-4); align-items: flex-start; }
 .ra-avatar {
   flex: none; width: 56px; height: 56px; border-radius: var(--radius-pill); display: grid; place-items: center;
-  background: var(--brand-soft); color: var(--brand-ink); font: 700 20px/1 var(--font-ui); letter-spacing: -0.02em;
+  background: var(--brand-soft); color: var(--brand-ink); font: var(--t-title); line-height: 1; letter-spacing: -0.02em;
 }
 :root[data-theme="dark"] .ra-avatar { background: var(--surface-3); }
 .ra-prose { font: var(--t-body); max-width: 68ch; }
@@ -611,7 +614,7 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-hit:hover { background: var(--surface-2); }
 .ra-hit:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .ra-hit-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.ra-hit-time { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: var(--radius-s); background: var(--brand-soft); color: var(--brand-ink); font: 600 13px/18px var(--font-data); }
+.ra-hit-time { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: var(--radius-s); background: var(--brand-soft); color: var(--brand-ink); font: var(--t-data); font-weight: 600; }
 .ra-hit-title { font: var(--t-small); font-weight: 600; }
 .ra-hit-text {
   font: var(--t-small); color: var(--ink-muted); margin: 0;
@@ -625,7 +628,7 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
    no en el rojo de error que se usaba antes. */
 .ra-cite {
   display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: var(--radius-s); vertical-align: 1px;
-  font: 500 13px/20px var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap;
+  font: var(--t-data); font-variant-numeric: tabular-nums; white-space: nowrap;
   background: var(--surface-3); color: var(--ink); text-decoration: none;
 }
 .ra-cite:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }

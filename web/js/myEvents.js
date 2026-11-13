@@ -28,7 +28,7 @@ export function MyEventCard(e, actions = []) {
 export async function MyEventsSection() {
   const { eventos } = await MyEvents.list();
   return h("section", { class: "stack" },
-    h("div", { class: "actions" }, Button("＋ Mi evento", { variant: "primary", onclick: () => (location.hash = "#/mi-evento/nuevo") }),
+    h("div", { class: "actions" }, Button(IconText("agregar", "Mi evento"), { variant: "primary", onclick: () => (location.hash = "#/mi-evento/nuevo") }),
       h("span", { class: "caption" }, "¿Te invitó un proveedor a algo que no está acá? Cargalo y entra a tu itinerario.")),
     eventos.length ? h("details", {}, h("summary", { class: "label" }, `Tus eventos (${eventos.length})`),
       h("div", { class: "daylist" }, eventos.map((e) => MyEventCard(e)))) : null);

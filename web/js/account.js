@@ -5,6 +5,7 @@ import { confirmDialog, promptDialog } from "./dialog.js";
 import { currentPosition, walkingMinutes } from "./location.js";
 import { loadGoogleMaps } from "./map.js";
 import { refreshSandbox } from "./sandbox.js";
+import { icon } from "./icons.js";
 import { Button, h, toast } from "./ui.js";
 
 const MIN_LENGTH = 8;
@@ -170,7 +171,7 @@ function FunctionalCheck() {
     try { ({ checks: server } = await Admin.check()); } catch (err) { server = [{ name: "Servidor", ok: false, detail: err.message, ms: 0 }]; }
     const all = [...server, ...await deviceChecks()];
     list.replaceChildren(...all.map((c) => h("li", { class: c.ok ? "is-ok" : "is-fail" },
-      h("strong", {}, `${c.ok ? "✓" : "✗"} ${c.name}`), h("span", { class: "caption" }, ` ${c.detail} · ${c.ms} ms`))));
+      h("strong", {}, icon(c.ok ? "listo" : "cerrar", 16), h("span", { class: "sr-only" }, c.ok ? "Bien: " : "Falla: "), c.name), h("span", { class: "caption" }, ` ${c.detail} · ${c.ms} ms`))));
     btn.disabled = false;
   };
   const btn = Button("Correr todo", { variant: "primary", onclick: run });

@@ -4,6 +4,7 @@ import { refreshCountdown } from "./countdown.js";
 import { EventCard } from "./events.js";
 import { shortDay } from "./itinerary.js";
 import { sandboxNow } from "./sandbox.js";
+import { icon } from "./icons.js";
 import { Button, Hint, IconText, Skeleton, Tag, h, toast } from "./ui.js";
 
 const PAUSA_MIN = 60;                                    // "Hacer una pausa": la próxima, una hora después
@@ -75,7 +76,7 @@ function PeopleToMeet(items) {
 /** Lo que ya elegiste ese día, con la marca de reservada (cambia la cola) y quitar. */
 function ChosenRow(s, onChanged) {
   const fin = s.salir_antes && s.end ? hhmm(toMin(s.end) - s.salir_antes) : s.end;
-  const booked = Button(s.reservada ? "✓ Reservada" : "Marcar reservada", {
+  const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Marcar reservada", {
     variant: "ghost", "aria-pressed": String(Boolean(s.reservada)),
     title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 30 min antes",
     onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(err.message)) });
@@ -97,7 +98,7 @@ function PendingList(pendientes, onChanged) {
       h("a", { class: "ra-link", href: `#/charla/${p.base}` }, p.title),
       h("span", { class: "caption" }, ` · la marcaste el ${shortDay(p.dia_marcada)} · `,
         p.horarios.filter((x) => x.day > p.dia_marcada).map((x) => `${shortDay(x.day)} ${x.start}`).join(", ") || "no se repite"),
-      " ", Button("✕", { variant: "ghost", "aria-label": `Sacar ${p.title} de pendientes`,
+      " ", Button(icon("cerrar", 18), { variant: "ghost", "aria-label": `Sacar ${p.title} de pendientes`,
         onclick: () => Guided.removePending(p.base).then(onChanged).catch((err) => toast(err.message)) })))));
 }
 

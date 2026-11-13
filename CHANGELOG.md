@@ -35,14 +35,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Nueva cara, misma identidad** (naranja, Inter y JetBrains Mono): escala tipográfica de 6 pasos (los títulos de
   sección se separan de los de tarjeta), texto secundario con más contraste, un tinte suave por estado, radios más
   amables y, en oscuro, sin sombras (superficie y borde). Los emojis que hacían de íconos (🟠 🕒 📍 🎉 📌 ⚠ y el
-  semáforo del armado guiado) pasan a íconos que siguen el color del tema.
+  semáforo del armado guiado) y los glifos ✓ ✕ ＋ ↗ de los botones pasan a íconos que siguen el color del tema. Los
+  avisos informativos (la cola, la opción sin reserva) usan su tinte azul en vez de gris.
 - **Inicio**: «Ahora» se marca con borde naranja y un estado con punto; los avisos (cola, salí antes, superposición)
   son una fila tintada con ícono en vez de una tarjeta dentro de otra; el resto del día va en una lista agrupada.
 - **Buscar**: una sola píldora de filtro, de 44 px, con el estado activo en tinta llena y ✕ para quitarlo; las charlas
   de Filtrar se ven compactas (hora, código, título, sede, hasta 3 tags y un botón + para agregar), así entran el doble
   por pantalla. En Preguntar, la pregunta va como burbuja, las citas son pastillas (el código en gris y el momento ▶ en
   naranja, ya no en rojo) y los momentos grabados van en una lista agrupada.
-- **Detalle de grabación**: el título baja a 24 px. La barra inferior pasa a fondo sólido.
+- **Detalle de grabación**: el título usa el tamaño de título de sección. La barra inferior pasa a fondo sólido.
+- **Sin señal**: la app guarda al instalarse todos sus módulos (antes faltaban el contador, los avisos de cambios, la
+  ubicación, eventos y notificaciones, que se guardaban recién al usarlos).
 - **La búsqueda entiende mejor lo que pedís**: nuevo modelo de embeddings (embeddinggemma, multilingüe y con textos
   largos) y plurales que encuentran el singular ("mainframes" → "mainframe"). En el set de 30 preguntas, de las charlas
   que tienen que aparecer entre las 10 primeras se encuentran el 81 % (antes 74 %). Mejora Buscar, el chat, el armado
