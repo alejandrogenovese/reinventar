@@ -1,0 +1,13 @@
+{
+  "criterio": "Fichas inventadas (texto como el que arma app/interview.py: ficha_a_texto) para probar las razones del armado guiado. La consulta trae las opciones del catálogo con la búsqueda híbrida.",
+  "fichas": [
+    {
+      "consulta": "data lakehouse governance Iceberg migration from Teradata",
+      "texto": "Lidera arquitectura de datos en un banco: migra un data warehouse Teradata a un lakehouse en AWS con dbt y data contracts.\nIndustria: Finanzas\nPrioridades:\n  ●●● Migración de data warehouse (Teradata, Redshift, Iceberg)\n  ●●○ Gobierno de datos (Lake Formation, DataZone, data contracts)\n  ●○○ GenAI sobre datos (Bedrock, RAG)\nNivel: 300-400 · prefiere: Chalk talk, Workshop\nEvitar: marketing, introducciones de nivel 100\nRitmo: 5 charlas por día, con almuerzo, sin eventos a la noche"
+    },
+    {
+      "consulta": "agents in production observability evaluation LLMOps",
+      "texto": "Ingeniera de plataforma de ML en una fintech: pone agentes de GenAI en producción y necesita medirlos y controlar su costo.\nIndustria: Finanzas\nPrioridades:\n  ●●● Agentes en producción (Bedrock AgentCore, Strands)\n  ●●○ Evaluación y observabilidad de LLMs\n  ●●○ Costos de inferencia (Trainium, Inferentia, caching)\nNivel: 300-400 · prefiere: Breakout, Code talk\nRitmo: 6 charlas por día, sin almuerzo, con eventos a la noche"
+    }
+  ]
+}

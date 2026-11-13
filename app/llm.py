@@ -40,17 +40,22 @@ def _metadata(tarea: Tarea) -> dict:
 
 DEFAULT_EFFORT = "medium"
 _THINKING_OFF_MODELS = ("claude-sonnet-5-5",)
+_THINKING_DISABLED_MODELS = ("claude-haiku-5-5",)
 
 
 def thinking_params(model: str) -> dict:
     """Cada modelo acepta una configuración de thinking distinta; la equivocada es un 400.
 
     - Sonnet 5.5: no acepta {"type": "disabled"}; se apaga con "between_tools" (sólo piensa entre tools, y no usamos).
+    - Haiku 5.5: piensa por default; se apaga con {"type": "disabled"} (vale con effort ≤ high, y el default es medium),
+      igual que en el gateway (infra/litellm/config.yaml).
     - Opus 5.5 y el resto: el thinking no se puede apagar ("between_tools" y "disabled" dan 400); se omite
       y se fija el effort (en Opus 5.5 el default ya es medium, se explicita para que no cambie sin aviso).
     """
     if model.startswith(_THINKING_OFF_MODELS):
         return {"thinking": {"type": "between_tools"}}
+    if model.startswith(_THINKING_DISABLED_MODELS):
+        return {"thinking": {"type": "disabled"}}
     return {"output_config": {"effort": DEFAULT_EFFORT}}
 
 
@@ -60,7 +65,9 @@ def _system_cacheable(system: str) -> list[dict]:
     return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
 
 
-def _claude(model, system, user, max_tokens):
+def claude_mensaje(model, system, user, max_tokens):
+    """El mensaje completo de Claude (texto y uso de tokens). Lo usa también scripts/evaluar_modelos.py, para medir
+    con exactamente los mismos parámetros que la app."""
     global _anthropic
     import anthropic
 
@@ -68,12 +75,20 @@ def _claude(model, system, user, max_tokens):
         if not config.ANTHROPIC_API_KEY:
             raise RuntimeError("Falta ANTHROPIC_API_KEY")
         _anthropic = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=4, timeout=600)
-    msg = _anthropic.messages.create(
+    return _anthropic.messages.create(
         model=model, max_tokens=max_tokens, system=_system_cacheable(system), messages=[{"role": "user", "content": user}],
         # extra_body porque "thinking"/"output_config" no son parámetros tipados en anthropic==0.40.0.
         extra_body=thinking_params(model),
     )
-    text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+
+
+def texto(msg) -> str:
+    return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+
+
+def _claude(model, system, user, max_tokens):
+    msg = claude_mensaje(model, system, user, max_tokens)
+    text = texto(msg)
     if not text:
         kinds = [getattr(b, "type", "?") for b in msg.content]
         log.warning("Claude devolvió sin texto (model=%s, stop_reason=%s, bloques=%s)", model, msg.stop_reason, kinds)
