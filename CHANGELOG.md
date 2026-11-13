@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Corregido
+- En Android, el ícono chico de las notificaciones en la barra de estado se veía como un cuadrado blanco; ahora
+  muestra las barras de ReinventAR.
+
 ## [0.21.0] - 2026-11-13
 
 ### Agregado
