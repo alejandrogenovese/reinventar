@@ -7,6 +7,7 @@ import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
 import { icon } from "./icons.js";
+import { LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
@@ -123,7 +124,7 @@ export function AddButton(code, onAdd) {
   return btn;
 }
 
-export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } = {}) {
+export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, extra } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
     h("div", { class: "ra-rail" },
@@ -141,6 +142,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } =
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
       s.salir_antes && s.end ? Hint(`Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
       s.overlaps?.length ? Hint(`Se superpone con ${s.overlaps.join(", ")}`, { tone: "error" }) : null,
+      extra,
       h("div", { class: "actions" },
         onAdd ? AddButton(s.code, onAdd) : null,
         onLock ? PinButton(locked, onLock) : null,
@@ -232,7 +234,7 @@ function importReservations(onDone) {
 }
 
 /** Una charla o evento del itinerario con Fijar y Quitar (con deshacer). onChanged vuelve a pintar la vista. */
-function ItineraryItem(s, onChanged) {
+function ItineraryItem(s, onChanged, lleno) {
   const refresh = () => refreshCountdown({ force: true });
   const onLock = () => toastOnError(Itinerary.lock(s.code, !s.locked).then(() => { void refresh(); return onChanged(); }));
   let card = null;
@@ -247,7 +249,7 @@ function ItineraryItem(s, onChanged) {
   const quitar = Button("Quitar", { variant: "danger", onclick: onRemove });
   if (s.kind === "mine") card = MyEventCard(s, [quitar]);
   else if (s.kind === "event") card = EventCard(s, { actions: [PinButton(s.locked, onLock), quitar] });
-  else card = SessionMiniCard(s, { locked: s.locked, onLock, onRemove, onBook });
+  else card = SessionMiniCard(s, { locked: s.locked, onLock, onRemove, onBook, extra: lleno });
   return card;
 }
 
@@ -305,7 +307,14 @@ export async function viewItinerario(view) {
     function paintList() {
       const day = data.days[dayIndex];
       dayHeading.textContent = day ? `Tu agenda del ${day.day}` : "";
-      list.replaceChildren(...(day?.sessions || []).map((s) => ItineraryItem(s, paint)));
+      const sessions = day?.sessions || [];
+      // Los avisos de «llena» llegan después: la lista se pinta ya y cada tarjeta los suma cuando están.
+      const lugares = new Map(codigosDeCharlas(sessions).map((code) => [code, h("div", { hidden: true })]));
+      list.replaceChildren(...sessions.map((s) => ItineraryItem(s, paint, lugares.get(s.code))));
+      void avisosDe([...lugares.keys()]).then((avisos) => lugares.forEach((lugar, code) => {
+        const el = LlenoAvisos(code, avisos[code]);
+        if (el) lugar.replaceWith(el);
+      }));
     }
     paintTabs();
     paintList();

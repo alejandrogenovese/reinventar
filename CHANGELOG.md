@@ -10,6 +10,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   hasta que termina, quien está en la puerta avisa con un toque y el resto ve «Llena según 3 personas · hace 5 min».
   Cada persona deja un aviso por horario (otro toque lo quita), vale una hora y nunca se muestra quién avisó.
   Además, cada horario dice si es sin reserva («se entra por orden de llegada») o si la sala es chica.
+- Los avisos de «llena» y «mucha cola» también aparecen en las tarjetas de **Hoy** (la charla de ahora y la que sigue,
+  con los botones para avisar desde ahí) y en las del **itinerario**, junto con la pista de sala chica.
 
 ### Corregido
 - En Android, el ícono chico de las notificaciones en la barra de estado se veía como un cuadrado blanco; ahora
