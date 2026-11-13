@@ -9,7 +9,12 @@ Además, cada llamada lleva:
 - trace_release: la versión de la app, para ver qué cambió después de cada deploy.
 - version: un hash corto del prompt de sistema (en el STT, del vocabulario): cambia solo si cambia el prompt.
 - tags: la tarea, el entorno (prod/dev) y "prueba" si quien llama está en modo prueba.
-- mask_input en la entrevista: las respuestas sobre el trabajo de la persona no hacen falta para depurar.
+- Privacidad (mask_input / mask_output, que LiteLLM aplica antes de mandar a Langfuse):
+  - entrevista (repreguntas y ficha) y stt-voz (la respuesta dictada): ni la entrada ni la salida se guardan, porque las
+    dos repiten lo que contó la persona de su trabajo.
+  - razones: tampoco, porque la entrada es la ficha y la salida explica cada charla en función de la ficha.
+  - chat, briefing e itinerario: si el pedido lleva la ficha de la entrevista (Traza(con_ficha=True)), no se guarda la
+    entrada. La salida sí (es lo que hace falta para depurar), aunque pueda mencionar algo de la ficha.
 Nada de datos personales en trace_metadata: solo códigos de charla, tipos y cantidades.
 """
 import hashlib
@@ -24,7 +29,8 @@ from . import __version__, config, llm_router, sandbox
 LARGO_HASH_PROMPT = 8
 LARGO_TRACE_ID = 32  # hex, como los que genera Langfuse
 FLUJO_ENTREVISTA = "entrevista"
-_ENMASCARADOS = frozenset({"entrevista", "stt-voz"})  # tareas cuya entrada no se guarda en Langfuse
+# Tareas que nunca guardan en Langfuse ni la entrada ni la salida: las dos repiten lo que contó la persona.
+_PRIVADAS = frozenset({"entrevista", "stt-voz", "razones"})
 
 
 @dataclass(frozen=True)
@@ -33,6 +39,7 @@ class Traza:
     nombre: str | None = None        # trace_name; sin nombre, el de la tarea
     session_id: str | None = None    # sin sesión, "<flujo>-<usuario>-<día>"
     metadata: dict = field(default_factory=dict)  # trace_metadata, sin datos personales
+    con_ficha: bool = False          # el pedido lleva la ficha de la entrevista: la entrada no se guarda
 
 
 _actual: ContextVar[Traza | None] = ContextVar("traza", default=None)
@@ -95,6 +102,12 @@ def metadata(tarea: str, prompt: str, flujo: str | None = None) -> dict:
         meta["trace_metadata"] = dict(traza.metadata)
     if usuario:
         meta["trace_user_id"] = usuario
-    if tarea in _ENMASCARADOS:
-        meta["mask_input"] = True
-    return meta
+    return {**meta, **_mascaras(tarea, traza)}
+
+
+def _mascaras(tarea: str, traza: Traza) -> dict:
+    if tarea in _PRIVADAS:
+        return {"mask_input": True, "mask_output": True}
+    if traza.con_ficha:
+        return {"mask_input": True}
+    return {}

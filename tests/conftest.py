@@ -19,6 +19,10 @@ os.environ.setdefault("EMBED_PROVIDER", "fake")  # vectores por hashing de palab
 # Postgres del docker local; cada corrida usa un schema propio que se borra al final.
 os.environ.setdefault("DATABASE_URL", "postgresql://reinvent:reinvent2026@localhost:5433/reinvent")
 os.environ.setdefault("DB_SCHEMA", f"app_test_{uuid.uuid4().hex[:8]}")
+# Que los tests no dependan de la shell (railway run, claves exportadas para scripts/evaluar_modelos.py): sin claves de
+# Langfuse no se manda ningún score real, y sin el entorno de Railway las trazas llevan el tag "dev".
+for _variable in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "RAILWAY_ENVIRONMENT_NAME"):
+    os.environ[_variable] = ""
 
 
 @pytest.fixture(scope="session", autouse=True)

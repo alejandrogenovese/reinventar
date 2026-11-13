@@ -3,7 +3,10 @@
 import { api } from "./api.js";
 import { Button, h } from "./ui.js";
 
-const SCORE_LABEL = { lineas_faltantes: "Líneas faltantes (traducción)", json_valido: "JSON válido", util: "Útil (👍)" };
+const SCORE_LABEL = {
+  lineas_faltantes: "Líneas faltantes (traducción)", json_valido: "JSON válido",
+  codigos_inventados: "Códigos inventados (chat y briefing)", momentos_citados: "Momentos citados (chat)", util: "Útil (👍)",
+};
 const SCORE_RATIO = new Set(["json_valido", "util"]); // 0/1: el promedio es un porcentaje
 
 const usd = (n) => `US$ ${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: n < 1 ? 3 : 2 })}`;
@@ -31,7 +34,7 @@ function Summary(d) {
     Stat("Costo del mes", usd(m.costo)),
     Stat("Errores 7 días", int(d.errores_semana)),
     Stat("Unidades Langfuse del mes", `${int(m.unidades)} / ${int(m.limite_unidades)}`,
-      m.unidades_estimadas ? `estimado: ${int(m.detalle.trazas)} trazas + ${int(m.detalle.observaciones)} observaciones + ${int(m.detalle.scores)} scores` : null));
+      m.unidades_estimadas ? `${m.unidades_cota_superior ? "cota superior estimada" : "estimado"}: ${int(m.detalle.trazas)} trazas + ${int(m.detalle.observaciones)} observaciones + ${int(m.detalle.scores)} scores` : null));
 }
 
 function UnitsBar(m) {
@@ -85,7 +88,7 @@ function Dashboard(d) {
   return h("div", { class: "stack" },
     Summary(d), UnitsBar(d.mes),
     CostByTask(d.tareas), CostByDay(d.costo_por_dia), LatencyAndErrors(d.tareas), Scores(d.scores),
-    h("p", { class: "caption" }, `Datos de Langfuse de las ${updated} (se actualizan cada 5 minutos). `, LangfuseLink(d.url)));
+    h("p", { class: "caption" }, `Datos de Langfuse de las ${updated} (se actualizan cada 5 minutos). Lo de ${d.dias} días no cuenta el modo prueba. `, LangfuseLink(d.url)));
 }
 
 /** Sección "LLM" del portal de admin: carga sola, sin frenar el resto de la pantalla. */

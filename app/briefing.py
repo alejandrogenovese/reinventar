@@ -149,16 +149,17 @@ def _valid(parsed: dict) -> bool:
     return isinstance(parsed, dict) and bool(parsed.get("quien")) and isinstance(parsed.get("temas"), list)
 
 
-def _ask(user: str) -> dict:
-    with trazas.abrir():
+def _ask(user: str, con_ficha: bool = False) -> dict:
+    with trazas.abrir(trazas.Traza(con_ficha=con_ficha)):
         try:
             raw = llm.complete(Tarea.BRIEFING, prompts.BRIEFING_SYSTEM, user, BRIEFING_MAX_TOKENS)
             parsed = llm.parse_json_puntuado(raw)
         except Exception as e:
             log.exception("No se pudo generar el briefing (tarea %s)", Tarea.BRIEFING)
             raise BriefingUnavailable from e
-        # Los códigos que cita la ficha ([ARC407]) tienen que existir en el catálogo.
-        langfuse_scores.puntuar("codigos_inventados", len(ask.codigos_inventados(json.dumps(parsed, ensure_ascii=False))))
+        if langfuse_scores.activo():  # los códigos que cita la ficha ([ARC407]) tienen que existir en el catálogo
+            inventados = ask.codigos_inventados(json.dumps(parsed, ensure_ascii=False))
+            langfuse_scores.puntuar("codigos_inventados", len(inventados))
     if not _valid(parsed):
         log.error("Briefing sin la forma esperada: %r", str(parsed)[:300])
         raise BriefingUnavailable
@@ -171,12 +172,13 @@ def get(username: str, kind: str, entity_id: int, refresh: bool = False) -> dict
     if entity is None:
         return None
     text, talks = entity
-    profile = _profile_text(db.get_profile(username) or {}, db.get_interview(username)["ficha_texto"])
+    ficha = db.get_interview(username)["ficha_texto"]
+    profile = _profile_text(db.get_profile(username) or {}, ficha)
     user = prompts.briefing_user(kind, text, profile, _recordings_text(talks))
     input_hash = hashlib.sha256(f"{llm_router.modelo(Tarea.BRIEFING, config.LLM_PROVIDER)}\n{user}".encode()).hexdigest()
 
     cached = None if refresh else _load(username, kind, entity_id)
     if cached and cached["input_hash"] == input_hash:
         return {"briefing": cached["content"], "cached": True, "created_at": cached["created_at"]}
-    content = _ask(user)
+    content = _ask(user, con_ficha=bool(ficha))
     return {"briefing": content, "cached": False, "created_at": _save(username, kind, entity_id, input_hash, content)}

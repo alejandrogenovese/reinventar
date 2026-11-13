@@ -1,7 +1,7 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
 import logging
 
-from . import catalog, config, db, events, llm, prompts, search
+from . import catalog, config, db, events, llm, prompts, search, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.itinerary")
@@ -108,7 +108,12 @@ def get_current(username: str) -> dict:
 
 def _ask_llm(profile: dict, prompt: str, candidates: list[dict], confirmed_cards: list[dict], ficha: str | None = None) -> dict:
     user = prompts.itinerary_user(profile, prompt, candidates, confirmed_cards, ficha)
+    # Los dos intentos van a la misma traza; si el pedido lleva la ficha de la entrevista, su entrada no se guarda.
+    with trazas.abrir(trazas.Traza(con_ficha=bool(ficha))):
+        return _elegir(user)
 
+
+def _elegir(user: str) -> dict:
     raw = llm.complete(Tarea.ITINERARIO, prompts.ITINERARY_SYSTEM, user, 4000)
     try:
         return llm.parse_json(raw)
