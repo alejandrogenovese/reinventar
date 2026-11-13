@@ -20,10 +20,10 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from . import config, db
+from . import config, db, limites
 from . import passkeys_db as store
-from .auth import auth
-from .auth_api import issue_session
+from .auth import auth, login_reciente
+from .auth_api import ip_cliente, issue_session
 
 log = logging.getLogger("reinventar.passkey")
 router = APIRouter()
@@ -54,7 +54,7 @@ def _options(options) -> dict:
 
 
 @router.post("/api/passkey/register/options")
-def register_options(request: Request, username: str = Depends(auth)):
+def register_options(request: Request, username: str = Depends(login_reciente)):
     rp_id, _ = _rp(request)
     options = webauthn.generate_registration_options(
         rp_id=rp_id,
@@ -75,7 +75,7 @@ def register_options(request: Request, username: str = Depends(auth)):
 
 
 @router.post("/api/passkey/register/verify")
-def register_verify(body: RegisterVerify, request: Request, username: str = Depends(auth)):
+def register_verify(body: RegisterVerify, request: Request, username: str = Depends(login_reciente)):
     challenge = store.pop_challenge(body.challenge_id, "register", username)
     if challenge is None:
         raise HTTPException(400, "El pedido venció; probá de nuevo")
@@ -97,6 +97,10 @@ def register_verify(body: RegisterVerify, request: Request, username: str = Depe
 
 @router.post("/api/passkey/login/options")
 def login_options(request: Request):
+    ip = ip_cliente(request)
+    if limites.pedidos_passkey.excedido(ip):  # es público y cada pedido escribe un challenge en la base
+        raise limites.demasiados_intentos()
+    limites.pedidos_passkey.sumar(ip)
     rp_id, _ = _rp(request)
     options = webauthn.generate_authentication_options(
         rp_id=rp_id, user_verification=UserVerificationRequirement.REQUIRED
@@ -106,12 +110,16 @@ def login_options(request: Request):
 
 @router.post("/api/passkey/login/verify")
 def login_verify(body: LoginVerify, request: Request):
+    ip = ip_cliente(request)
+    if limites.fallos_ip.excedido(ip):
+        raise limites.demasiados_intentos()
     challenge = store.pop_challenge(body.challenge_id, "login")
     if challenge is None:
         raise HTTPException(400, "El pedido venció; probá de nuevo")
     passkey = store.get_passkey(str(body.credential.get("id", "")))
     user = passkey and db.get_user(passkey["username"])
     if not user or not user["is_active"]:
+        limites.fallos_ip.sumar(ip)
         raise HTTPException(401, "Esta passkey no está registrada en ReinventAR")
     rp_id, origin = _rp(request)
     try:
@@ -122,6 +130,7 @@ def login_verify(body: LoginVerify, request: Request):
         )
     except WebAuthnException as e:
         log.warning("Login con passkey rechazado para %s: %s", passkey["username"], type(e).__name__)
+        limites.fallos_ip.sumar(ip)
         raise HTTPException(401, "No se pudo verificar el Face ID / huella") from e
     store.touch_passkey(passkey["id"], verified.new_sign_count)
     return issue_session(user)

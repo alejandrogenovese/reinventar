@@ -3,6 +3,7 @@
 Las tablas de datos del usuario (DATOS_USUARIO) existen también en el schema de prueba (app/sandbox.py); las de cuentas
 (CUENTAS) solo en el real, así que un usuario en modo prueba se loguea igual pero escribe en el schema de prueba.
 """
+import hashlib
 import json
 import logging
 import time
@@ -146,10 +147,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TR
 ALTER TABLE users ADD COLUMN IF NOT EXISTS modo_prueba BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS prueba JSONB;
 CREATE TABLE IF NOT EXISTS auth_tokens (
-  token TEXT PRIMARY KEY,
+  token TEXT PRIMARY KEY,              -- sha256 del token (el token en claro solo lo tiene el celular)
   username TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
+ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS usado_at DOUBLE PRECISION;
+ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS hasheado BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE TABLE IF NOT EXISTS passkeys (
   id TEXT PRIMARY KEY,                 -- credential id en base64url
   username TEXT NOT NULL,
@@ -195,11 +198,18 @@ def init():
             c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
             c.execute(SCHEMA)
             _crear_fragmentos(c)
+            _hashear_tokens_viejos(c)
             sectors.ensure(c)
             _crear_schema_prueba(c)
         with conn() as c:
             legacy_import.run_once(c, config.LEGACY_SQLITE_PATH)
         bootstrap_users()
+
+
+def _hashear_tokens_viejos(c) -> None:
+    """Los tokens se guardaban en claro: se reemplazan por su sha256 (una sola vez; las sesiones siguen valiendo)."""
+    c.execute("UPDATE auth_tokens SET token = encode(sha256(convert_to(token, 'UTF8')), 'hex'), hasheado = TRUE "
+              "WHERE NOT hasheado")
 
 
 def _crear_schema_prueba(c) -> None:
@@ -422,8 +432,17 @@ def push_subscriptions(username):
 
 
 def push_usernames():
+    """Usuarios activos con algún dispositivo suscripto (a los desactivados no se les manda nada)."""
     with conn() as c:
-        return [r["username"] for r in c.execute("SELECT DISTINCT username FROM push_subscriptions").fetchall()]
+        return [r["username"] for r in c.execute(
+            "SELECT DISTINCT p.username FROM push_subscriptions p JOIN users u ON u.username = p.username "
+            "WHERE u.is_active").fetchall()]
+
+
+def delete_push_subscriptions(username):
+    """Baja de todos los dispositivos del usuario (al desactivarlo o resetear su contraseña)."""
+    with conn() as c:
+        c.execute("DELETE FROM push_subscriptions WHERE username=%s", (username,))
 
 
 def mark_push_sent(username, key) -> bool:
@@ -472,34 +491,57 @@ def bootstrap_users():
         create_user(username, salt, password_hash)
 
 
+# Sesiones: en la base se guarda el sha256 del token (quien lea un backup no puede entrar como nadie) y vencen
+# tras SESION_INACTIVA_DIAS sin usarse (ventana deslizante: quien usa la app todos los días no se tiene que volver
+# a loguear en plena conferencia).
+SESION_INACTIVA_SEGUNDOS = 30 * 24 * 3600
+_REFRESCO_USO_SEGUNDOS = 24 * 3600  # usado_at se actualiza como mucho una vez por día (no una escritura por pedido)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def create_auth_token(token, username):
+    ahora = time.time()
     with conn() as c:
-        c.execute(
-            "INSERT INTO auth_tokens (token,username,created_at) VALUES (%s,%s,%s)", (token, username, time.time())
-        )
+        c.execute("DELETE FROM auth_tokens WHERE COALESCE(usado_at, created_at) < %s", (ahora - SESION_INACTIVA_SEGUNDOS,))
+        c.execute("INSERT INTO auth_tokens (token,username,created_at,usado_at,hasheado) VALUES (%s,%s,%s,%s,TRUE)",
+                  (hash_token(token), username, ahora, ahora))
+
+
+def resolve_session(token, ahora=None):
+    """{username, must_change_password, created_at} del dueño del token: solo si el usuario sigue activo y la sesión
+    no venció. None si no vale."""
+    ahora = ahora or time.time()
+    th = hash_token(token)
+    with conn() as c:
+        r = c.execute(
+            "SELECT t.username, u.must_change_password, t.created_at, COALESCE(t.usado_at, t.created_at) AS usado "
+            "FROM auth_tokens t JOIN users u ON u.username = t.username "
+            "WHERE t.token=%s AND u.is_active AND COALESCE(t.usado_at, t.created_at) >= %s",
+            (th, ahora - SESION_INACTIVA_SEGUNDOS),
+        ).fetchone()
+        if r and r["usado"] < ahora - _REFRESCO_USO_SEGUNDOS:
+            c.execute("UPDATE auth_tokens SET usado_at=%s WHERE token=%s", (ahora, th))
+    return dict(r) if r else None
 
 
 def resolve_auth_token(token):
-    """Username dueño del token, solo si el usuario sigue activo."""
-    with conn() as c:
-        r = c.execute(
-            "SELECT t.username FROM auth_tokens t JOIN users u ON u.username = t.username "
-            "WHERE t.token=%s AND u.is_active",
-            (token,),
-        ).fetchone()
+    """Username dueño del token, solo si el usuario sigue activo y la sesión no venció."""
+    r = resolve_session(token)
     return r["username"] if r else None
 
 
 def delete_auth_token(token):
     with conn() as c:
-        c.execute("DELETE FROM auth_tokens WHERE token=%s", (token,))
+        c.execute("DELETE FROM auth_tokens WHERE token=%s", (hash_token(token),))
 
 
 def revoke_tokens(username, except_token=None):
     with conn() as c:
-        c.execute(
-            "DELETE FROM auth_tokens WHERE username=%s AND token IS DISTINCT FROM %s", (username, except_token)
-        )
+        c.execute("DELETE FROM auth_tokens WHERE username=%s AND token IS DISTINCT FROM %s",
+                  (username, hash_token(except_token) if except_token else None))
 
 
 # --- uso (admin) -----------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 // Mapa interactivo de venues (Google Maps JavaScript API, se carga sólo cuando hace falta).
 import { Maps } from "./api.js";
 import { currentPosition } from "./location.js";
+import { h } from "./ui.js";
 
 let mapsPromise;
 
@@ -64,7 +65,9 @@ export async function renderMap(el, { days } = {}) {
       const position = { lat: sessions[0].venue.lat, lng: sessions[0].venue.lng };
       const marker = new maps.Marker({ position, map, title: hotel });
       marker.addListener("click", () => {
-        infoWindow.setContent(`<strong>${hotel}</strong><br>${sessions.map((s) => `${s.start} · ${s.title}`).join("<br>")}`);
+        // Nodos, no HTML: los títulos y sedes vienen de fuentes externas (Luma, Google, lo que escribe la persona).
+        infoWindow.setContent(h("div", {}, h("strong", {}, hotel),
+          ...sessions.flatMap((s) => [h("br"), `${s.start} · ${s.title}`])));
         infoWindow.open(map, marker);
       });
       markers.push(marker);

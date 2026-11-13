@@ -7,7 +7,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, events, healthcheck, langfuse_metricas, passwords, sandbox, search, venues
+from . import catalog, config, db, events, healthcheck, langfuse_metricas, passkeys_db, passwords, sandbox, search, venues
 from .auth import admin, is_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -53,6 +53,14 @@ def _user_or_404(username: str) -> dict:
     return user
 
 
+def _cortar_accesos(username: str) -> None:
+    """Cierra todas las sesiones, borra las passkeys y da de baja las notificaciones del usuario: lo que hace falta
+    para recuperar una cuenta comprometida (o dejar afuera a alguien desactivado)."""
+    db.revoke_tokens(username)
+    passkeys_db.delete_all(username)
+    db.delete_push_subscriptions(username)
+
+
 @router.get("/users")
 def list_users(_admin: str = Depends(admin)):
     return {"users": [{**{k: v for k, v in u.items() if k != "prueba"}, "is_admin": is_admin(u["username"]),
@@ -76,7 +84,7 @@ def reset_password(username: str, body: ResetPassword, _admin: str = Depends(adm
     _user_or_404(username)
     salt, password_hash = passwords.hash_password(body.password)
     db.set_password(username, salt, password_hash, must_change_password=True)
-    db.revoke_tokens(username)
+    _cortar_accesos(username)
     return {"ok": True}
 
 
@@ -87,14 +95,14 @@ def set_active(username: str, body: SetActive, current: str = Depends(admin)):
         raise HTTPException(400, "No podés desactivar tu propio usuario")
     db.set_user_active(username, body.active)
     if not body.active:
-        db.revoke_tokens(username)
+        _cortar_accesos(username)
     return {"ok": True}
 
 
 @router.delete("/users/{username}/sessions")
 def revoke_sessions(username: str, _admin: str = Depends(admin)):
     _user_or_404(username)
-    db.revoke_tokens(username)
+    _cortar_accesos(username)
     return {"ok": True}
 
 
