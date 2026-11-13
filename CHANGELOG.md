@@ -5,6 +5,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Corregido
+- **Mapa del itinerario con un solo lugar:** ya no queda con el zoom al máximo adentro del edificio; se ven las calles y los hoteles de alrededor.
+
 ### Seguridad
 - **Sesiones más seguras:** el token se guarda hasheado en la base (un backup no sirve para entrar como nadie) y la sesión vence después de 30 días sin usar la app. Las sesiones abiertas siguen valiendo.
 - **Login con límite de intentos:** después de 5 contraseñas mal en la misma cuenta, o de 20 desde el mismo lugar, hay que esperar 15 minutos. La respuesta tarda lo mismo exista o no el usuario.

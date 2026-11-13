@@ -26,6 +26,8 @@ export function loadGoogleMaps() {
 // Un color por día, de la paleta de Brick: naranja classic, info, success, morado move y warning.
 const DAY_COLORS = ["#fa6400", "#2970bc", "#258825", "#8a50f7", "#e99d09"];
 
+const ZOOM_MAXIMO = 16; // calles y hoteles vecinos a la vista
+
 export async function renderMap(el, { days } = {}) {
   const maps = await loadGoogleMaps();
   el.replaceChildren();
@@ -82,7 +84,12 @@ export async function renderMap(el, { days } = {}) {
     if (path.length > 1) {
       polyline = new maps.Polyline({ path, map, strokeColor: DAY_COLORS[dayIndex % DAY_COLORS.length], strokeOpacity: 0.9, strokeWeight: 3 });
     }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 40);
+      // Con un solo lugar (o dos pegados) fitBounds hace zoom al máximo y el mapa queda adentro del edificio, sin
+      // calles: se tope para que se vea la cuadra y el Strip alrededor.
+      maps.event.addListenerOnce(map, "idle", () => { if (map.getZoom() > ZOOM_MAXIMO) map.setZoom(ZOOM_MAXIMO); });
+    }
   }
 
   return { update };
