@@ -26,7 +26,6 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 import httpx
 
@@ -64,7 +63,7 @@ def _host() -> str:
     return config.LANGFUSE_HOST.rstrip("/")
 
 
-def _get(path: str, params: Optional[dict] = None) -> dict:
+def _get(path: str, params: dict | None = None) -> dict:
     try:
         r = httpx.get(f"{_host()}{path}", params=params, auth=(config.LANGFUSE_PUBLIC_KEY, config.LANGFUSE_SECRET_KEY),
                       timeout=TIMEOUT_S)
@@ -98,7 +97,7 @@ def _num(valor) -> float:
 
 
 def _iso(momento: dt.datetime) -> str:
-    return momento.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return momento.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def _query(view: str, desde: dt.datetime, hasta: dt.datetime, metricas: list[tuple[str, str]],
@@ -207,9 +206,9 @@ def _url_proyecto() -> str:
     return f"{_host()}/project/{pid}" if pid else _host()
 
 
-def armar(ahora: Optional[dt.datetime] = None) -> dict:
+def armar(ahora: dt.datetime | None = None) -> dict:
     """Consulta Langfuse (en paralelo) y arma el tablero. Levanta LangfuseNoDisponible si alguna consulta falla."""
-    ahora = ahora or dt.datetime.now(dt.timezone.utc)
+    ahora = ahora or dt.datetime.now(dt.UTC)
     qs = consultas(ahora)
     with ThreadPoolExecutor(max_workers=len(qs) + 1) as pool:
         url = pool.submit(_url_proyecto)

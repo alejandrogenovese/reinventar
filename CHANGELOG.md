@@ -14,8 +14,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   charlas por tipo, sede y tema. Tocar una columna, celda o barra abre Buscar con ese filtro.
 - **Buscar › Filtrar** suma la faceta «Hora de inicio» (ej. 13 h = empieza entre las 13:00 y las 13:59).
 - Las grabaciones nuevas guardan quién las grabó; las de antes quedan sin dueño y no cuentan en «cuánto grabaste».
+- **Anuncios sin reserva en Inicio.** Debajo de «Hoy», una fila que se desliza con el dedo (no se mueve sola) con
+  las keynotes, el mainstage, los lanzamientos y los «What's new» a los que se entra por la cola, de los que quedan
+  hoy (antes del evento y de noche, los del próximo día). Keynote y mainstage van en tarjeta oscura. Cada tarjeta
+  dice desde qué hora hacer la cola y trae Agregar y Llevame; Grabar aparece solo con la charla en curso. Lo que ya
+  está en tu itinerario no se repite y lo que terminó desaparece. La última tarjeta lleva a Buscar con el nuevo
+  filtro «Anuncios» puesto.
 
 ### Arreglado
+- **Agregar una charla ahora se nota.** El botón queda en naranja como «Agregada» (también si ya la tenías) y no
+  vuelve a agregarla; si fue sin querer, otro toque la quita. En la ficha de la charla, el horario que ya está en tu
+  itinerario tiene «Quitar».
 - **Grabar sin que llegue sonido ya no deja una transcripción falsa.** Whisper inventaba un «Thank you.» sobre el
   silencio; ahora eso se descarta y la grabación avisa que no se escuchó voz, con qué revisar. Mientras grabás, si
   pasan unos segundos sin sonido aparece un aviso arriba del medidor («No llega sonido al micrófono»). La respuesta

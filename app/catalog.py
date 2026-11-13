@@ -1,6 +1,6 @@
 """Catálogo de sesiones de re:Invent: se carga una sola vez desde Postgres (schema reinvent) y se indexa/filtra en memoria.
 
-Cada sesión conserva la forma que tenía el JSON original (base, title, topic "a;b", instances [{c,d,st,v,seats,walk}])
+Cada sesión conserva la forma que tenía el JSON original (base, title, topic "a;b", instances [{c,d,st,en,v,seats,walk}])
 y suma "people": los speakers en orden, con cargo, empresa, industria y sector.
 """
 import logging
@@ -39,7 +39,7 @@ WITH people AS (
   SELECT h.id_speech,
          min(h.fecha + h.hora_inicio) AS first_at,
          jsonb_agg(jsonb_build_object(
-           'c', h.codigo, 'd', h.fecha::text, 'st', to_char(h.hora_inicio, 'HH24:MI'),
+           'c', h.codigo, 'd', h.fecha::text, 'st', to_char(h.hora_inicio, 'HH24:MI'), 'en', to_char(h.hora_fin, 'HH24:MI'),
            'v', sd.nombre || coalesce('|' || replace(h.sala, ' · ', '|'), ''), 'seats', h.cupo, 'walk', h.walk_up
          ) ORDER BY h.fecha, h.hora_inicio) AS instances
   FROM reinvent.speech_horario h
@@ -54,6 +54,7 @@ SELECT s.id_speech AS base, s.titulo AS title, s.tipo AS type, coalesce(s.nivel:
        array_to_string(s.tecnologias, ';') AS tech, array_to_string(s.conceptos, ';') AS concepts,
        array_to_string(s.conceptos_en, ';') AS concepts_en, array_to_string(s.enfoque, ';') AS focus,
        coalesce(s.area_interes, '') AS aoi, s.formato AS features, s.es_lanzamiento AS newlaunch,
+       s.es_sponsoreada AS sponsored,
        s.speakers_original AS speakers, s.resumen AS abstract, s.resumen_es AS abstract_es,
        coalesce(i.instances, '[]'::jsonb) AS instances, coalesce(p.people, '[]'::jsonb) AS people
 FROM reinvent.speech s

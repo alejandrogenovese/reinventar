@@ -19,6 +19,7 @@ import { refreshSandbox } from "./sandbox.js";
 import { viewSearch } from "./search.js";
 import { TalkPicker } from "./talkpicker.js";
 import { TodayPanel } from "./today.js";
+import { AnunciosRail } from "./anuncios.js";
 import * as it from "./itinerary.js";
 import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
@@ -187,12 +188,14 @@ async function viewList() {
   const banner = h("div", { class: "ra-optional" });
   const searchSlot = h("div", { class: "ra-optional" });
   const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
+  // Anuncios sin reserva: debajo de Hoy; si no queda ninguno (o falla), el lugar no ocupa nada.
+  const anunciosSlot = h("div", { class: "ra-optional" });
   // "Nueva" es la acción de la sección (botón chico en su encabezado), no un botón grande suelto.
   const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
     icon("agregar", 16), h("span", {}, "Nueva"));
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
-    todaySlot,
+    todaySlot, anunciosSlot,
     InstallPrompt({ dismissible: true }), PasskeyOffer(),
     h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
       h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "grabaciones-title" }, "Tus grabaciones"), newBtn),
@@ -212,6 +215,9 @@ async function viewList() {
   TodayPanel(sessions)
     .then(({ el }) => todaySlot.replaceChildren(el))
     .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${err.message}`)));
+  AnunciosRail(sessions)
+    .then((el) => anunciosSlot.replaceChildren(el || ""))
+    .catch((err) => anunciosSlot.replaceChildren(h("p", { class: "caption" }, `No se pudieron cargar los anuncios: ${err.message}`)));
   list.replaceChildren();
   if (!sessions.length) {
     list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva.")));

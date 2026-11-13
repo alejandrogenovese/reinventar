@@ -13,6 +13,7 @@ const FACETS = [
   ["area", "Área de interés"], ["sede", "Sede"], ["tipo", "Tipo"], ["nivel", "Nivel"], ["servicio", "Servicio de AWS"],
   ["tecnologia", "Tecnología"], ["concepto", "Concepto"], ["enfoque", "Enfoque"],
   ["hora", "Hora de inicio"], ["industria", "Industria"], ["seniority", "Seniority"], ["lanzamiento", "Nuevo lanzamiento"],
+  ["anuncio", "Anuncios"],
 ];
 const LABEL = Object.fromEntries(FACETS);
 // Facetas abiertas al abrir el panel: las que más se usan para acotar ("bancos el martes").
@@ -58,7 +59,7 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 
 // --- piezas ------------------------------------------------------------------
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
+  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); return false; }
 };
 const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
 

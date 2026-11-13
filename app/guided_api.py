@@ -1,5 +1,4 @@
 """Endpoints del armado guiado: qué sigue, pendientes ("☆ para otro día"), salir antes y reservada."""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -16,8 +15,8 @@ SALIR_ANTES_TOPE = 240  # una roja elegida puede recortar la anterior más de 30
 
 class Next(BaseModel):
     day: str = Field(pattern=_DIA)
-    after: Optional[str] = Field(None, max_length=40)   # código de lo último elegido; sin esto, la primera del día
-    desde: Optional[str] = Field(None, pattern=_HORA)   # "arrancar más tarde"
+    after: str | None = Field(None, max_length=40)   # código de lo último elegido; sin esto, la primera del día
+    desde: str | None = Field(None, pattern=_HORA)   # "arrancar más tarde"
 
 
 class Pending(BaseModel):

@@ -200,7 +200,7 @@ def resumen_dia(dia: str, cards: list[dict]) -> dict:
     items = [{**_resumen(c), "end": f"{e // 60:02d}:{e % 60:02d}", "kind": c.get("kind") or "talk",
               "keynote": c.get("type") == KEYNOTE, "choque": i in en_choque, "carril": carriles.get(i),
               "no_llegas": i in no_llega, "inicio_min": s, "fin_min": e}
-             for i, (c, (s, e)) in enumerate(zip(cards, spans))]
+             for i, (c, (s, e)) in enumerate(zip(cards, spans, strict=True))]
     return {
         "dia": dia, "items": items, "minutos_ocupados": minutos_ocupados(spans),
         "choques": [{"a": _resumen(cards[i]), "b": _resumen(cards[j])} for i, j in pares],

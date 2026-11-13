@@ -1,7 +1,7 @@
 """Catálogo leído de Postgres (schema reinvent) con speakers, empresas y sector."""
 from fastapi.testclient import TestClient
 
-from app import catalog, db, pg, search, sectors
+from app import anuncios, catalog, db, pg, search, sectors
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, login_headers
 
@@ -26,7 +26,7 @@ def test_carga_todas_las_sesiones_y_horarios_de_la_base():
 def test_instancia_conserva_el_formato_del_json():
     session, instance = catalog.get_instance("ARC407")
 
-    assert instance == {"c": "ARC407", "d": "2026-12-03", "st": "14:30",
+    assert instance == {"c": "ARC407", "d": "2026-12-03", "st": "14:30", "en": "15:30",
                         "v": "MGM Grand|Level 3|Chairman's 363|Content Hub|Red Theater", "seats": 116, "walk": True}
     assert session["level"] == "400" and session["topic"] == "Architecture"
 
@@ -107,3 +107,16 @@ def test_las_coordenadas_de_la_sede_vienen_del_maestro():
     venue = catalog.card({"base": "X", "title": "X"}, mgm)["venue"]
     assert (venue["hotel"], venue["lat"], venue["lng"]) == ("MGM Grand", 36.102219, -115.169517)
     assert catalog.card({"base": "X", "title": "X"}, varios)["venue"]["lat"] is None
+
+
+def test_anuncios_sin_reserva_del_catalogo_real():
+    # Alarma si el sync cambia los atributos walk-up o «New launch»: el criterio daba 98 horarios.
+    todos = anuncios.todos()
+    por_nivel = {n: sum(1 for *_, nivel in todos if nivel == n) for n in (1, 2, 3, 4)}
+    por_dia = {}
+    for _s, instancia, _n in todos:
+        por_dia[instancia["d"]] = por_dia.get(instancia["d"], 0) + 1
+
+    assert len(todos) == 98
+    assert por_nivel == {1: 5, 2: 24, 3: 57, 4: 12}
+    assert por_dia == {"2026-11-30": 15, "2026-12-01": 21, "2026-12-02": 28, "2026-12-03": 32, "2026-12-04": 2}

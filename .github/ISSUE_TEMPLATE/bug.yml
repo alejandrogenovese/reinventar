@@ -1,0 +1,58 @@
+name: Algo no anda
+description: Reportá un error de la app (grabación, búsqueda, itinerario, fichas…).
+title: "fix: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Si es una vulnerabilidad de seguridad, **no la reportes acá**: seguí [SECURITY.md](https://github.com/alejandrogenovese/reinventar/blob/dev/SECURITY.md).
+        No pegues contraseñas, tokens ni datos personales en el issue (el repo es público).
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué pasó
+      description: Qué hiciste, qué esperabas y qué pasó en cambio.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Entrar a…
+        2. Tocar…
+        3. Ver el error…
+    validations:
+      required: true
+  - type: dropdown
+    id: parte
+    attributes:
+      label: Parte de la app
+      options:
+        - Grabar charlas (grabador, cola offline, procesamiento)
+        - Encontrar sesiones (buscar, preguntar, itinerario, mapa)
+        - Preparar conversaciones (fichas, briefing)
+        - Cuenta, login o passkeys
+        - Administración
+        - Otra
+    validations:
+      required: true
+  - type: input
+    id: dispositivo
+    attributes:
+      label: Dispositivo y navegador
+      placeholder: "Ej.: Samsung S24 Ultra, Chrome 131, PWA instalada"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de la app
+      description: La devuelve /health en el dominio de la app (campo "version"); si no sabés, dejalo vacío.
+      placeholder: "Ej.: 0.20.0"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Capturas o logs
+      description: Capturas de pantalla, mensajes de error o la consola del navegador (sin datos sensibles).

@@ -44,7 +44,7 @@ def _hora_local(valor: str, params: dict[str, str]) -> dt.datetime | None:
         return None
     try:
         if valor.endswith("Z"):
-            return dt.datetime.strptime(valor, "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.timezone.utc).astimezone(sandbox.EVENT_TZ)
+            return dt.datetime.strptime(valor, "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.UTC).astimezone(sandbox.EVENT_TZ)
         tz = sandbox.EVENT_TZ
         if params.get("TZID"):
             try:
