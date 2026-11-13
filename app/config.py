@@ -67,10 +67,12 @@ BRIEFING_MODEL = _env("BRIEFING_MODEL", "claude-sonnet-5-5")  # ficha para conve
 
 # Búsqueda por significado (embeddings). local = modelo multilingüe dentro del contenedor; off = solo por palabras.
 EMBED_PROVIDER = _env("EMBED_PROVIDER", "local")
-# embeddinggemma-300m: el mejor en scripts/evaluar_busqueda.py (recall@10 0,84 contra 0,74 de MiniLM) y lee 2048 tokens.
-EMBED_MODEL = _env("EMBED_MODEL", "google/embeddinggemma-300m")
+# embeddinggemma-300m cuantizado a 4 bits: el mejor en scripts/evaluar_busqueda.py (recall@10 0,80 contra 0,74 de
+# MiniLM) y lee 2048 tokens. "google/embeddinggemma-300m" es el original: casi igual de bueno, el triple de RAM.
+EMBED_MODEL = _env("EMBED_MODEL", "google/embeddinggemma-300m-q4")
 EMBED_CACHE_DIR = DATA_DIR / "models"  # en el volumen: el modelo se baja una sola vez
-EMBED_BATCH = int(_env("EMBED_BATCH", "32"))
+EMBED_BATCH = int(_env("EMBED_BATCH", "8"))  # lotes chicos: menos pico de memoria y en la Mac hasta más rápido
+EMBED_THREADS = int(_env("EMBED_THREADS", "2"))  # hilos de ONNX: cada hilo suma memoria
 
 # Mapa de venues: key de Google Maps JavaScript API (restringida por dominio en Google Cloud Console).
 GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")
