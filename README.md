@@ -123,7 +123,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
 
 ### CI/CD con GitHub Actions y Claude Code
 
-- **Flujo**: `feat/...` o `fix/...` → PR a `dev` → merge → `ci-promote.yml` corre los tests de núcleo en `dev` y, si pasan, hace fast-forward de `main` a `dev` → Railway deploya con ese push a `main`. El servicio tiene que seguir conectado al repo en Railway (*Settings → Source*, branch `main`), sin *Wait for CI*: el push que hace Actions no dispara otro workflow en `main`.
+- **Flujo**: `feat/...` o `fix/...` → PR a `dev` → merge → `ci-promote.yml` corre los tests de núcleo y el servicio `reinventar-staging` de Railway (branch `dev`) deploya en `staging.reinventar.app`. **Producción se publica a mano**: Actions → *CI y publicación en producción* → *Run workflow* sobre `dev`; si los tests pasan, hace fast-forward de `main` a `dev` y Railway deploya producción con ese push a `main`. El servicio de producción tiene que seguir conectado al repo (*Settings → Source*, branch `main`), sin *Wait for CI*: el push que hace Actions no dispara otro workflow en `main`.
+- **Staging**: mismo repo y misma base, pero `DB_SCHEMA=app_staging` (usuarios, grabaciones e itinerarios aparte; el catálogo `reinvent` es el mismo), `ENTORNO=staging` (tag propio en Langfuse) y `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` de su dominio.
 - **Si la promoción falla** porque `main` tiene commits que `dev` no tiene: `git checkout dev && git merge origin/main && git push`.
 - **`claude.yml`**: mencioná `@claude` en un issue, un PR o una revisión y Claude Code responde, implementa o abre un PR contra `dev`. Solo responde a usuarios con permiso de escritura. Necesita la GitHub App de Claude y el secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Sigue las reglas de `CLAUDE.md`.
 

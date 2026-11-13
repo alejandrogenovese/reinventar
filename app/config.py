@@ -88,6 +88,9 @@ VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
 
 # Entorno de Railway: "production" en producción. Va como tag (prod/dev) en las trazas de Langfuse (app/trazas.py).
 RAILWAY_ENVIRONMENT_NAME = _env("RAILWAY_ENVIRONMENT_NAME")
+# Pisa el tag de entorno de las trazas y los scores: el servicio de staging vive en el mismo entorno de Railway que
+# producción, así que lleva ENTORNO=staging para no mezclarse con "prod" en Langfuse.
+ENTORNO = _env("ENTORNO")
 
 # Langfuse (opcional): con las dos claves, la app manda scores de calidad sobre las trazas (app/langfuse_scores.py) y el
 # portal de admin lee sus métricas (app/langfuse_metricas.py), siempre desde el servidor: las claves nunca van al

@@ -1,8 +1,9 @@
-name: CI y promoción dev → main
+name: CI y publicación en producción
 
 # Flujo: se trabaja en dev (o en ramas feat/fix con PR a dev).
-# Cada push a dev corre los tests de núcleo; si pasan, main se adelanta a dev (fast-forward)
-# y Railway, conectado al repo, deploya solo con ese push a main.
+# Cada push a dev corre los tests de núcleo y el servicio de staging de Railway deploya dev (staging.reinventar.app).
+# Producción NO se actualiza sola: se publica a mano con Actions → este workflow → «Run workflow» sobre dev. Ahí corren
+# los tests y, si pasan, main se adelanta a dev (fast-forward) y Railway deploya producción con ese push a main.
 # En PRs a dev o a main solo corren los tests.
 
 on:
@@ -81,9 +82,10 @@ jobs:
           --deselect=tests/test_auth.py::test_itinerarios_quedan_separados_por_usuario
 
   promote:
-    name: Promover dev → main
+    name: Publicar en producción (dev → main)
     needs: test
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+    # Solo a mano (Run workflow) y desde dev: un push a dev ya no publica.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
