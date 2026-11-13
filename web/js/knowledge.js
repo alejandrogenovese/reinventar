@@ -1,5 +1,5 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
-import { Itinerary, Knowledge } from "./api.js";
+import { Itinerary, Knowledge, Lleno } from "./api.js";
 import { BriefingPanel } from "./briefing.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
@@ -50,8 +50,40 @@ const minutes = (hhmm) => { const [hh, mm] = hhmm.split(":").map(Number); return
 const clashesWith = (i, mine) => mine.filter((m) => m.day === i.day && m.base !== i.base && m.start && i.start
   && minutes(m.start) < minutes(i.start) + 60 && minutes(i.start) < minutes(m.end || m.start) + (m.end ? 0 : 60)).map((m) => m.title);
 
+const ESTADOS_LLENO = { lleno: "Está llena", cola: "Hay mucha cola" };
+const personas = (n) => `${n} persona${n === 1 ? "" : "s"}`;
+
+/** Lo que avisó la gente en la puerta: «Llena · 3 personas · hace 5 min». */
+function LlenoResumen(a) {
+  const partes = [a.lleno ? `Llena según ${personas(a.lleno)}` : null, a.cola ? `mucha cola según ${personas(a.cola)}` : null].filter(Boolean);
+  if (!partes.length) return null;
+  const hace = a.hace_min ? `hace ${a.hace_min} min` : "recién";
+  return h("span", { class: "ra-lleno-dato", role: "status" }, `${partes.join(" · ")} · ${hace}`);
+}
+
+/** Pista del catálogo + lo que avisó la gente + botones para avisar (solo mientras la charla está por empezar o en curso). */
+function LlenoAvisos(code, a) {
+  if (!a) return null;
+  const box = h("div", { class: "ra-lleno" });
+  const pintar = (x) => {
+    const botones = x.abierto ? h("div", { class: "ra-lleno-avisar" }, h("span", { class: "caption" }, "¿Estás en la puerta?"),
+      Object.entries(ESTADOS_LLENO).map(([estado, label]) => {
+      const mio = x.mio === estado;
+      const btn = h("button", { type: "button", class: mio ? "ra-chip ra-chip-on" : "ra-chip", "aria-pressed": String(mio), onclick: async () => {
+        btn.disabled = true;
+        try { pintar(mio ? await Lleno.retirar(code) : await Lleno.avisar(code, estado)); if (!mio) toast("Gracias: le avisamos al resto."); }
+        catch (e) { toast(e.message); btn.disabled = false; }
+      } }, label);
+      return btn;
+    })) : null;
+    box.replaceChildren(...[x.pista ? h("span", { class: "caption" }, x.pista) : null, LlenoResumen(x), botones].filter(Boolean));
+  };
+  pintar(a);
+  return box;
+}
+
 /** Un horario de la charla: si está en tu itinerario, con qué choca, y "Cambiar a este" si tenés otro horario de la misma. */
-function Slot(i, mine, onChange) {
+function Slot(i, mine, onChange, aviso) {
   const own = mine.find((m) => m.code === i.code);
   const other = mine.find((m) => m.base === i.base && m.code !== i.code);
   const clashes = clashesWith(i, mine);
@@ -77,7 +109,8 @@ function Slot(i, mine, onChange) {
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
-    action);
+    action,
+    LlenoAvisos(i.code, aviso));
 }
 
 function PersonLink(p, extra) {
@@ -92,6 +125,8 @@ function PersonLink(p, extra) {
 export async function viewCharla(view, base) {
   const [s, current] = await Promise.all([Knowledge.speech(base), Itinerary.get().catch(() => ({ days: [] }))]);
   const mine = current.days.flatMap((d) => d.sessions);
+  // Si falla (sin conexión), la ficha se muestra igual, sin avisos de lleno.
+  const avisos = s.instances.length ? await Lleno.estado(s.instances.map((i) => i.code)).catch(() => ({})) : {};
   const rerender = () => { view.replaceChildren(); void viewCharla(view, base); };
   view.append(h("div", { class: "stack-lg" },
     h("header", { class: "stack" },
@@ -103,7 +138,7 @@ export async function viewCharla(view, base) {
       h("div", { class: "actions" }, TalkRecordAction(s))),
     s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
-    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Otros horarios", h("ul", { class: "ra-slots" }, s.instances.map((i) => Slot(i, mine, rerender)))) : null,
+    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Otros horarios", h("ul", { class: "ra-slots" }, s.instances.map((i) => Slot(i, mine, rerender, avisos[i.code])))) : null,
     s.concepts?.length ? section("Conceptos", chips(s.concepts)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
     s.tech?.length ? section("Otras tecnologías", chips(s.tech)) : null,

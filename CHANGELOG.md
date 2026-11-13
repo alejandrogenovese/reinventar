@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **«Está llena» y «Hay mucha cola»** en cada horario de la ficha de una charla. Desde 45 minutos antes de que empiece
+  hasta que termina, quien está en la puerta avisa con un toque y el resto ve «Llena según 3 personas · hace 5 min».
+  Cada persona deja un aviso por horario (otro toque lo quita), vale una hora y nunca se muestra quién avisó.
+  Además, cada horario dice si es sin reserva («se entra por orden de llegada») o si la sala es chica.
+
 ### Corregido
 - En Android, el ícono chico de las notificaciones en la barra de estado se veía como un cuadrado blanco; ahora
   muestra las barras de ReinventAR.

@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, itinerary, leave, recordatorio, sandbox, travel, venues
+from . import changes, config, db, itinerary, leave, lleno, recordatorio, sandbox, travel, venues
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -235,6 +235,7 @@ def tick() -> int:
     """Una vuelta: avisa lo que corresponde a cada usuario suscripto. Devuelve cuántos avisos salieron."""
     sent = 0
     db.purgar_ubicaciones(time.time() - recordatorio.UBICACION_BORRADO_MIN * 60)
+    db.purgar_reportes_lleno(time.time() - lleno.BORRADO_H * 3600)
     with sandbox.real():
         users = db.push_usernames()
     for username in users:

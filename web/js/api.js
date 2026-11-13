@@ -123,6 +123,12 @@ export const Ubicacion = {
   clear: () => api("/api/ubicacion", { method: "DELETE" }),
 };
 
+export const Lleno = {
+  estado: (codes) => api(`/api/lleno?codes=${codes.map(enc).join(",")}`),
+  avisar: (code, estado) => api(`/api/lleno/${enc(code)}`, { method: "POST", json: { estado } }),
+  retirar: (code) => api(`/api/lleno/${enc(code)}`, { method: "DELETE" }),
+};
+
 export const Events = {
   list: () => api("/api/events"),
   get: (code) => api(`/api/events/${enc(code)}`),
