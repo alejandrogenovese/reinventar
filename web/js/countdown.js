@@ -83,11 +83,12 @@ function state(it, now, lead) {
   return { tone: it.kind === "event" ? "event" : "calm", text: `${label(it)} a las ${hhmm(it.start)}` };
 }
 
+const badgeText = (ms) => (ms > 0 ? `Empieza en ${formatCountdown(ms)}` : "Ya empezó");
+
 async function paint() {
   const now = sandboxNow();
   for (const el of document.querySelectorAll("[data-countdown-to]")) {
-    const ms = Date.parse(el.dataset.countdownTo) - now;
-    el.textContent = ms > 0 ? `Empieza en ${formatCountdown(ms)}` : "Ya empezó";
+    el.textContent = badgeText(Date.parse(el.dataset.countdownTo) - now);
   }
   const bar = document.getElementById("countdown-banner");
   if (!bar) return;
@@ -125,4 +126,6 @@ export async function refreshCountdown({ force = false } = {}) {
 }
 
 /** Countdown grande para una tarjeta o ficha: "Empieza en 1:12:40" (lo actualiza el ticker). */
-export const CountdownBadge = (startDate) => h("span", { class: "ra-countdown", "data-countdown-to": startDate.toISOString() });
+// Nace con el texto puesto (no vacío hasta el próximo tic del ticker).
+export const CountdownBadge = (startDate) => h("span", { class: "ra-countdown", "data-countdown-to": startDate.toISOString() },
+  badgeText(startDate.getTime() - sandboxNow()));

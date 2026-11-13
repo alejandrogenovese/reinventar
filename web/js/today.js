@@ -1,7 +1,7 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
 import { Sessions, Today } from "./api.js";
 import { CountdownBadge } from "./countdown.js";
-import { GoThere, startsAt } from "./location.js";
+import { GoThereParts, startsAt } from "./location.js";
 import { icon } from "./icons.js";
 import { Button, Hint, IconText, h, toast } from "./ui.js";
 
@@ -41,29 +41,32 @@ function TalkAction(s, recorded, variant) {
     const live = mine.status === "recording" || mine.status === "uploading";
     return Button(live ? "Seguir grabando" : "Ver grabación", { onclick: () => (location.hash = live ? `#/grabar/${mine.id}` : `#/s/${mine.id}`) });
   }
-  const btn = Button(variant === "primary" ? "Grabar esta charla" : "Grabar", { variant, onclick: () => recordTalk(s, btn) });
+  const label = variant === "primary" ? [icon("grabar", 20), "Grabar esta charla"] : "Grabar";
+  const btn = Button(label, { variant, onclick: () => recordTalk(s, btn) });
   return btn;
 }
 
 const destination = (s) => (s.venue?.lat != null
   ? { lat: s.venue.lat, lng: s.venue.lng, name: s.venue.hotel, placeId: s.venue.place_id, approx: s.venue.exact === false } : null);
 
-// "Ahora" es un estado con punto (y la tarjeta lleva borde de marca); "Después"/"Próxima", texto de marca.
-const WhenLabel = (label, highlight) => (highlight
+// "Ahora" es un estado con punto (y la tarjeta lleva borde de marca); "Después"/"Próxima", texto de marca con la
+// cuenta regresiva en la misma línea ("Después · Empieza en 1:32:00").
+const WhenLabel = (s, label, highlight) => (highlight
   ? h("span", { class: "ra-status is-now" }, h("span", { class: "ra-status-dot", "aria-hidden": "true" }), label)
-  : h("span", { class: "ra-soon" }, label));
+  : h("span", { class: "ra-soon" }, label, s.day && s.start ? [" · ", CountdownBadge(startsAt(s.day, s.start))] : null));
 
 function TalkCard(s, { label, recorded, variant, highlight }) {
+  // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
+  const go = GoThereParts(destination(s), { start: s.day && s.start ? startsAt(s.day, s.cola_desde || s.start) : null, eta: true, iconOnly: true });
   return h("article", { class: `ra-today${highlight ? " is-now" : ""}` },
-    h("div", { class: "ra-today-when" }, WhenLabel(label, highlight), h("span", { class: "ra-time" }, `${s.start}–${s.end}`)),
-    !highlight && s.day && s.start ? CountdownBadge(startsAt(s.day, s.start)) : null,
+    h("div", { class: "ra-today-when" }, WhenLabel(s, label, highlight), h("span", { class: "ra-time" }, `${s.start}–${s.end}`)),
     h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: itemHref(s) }, s.title)),
     h("div", { class: "ra-card-meta" }, place(s) ? IconText("ubicacion", place(s)) : null, itemLabel(s)),
-    // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
     s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
-    GoThere(destination(s), { start: s.day && s.start ? startsAt(s.day, s.cola_desde || s.start) : null, eta: true }),
-    h("div", { class: "actions" }, TalkAction(s, recorded, variant)));
+    go ? go.info : null,
+    // "Grabar esta charla" ocupa la fila y "Llevame" queda al lado como botón de solo ícono (48 px).
+    h("div", { class: "ra-today-actions" }, TalkAction(s, recorded, variant), go ? go.link : null));
 }
 
 const LaterList = (items) => items.length ? h("ul", { class: "ra-today-later" },
@@ -75,7 +78,7 @@ const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { c
 
 /**
  * Panel Hoy para el inicio. `sessions` son las grabaciones del usuario (para no duplicar una charla ya grabada).
- * Devuelve { el, hasTalk }: con una charla para grabar, el inicio baja "Nueva sesión" a secundario (un solo primario).
+ * Devuelve { el, hasTalk }: hasTalk dice si hay una charla ahora o a continuación.
  */
 export async function TodayPanel(sessions) {
   const data = await Today.get();

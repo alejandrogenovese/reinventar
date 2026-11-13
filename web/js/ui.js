@@ -14,6 +14,15 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+/** Minuto o duración corta, como en la transcripción: 58:12, o 1:52:10 si pasa la hora. */
+export const clock = (sec) => {
+  const total = Math.max(0, Math.floor(sec || 0));
+  const hours = Math.floor(total / 3600);
+  const two = (n) => String(Math.floor(n)).padStart(2, "0");
+  const rest = `${two((total % 3600) / 60)}:${two(total % 60)}`;
+  return hours ? `${hours}:${rest}` : rest;
+};
+
 export const hms = (sec) => {
   sec = Math.max(0, Math.floor(sec || 0));
   return [sec / 3600, (sec % 3600) / 60, sec % 60].map((n) => String(Math.floor(n)).padStart(2, "0")).join(":");
@@ -60,19 +69,21 @@ export function LevelMeter() {
   return el;
 }
 
+/** Grabación en la lista del inicio: título y estado arriba; tipo, código, sala y duración (mono) abajo. */
 export function SessionCard(s, onClick) {
-  const meta = [s.venue, s.duration_s ? hms(s.duration_s) : null, s.speaker].filter(Boolean);
-  return h("button", { type: "button", class: "ra-card", onclick: onClick },
-    h("div", { class: "ra-card-top" }, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), StatusPill(s.status)),
-    h("h3", { class: "ra-card-title" }, s.title),
-    meta.length ? h("div", { class: "ra-card-meta" }, meta.map((m) => h("span", {}, m))) : null);
+  const meta = [s.kind, s.code, s.venue, s.speaker].filter(Boolean).join(" · ");
+  return h("button", { type: "button", class: "ra-card ra-reccard", onclick: onClick },
+    h("h3", { class: "ra-card-title" }, s.title), StatusPill(s.status),
+    h("div", { class: "ra-card-meta" }, h("span", { class: "ra-ellipsis" }, meta),
+      s.duration_s ? h("span", { class: "ra-mono" }, clock(s.duration_s)) : null));
 }
 
+// El castellano es el texto principal (sin etiqueta); el original en inglés va abajo, más chico y marcado EN.
 export const TranscriptBlock = (b) =>
   h("div", { class: "ra-tb", "data-start": String(b.start_s) },
-    h("span", { class: "ra-tc" }, hms(b.start_s)),
+    h("span", { class: "ra-tc" }, clock(b.start_s)),
     h("div", { class: "ra-tb-body" },
-      b.es ? h("p", { class: "ra-tb-es", lang: "es" }, h("span", { class: "ra-tb-lang" }, "ES"), b.es) : null,
+      b.es ? h("p", { class: "ra-tb-es", lang: "es" }, b.es) : null,
       h("p", { class: "ra-tb-en", lang: "en" }, h("span", { class: "ra-tb-lang" }, "EN"), b.en)));
 
 export function SummaryPanel(sm) {

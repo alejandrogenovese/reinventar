@@ -215,10 +215,12 @@ def _iconos_dinamicos() -> dict[str, set[str]]:
     hint = set(re.findall(r"\"(\w+)\"", re.search(r"const HINT_ICON = \{([^}]*)\}", JS["ui.js"]).group(1)))
     tema = re.search(r"const next = ([^;]+);", JS["app.js"]).group(1)
     kind = _primeros_de("KIND_ICON", JS["today.js"])
+    explicitos = set(re.findall(r"\biconName:\s*\"(\w+)\"", todo))
     return {
         "slot.dataset.icon": set(re.findall(r'data-icon="(\w+)"', (WEB / "index.html").read_text())),
         "next": _literales_de_icono(tema),
-        "iconName": hint | set(re.findall(r"\biconName:\s*\"(\w+)\"", todo)),  # Hint: por tono o explícito
+        "iconName": hint | explicitos,  # Hint: por tono o explícito
+        "it.iconName": explicitos,  # opciones del menú ⋯ (menu.js), declaradas con iconName: "..."
         "name": set(),  # dentro de IconText: sus llamadas se revisan una por una
         "...KIND_ICON[s.kind]": kind, "KIND_ICON[s.kind][0]": kind,
     }
@@ -298,6 +300,7 @@ def test_la_seccion_hoy_se_nombra_con_la_fecha():
     assert 'id: "hoy-fecha"' in JS["today.js"]
 
 
-def test_tarjeta_compacta_dice_nivel():
-    compacta = JS["itinerary.js"][JS["itinerary.js"].index("function CompactCard"):]
-    assert "`Nivel ${s.level}`" in compacta[:compacta.index("\n}\n")]
+def test_buscar_muestra_la_tarjeta_completa_con_speakers_y_resumen():
+    # Decisión de producto: en Filtrar se ve la charla entera (speakers, resumen, Leer más, Agregar), no una compacta.
+    assert "compact" not in JS["explore.js"]
+    assert "CompactCard" not in JS["itinerary.js"]

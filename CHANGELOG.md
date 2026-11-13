@@ -5,6 +5,24 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+- **Detalle de una grabación:** arriba quedan Volver, Compartir (el resumen en `.md`, en los celulares que pueden
+  compartir archivos) y un menú ⋯ con Exportar y Eliminar; Eliminar sigue pidiendo confirmación. El título baja a
+  24 px, el estado, quién la dio, dónde y cuánto duró van en una sola fila, y la ficha de la charla es un link
+  «Ver la ficha de la charla ›». La transcripción muestra el castellano grande y el inglés abajo, con el minuto
+  corto (12:40).
+- **Llegando desde un buscador,** el momento encontrado queda marcado de borde a borde con una pastilla
+  «Desde la búsqueda «…»» que se cierra con la ✕.
+- **Preguntar:** el campo para escribir queda fijo abajo, sobre la barra de navegación, con un botón de enviar; sube
+  con el teclado del celular y no tapa la última respuesta. La conversación se lee de la más vieja a la más nueva.
+- **Inicio:** «Nueva» pasa al encabezado de *Tus grabaciones* y «Llevame» es un botón de solo ícono al lado de
+  «Grabar esta charla». «Después» muestra la cuenta regresiva en la misma línea. Las grabaciones se ven más
+  compactas: título y estado arriba, datos y duración abajo.
+- **Buscar › Filtrar:** el botón de Filtros está dentro del campo de búsqueda con el número de filtros activos;
+  «Convertir en filtros» aparece como sugerencia solo cuando escribiste algo; los filtros activos muestran solo el
+  valor, «Agrupar» es un selector y «Limpiar» queda al lado del total de charlas. La tarjeta de cada charla sigue
+  completa (speakers, resumen, Leer más, Agregar).
+
 ### Corregido
 - **Mapa del itinerario con un solo lugar:** ya no queda con el zoom al máximo adentro del edificio; se ven las calles y los hoteles de alrededor.
 
@@ -56,9 +74,7 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   avisos informativos (la cola, la opción sin reserva) usan su tinte azul en vez de gris.
 - **Inicio**: «Ahora» se marca con borde naranja y un estado con punto; los avisos (cola, salí antes, superposición)
   son una fila tintada con ícono en vez de una tarjeta dentro de otra; el resto del día va en una lista agrupada.
-- **Buscar**: una sola píldora de filtro, de 44 px, con el estado activo en tinta llena y ✕ para quitarlo; las charlas
-  de Filtrar se ven compactas (hora, código, título, sede, hasta 3 tags y un botón + para agregar), así entran el doble
-  por pantalla. En Preguntar, la pregunta va como burbuja, las citas son pastillas (el código en gris y el momento ▶ en
+- **Buscar**: una sola píldora de filtro, de 44 px, con el estado activo en tinta llena y ✕ para quitarlo. En Preguntar, la pregunta va como burbuja, las citas son pastillas (el código en gris y el momento ▶ en
   naranja, ya no en rojo) y los momentos grabados van en una lista agrupada.
 - **Detalle de grabación**: el título usa el tamaño de título de sección. La barra inferior pasa a fondo sólido.
 - **Sin señal**: la app guarda al instalarse todos sus módulos (antes faltaban el contador, los avisos de cambios, la

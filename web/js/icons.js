@@ -1,7 +1,8 @@
 // Íconos de la app en la grilla de 24 px. Inicio, Explorar, Itinerario, Preguntar, Buscar y Filtrar vienen de @brick-v2/icons
 // (Home, Compass, Calendar, MessagesBubble, Search1Regular, Filter); el resto se dibujó con el mismo peso porque Brick no los trae.
 // Ubicación, reloj, caminar, alerta, fijar, llevar, reproducir, listo, externo, etc. reemplazan a los emojis y glifos
-// (✓ ✕ ＋ ↗) que se usaban como íconos.
+// (✓ ✕ ＋ ↗) que se usaban como íconos. Volver, compartir, más (⋯), enviar, bajar y borrar son de la barra del detalle
+// y del chat.
 // Toman el color del texto (currentColor). Son decorativos: el botón o link que los contiene lleva el nombre accesible.
 const ICONS = {
   inicio: "<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" fill=\"currentColor\" d=\"M11.402 1.201a1 1 0 0 1 1.205 0l9.66 7.29c.027.02.053.041.077.064A2.05 2.05 0 0 1 23 10v11.135A1.873 1.873 0 0 1 21.133 23h-5.8a1 1 0 0 1-1-1v-4.664a2.333 2.333 0 1 0-4.666 0V22a1 1 0 0 1-1 1H2.866A1.872 1.872 0 0 1 1 21.134V10c0-.018 0-.037.002-.055a2.045 2.045 0 0 1 .731-1.455l9.67-7.289ZM3 10.046V21h4.667v-3.664a4.333 4.333 0 1 1 8.666 0V21H21V10.047a.052.052 0 0 0-.003-.01l-8.993-6.785-9.001 6.786a.05.05 0 0 0-.003.008Z\"/>",
@@ -27,6 +28,12 @@ const ICONS = {
   listo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m5 12 5 5 9-10\"/></g>",
   externo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 17 17 7M9 7h8v8\"/></g>",
   reproducir: "<path fill=\"currentColor\" d=\"M7 5v14l11-7Z\"/>",
+  volver: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m15 6-6 6 6 6\"/></g>",
+  compartir: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6\"/></g>",
+  mas: "<g fill=\"currentColor\"><circle cx=\"5\" cy=\"12\" r=\"1.75\"/><circle cx=\"12\" cy=\"12\" r=\"1.75\"/><circle cx=\"19\" cy=\"12\" r=\"1.75\"/></g>",
+  enviar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"/></g>",
+  bajar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 4v12M7 11l5 5 5-5M5 20h14\"/></g>",
+  borrar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3\"/></g>",
 };
 
 /** <svg> del ícono `name` (de ICONS), 24×24 salvo que se pida otro tamaño. */

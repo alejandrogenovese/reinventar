@@ -60,15 +60,15 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 const addToItinerary = (code) => async () => {
   try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
 };
-const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code), compact: true }));
+const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
 
-function ActiveChips(state, update) {
+/** Fila de píldoras: los filtros activos (solo el valor; tocarla lo quita) y "Agrupar" como selector. */
+function PillRow(state, update) {
   const active = Object.entries(state.filters).flatMap(([facet, values]) => [...values].map((v) => [facet, v]));
-  if (!active.length) return null;
-  return h("div", { class: "ra-chips" },
+  return h("div", { class: "ra-pillrow" },
     active.map(([facet, value]) => h("button", { type: "button", class: "ra-chip ra-chip-on", "aria-label": `Quitar filtro ${LABEL[facet]}: ${value}`,
-      onclick: () => update(toggled(state, facet, value)) }, `${LABEL[facet]}: ${value}`)),
-    h("button", { type: "button", class: "ra-chip", onclick: () => update({ ...state, filters: {}, offset: 0 }) }, "Limpiar todo"));
+      title: LABEL[facet], onclick: () => update(toggled(state, facet, value)) }, value)),
+    GroupSelect(state, update));
 }
 
 function FacetList(state, facets, update) {
@@ -127,12 +127,18 @@ function FilterSheet() {
   };
 }
 
-function GroupBar(state, update) {
-  const options = [["", "Sin agrupar"], ...FACETS];
-  return h("div", { class: "ra-scrollrow", role: "group", "aria-label": "Agrupar por" },
-    h("span", { class: "label" }, "Agrupar"),
-    options.map(([value, label]) => h("button", { type: "button", class: `ra-chip${state.groupBy === value ? " ra-chip-on" : ""}`,
-      "aria-pressed": String(state.groupBy === value), onclick: () => update({ ...state, groupBy: value }) }, label)));
+/** "Agrupar ▾": un <select> nativo con forma de píldora (punteada sin agrupar, llena al agrupar). */
+function GroupSelect(state, update) {
+  const options = [["", state.groupBy ? "Sin agrupar" : "Agrupar"], ...FACETS];
+  return h("span", { class: "ra-pillselect-wrap" }, h("select", { class: `ra-pillselect${state.groupBy ? " is-on" : ""}`,
+    "aria-label": "Agrupar por", onchange: (e) => update({ ...state, groupBy: e.target.value }) },
+  options.map(([value, label]) => h("option", { value, selected: state.groupBy === value }, label))));
+}
+
+/** Filtros dentro del campo de búsqueda: ícono con el número de filtros activos. */
+function paintFilterButton(btn, n) {
+  btn.setAttribute("aria-label", n ? `Filtros, ${plural(n, "activo", "activos")}` : "Filtros");
+  btn.replaceChildren(icon("filtrar", 20), n ? h("span", { class: "ra-badge", "aria-hidden": "true" }, String(n)) : "");
 }
 
 function Groups(state, groups, update) {
@@ -153,25 +159,34 @@ export async function ExplorePanel() {
   const sheet = FilterSheet();
   const qInput = h("input", { type: "search", value: state.q, maxlength: "300", "aria-label": "Buscar charlas",
     placeholder: "Ej: bancos el martes · Nubank · agentes con Bedrock" });
-  const nlButton = Button("Convertir en filtros", { type: "submit" });
-  const filterBtn = h("button", { type: "button", class: "ra-btn ra-btn-secondary ra-filterbtn", onclick: () => openSheet() });
-  const chips = h("div"), groupBar = h("div"), header = h("h2", { class: "caption", "aria-live": "polite" }), results = h("div", { class: "stack-lg" });
+  // "Convertir en filtros" es una sugerencia (fila tintada) que aparece solo cuando hay algo escrito.
+  const nlText = h("span", {});
+  const nlButton = h("button", { type: "submit", class: "ra-suggest", hidden: !state.q }, icon("filtrar", 16), nlText);
+  const filterBtn = h("button", { type: "button", class: "ra-infield-btn", title: "Filtros", onclick: () => openSheet() });
+  const clearBtn = Button("Limpiar", { variant: "ghost", onclick: () => update({ ...state, filters: {}, offset: 0 }) });
+  const pills = h("div"), header = h("h2", { class: "caption", "aria-live": "polite" }), results = h("div", { class: "stack-lg" });
 
   const fetchPage = (s) => Knowledge.explore({
     q: s.q, group_by: s.groupBy || null, limit: PAGE, offset: s.offset,
     filters: Object.fromEntries(Object.entries(s.filters).map(([f, v]) => [f, [...v]])),
   });
 
+  function paintSuggestion() {
+    const text = qInput.value.trim();
+    nlButton.hidden = !text;
+    nlText.replaceChildren("Convertir ", h("b", {}, `«${text}»`), " en filtros");
+  }
+
   function paintHeader() {
     const n = activeCount(state);
-    filterBtn.replaceChildren(icon("filtrar", 20), h("span", {}, n ? `Filtros · ${n}` : "Filtros"));
+    paintFilterButton(filterBtn, n);
+    clearBtn.hidden = !n;
     const hint = !last.total && state.q.includes(" ") ? " — probá «Convertir en filtros»: entiende pedidos como «bancos el martes»." : "";
-    header.textContent = `${plural(last.total, "charla", "charlas")}${hint}`;
+    header.replaceChildren(h("strong", {}, String(last.total)), ` ${last.total === 1 ? "charla" : "charlas"}${hint}`);
   }
 
   function paint() {
-    chips.replaceChildren(ActiveChips(state, update) || "");
-    groupBar.replaceChildren(GroupBar(state, update));
+    pills.replaceChildren(PillRow(state, update));
     paintHeader();
     if (sheet.isOpen) sheet.paint(state, last, update);
     if (state.groupBy && last.groups) { results.replaceChildren(...Groups(state, last.groups, update)); return; }
@@ -220,21 +235,24 @@ export async function ExplorePanel() {
       const filters = Object.fromEntries(Object.entries(parsed.filters).map(([f, v]) => [f, new Set(v)]));
       if (!Object.keys(filters).length && !parsed.q) { toast("No pude traducirlo a filtros: probá con otras palabras o abrí Filtros."); return; }
       qInput.value = parsed.q;
+      paintSuggestion();
       await update({ ...state, filters, q: parsed.q, offset: 0 });
       const ignored = parsed.ignored.length ? ` No encontré: ${parsed.ignored.join(", ")}.` : "";
-      toast(`Filtros aplicados.${ignored}`, { action: { label: "Deshacer", onClick: () => { qInput.value = before.q; void update(before); } } });
+      toast(`Filtros aplicados.${ignored}`, { action: { label: "Deshacer", onClick: () => { qInput.value = before.q; paintSuggestion(); void update(before); } } });
     } catch (err) { toast(err.message); } finally { nlButton.disabled = false; }
   }
 
-  qInput.addEventListener("input", debounce(() => update({ ...state, q: qInput.value.trim(), offset: 0 }), SEARCH_DEBOUNCE_MS));
+  const search = debounce(() => update({ ...state, q: qInput.value.trim(), offset: 0 }), SEARCH_DEBOUNCE_MS);
+  qInput.addEventListener("input", () => { paintSuggestion(); search(); });
 
-  const el = h("div", { class: "stack-lg" },
+  const el = h("div", { class: "ra-explore" },
     h("form", { class: "ra-searchbar", role: "search", onsubmit: toFilters },
-      h("div", { class: "ra-searchfield" }, icon("buscar", 20), qInput),
-      h("div", { class: "actions" }, nlButton, filterBtn)),
-    chips, groupBar, header, results);
+      h("div", { class: "ra-searchfield" }, icon("buscar", 20), qInput, filterBtn),
+      nlButton),
+    pills, h("div", { class: "ra-count" }, header, clearBtn), results);
 
   // Primera carga sin try: si la sesión venció, el router lo atrapa y manda al login.
+  paintSuggestion();
   last = await fetchPage(state);
   writeState(state);
   paint();

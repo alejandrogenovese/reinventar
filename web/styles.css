@@ -16,6 +16,9 @@
 .ra-btn-danger { background: transparent; color: var(--error); border-color: var(--error); }
 .ra-btn-danger:hover { background: color-mix(in srgb, var(--error) 8%, transparent); }
 .ra-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.ra-btn[hidden], .actions[hidden] { display: none; }
+/* Botón de solo ícono (ej. Llevame en Hoy): 48 × 48, el nombre va en aria-label */
+.ra-btn-icon { width: 48px; min-width: 48px; padding: 0; flex: none; }
 
 /* --- botón de grabar ----------------------------------------------------- */
 .ra-recwrap { display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-2); }
@@ -97,14 +100,14 @@
 .ra-hint.is-info { background: var(--info-soft); color: var(--on-info-soft); }
 
 /* --- transcripción ------------------------------------------------------- */
-.ra-tb { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
-.ra-tc { font: var(--t-data); color: var(--ink-muted); background: var(--surface-3); border-radius: var(--radius-s); padding: 2px 6px; align-self: start; margin-top: 4px; font-variant-numeric: tabular-nums; }
+/* Castellano grande y sin etiqueta; el inglés original abajo, chico y marcado EN. Minuto en mono, sin pastilla. */
+.ra-tb { display: grid; grid-template-columns: 64px 1fr; gap: var(--space-3); padding: var(--space-4) 0; border-top: 1px solid var(--line); }
+.ra-transcript > .ra-tb:first-child { border-top: 0; }
+.ra-tc { font: var(--t-data); color: var(--ink-muted); padding-top: 3px; font-variant-numeric: tabular-nums; }
 .ra-tb-body { display: flex; flex-direction: column; gap: var(--space-2); }
-.ra-tb-lang { font: var(--t-micro); letter-spacing: var(--track-micro); margin-right: var(--space-2); }
+.ra-tb-lang { font: var(--t-micro); letter-spacing: var(--track-micro); margin-right: 6px; color: var(--ink-muted); }
 .ra-tb-en { font: var(--t-small); color: var(--ink-muted); }
-.ra-tb-en .ra-tb-lang { color: var(--ink-muted); }
-.ra-tb-es { font: var(--t-body); color: var(--ink); padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--brand); }
-.ra-tb-es .ra-tb-lang { color: var(--brand-ink); }
+.ra-tb-es { font: var(--t-body); font-size: 17px; line-height: 26px; color: var(--ink); }
 
 /* --- chips y etiquetas (R3 separa Tag pasivo de FilterChip) -------------- */
 /* Píldora de filtro: una sola, de 44 px (button.ra-chip y las de .chipgroup). Activa = tinta llena;
@@ -258,7 +261,6 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .fieldset-plain > legend { margin-bottom: var(--space-2); }
 .notice.is-plain { text-decoration: none; display: block; }
 .empty { padding: var(--space-12) var(--space-4); text-align: center; color: var(--ink-muted); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }
-.ra-detail-title { font: var(--t-title); }  /* el título de una charla en 390 px: 2-3 líneas, no 4 (display lo llevaba a 4) */
 
 /* --- formularios ---------------------------------------------------------- */
 .field { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -331,17 +333,6 @@ h2.caption { font: var(--t-small); text-transform: none; }
 }
 .ra-minicard:hover { box-shadow: var(--edge), var(--shadow-2); }
 .ra-minicard[hidden] { display: none; }
-.ra-minicard.is-compact { grid-template-columns: 52px 1fr 48px; align-items: start; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
-.ra-minicard.is-compact .ra-rail { border-right: 0; padding-right: 0; padding-top: 2px; }
-.ra-minicard.is-compact .ra-rail-time { font-size: 15px; }
-.ra-minicard.is-compact .ra-minicard-body { gap: 6px; }
-.ra-minicard.is-compact .ra-chips { gap: 6px; }
-.ra-add {
-  width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--radius-m); border: 1px solid var(--line-strong);
-  background: var(--surface-1); color: var(--ink); cursor: pointer; transition: background var(--ease);
-}
-.ra-add:hover { background: var(--surface-3); }
-.ra-add:disabled { opacity: .45; cursor: progress; }
 /* riel de tiempo: la hora manda, el día abajo; la línea conecta visualmente con el contenido */
 .ra-rail { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-right: var(--space-3); border-right: 2px solid var(--line); }
 .ra-rail-time { font: var(--t-time); font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -397,11 +388,6 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .ra-searchfield:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
 .ra-searchfield input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: var(--t-body); color: var(--ink); min-height: 48px; }
 .ra-searchfield input::placeholder { color: var(--ink-muted); }
-.ra-filterbtn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
-/* fila desplazable horizontal (agrupar por): no rompe el ancho en el celular */
-.ra-scrollrow { display: flex; align-items: center; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; margin: 0 calc(-1 * var(--space-4)); padding-inline: var(--space-4); }
-.ra-scrollrow::-webkit-scrollbar { display: none; }
-.ra-scrollrow .ra-chip { flex: none; }
 
 /* --- panel de filtros: sube desde abajo en el celular, lateral derecho en la compu --- */
 .ra-sheet {
@@ -621,9 +607,9 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* el bloque al que se saltó desde un resultado */
-.ra-tb.is-hit { background: var(--brand-soft); border-radius: var(--radius-s); animation: ra-hit-fade 2.4s ease-out 1s forwards; }
-@keyframes ra-hit-fade { to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .ra-tb.is-hit { animation: none; } }
+.ra-tb.is-hit { background: var(--brand-soft); margin: 0 calc(-1 * var(--space-4)); padding-inline: var(--space-4); border-top-color: transparent; }
+.ra-tb.is-hit + .ra-tb { border-top-color: transparent; }
+.ra-tb.is-hit .ra-tc { color: var(--brand-ink); font-weight: 600; }
 /* Citas del chat: pastillas mono. El código de charla en gris; el momento grabado (▶ 01:30) en naranja de marca,
    no en el rojo de error que se usaba antes. */
 .ra-cite {
@@ -638,3 +624,141 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-answer { display: flex; flex-direction: column; gap: var(--space-3); font: var(--t-body); }
 .ra-answer ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .ra-group-label { font: var(--t-small-strong); color: var(--ink-muted); }
+
+/* --- barra de la pantalla (detalle): Volver a la izquierda, Compartir y ⋯ a la derecha --- */
+.pagebar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex: 1; min-width: 0; margin-left: calc(-1 * var(--space-2)); }
+.pagebar[hidden] { display: none; }
+.has-pagebar .topbar > .brand, .has-pagebar .topbar > .toolbar { display: none; }
+
+/* --- menú ⋯ (web/js/menu.js) --- */
+.ra-menuwrap { position: relative; }
+.ra-menu {
+  position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 40; min-width: 200px; padding: var(--space-1);
+  display: flex; flex-direction: column; background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-3);
+}
+.ra-menu[hidden] { display: none; }
+.ra-menu-item {
+  display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch); padding: 0 var(--space-3); border: 0; background: none;
+  border-radius: var(--radius-s); font: var(--t-body); color: var(--ink); text-align: left; cursor: pointer;
+}
+.ra-menu-item:hover { background: var(--surface-3); }
+.ra-menu-item:focus-visible { background: var(--surface-3); outline: 2px solid var(--focus); outline-offset: -2px; }
+.ra-menu-item.is-danger { color: var(--error); }
+
+/* --- detalle de grabación: encabezado, fila de estado y link a la ficha --- */
+.ra-detail { display: flex; flex-direction: column; gap: var(--space-4); }
+.ra-detail-head { display: flex; flex-direction: column; gap: var(--space-2); }
+/* El título de una charla en 24/30 (no 28): en 390 px ocupa 2-3 líneas, no 4. */
+.ra-detail-head h1.title { margin: 0; font: var(--t-display); font-size: 24px; line-height: 30px; }
+.ra-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2); font: var(--t-small); color: var(--ink-muted); }
+.ra-detail-meta .ra-mono { font: var(--t-data); }
+.ra-talklink { align-self: flex-start; min-height: var(--touch); padding: 0; gap: var(--space-1); font: var(--t-small-strong); text-decoration: none; }
+.ra-talklink:hover { background: none; text-decoration: underline; }
+/* "Desde la búsqueda «…»": se llegó desde un buscador; la ✕ saca la marca del momento */
+.ra-from {
+  display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch); margin: var(--space-3) 0 var(--space-2);
+  padding: 0 var(--space-1) 0 var(--space-3); border-radius: var(--radius-m); background: var(--info-soft); color: var(--on-info-soft); font: var(--t-small);
+}
+.ra-from-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ra-from-close { flex: none; width: var(--touch); height: var(--touch); display: grid; place-items: center; border: 0; background: none; color: inherit; border-radius: var(--radius-s); cursor: pointer; }
+.ra-from-close:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* --- inicio: acción en el encabezado de la sección y grabaciones compactas --- */
+.ra-sec-action { min-height: var(--touch); padding: 0 var(--space-2); margin-right: calc(-1 * var(--space-2)); gap: var(--space-1); font: var(--t-small-strong); text-decoration: none; }
+.ra-reccard { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: var(--space-1) var(--space-3); padding: var(--space-3) var(--space-4); }
+.ra-reccard .ra-card-title { font: var(--t-body-strong); }
+.ra-reccard .ra-card-meta { grid-column: 1 / -1; flex-wrap: nowrap; gap: 6px; }
+.ra-reccard .ra-mono { flex: none; font: var(--t-data); }
+.ra-reccard .ra-ellipsis:not(:empty) + .ra-mono::before { content: "· "; }
+.ra-optional:empty { display: none; }
+.ra-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Hoy: "Grabar" ocupa la fila y "Llevame" queda al lado como botón de solo ícono */
+.ra-today-actions { display: flex; align-items: center; gap: var(--space-2); }
+.ra-today-actions > .ra-btn:not(.ra-btn-icon) { flex: 1 1 auto; }
+
+/* --- buscar › filtrar: Filtros dentro del campo, sugerencia, píldoras y conteo --- */
+/* Buscar: título, modos y contenido más juntos que el resto de las pantallas (16 px, como el mock) */
+.ra-search-page { display: flex; flex-direction: column; gap: var(--space-4); }
+.ra-search-page h1.title { margin: 0; }
+.ra-explore { display: flex; flex-direction: column; gap: var(--space-4); }
+.ra-searchfield:has(.ra-infield-btn) { padding-right: 1px; }
+.ra-infield-btn {
+  position: relative; flex: none; width: var(--touch); height: var(--touch); display: grid; place-items: center; border: 0;
+  border-radius: var(--radius-s); background: var(--surface-3); color: var(--ink); cursor: pointer;
+}
+.ra-infield-btn:hover { background: var(--line); }
+.ra-infield-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-pill);
+  background: var(--brand); color: var(--on-brand); font: var(--t-micro); font-size: 11px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.ra-suggest {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--touch); padding: 0 var(--space-3); border: 0;
+  border-radius: var(--radius-m); background: var(--surface-3); color: var(--ink); font: var(--t-small); text-align: left; cursor: pointer;
+}
+.ra-suggest[hidden] { display: none; }
+.ra-suggest:hover { background: var(--line); }
+.ra-suggest:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-suggest b { font-weight: 600; overflow-wrap: anywhere; }
+.ra-pillrow { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-1) var(--space-4); }
+.ra-pillrow::-webkit-scrollbar { display: none; }
+.ra-pillrow > * { flex: none; }
+/* "Agrupar ▾": select nativo con forma de píldora; punteado mientras no agrupa */
+.ra-pillselect-wrap { position: relative; display: inline-flex; color: var(--ink-muted); }
+.ra-pillselect-wrap:has(.is-on) { color: var(--surface-1); }
+.ra-pillselect-wrap::after {
+  content: ""; position: absolute; right: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px; background: currentColor; pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.ra-pillselect {
+  appearance: none; -webkit-appearance: none; min-height: var(--touch); padding: 0 38px 0 var(--space-4); cursor: pointer;
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-pill); background: var(--surface-1); color: inherit; font: var(--t-small);
+  field-sizing: content;  /* tan ancha como la opción elegida, no como la más larga */
+}
+.ra-pillselect.is-on { border: 1px solid var(--ink); background: var(--ink); font-weight: 600; }
+.ra-pillselect:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-pillselect option { color: var(--ink); background: var(--surface-1); }
+.ra-count { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--touch); }
+.ra-count strong { color: var(--ink); font-weight: 600; }
+.ra-count .ra-btn-ghost { flex: none; min-height: var(--touch); padding: 0 var(--space-2); font: var(--t-small-strong); }
+
+/* --- buscar › preguntar: conversación y campo fijo abajo, sobre la barra de navegación --- */
+/* --nav-h: alto de la barra inferior (solo en el celular); --kb: lo que tapa el teclado (web/js/ask.js);
+   --composer-h: alto real del campo, para dejar ese lugar libre al final de la pantalla. */
+:root { --nav-h: 0px; }
+.ra-ask { display: flex; flex-direction: column; gap: var(--space-6); }
+.ra-turns { display: flex; flex-direction: column; gap: var(--space-8); }
+.ra-turns:empty { display: none; }
+.ra-composer {
+  position: fixed; left: 0; right: 0; bottom: max(var(--kb, 0px), var(--nav-h)); z-index: 15;
+  padding: var(--space-2) var(--space-4); background: var(--bg); border-top: 1px solid var(--line);
+}
+.ra-composer-box {
+  display: flex; align-items: flex-end; gap: var(--space-2); max-width: 688px; margin: 0 auto; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--surface-1); border: 1px solid var(--line-strong); border-radius: var(--radius-l); transition: border-color var(--ease), box-shadow var(--ease);
+}
+.ra-composer-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
+.ra-composer textarea {
+  flex: 1; min-width: 0; min-height: var(--touch); max-height: 140px; padding: 10px 0; border: 0; background: none; outline: none; resize: none;
+  font: var(--t-body); color: var(--ink);
+}
+.ra-composer textarea::placeholder { color: var(--ink-muted); }
+.ra-send {
+  flex: none; width: var(--touch); height: var(--touch); display: grid; place-items: center; border: 0; border-radius: var(--radius-m);
+  background: var(--brand); color: var(--on-brand); cursor: pointer; transition: transform var(--ease);
+}
+.ra-send:active:not([disabled]) { transform: scale(.94); }
+.ra-send[disabled] { opacity: .45; cursor: not-allowed; }
+.ra-send:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.app:has(.ra-composer) { padding-bottom: calc(var(--nav-h) + var(--composer-h, 64px) + var(--space-6)); }
+body:has(.ra-composer) .toast { bottom: calc(var(--nav-h) + var(--composer-h, 64px) + var(--space-3)); }
+@media (max-width: 767px) {
+  :root { --nav-h: calc(65px + env(safe-area-inset-bottom)); }  /* 4 + 56 + 4 de la barra + su borde */
+}
+@media (min-width: 768px) {
+  .ra-composer { padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); }
+}
+@media (min-width: 900px) {
+  .ra-composer-box { max-width: 928px; }
+}
