@@ -11,7 +11,8 @@ y dice cuál es mejor o si empatan. Además se chequea el formato como lo usa la
   razones     Sonnet → Haiku. Fichas inventadas de scripts/eval/modelos.json.
 
 Cuesta plata: llama a la API de Anthropic (ANTHROPIC_API_KEY). Con --estimar muestra los casos y una estimación del
-costo sin llamar a nadie. Las salidas quedan en data/eval_modelos.json, para leerlas a mano.
+costo sin llamar a nadie. Con --detalle muestra además lo que respondió cada modelo, para leerlo a mano
+(para guardarlo: redirigir la salida, por ejemplo > data/eval_modelos.txt).
 
 Uso (desde la raíz del repo, con el catálogo cargado en el Postgres local):
   DATABASE_URL=... EMBED_PROVIDER=local python -m scripts.evaluar_modelos --estimar
@@ -32,7 +33,6 @@ from app.pipeline import SUMMARY_MAX_TOKENS, hms
 
 SET = Path(__file__).parent / "eval" / "modelos.json"
 PREGUNTAS = Path(__file__).parent / "eval" / "busqueda_catalogo.json"
-SALIDA = config.DATA_DIR / "eval_modelos.json"
 JUEZ = "claude-opus-5-5"
 SEMILLA = 7
 BLOQUE_PALABRAS = 40       # ~15 s de charla
@@ -248,6 +248,7 @@ def main() -> None:
     ap.add_argument("--tareas", default=",".join(PARES), help=f"separadas por coma, de: {', '.join(PARES)}")
     ap.add_argument("--n", type=int, default=6, help="casos por tarea")
     ap.add_argument("--estimar", action="store_true", help="solo muestra los casos y el costo estimado")
+    ap.add_argument("--detalle", action="store_true", help="muestra también lo que respondió cada modelo")
     args = ap.parse_args()
     tareas = [t for t in args.tareas.split(",") if t]
     if desconocidas := [t for t in tareas if t not in PARES]:
@@ -275,10 +276,11 @@ def main() -> None:
             fila["juez"] = juzgar(c, fila["base"], fila["candidato"], rnd)
             filas.append(fila)
             print(f"  {c.id}: {fila['juez']['resultado']} — {fila['juez']['motivo']}", flush=True)
+            if args.detalle:
+                for quien in ("base", "candidato"):
+                    print(f"\n--- {quien} ({fila[quien]['modelo']}) ---\n{fila[quien]['salida']}\n", flush=True)
         if filas:
             salida[tarea] = {"resumen": resumir(filas), "filas": filas}
-    SALIDA.parent.mkdir(parents=True, exist_ok=True)
-    SALIDA.write_text(json.dumps(salida, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"\n{'tarea':<11} {'gana':>4} {'empata':>6} {'pierde':>6} {'formato':>8} {'USD/llamada':>18} {'seg':>11}  ¿cambiar?")
     for tarea, d in salida.items():
@@ -286,7 +288,6 @@ def main() -> None:
         print(f"{tarea:<11} {r['candidato_gana']:>4} {r['empates']:>6} {r['candidato_pierde']:>6} "
               f"{c['formato_ok']:>3}/{r['casos']:<4} {b['usd_por_llamada']:>8.4f} → {c['usd_por_llamada']:<7.4f} "
               f"{b['segundos']:>4} → {c['segundos']:<4}  {'sí' if r['cambiar'] else 'no'}")
-    print(f"\nSalidas completas en {SALIDA}")
 
 
 if __name__ == "__main__":
