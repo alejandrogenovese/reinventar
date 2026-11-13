@@ -96,6 +96,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    `BOOTSTRAP_USERS` crea al arrancar los usuarios que todavía no existen (no pisa contraseñas); usalo solo para el primer admin. El resto de los usuarios se da de alta desde la app (ver [Usuarios](#usuarios)). Las demás variables tienen defaults (ver `.env.example`).
 
    Para `GOOGLE_MAPS_API_KEY`: en [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) activá la *Maps JavaScript API*, creá una API key y restringila por *HTTP referrer* a tu dominio de Railway (p. ej. `https://tu-dominio.up.railway.app/*`) para que nadie más la pueda usar aunque la vea en el código del navegador. Sin esta variable el itinerario funciona igual, pero sin mapa.
+
+   Opcionales, para el tablero de LLM de Cuenta → Admin: `LANGFUSE_PUBLIC_KEY` y `LANGFUSE_SECRET_KEY` (las del proyecto de Langfuse) y `LANGFUSE_HOST` (por defecto `https://us.cloud.langfuse.com`). El servidor lee las métricas con esas claves y al navegador solo llegan los números. Sin ellas, el tablero dice que no está disponible y el resto anda igual.
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.

@@ -7,7 +7,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, events, healthcheck, passwords, sandbox, search, venues
+from . import catalog, config, db, events, healthcheck, langfuse_metricas, passwords, sandbox, search, venues
 from .auth import admin, is_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -158,3 +158,9 @@ def usage(_admin: str = Depends(admin)):
         "recent_errors": db.recent_errors(),
         "users": db.list_users(),
     }
+
+
+@router.get("/llm")
+def llm_dashboard(_admin: str = Depends(admin)):
+    """Tablero de LLM: costo, demora, errores y scores de los últimos 7 días, leídos de Langfuse (cache de 5 min)."""
+    return langfuse_metricas.tablero()

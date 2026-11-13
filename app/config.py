@@ -81,3 +81,9 @@ GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")
 VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")
 VAPID_PRIVATE_KEY = _env("VAPID_PRIVATE_KEY")
 VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
+
+# Langfuse (trazas del gateway de LLM): el portal de admin lee sus métricas desde el servidor, las claves nunca van al
+# navegador. Opcionales: sin claves, el tablero de LLM dice que no está disponible y el resto sigue igual.
+LANGFUSE_PUBLIC_KEY = _env("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_SECRET_KEY = _env("LANGFUSE_SECRET_KEY")
+LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
