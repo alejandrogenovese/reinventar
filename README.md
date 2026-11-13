@@ -98,6 +98,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    `BOOTSTRAP_USERS` crea al arrancar los usuarios que todavía no existen (no pisa contraseñas); usalo solo para el primer admin. El resto de los usuarios se da de alta desde la app (ver [Usuarios](#usuarios)). Las demás variables tienen defaults (ver `.env.example`).
 
    Para `GOOGLE_MAPS_API_KEY`: en [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) activá la *Maps JavaScript API*, creá una API key y restringila por *HTTP referrer* a tu dominio de Railway (p. ej. `https://tu-dominio.up.railway.app/*`) para que nadie más la pueda usar aunque la vea en el código del navegador. Sin esta variable el itinerario funciona igual, pero sin mapa.
+
+   Opcionales, para el tablero de LLM de Cuenta → Admin: `LANGFUSE_PUBLIC_KEY` y `LANGFUSE_SECRET_KEY` (las del proyecto de Langfuse) y `LANGFUSE_HOST` (por defecto `https://us.cloud.langfuse.com`). El servidor lee las métricas con esas claves y al navegador solo llegan los números. Sin ellas, el tablero dice que no está disponible y el resto anda igual.
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.
@@ -122,7 +124,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `STT_BASE_URL` | `https://api.groq.com/openai/v1` | `https://api.openai.com/v1` con `STT_MODEL=whisper-1` (no se usa con `STT_PROVIDER=litellm`) |
 | `STT_MODEL` | `whisper-large-v3-turbo` | `whisper-large-v3` (más preciso, más lento) |
 | `LLM_PROVIDER` | `anthropic` | `litellm` + `LLM_BASE_URL` + `LLM_API_KEY`: cada tarea va a su alias del gateway (ver *Gateway de LLM*); `openai` para otro endpoint compatible |
-| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | — (sin claves no se mandan scores) | las claves del proyecto de Langfuse, para mandar los scores automáticos de calidad. Van en el servicio **de la app** en Railway (no solo en `litellm`) y las cargás vos |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | — (sin claves no se mandan scores) | las claves del proyecto de Langfuse: para mandar los scores automáticos de calidad y para el tablero de LLM de Cuenta → Admin. Van en el servicio **de la app** en Railway (no solo en `litellm`) y las cargás vos |
 | `LANGFUSE_HOST` | `https://us.cloud.langfuse.com` | el host de tu proyecto de Langfuse (en el servicio de la app, junto a las claves) |
 | `RAILWAY_ENVIRONMENT_NAME` | la pone Railway | con `production`, las trazas llevan el tag `prod`; si no, `dev` |
 | `LLM_RUTA_<TAREA>` | — | fuerza el modelo de una tarea (ej. `LLM_RUTA_RAZONES=rx-razones-haiku`); tareas en `app/llm_router.py` |

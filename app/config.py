@@ -85,8 +85,10 @@ VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
 # Entorno de Railway: "production" en producción. Va como tag (prod/dev) en las trazas de Langfuse (app/trazas.py).
 RAILWAY_ENVIRONMENT_NAME = _env("RAILWAY_ENVIRONMENT_NAME")
 
-# Langfuse (opcional): con las dos claves, la app manda scores de calidad sobre las trazas (app/langfuse_scores.py).
-# Sin claves, no manda nada. Las trazas en sí las manda el gateway LiteLLM, con sus propias claves.
+# Langfuse (opcional): con las dos claves, la app manda scores de calidad sobre las trazas (app/langfuse_scores.py) y el
+# portal de admin lee sus métricas (app/langfuse_metricas.py), siempre desde el servidor: las claves nunca van al
+# navegador. Sin claves, no se mandan scores y el tablero de LLM dice que no está disponible. Las trazas en sí las
+# manda el gateway LiteLLM, con sus propias claves.
 LANGFUSE_PUBLIC_KEY = _env("LANGFUSE_PUBLIC_KEY")
 LANGFUSE_SECRET_KEY = _env("LANGFUSE_SECRET_KEY")
 LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
