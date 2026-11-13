@@ -1,5 +1,5 @@
 """Endpoints de catálogo e itinerario: recomendación de sesiones de re:Invent y armado de agenda."""
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -29,7 +29,7 @@ class Generate(BaseModel):
 
 class AddItem(BaseModel):
     code: str = Field(min_length=1, max_length=40)
-    reason: Optional[str] = Field(None, max_length=400)  # la razón del armado guiado, si viene de ahí
+    reason: str | None = Field(None, max_length=400)  # la razón del armado guiado, si viene de ahí
 
 
 class Swap(BaseModel):
@@ -85,9 +85,9 @@ def catalog_meta():
 
 
 @router.get("/api/catalog/sessions")
-def catalog_search(q: Optional[str] = None, day: Optional[str] = None, venue: Optional[str] = None,
-                    topic: Optional[str] = None, aoi: Optional[str] = None, level: Optional[str] = None,
-                    kind: Optional[str] = None, limit: int = 60):
+def catalog_search(q: str | None = None, day: str | None = None, venue: str | None = None,
+                    topic: str | None = None, aoi: str | None = None, level: str | None = None,
+                    kind: str | None = None, limit: int = 60):
     return catalog.search(q, day, venue, topic, aoi, level, kind, min(limit, 200))
 
 
@@ -109,7 +109,7 @@ def generate_itinerary(body: Generate, username: str = Depends(auth)):
     try:
         return itinerary.generate(username, body.profile.model_dump(), body.prompt.strip())
     except ValueError as e:
-        raise HTTPException(422, str(e))
+        raise HTTPException(422, str(e)) from e
 
 
 @router.get("/api/itinerary/calendar.ics")
@@ -130,7 +130,7 @@ def add_item(body: AddItem, username: str = Depends(auth)):
     try:
         return itinerary.add_manual(username, body.code.strip(), body.reason)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from e
 
 
 @router.post("/api/itinerary/items/{code}/lock")

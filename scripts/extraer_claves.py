@@ -21,10 +21,9 @@ from dataclasses import asdict, dataclass
 import psycopg
 from psycopg import sql
 
-from app import config, llm, prompts
-from scripts import lotes_llm, unificar_conceptos
-from app import llm_router
+from app import config, llm, llm_router, prompts
 from app.llm_router import Tarea
+from scripts import lotes_llm, unificar_conceptos
 
 LOTE = 15
 HILOS = 4

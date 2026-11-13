@@ -3,9 +3,7 @@ import datetime as dt
 
 import pytest
 
-from scripts.catalogo_oficial import (
-    SpeakerExistente, SpeakerOficial, clave, codigo_base, parsear, planear_speakers,
-)
+from scripts.catalogo_oficial import SpeakerExistente, SpeakerOficial, clave, codigo_base, parsear, planear_speakers
 from tests.catalogo_fixture import catalogo_v1
 
 
@@ -48,7 +46,7 @@ def test_charla_trae_los_campos_nuevos_del_oficial():
     assert (arc.roles, arc.industria, arc.duracion_min) == (("Developer",), ("Financial Services",), 60)
     assert (arc.es_sponsoreada, arc.speakers_ocultos) == (False, False)
     assert (sec.es_sponsoreada, sec.speakers_ocultos) == (True, True)
-    assert arc.modificado == dt.datetime(2026, 11, 6, 20, 31, 24, tzinfo=dt.timezone.utc)
+    assert arc.modificado == dt.datetime(2026, 11, 6, 20, 31, 24, tzinfo=dt.UTC)
 
 
 def test_participaciones_con_id_de_aws_rol_cargo_y_orden():

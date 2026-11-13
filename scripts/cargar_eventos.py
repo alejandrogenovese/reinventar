@@ -30,10 +30,10 @@ import psycopg
 from psycopg import sql
 
 from app import config, llm, prompts
+from app.llm_router import Tarea
 from scripts import lotes_llm
 from scripts.actualizar_catalogo import _HOSTS_LOCALES, _backup, aplicar_migraciones
 from scripts.eventos_fuentes import Evento, completar_con_pagina_luma, desde_json_luma, sede_mas_cercana
-from app.llm_router import Tarea
 
 CACHE_DIR = Path(os.environ.get("LUMA_CACHE_DIR", "~/Documents/Proyectos/Scripts/reinventar/out/luma")).expanduser()
 SEGUNDOS_ENTRE_PAGINAS = 1.0
@@ -132,7 +132,7 @@ def _actuales(conn) -> dict[str, dict]:
     filas = conn.execute("SELECT id_evento, plataforma, nombre, descripcion, resumen_es, tipo, temas, organizadores "
                          "FROM evento").fetchall()
     return {f[0]: dict(zip(("id_evento", "plataforma", "nombre", "descripcion", "resumen_es", "tipo", "temas",
-                            "organizadores"), f)) for f in filas}
+                            "organizadores"), f, strict=False)) for f in filas}
 
 
 def _upsert(conn, fila: dict) -> str:

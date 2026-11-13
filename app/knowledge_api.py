@@ -1,5 +1,5 @@
 """Fichas navegables (charla, speaker, empresa) y buscador de personas/empresas."""
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -33,8 +33,8 @@ def empresa(empresa_id: int):
 
 class ExploreQuery(BaseModel):
     filters: dict[str, list[str]] = Field(default_factory=dict)
-    q: Optional[str] = Field(None, max_length=200)
-    group_by: Optional[str] = None
+    q: str | None = Field(None, max_length=200)
+    group_by: str | None = None
     limit: int = Field(50, ge=1, le=500)
     offset: int = Field(0, ge=0)
 

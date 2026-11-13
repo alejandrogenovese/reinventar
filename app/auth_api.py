@@ -1,11 +1,10 @@
 """Login/logout, perfil de sesión y cambio de contraseña."""
 import secrets
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import config, db, limites, passwords, passkeys_db, sandbox, venues
+from . import config, db, limites, passkeys_db, passwords, sandbox, venues
 from .auth import auth_pendiente, bearer, is_admin
 
 router = APIRouter()
@@ -64,7 +63,7 @@ def login(body: Login, request: Request):
 
 
 @router.post("/api/logout")
-def logout(authorization: Optional[str] = Header(None)):
+def logout(authorization: str | None = Header(None)):
     token = bearer(authorization)
     if token:
         db.delete_auth_token(token)
@@ -78,7 +77,7 @@ def me(username: str = Depends(auth_pendiente)):
 
 @router.post("/api/password")
 def change_password(body: PasswordChange, username: str = Depends(auth_pendiente),
-                    authorization: Optional[str] = Header(None)):
+                    authorization: str | None = Header(None)):
     user = db.get_user(username)
     if not passwords.verify_password(body.current_password, user["salt"], user["password_hash"]):
         raise HTTPException(400, "La contraseña actual no es correcta")

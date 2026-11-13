@@ -1,6 +1,5 @@
 """Endpoints de Mis eventos y del autocompletar de lugares (Google Places)."""
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -55,7 +54,7 @@ def delete_my_event(id_: str, username: str = Depends(auth)):
 
 
 @router.get("/api/places/autocomplete")
-def autocomplete(q: str = Query(min_length=3, max_length=100), sesion: Optional[str] = Query(None, max_length=64)):
+def autocomplete(q: str = Query(min_length=3, max_length=100), sesion: str | None = Query(None, max_length=64)):
     try:
         return {"lugares": places.autocomplete(q.strip(), sesion)}
     except places.PlacesNoDisponible as e:

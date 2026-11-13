@@ -2,12 +2,24 @@
 import datetime as dt
 import re
 import shutil
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import catalog, config, db, events, healthcheck, langfuse_metricas, passkeys_db, passwords, sandbox, search, venues
+from . import (
+    catalog,
+    config,
+    db,
+    events,
+    healthcheck,
+    langfuse_metricas,
+    passkeys_db,
+    passwords,
+    sandbox,
+    search,
+    venues,
+)
 from .auth import admin, is_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -33,15 +45,15 @@ class SandboxSettings(BaseModel):
     active: bool
     stt: Literal["fake", "real"] = "fake"
     llm: Literal["fake", "real"] = "fake"
-    clock: Optional[dt.datetime] = None
-    venue_id: Optional[int] = None
+    clock: dt.datetime | None = None
+    venue_id: int | None = None
 
 
 class AdvanceClock(BaseModel):
     minutes: int = Field(ge=-1440, le=1440)
 
 
-def _sandbox_view(user: dict) -> Optional[dict]:
+def _sandbox_view(user: dict) -> dict | None:
     sb = sandbox.desde_usuario(user)
     return sandbox.info(sb, venues.by_id(sb.id_sede) if sb else None)
 

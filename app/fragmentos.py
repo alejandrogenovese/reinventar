@@ -14,7 +14,7 @@ Si la base no tiene pgvector (db.vector_disponible), todo esto queda apagado.
 import logging
 import threading
 
-from . import catalog, db, embeddings, sandbox, search
+from . import db, embeddings, sandbox, search
 
 log = logging.getLogger("reinventar.fragmentos")
 

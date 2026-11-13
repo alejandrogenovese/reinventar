@@ -3,21 +3,44 @@ import itertools
 import logging
 import shutil
 from contextlib import asynccontextmanager
-from typing import Optional
-
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
-from . import (__version__, admin_api, audio, auth_api, cabeceras, catalog, config, cuerpo, db, events, events_api, fragmentos, guided_api, interview_api,
-               itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
+from . import (
+    __version__,
+    admin_api,
+    audio,
+    auth_api,
+    cabeceras,
+    catalog,
+    config,
+    cuerpo,
+    db,
+    events,
+    events_api,
+    fragmentos,
+    guided_api,
+    interview_api,
+    itinerary_api,
+    knowledge_api,
+    my_events_api,
+    passkey_api,
+    pg,
+    pipeline,
+    push,
+    push_api,
+    sandbox,
+    search,
+    talks,
+)
 from .auth import auth, bearer, context_for_token
-from .llm_router import como_usuario
 from .canonical_host import WwwRedirectMiddleware
+from .llm_router import como_usuario
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -91,9 +114,9 @@ def _session_or_404(sid: str):
 class NewSession(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     kind: str
-    code: Optional[str] = Field(None, max_length=40)
-    venue: Optional[str] = Field(None, max_length=120)
-    speaker: Optional[str] = Field(None, max_length=200)
+    code: str | None = Field(None, max_length=40)
+    venue: str | None = Field(None, max_length=120)
+    speaker: str | None = Field(None, max_length=200)
 
 
 # Topes de una grabación: parte = tramo entre pausas o cambios de micrófono; pedazo = 10 s de audio

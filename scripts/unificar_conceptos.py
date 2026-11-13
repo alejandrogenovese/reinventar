@@ -27,7 +27,7 @@ def canonicos(filas: Iterable[Fila]) -> dict[str, tuple[str, str]]:
     """Por clave inglesa (sin mayúsculas): (forma en castellano, forma en inglés) que gana."""
     es_por_en, en_por_en = defaultdict(Counter), defaultdict(Counter)
     for _, conceptos, conceptos_en in filas:
-        for es, en in zip(conceptos, conceptos_en):
+        for es, en in zip(conceptos, conceptos_en, strict=False):
             es_por_en[en.casefold()][es] += 1
             en_por_en[en.casefold()][en] += 1
     return {k: (_mas_usada(es_por_en[k]), _mas_usada(en_por_en[k])) for k in es_por_en}
