@@ -6,6 +6,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Arreglado
+- **Agregar una charla ahora se nota.** El botón queda en naranja como «Agregada» (también si ya la tenías) y no
+  vuelve a agregarla; si fue sin querer, otro toque la quita. En la ficha de la charla, el horario que ya está en tu
+  itinerario tiene «Quitar».
 - **Grabar sin que llegue sonido ya no deja una transcripción falsa.** Whisper inventaba un «Thank you.» sobre el
   silencio; ahora eso se descarta y la grabación avisa que no se escuchó voz, con qué revisar. Mientras grabás, si
   pasan unos segundos sin sonido aparece un aviso arriba del medidor («No llega sonido al micrófono»). La respuesta
