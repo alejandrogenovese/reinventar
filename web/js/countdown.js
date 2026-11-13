@@ -1,8 +1,9 @@
-// Countdown de lo fijado (📌 charlas y eventos del itinerario) y alertas dentro de la app: "Salí ahora", "Empieza en 5 min".
+// Countdown de lo fijado (charlas y eventos del itinerario) y alertas dentro de la app: "Salí ahora", "Empieza en 5 min".
 // Usa la hora simulada en modo prueba. Cualquier elemento con data-countdown-to="<ISO>" se actualiza solo cada segundo.
 import { Itinerary, getToken } from "./api.js";
 import { alertSettings, currentPosition, startsAt, walkingMinutes } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
+import { icon } from "./icons.js";
 import { h, toast } from "./ui.js";
 
 const REFRESH_MS = 60_000;
@@ -31,7 +32,9 @@ export function formatCountdown(ms) {
 }
 
 const hhmm = (d) => d.toLocaleTimeString("es-AR", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const label = (it) => (it.kind === "event" ? `🎉 ${it.title}` : `📌 ${it.title}`);
+const label = (it) => it.title;
+// Ícono de la franja: evento o fijado; el reloj cuando hay que salir ya.
+const bannerIcon = (it, tone) => icon(tone === "urgent" ? "reloj" : it.kind === "event" ? "eventos" : "fijar", 16);
 const link = (it) => (it.kind === "event" ? `#/evento/${encodeURIComponent(it.code)}` : `#/charla/${it.base}`);
 
 async function loadPinned() {
@@ -97,7 +100,7 @@ async function paint() {
       h("a", { class: "countdown-text", href: `#/perdida/${encodeURIComponent(ended.code)}` },
         `¿Llegaste a ${ended.title}? Si te la perdiste, mirá las opciones →`),
       h("button", { type: "button", class: "countdown-close", "aria-label": "Sí, llegué",
-        onclick: () => { write(HIDDEN, `missed:${ended.code}`); void paint(); } }, "×"));
+        onclick: () => { write(HIDDEN, `missed:${ended.code}`); void paint(); } }, icon("cerrar", 16)));
     return;
   }
   if (!next || read(HIDDEN, null) === next.code) { bar.hidden = true; return; }
@@ -105,9 +108,10 @@ async function paint() {
   bar.hidden = false;
   bar.className = `countdown-banner is-${tone}`;
   bar.replaceChildren(
+    bannerIcon(next, tone),
     h("a", { class: "countdown-text", href: link(next) }, text),
     h("button", { type: "button", class: "countdown-close", "aria-label": "Ocultar hasta lo próximo",
-      onclick: () => { write(HIDDEN, next.code); bar.hidden = true; } }, "×"));
+      onclick: () => { write(HIDDEN, next.code); bar.hidden = true; } }, icon("cerrar", 16)));
 }
 
 /** Arranca (o refresca) el countdown. Llamar al navegar y después de cambiar el itinerario ({ force: true }). */

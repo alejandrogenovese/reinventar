@@ -36,7 +36,7 @@ export function PushSettings() {
     return box;
   }
   const toggle = h("input", { type: "checkbox", id: "push-on", disabled: true });
-  const status = h("p", { class: "caption" }, "Te avisamos cuándo salir y cuándo empieza lo que fijaste 📌, y si AWS cambia algo de tu itinerario, aunque la app esté cerrada.");
+  const status = h("p", { class: "caption" }, "Te avisamos cuándo salir y cuándo empieza lo que fijaste, y si AWS cambia algo de tu itinerario, aunque la app esté cerrada.");
   const testBtn = Button("Probar una notificación", { onclick: async () => {
     try { const r = await Push.test(); toast(`Enviada a ${r.devices} dispositivo${r.devices === 1 ? "" : "s"}.`); } catch (err) { toast(err.message); }
   } });

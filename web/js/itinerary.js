@@ -6,7 +6,8 @@ import { sandboxNow } from "./sandbox.js";
 import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
-import { Button, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
+import { icon } from "./icons.js";
+import { Button, Hint, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
@@ -65,8 +66,8 @@ export function Abstract(s, { fold = true, className = "ra-abstract" } = {}) {
   return [p, more || toggle ? h("div", { class: "ra-abstract-actions" }, more, toggle) : null];
 }
 
-/** 📌 Fijar: lo fijado queda aunque regeneres el itinerario (antes se llamaba "Bloquear"). */
-const PinButton = (pinned, onclick) => Button(pinned ? "📌 Fijada" : "📌 Fijar",
+/** Fijar: lo fijado queda aunque regeneres el itinerario (antes se llamaba "Bloquear"). */
+const PinButton = (pinned, onclick) => Button([icon("fijar", 18), pinned ? "Fijada" : "Fijar"],
   { onclick, "aria-pressed": String(Boolean(pinned)), title: pinned ? "Tocá para soltarla" : "Queda aunque regeneres el itinerario" });
 
 /** Ya terminó (con la hora simulada en modo prueba): para ofrecer "Me la perdí". */
@@ -82,7 +83,32 @@ const minusMinutes = (hhmm, minutes) => {
 const BookedButton = (booked, onclick) => Button(booked ? "✓ Reservada" : "Marcar reservada",
   { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
 
-export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } = {}) {
+const COMPACT_TAGS = 3;
+
+/** Tarjeta compacta (Buscar › Filtrar): hora, código, título, sede, hasta 3 tags y un + de 48 px. Speakers y resumen
+ *  quedan en la ficha de la charla: así entran el doble por pantalla. */
+function CompactCard(s, onAdd) {
+  const tags = [...(s.topic || []), ...(s.aoi || [])].slice(0, s.newlaunch ? COMPACT_TAGS - 1 : COMPACT_TAGS);
+  const where = [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
+  const kind = [s.type, s.level].filter(Boolean).join(" · ");
+  return h("article", { class: "ra-minicard is-compact" },
+    h("div", { class: "ra-rail" },
+      h("span", { class: "ra-rail-time" }, s.start || "—"),
+      h("span", { class: "ra-rail-day" }, shortDay(s.day).split(" ").slice(0, 2).join(" "))),  // "mar 1": el mes sobra
+    h("div", { class: "ra-minicard-body" },
+      h("span", { class: "ra-kind" }, s.base ? h("b", { class: "ra-mono" }, s.base) : null,
+        kind ? `${s.base ? " · " : ""}${kind}` : null),
+      h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
+      where ? h("div", { class: "ra-minicard-meta" }, where) : null,
+      tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
+        s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo") : null, tags.map(Tag)) : null),
+    h("button", { type: "button", class: "ra-add", "aria-label": `Agregar ${s.title} al itinerario`, title: "Agregar al itinerario",
+      onclick: async (e) => { const btn = e.currentTarget; btn.disabled = true; try { await onAdd(); } finally { btn.disabled = false; } } },
+      icon("agregar", 22)));
+}
+
+export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, compact = false } = {}) {
+  if (compact && onAdd) return CompactCard(s, onAdd);
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
     h("div", { class: "ra-rail" },
@@ -98,8 +124,8 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } =
       People(s),
       Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
-      s.salir_antes && s.end ? h("p", { class: "notice" }, `🟠 Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`) : null,
-      s.overlaps?.length ? h("p", { class: "notice err" }, `⚠ Se superpone con ${s.overlaps.join(", ")}`) : null,
+      s.salir_antes && s.end ? Hint(`Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
+      s.overlaps?.length ? Hint(`Se superpone con ${s.overlaps.join(", ")}`, { tone: "error" }) : null,
       h("div", { class: "actions" },
         onAdd ? Button("Agregar", { onclick: onAdd }) : null,
         onLock ? PinButton(locked, onLock) : null,
@@ -236,8 +262,8 @@ export async function viewItinerario(view) {
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),
         Button("＋ Mi evento", { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
-        Button("📅 Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
-        Button("📥 Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
+        Button("Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
+        Button("Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,

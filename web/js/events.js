@@ -5,7 +5,7 @@ import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, startsAt } from "./location.js";
 import { MyEventsSection } from "./myEvents.js";
 import { sandboxNow } from "./sandbox.js";
-import { Button, Tag, h, toast } from "./ui.js";
+import { Button, Hint, IconText, Tag, h, toast } from "./ui.js";
 
 const ALL = "todos";
 const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "numeric" }).replaceAll(".", "");
@@ -21,19 +21,19 @@ const Cover = (e, cls) => (safeUrl(e.image)
   ? h("img", { class: cls, src: e.image, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" }) : null);
 
 function facts(e) {
-  return [e.full ? "⚠ Lleno" : null, e.guests ? `${e.guests} anotados` : null, e.price, e.approval ? "requiere aprobación" : null]
+  return [e.full ? "Lleno" : null, e.guests ? `${e.guests} anotados` : null, e.price, e.approval ? "requiere aprobación" : null]
     .filter(Boolean).join(" · ");
 }
 
-/** Botón "+ Itinerario" / "En tu itinerario 📌". */
+/** Botón "+ Itinerario" / "En tu itinerario" (fijado). */
 function AddButton(e, onAdded) {
-  if (e.in_itinerary) return h("span", { class: "ra-tag is-new" }, "En tu itinerario 📌");
+  if (e.in_itinerary) return IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 });
   const btn = Button("+ Itinerario", { onclick: async () => {
     btn.disabled = true;
     try {
       const r = await Itinerary.add(e.code);
       const mine = r.days.flatMap((d) => d.sessions).find((s) => s.code === e.code);
-      toast(mine?.overlaps?.length ? `Agregado. ⚠ Se superpone con ${mine.overlaps.join(", ")}.` : "Agregado y fijado en tu itinerario.");
+      toast(mine?.overlaps?.length ? `Agregado. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregado y fijado en tu itinerario.");
       void refreshCountdown({ force: true });
       onAdded?.();
     } catch (err) { toast(err.message); btn.disabled = false; }
@@ -50,7 +50,7 @@ export function EventCard(e, { onAdded, actions = null } = {}) {
       h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(e.code)}` }, e.title)),
       h("div", { class: "ra-card-meta" }, h("span", {}, place(e)), e.organizers?.length ? h("span", {}, e.organizers.join(" · ")) : null),
       facts(e) ? h("p", { class: "caption" }, facts(e)) : null,
-      e.overlaps?.length ? h("p", { class: "notice err" }, `⚠ Se superpone con ${e.overlaps.join(", ")}`) : null,
+      e.overlaps?.length ? Hint(`Se superpone con ${e.overlaps.join(", ")}`, { tone: "error" }) : null,
       GoThere(destination(e)),
       h("div", { class: "actions" }, actions ?? AddButton(e, onAdded))));
 }
@@ -127,9 +127,8 @@ export async function viewEvento(view, code) {
       row("Organizan", e.organizers?.join(" · ")),
       row("Entrada", [e.price, e.approval ? "requiere aprobación" : null].filter(Boolean).join(" · ")),
       row("Anotados", e.guests ? String(e.guests) : null),
-      e.full ? h("p", { class: "notice err" }, "⚠ Está lleno: anotate en la lista de espera de Luma.") : null),
-    e.clashes?.length ? h("p", { class: "notice err" },
-      `⚠ Choca con: ${e.clashes.map((c) => `${c.title} (${c.start})`).join(", ")}`) : null,
+      e.full ? Hint("Está lleno: anotate en la lista de espera de Luma.", { tone: "error" }) : null),
+    e.clashes?.length ? Hint(`Choca con: ${e.clashes.map((c) => `${c.title} (${c.start})`).join(", ")}`, { tone: "error" }) : null,
     h("div", { class: "actions" },
       safeUrl(e.url) ? h("a", { class: "ra-btn ra-btn-primary", href: e.url, target: "_blank", rel: "noopener noreferrer" }, "Anotarme en Luma ↗") : null,
       AddButton(e, () => { view.replaceChildren(); void viewEvento(view, code); }))));

@@ -1,7 +1,7 @@
 // Mis eventos: los que dan los proveedores y no están en la sección Eventos. Cada uno carga los suyos.
 import { ApiError, Catalog, MyEvents } from "./api.js";
 import { shortDay } from "./itinerary.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, IconText, h, toast } from "./ui.js";
 
 const AUTOCOMPLETE_MIN = 3;
 const AUTOCOMPLETE_DEBOUNCE_MS = 350;
@@ -16,7 +16,8 @@ export function MyEventCard(e, actions = []) {
     h("div", { class: "ra-minicard-body" },
       h("span", { class: "ra-kind" }, ["MI EVENTO", e.end ? `hasta ${e.end}` : null].filter(Boolean).join(" · ")),
       h("h3", { class: "ra-minicard-title" }, e.title),
-      h("div", { class: "ra-minicard-meta" }, ["📍", e.venue?.hotel, e.venue?.detail].filter(Boolean).join(" ")),
+      e.venue?.hotel || e.venue?.detail
+        ? h("div", { class: "ra-minicard-meta" }, IconText("ubicacion", [e.venue?.hotel, e.venue?.detail].filter(Boolean).join(" "))) : null,
       e.note ? h("p", { class: "caption" }, e.note) : null,
       h("div", { class: "actions" },
         Button("Editar", { onclick: () => (location.hash = `#/mi-evento/${encodeURIComponent(e.id)}`) }),
@@ -40,7 +41,7 @@ function Autocomplete(inicial) {
   const input = h("input", { type: "search", maxlength: "100", placeholder: "Ej: Topgolf, Hakkasan, Wynn Encore Ballroom", autocomplete: "off" });
   const results = h("ul", { class: "ra-suggestions", role: "listbox" });
   const chosen = h("p", { class: "caption", "aria-live": "polite" });
-  const paintChosen = () => { chosen.textContent = elegido ? `📍 ${elegido.nombre}${elegido.direccion ? ` · ${elegido.direccion}` : ""}` : ""; };
+  const paintChosen = () => { chosen.replaceChildren(elegido ? IconText("ubicacion", `${elegido.nombre}${elegido.direccion ? ` · ${elegido.direccion}` : ""}`) : ""); };
   input.addEventListener("input", () => {
     clearTimeout(timer);
     const q = input.value.trim();

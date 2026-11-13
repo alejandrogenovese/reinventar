@@ -1,5 +1,6 @@
 // Íconos de la app en la grilla de 24 px. Inicio, Explorar, Itinerario, Preguntar, Buscar y Filtrar vienen de @brick-v2/icons
 // (Home, Compass, Calendar, MessagesBubble, Search1Regular, Filter); el resto se dibujó con el mismo peso porque Brick no los trae.
+// Ubicación, reloj, caminar, alerta, fijar, llevar, reproducir, etc. reemplazan a los emojis que se usaban como íconos.
 // Toman el color del texto (currentColor). Son decorativos: el botón o link que los contiene lleva el nombre accesible.
 const ICONS = {
   inicio: "<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" fill=\"currentColor\" d=\"M11.402 1.201a1 1 0 0 1 1.205 0l9.66 7.29c.027.02.053.041.077.064A2.05 2.05 0 0 1 23 10v11.135A1.873 1.873 0 0 1 21.133 23h-5.8a1 1 0 0 1-1-1v-4.664a2.333 2.333 0 1 0-4.666 0V22a1 1 0 0 1-1 1H2.866A1.872 1.872 0 0 1 1 21.134V10c0-.018 0-.037.002-.055a2.045 2.045 0 0 1 .731-1.455l9.67-7.289ZM3 10.046V21h4.667v-3.664a4.333 4.333 0 1 1 8.666 0V21H21V10.047a.052.052 0 0 0-.003-.01l-8.993-6.785-9.001 6.786a.05.05 0 0 0-.003.008Z\"/>",
@@ -13,6 +14,16 @@ const ICONS = {
   ajustes: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></g>",
   eventos: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6Z\"/><path stroke-dasharray=\"2 2\" d=\"M15 5v14\"/></g>",
   grabar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"2\" width=\"6\" height=\"12\" rx=\"3\"/><path d=\"M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8\"/></g>",
+  ubicacion: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z\"/><circle cx=\"12\" cy=\"9.5\" r=\"2.5\"/></g>",
+  fijar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 3h6M10 3v6l-3 4h10l-3-4V3M12 13v8\"/></g>",
+  reloj: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></g>",
+  caminar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"13\" cy=\"4\" r=\"2\"/><path d=\"m9 21 2-6 3 3v3M7 11l3-3 3 1 2 3 3 1M10 8l-1 5\"/></g>",
+  alerta: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z\"/><path d=\"M12 9v4M12 17h.01\"/></g>",
+  llevar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11 21 3l-8 18-2-8Z\"/></g>",
+  agregar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 5v14M5 12h14\"/></g>",
+  cerrar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 6l12 12M18 6 6 18\"/></g>",
+  seguir: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 6 6 6-6 6\"/></g>",
+  reproducir: "<path fill=\"currentColor\" d=\"M7 5v14l11-7Z\"/>",
 };
 
 /** <svg> del ícono `name` (de ICONS), 24×24 salvo que se pida otro tamaño. */

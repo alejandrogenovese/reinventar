@@ -60,14 +60,14 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 const addToItinerary = (code) => async () => {
   try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
 };
-const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
+const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code), compact: true }));
 
 function ActiveChips(state, update) {
   const active = Object.entries(state.filters).flatMap(([facet, values]) => [...values].map((v) => [facet, v]));
   if (!active.length) return null;
   return h("div", { class: "ra-chips" },
     active.map(([facet, value]) => h("button", { type: "button", class: "ra-chip ra-chip-on", "aria-label": `Quitar filtro ${LABEL[facet]}: ${value}`,
-      onclick: () => update(toggled(state, facet, value)) }, `${LABEL[facet]}: ${value} ✕`)),
+      onclick: () => update(toggled(state, facet, value)) }, `${LABEL[facet]}: ${value}`)),
     h("button", { type: "button", class: "ra-chip", onclick: () => update({ ...state, filters: {}, offset: 0 }) }, "Limpiar todo"));
 }
 
@@ -101,7 +101,7 @@ function FilterSheet() {
   const dlg = h("dialog", { class: "ra-sheet", "aria-labelledby": "sheet-title" },
     h("div", { class: "ra-sheet-head" },
       h("h2", { class: "ra-dialog-title", id: "sheet-title" }, "Filtros"),
-      h("button", { type: "button", class: "iconbtn", "aria-label": "Cerrar filtros", onclick: () => dlg.close() }, "✕")),
+      h("button", { type: "button", class: "iconbtn", "aria-label": "Cerrar filtros", onclick: () => dlg.close() }, icon("cerrar", 24))),
     body,
     h("div", { class: "ra-sheet-foot actions" }, clear, done));
   done.addEventListener("click", () => dlg.close());

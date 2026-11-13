@@ -32,6 +32,8 @@
 <body>
   <a class="skip-link" href="#view">Saltar al contenido</a>
   <div class="app">
+    <!-- Un solo bloque pegado arriba (franjas + barra): antes eran dos sticky con top:0 que se pisaban -->
+    <div class="masthead" id="masthead">
     <div class="top-banners">
       <div id="sandbox-banner" class="sandbox-banner" role="status" hidden></div>
       <div id="changes-banner" class="changes-banner" role="alert" hidden></div>
@@ -51,6 +53,7 @@
         <a class="iconbtn" href="#/ajustes" aria-label="Ajustes" title="Ajustes" data-match="^#/(ajustes|admin|password)"><span data-icon="ajustes"></span></a>
       </div>
     </header>
+    </div>
     <main id="view" tabindex="-1"></main>
   </div>
   <script type="module" src="/js/app.js"></script>

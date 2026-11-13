@@ -2,6 +2,7 @@
 // En modo prueba se usa la sede simulada en lugar del GPS (web/js/sandbox.js).
 import { loadGoogleMaps } from "./map.js";
 import { sandboxLocation, sandboxNow } from "./sandbox.js";
+import { icon } from "./icons.js";
 import { h } from "./ui.js";
 
 const SETTING = "ra.location";           // "off" = el usuario no quiere usar la ubicación
@@ -95,25 +96,27 @@ export const startsAt = (day, hhmm) => new Date(`${day}T${hhmm}:00-08:00`);
 const hhmm = (date) => date.toLocaleTimeString("es-AR", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /**
- * "📍 a 1,4 km · 18 min caminando · salí 13:40  [Llevame ➜]". Se completa sola cuando hay ubicación.
+ * "(ubicación) a 1,4 km · 18 min caminando · salí 13:40  [Llevame]". Se completa sola cuando hay ubicación.
  * dest: { lat, lng, name, placeId?, approx? }; opts.start: Date del inicio (para "salí a las"); opts.eta: pedir tiempo a pie.
  * approx = la fuente solo da una zona (Luma muestra la dirección al anotarte): no se muestran distancia ni horarios.
  */
 export function GoThere(dest, { start = null, eta = false } = {}) {
   if (dest?.lat == null) return null;
-  const info = h("span", { class: "ra-go-info" });
+  const text = h("span", {});
+  const info = h("span", { class: "ra-go-info ra-icotext" }, icon("ubicacion", 16), text);
   if (dest.approx) {
-    info.textContent = "📍 dirección exacta al anotarte";
+    text.textContent = "dirección exacta al anotarte";
     return h("div", { class: "ra-go" }, info);
   }
   const link = h("a", { class: "ra-btn ra-btn-secondary ra-go-btn", href: directionsUrl(dest), target: "_blank",
-    rel: "noopener", "aria-label": `Llevame a ${dest.name || "la sede"} con Google Maps` }, "Llevame ➜");
+    rel: "noopener", "aria-label": `Llevame a ${dest.name || "la sede"} con Google Maps` }, icon("llevar", 20), "Llevame");
+  info.hidden = true; // sin ubicación no hay nada que decir: queda solo el botón
   const el = h("div", { class: "ra-go" }, info, link);
   void (async () => {
     const here = await currentPosition();
     if (!here) return;
     link.href = directionsUrl(dest, here);
-    const parts = [`📍 ${formatDistance(distanceMeters(here, dest))}`];
+    const parts = [formatDistance(distanceMeters(here, dest))];
     if (eta) {
       const { minutes, estimated } = await walkingMinutes(here, dest);
       parts.push(`${estimated ? "~" : ""}${minutes} min caminando`);
@@ -123,7 +126,8 @@ export function GoThere(dest, { start = null, eta = false } = {}) {
         else if (start > sandboxNow()) parts.push("salí ya");
       }
     }
-    info.textContent = parts.join(" · ");
+    text.textContent = parts.join(" · ");
+    info.hidden = false;
   })();
   return el;
 }

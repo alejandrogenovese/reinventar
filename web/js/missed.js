@@ -3,7 +3,7 @@ import { Itinerary } from "./api.js";
 import { refreshCountdown } from "./countdown.js";
 import { SessionMiniCard, shortDay } from "./itinerary.js";
 import { GoThere } from "./location.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, IconText, h, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
 const where = (c) => [c.venue?.hotel, c.venue?.detail].filter(Boolean).join(" · ");
@@ -14,7 +14,7 @@ function OptionRow(c, actionLabel, onAction) {
     h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, c.start), h("span", { class: "ra-rail-day" }, shortDay(c.day))),
     h("div", { class: "ra-slot-body" },
       h("span", {}, where(c) || "Sede a confirmar"),
-      c.clashes?.length ? h("span", { class: "caption" }, `⚠ choca con ${c.clashes.join(", ")}`) : h("span", { class: "caption" }, "libre en tu itinerario"),
+      c.clashes?.length ? IconText("alerta", `choca con ${c.clashes.join(", ")}`, { className: "caption ra-icotext" }) : h("span", { class: "caption" }, "libre en tu itinerario"),
       GoThere(destination(c))),
     c.in_itinerary ? h("span", { class: "ra-tag is-new" }, "En tu itinerario") : Button(actionLabel, { onclick: onAction }));
 }
