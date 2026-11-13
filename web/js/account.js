@@ -1,5 +1,6 @@
 // Cuenta: cambio de contraseña (obligatorio en el primer ingreso) y módulo de admin.
 import { Admin, Auth, setMustChangePassword } from "./api.js";
+import { LlmPanel } from "./adminLlm.js";
 import { confirmDialog, promptDialog } from "./dialog.js";
 import { currentPosition, walkingMinutes } from "./location.js";
 import { loadGoogleMaps } from "./map.js";
@@ -241,5 +242,6 @@ export async function viewAdmin(view) {
       h("div", { class: "actions" }, Button("Recargar catálogo", { onclick: async () => {
         try { const r = await Admin.reloadCatalog(); toast(`Catálogo recargado: ${r.sessions} sesiones`); } catch (err) { toast(err.message); }
       } }))),
-    usageBox));
+    usageBox,
+    LlmPanel()));
 }

@@ -6,6 +6,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Tablero de LLM en Cuenta → Admin**: los últimos 7 días de Langfuse sin salir de la app: costo por tarea y por día,
+  demora p50 y p95 y errores por tarea, los scores de calidad (líneas faltantes, JSON válido, 👍/👎) y el costo y las
+  unidades del mes contra las 50.000 del plan gratis (estimadas como trazas + observaciones + scores). Se actualiza cada
+  5 minutos y tiene un link para abrir el proyecto en Langfuse. Necesita las claves de Langfuse en el servidor; sin
+  ellas, dice que no está disponible.
 - **Buscar en lo que grabaste**: en Inicio, arriba de tus grabaciones, un buscador que encuentra el momento de cada
   charla donde se habló de algo ("¿qué dijeron de Neptune?", "migrar Teradata"), por significado y por palabras, en
   castellano o en inglés. Cada resultado abre la transcripción en ese minuto. Las grabaciones viejas se indexan solas.
