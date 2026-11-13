@@ -3,7 +3,7 @@ const VERSION = "reinventar-v0.20.0";
 const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/charts.js",
-  "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js",
+  "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
 ];
 
@@ -91,18 +91,23 @@ self.addEventListener("fetch", (e) => {
 });
 
 // Web Push (app/push.py): avisos de lo fijado y de cambios, con la app cerrada. Tocar la notificación abre esa pantalla.
+// El recordatorio "¿la grabás?" trae el botón "Grabar" (actions: Chrome lo muestra, Safari/iOS no) y en los dos casos
+// lleva a #/grabar-charla/{code}. tag: uno por aviso (antes era el título, que pisaba avisos distintos con el mismo).
 self.addEventListener("push", (e) => {
   let msg = {};
   try { msg = e.data?.json() || {}; } catch { msg = { title: "ReinventAR", body: e.data?.text() || "" }; }
   e.waitUntil(self.registration.showNotification(msg.title || "ReinventAR", {
-    body: msg.body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: msg.url || "/#/" },
-    tag: msg.title, renotify: true,
+    body: msg.body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png",
+    data: { url: msg.url || "/#/", recordUrl: msg.recordUrl || null },
+    actions: Array.isArray(msg.actions) ? msg.actions : [], tag: msg.tag || msg.title, renotify: true,
   }));
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const url = new URL(e.notification.data?.url || "/#/", self.location.origin).href;
+  const data = e.notification.data || {};
+  const target = e.action === "grabar" ? data.recordUrl || data.url : data.url;
+  const url = new URL(target || "/#/", self.location.origin).href;
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const open = wins.find((w) => w.url.startsWith(self.location.origin));

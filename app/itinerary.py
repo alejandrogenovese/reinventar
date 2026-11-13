@@ -1,7 +1,7 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
 import logging
 
-from . import catalog, config, db, events, llm, prompts, search, trazas
+from . import catalog, config, db, events, llm, prompts, search, talks, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.itinerary")
@@ -90,6 +90,8 @@ def _build_response(items: list[dict]) -> dict:
         c["reason"] = it.get("reason")
         c["salir_antes"] = it.get("salir_antes") or 0
         c["reservada"] = bool(it.get("reservada"))
+        if c.get("kind", "talk") == "talk":
+            c["recording_kind"] = talks.recording_kind(c.get("type"))  # para grabarla desde el aviso (#/grabar-charla)
         days.setdefault(c["day"], []).append(c)
     for day_items in days.values():
         day_items.sort(key=lambda c: c["start"] or "")

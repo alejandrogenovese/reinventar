@@ -113,6 +113,14 @@ export const Push = {
   subscribe: (sub) => api("/api/push/subscribe", { method: "POST", json: sub }),
   unsubscribe: (endpoint) => api("/api/push/unsubscribe", { method: "POST", json: { endpoint } }),
   test: () => api("/api/push/test", { method: "POST" }),
+  prefs: () => api("/api/push/preferencias"),
+  savePrefs: (prefs) => api("/api/push/preferencias", { method: "PUT", json: prefs }),
+};
+
+// Sede reciente para el recordatorio "¿la grabás?" (app/ubicacion_api.py): solo el número de sede, nunca coordenadas.
+export const Ubicacion = {
+  set: (idSede) => api("/api/ubicacion", { method: "POST", json: { id_sede: idSede } }),
+  clear: () => api("/api/ubicacion", { method: "DELETE" }),
 };
 
 export const Events = {

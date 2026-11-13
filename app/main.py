@@ -38,6 +38,7 @@ from . import (
     sandbox,
     search,
     talks,
+    ubicacion_api,
 )
 from .auth import auth, bearer, context_for_token
 from .canonical_host import WwwRedirectMiddleware
@@ -97,6 +98,7 @@ app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(push_api.router)
+app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 
 

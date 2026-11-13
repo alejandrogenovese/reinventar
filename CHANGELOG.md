@@ -6,6 +6,16 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **«¿La grabás?»: recordatorio para no olvidarte de grabar.** El aviso «X empieza en 5 min» de una charla fijada
+  ahora pregunta «¿La grabás?» y, al tocarlo, abre esa charla lista para grabar con un botón «Empezar a grabar» (en
+  iPhone hace falta ese toque para usar el micrófono). Si la charla empezó hace 2 a 6 minutos y nadie la está
+  grabando, llega otro aviso. Nunca de 22 a 7, como mucho uno cada 30 minutos, y se apaga con «Recordarme grabar» en
+  Ajustes › Notificaciones.
+- **Usar en qué sede estoy para los avisos** (apagado por defecto, en Ajustes › Notificaciones): con la app abierta,
+  el celular calcula en qué sede estás y manda solo eso, nunca tu posición. Con ese dato el aviso dice «Estás en el
+  Venetian: ¿grabás X?», avisa también charlas no fijadas de tu itinerario si estás en esa sede, y no avisa si estás
+  a 15 minutos o más caminando. Deja de usarse a los 45 minutos y se borra a las 2 horas; al apagarlo se borra al
+  instante.
 - **Tu re:Invent en números** (Itinerario › «Tu semana en números»). En *Mi semana*: cuántas charlas y keynotes
   tenés, horas ocupadas, kilómetros caminando entre sedes, choques y cambios de sede a los que no llegás; tu semana en
   franjas de 8 a 22 h con los choques en rojo y los «no llegás» marcados; la caminata por día; cuánto de tu agenda
