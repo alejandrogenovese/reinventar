@@ -24,6 +24,14 @@ PREFIJOS = {
     "intfloat/multilingual-e5-large": ("query: ", "passage: "),
 }
 CONSULTA, DOCUMENTO = "consulta", "documento"
+
+# Versión cuantizada a 4 bits de embeddinggemma (mismo repo ONNX, pesos comprimidos). Medido con
+# scripts/evaluar_busqueda.py: recall@10 0,80 contra 0,81 del original, con 0,4 GB de RAM en reposo contra 1,2 GB.
+# (La de 8 bits ocupaba más que el original: descartada.) Nombre propio, porque speech_embedding guarda los
+# vectores por modelo y así no se mezclan con los del original.
+_GEMMA = "google/embeddinggemma-300m"
+_GEMMA_ONNX = "onnx-community/embeddinggemma-300m-ONNX"
+VARIANTES = {f"{_GEMMA}-q4": "onnx/model_q4.onnx"}
 _model = None
 _model_lock = threading.Lock()
 
@@ -50,19 +58,42 @@ def fake_embed(texts: list[str]) -> np.ndarray:
     return _normalized(out)
 
 
+def modelo_base(nombre: str) -> str:
+    """Las variantes cuantizadas se usan igual que el modelo original (mismos prefijos)."""
+    return _GEMMA if nombre in VARIANTES else nombre
+
+
+def _registrar_variante(nombre: str) -> None:
+    from fastembed import TextEmbedding
+    from fastembed.common.model_description import ModelSource, PoolingType
+
+    if any(m.model == nombre for m in TextEmbedding._list_supported_models()):
+        return
+    archivo = VARIANTES[nombre]
+    TextEmbedding.add_custom_model(
+        model=nombre, pooling=PoolingType.DISABLED, normalization=True, dim=768,
+        sources=ModelSource(hf=_GEMMA_ONNX), model_file=archivo, additional_files=[f"{archivo}_data"],
+        output_name="sentence_embedding", license="gemma")
+
+
 def _local_model():
     global _model
     with _model_lock:
         if _model is None:
             from fastembed import TextEmbedding  # import diferido: pesa y solo hace falta con EMBED_PROVIDER=local
 
+            if config.EMBED_MODEL in VARIANTES:
+                _registrar_variante(config.EMBED_MODEL)
             log.info("Cargando modelo de embeddings %s", config.EMBED_MODEL)
-            _model = TextEmbedding(config.EMBED_MODEL, cache_dir=str(config.EMBED_CACHE_DIR))
+            # Hilos fijos: si no, ONNX abre uno por cada CPU que ve (en Railway, las del servidor físico),
+            # cada uno con su memoria.
+            _model = TextEmbedding(config.EMBED_MODEL, cache_dir=str(config.EMBED_CACHE_DIR),
+                                   threads=config.EMBED_THREADS)
         return _model
 
 
 def con_prefijo(texts: list[str], tipo: str) -> list[str]:
-    consulta, documento = PREFIJOS.get(config.EMBED_MODEL, ("", ""))
+    consulta, documento = PREFIJOS.get(modelo_base(config.EMBED_MODEL), ("", ""))
     prefijo = consulta if tipo == CONSULTA else documento
     return [prefijo + t for t in texts]
 
