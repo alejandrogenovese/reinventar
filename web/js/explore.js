@@ -60,7 +60,7 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 const addToItinerary = (code) => async () => {
   try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
 };
-const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code), compact: true }));
+const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
 
 function ActiveChips(state, update) {
   const active = Object.entries(state.filters).flatMap(([facet, values]) => [...values].map((v) => [facet, v]));

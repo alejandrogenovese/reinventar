@@ -83,32 +83,7 @@ const minusMinutes = (hhmm, minutes) => {
 const BookedButton = (booked, onclick) => Button(booked ? IconText("listo", "Reservada") : "Marcar reservada",
   { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
 
-const COMPACT_TAGS = 3;
-
-/** Tarjeta compacta (Buscar › Filtrar): hora, código, título, sede, hasta 3 tags y un + de 48 px. Speakers y resumen
- *  quedan en la ficha de la charla: así entran el doble por pantalla. */
-function CompactCard(s, onAdd) {
-  const tags = [...(s.topic || []), ...(s.aoi || [])].slice(0, s.newlaunch ? COMPACT_TAGS - 1 : COMPACT_TAGS);
-  const where = [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
-  const kind = [s.type, s.level ? `Nivel ${s.level}` : null].filter(Boolean).join(" · ");
-  return h("article", { class: "ra-minicard is-compact" },
-    h("div", { class: "ra-rail" },
-      h("span", { class: "ra-rail-time" }, s.start || "—"),
-      h("span", { class: "ra-rail-day" }, shortDay(s.day).split(" ").slice(0, 2).join(" "))),  // "mar 1": el mes sobra
-    h("div", { class: "ra-minicard-body" },
-      h("span", { class: "ra-kind" }, s.base ? h("b", { class: "ra-mono" }, s.base) : null,
-        kind ? `${s.base ? " · " : ""}${kind}` : null),
-      h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
-      where ? h("div", { class: "ra-minicard-meta" }, where) : null,
-      tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
-        s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo") : null, tags.map(Tag)) : null),
-    h("button", { type: "button", class: "ra-add", "aria-label": `Agregar ${s.title} al itinerario`, title: "Agregar al itinerario",
-      onclick: async (e) => { const btn = e.currentTarget; btn.disabled = true; try { await onAdd(); } finally { btn.disabled = false; } } },
-      icon("agregar", 22)));
-}
-
-export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, compact = false } = {}) {
-  if (compact && onAdd) return CompactCard(s, onAdd);
+export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
   return h("article", { class: "ra-minicard" },
     h("div", { class: "ra-rail" },

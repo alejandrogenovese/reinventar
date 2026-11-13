@@ -331,17 +331,6 @@ h2.caption { font: var(--t-small); text-transform: none; }
 }
 .ra-minicard:hover { box-shadow: var(--edge), var(--shadow-2); }
 .ra-minicard[hidden] { display: none; }
-.ra-minicard.is-compact { grid-template-columns: 52px 1fr 48px; align-items: start; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
-.ra-minicard.is-compact .ra-rail { border-right: 0; padding-right: 0; padding-top: 2px; }
-.ra-minicard.is-compact .ra-rail-time { font-size: 15px; }
-.ra-minicard.is-compact .ra-minicard-body { gap: 6px; }
-.ra-minicard.is-compact .ra-chips { gap: 6px; }
-.ra-add {
-  width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--radius-m); border: 1px solid var(--line-strong);
-  background: var(--surface-1); color: var(--ink); cursor: pointer; transition: background var(--ease);
-}
-.ra-add:hover { background: var(--surface-3); }
-.ra-add:disabled { opacity: .45; cursor: progress; }
 /* riel de tiempo: la hora manda, el día abajo; la línea conecta visualmente con el contenido */
 .ra-rail { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-right: var(--space-3); border-right: 2px solid var(--line); }
 .ra-rail-time { font: var(--t-time); font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }

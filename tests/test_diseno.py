@@ -298,6 +298,7 @@ def test_la_seccion_hoy_se_nombra_con_la_fecha():
     assert 'id: "hoy-fecha"' in JS["today.js"]
 
 
-def test_tarjeta_compacta_dice_nivel():
-    compacta = JS["itinerary.js"][JS["itinerary.js"].index("function CompactCard"):]
-    assert "`Nivel ${s.level}`" in compacta[:compacta.index("\n}\n")]
+def test_buscar_muestra_la_tarjeta_completa_con_speakers_y_resumen():
+    # Decisión de producto: en Filtrar se ve la charla entera (speakers, resumen, Leer más, Agregar), no una compacta.
+    assert "compact" not in JS["explore.js"]
+    assert "CompactCard" not in JS["itinerary.js"]
