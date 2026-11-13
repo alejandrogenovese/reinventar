@@ -21,9 +21,23 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Google Places** puede usar una key propia del servidor (`GOOGLE_PLACES_SERVER_KEY`), separada de la que ve el navegador.
 
 ### Agregado
+- **Langfuse se entiende mejor**: cada grabación queda en una sola traza (los pedazos de transcripción, la traducción y
+  el resumen juntos) y las llamadas de una persona se agrupan por día en sesiones. Cada traza lleva la versión de la
+  app, una versión del prompt (cambia solo si cambia el prompt) y los tags `prod`/`dev` y `prueba` para separar las
+  pruebas de lo real.
+- **Qué no se guarda en Langfuse**: de la entrevista guiada (repreguntas y ficha), de la respuesta dictada por voz y de
+  las razones del armado guiado no se guarda ni lo que se le manda al modelo ni lo que contesta. En el chat, el briefing
+  y el itinerario, si el pedido lleva tu ficha de la entrevista, no se guarda lo que se le manda al modelo; la respuesta
+  sí (hace falta para depurar) y puede mencionar algo de tu ficha.
+- **Calidad medida sola en producción**: con las claves de Langfuse en el servicio de la app (`LANGFUSE_PUBLIC_KEY`,
+  `LANGFUSE_SECRET_KEY`), la app manda scores sobre cada traza: si el JSON vino bien, cuántas líneas de la traducción
+  hubo que reintentar, cuántos códigos de charla inventó el chat o el briefing y cuántos momentos grabados citó el chat.
+  Sin claves sigue todo igual. Si una grabación se reprocesa, sus scores se reemplazan en vez de duplicarse, y los del
+  modo prueba quedan marcados.
 - **Tablero de LLM en Cuenta → Admin**: los últimos 7 días de Langfuse sin salir de la app: costo por tarea y por día,
-  demora p50 y p95 y errores por tarea, los scores de calidad (líneas faltantes, JSON válido, 👍/👎) y el costo y las
-  unidades del mes contra las 50.000 del plan gratis (estimadas como trazas + observaciones + scores). Se actualiza cada
+  demora p50 y p95 y errores por tarea (solo llamadas al modelo, sin el modo prueba), los scores de calidad (líneas
+  faltantes, JSON válido, códigos inventados, momentos citados, 👍/👎) y el costo y las unidades del mes contra las
+  50.000 del plan gratis (una cota superior estimada: trazas + observaciones + scores). Se actualiza cada
   5 minutos y tiene un link para abrir el proyecto en Langfuse. Necesita las claves de Langfuse en el servidor; sin
   ellas, dice que no está disponible.
 - **Buscar en lo que grabaste**: en Inicio, arriba de tus grabaciones, un buscador que encuentra el momento de cada

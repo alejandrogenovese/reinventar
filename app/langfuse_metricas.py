@@ -4,8 +4,20 @@ Usa la API pública de métricas v2 (GET /api/public/v2/metrics, con un `query` 
 proyecto). La v1 (/api/public/metrics y /metrics/daily) está deprecada. Cada fila trae las dimensiones pedidas y las
 métricas con nombre `{agregación}_{medida}` (p. ej. `sum_totalCost`, `p95_latency`); el día viene en `time_dimension`.
 
-La tarea de cada llamada es el nombre de la traza (`traceName`): app/llm.py y app/stt.py la mandan como tag, nombre de
-traza y nombre de generación. Las claves se quedan en el servidor: al navegador solo llegan números y la URL del
+La tarea de cada llamada es el nombre de la observación (`name`, el `generation_name` que mandan app/llm.py y
+app/stt.py vía app/trazas.py), no el de la traza: una grabación es una sola traza "grabacion" con el STT, la traducción y
+el resumen adentro. Llamadas, demora, costo y errores cuentan solo observaciones de tipo GENERATION (las llamadas al
+modelo, no SPAN ni EVENT).
+
+Lo de los últimos 7 días excluye el tráfico con tag "prueba" (modo prueba), para que no ensucie costo, demora ni scores.
+El mes no lo excluye: el costo y las unidades del plan se gastan igual.
+
+Las unidades del plan (trazas + observaciones + scores) no salen de la API pública y la v2 no tiene vista de trazas: las
+"trazas" se cuentan como observaciones raíz (`isRootObservation`). Las generaciones que manda LiteLLM no tienen padre,
+así que cada una cuenta como raíz y el total es una cota superior (con varias llamadas por traza, las trazas reales son
+menos). El tablero lo muestra como "cota superior estimada".
+
+Las claves se quedan en el servidor: al navegador solo llegan números y la URL del
 proyecto. Sin claves, o si Langfuse falla o tarda, se devuelve {"disponible": false, "motivo": ...}.
 """
 import datetime as dt
@@ -27,9 +39,14 @@ CACHE_S = 300  # 5 minutos: no gastar llamadas cada vez que alguien abre el port
 CACHE_FALLA_S = 60  # si Langfuse falló, se reintenta antes
 DIAS = 7
 UNIDADES_PLAN = 50_000  # plan Hobby de Langfuse: trazas + observaciones + scores por mes
-SCORES = ("lineas_faltantes", "json_valido", "util")
+SCORES = ("lineas_faltantes", "json_valido", "codigos_inventados", "momentos_citados", "util")
 FILAS_MAX = 1000  # máximo que acepta la API por consulta
 SIN_NOMBRE = "(sin tarea)"
+
+# Solo las llamadas al modelo (la vista observations también trae SPAN y EVENT).
+FILTRO_GENERACIONES = {"column": "type", "operator": "=", "value": "GENERATION", "type": "string"}
+# Sin el tráfico del modo prueba (tag "prueba", app/trazas.py).
+FILTRO_SIN_PRUEBA = {"column": "tags", "operator": "none of", "value": ["prueba"], "type": "arrayOptions"}
 
 _cache: dict = {}
 _lock = threading.Lock()
@@ -105,13 +122,15 @@ def consultas(ahora: dt.datetime) -> dict[str, dict]:
     semana = ahora - dt.timedelta(days=DIAS)
     mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     raiz = {"column": "isRootObservation", "operator": "=", "value": True, "type": "boolean"}
+    llamadas = (FILTRO_GENERACIONES, FILTRO_SIN_PRUEBA)
     return {
         "por_tarea": _query("observations", semana, ahora,
                             [("totalCost", "sum"), ("count", "count"), ("latency", "p50"), ("latency", "p95")],
-                            ("traceName",)),
-        "niveles": _query("observations", semana, ahora, [("count", "count")], ("traceName", "level")),
-        "por_dia": _query("observations", semana, ahora, [("totalCost", "sum")], ("traceName",), por_dia=True),
-        "scores": _query("scores-numeric", semana, ahora, [("value", "avg"), ("count", "count")], ("name",)),
+                            ("name",), llamadas),
+        "niveles": _query("observations", semana, ahora, [("count", "count")], ("name", "level"), llamadas),
+        "por_dia": _query("observations", semana, ahora, [("totalCost", "sum")], ("name",), llamadas, por_dia=True),
+        "scores": _query("scores-numeric", semana, ahora, [("value", "avg"), ("count", "count")], ("name",),
+                         (FILTRO_SIN_PRUEBA,)),
         "mes": _query("observations", mes, ahora, [("totalCost", "sum"), ("count", "count")]),
         "mes_trazas": _query("observations", mes, ahora, [("count", "count")], filtros=(raiz,)),
         "mes_scores": _query("scores-numeric", mes, ahora, [("count", "count")]),
@@ -119,7 +138,7 @@ def consultas(ahora: dt.datetime) -> dict[str, dict]:
 
 
 def _tarea(fila: dict) -> str:
-    return fila.get("traceName") or SIN_NOMBRE
+    return fila.get("name") or SIN_NOMBRE
 
 
 def _tareas(por_tarea: list[dict], niveles: list[dict]) -> list[dict]:
@@ -163,7 +182,8 @@ def _total(filas: list[dict], campo: str) -> float:
 
 
 def _mes(r: dict[str, list[dict]]) -> dict:
-    """Las unidades del plan no salen de la API pública: se estiman como trazas + observaciones + scores del mes."""
+    """Las unidades del plan no salen de la API pública: se estiman como trazas + observaciones + scores del mes, con las
+    trazas contadas como observaciones raíz. Es una cota superior (ver el docstring del módulo)."""
     observaciones = int(_total(r["mes"], "count_count"))
     trazas = int(_total(r["mes_trazas"], "count_count"))
     scores = int(_total(r["mes_scores"], "count_count"))
@@ -172,6 +192,7 @@ def _mes(r: dict[str, list[dict]]) -> dict:
         "unidades": observaciones + trazas + scores,
         "limite_unidades": UNIDADES_PLAN,
         "unidades_estimadas": True,
+        "unidades_cota_superior": True,
         "detalle": {"trazas": trazas, "observaciones": observaciones, "scores": scores},
     }
 

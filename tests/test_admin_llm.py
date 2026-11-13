@@ -23,17 +23,17 @@ def _filas(query: dict) -> list[dict]:
             return [{"name": "json_valido", "avg_value": 0.9, "count_count": "10"},
                     {"name": "otro_score", "avg_value": 1, "count_count": "3"}]
         return [{"count_count": "13"}]
-    if dims == ["traceName", "level"]:
-        return [{"traceName": "chat", "level": "DEFAULT", "count_count": "40"},
-                {"traceName": "chat", "level": "ERROR", "count_count": "2"},
-                {"traceName": "traduccion", "level": "ERROR", "count_count": "1"}]
-    if dims == ["traceName"] and query.get("timeDimension"):
-        return [{"traceName": "chat", "time_dimension": f"{HOY}T00:00:00.000Z", "sum_totalCost": "0.5"},
-                {"traceName": "traduccion", "time_dimension": f"{HOY}T00:00:00.000Z", "sum_totalCost": 1.25}]
-    if dims == ["traceName"]:
-        return [{"traceName": "chat", "sum_totalCost": 0.5, "count_count": "42", "p50_latency": 1200.4, "p95_latency": 5300},
-                {"traceName": "traduccion", "sum_totalCost": 1.25, "count_count": "10", "p50_latency": 9000, "p95_latency": 20000}]
-    if query["filters"]:  # trazas del mes (observaciones raíz)
+    if dims == ["name", "level"]:
+        return [{"name": "chat", "level": "DEFAULT", "count_count": "40"},
+                {"name": "chat", "level": "ERROR", "count_count": "2"},
+                {"name": "traduccion", "level": "ERROR", "count_count": "1"}]
+    if dims == ["name"] and query.get("timeDimension"):
+        return [{"name": "chat", "time_dimension": f"{HOY}T00:00:00.000Z", "sum_totalCost": "0.5"},
+                {"name": "traduccion", "time_dimension": f"{HOY}T00:00:00.000Z", "sum_totalCost": 1.25}]
+    if dims == ["name"]:
+        return [{"name": "chat", "sum_totalCost": 0.5, "count_count": "42", "p50_latency": 1200.4, "p95_latency": 5300},
+                {"name": "traduccion", "sum_totalCost": 1.25, "count_count": "10", "p50_latency": 9000, "p95_latency": 20000}]
+    if query["filters"]:  # trazas del mes (observaciones raíz): las consultas por tarea ya respondieron arriba
         return [{"count_count": "300"}]
     return [{"sum_totalCost": "7.5", "count_count": "1000"}]  # mes completo
 
@@ -97,7 +97,9 @@ def test_tablero_arma_costo_demora_errores_scores_y_unidades(langfuse):
     assert all(dia["costo"] == 0 for dia in d["costo_por_dia"][:-1])
     assert d["scores"] == [{"nombre": "json_valido", "promedio": 0.9, "cantidad": 10}]
     assert d["mes"]["costo"] == 7.5
-    assert d["mes"]["unidades"] == 1000 + 300 + 13 and d["mes"]["unidades_estimadas"] is True
+    assert d["mes"]["unidades"] == 1000 + 300 + 13
+    assert d["mes"]["unidades_estimadas"] is True
+    assert d["mes"]["unidades_cota_superior"] is True
     assert d["mes"]["limite_unidades"] == 50_000
 
 
@@ -160,3 +162,32 @@ def test_consultas_usan_la_api_v2_con_los_ultimos_7_dias():
     desde = dt.datetime.fromisoformat(qs["por_tarea"]["fromTimestamp"].replace("Z", "+00:00"))
     assert (AHORA - desde).days == 7
     assert qs["mes"]["fromTimestamp"].startswith(AHORA.strftime("%Y-%m-01T00:00:00"))
+
+
+def test_las_llamadas_se_agrupan_por_la_tarea_y_cuentan_solo_generaciones_sin_modo_prueba():
+    """Con una traza por grabación, el nombre de la traza ya no es la tarea: la tarea es el nombre de la observación."""
+    qs = langfuse_metricas.consultas(AHORA)
+
+    for nombre in ("por_tarea", "niveles", "por_dia"):
+        dimensiones = [d["field"] for d in qs[nombre]["dimensions"]]
+        assert "traceName" not in dimensiones
+        assert dimensiones[0] == "name"
+        assert langfuse_metricas.FILTRO_GENERACIONES in qs[nombre]["filters"]
+        assert langfuse_metricas.FILTRO_SIN_PRUEBA in qs[nombre]["filters"]
+    assert qs["scores"]["filters"] == [langfuse_metricas.FILTRO_SIN_PRUEBA]
+
+
+def test_el_mes_cuenta_todo_el_trafico_incluido_el_modo_prueba():
+    qs = langfuse_metricas.consultas(AHORA)
+
+    assert qs["mes"]["filters"] == []
+    assert qs["mes_scores"]["filters"] == []
+    assert langfuse_metricas.FILTRO_SIN_PRUEBA not in qs["mes_trazas"]["filters"]
+
+
+def test_los_filtros_tienen_la_forma_de_la_api_v2():
+    generaciones = langfuse_metricas.FILTRO_GENERACIONES
+    sin_prueba = langfuse_metricas.FILTRO_SIN_PRUEBA
+
+    assert generaciones == {"column": "type", "operator": "=", "value": "GENERATION", "type": "string"}
+    assert sin_prueba == {"column": "tags", "operator": "none of", "value": ["prueba"], "type": "arrayOptions"}

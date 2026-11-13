@@ -9,7 +9,7 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, fragmentos, llm, llm_router, prompts, sandbox, stt, talks
+from . import audio, config, db, fragmentos, langfuse_scores, llm, llm_router, prompts, sandbox, stt, talks, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.pipeline")
@@ -89,6 +89,12 @@ def process(sid: str):
     s = db.get_session(sid)
     if not s:
         return
+    # Una grabación es una traza en Langfuse: los pedazos de STT, los lotes de traducción y el resumen quedan juntos.
+    with trazas.abrir(trazas.de_grabacion(sid, s.get("code"), s.get("kind"))):
+        _etapas(sid, s)
+
+
+def _etapas(sid: str, s: dict):
     title, kind = s["title"], s["kind"]
     names, context = talks.proper_names(s.get("code")), talks.context(s.get("code"))
 
@@ -116,21 +122,25 @@ def process(sid: str):
     db.update_session(sid, status="translating", progress=None)
     pending = [(b["idx"], b["en"]) for b in blocks if not b["es"]]
     batches = [pending[i:i + config.TRANSLATE_BATCH] for i in range(0, len(pending), config.TRANSLATE_BATCH)]
+    faltantes = 0
     for n, batch in enumerate(batches, 1):
         db.update_session(sid, progress=f"Traduciendo {n}/{len(batches)}")
         out = llm.complete(Tarea.TRADUCCION, prompts.TRANSLATE_SYSTEM, prompts.translate_user(batch, names))
         got = {int(i): t.strip() for i, t in re.findall(r"\[\[(\d+)\]\]\s*(.*?)(?=\n?\[\[\d+\]\]|\Z)", out, re.S)}
         missing = [(i, t) for i, t in batch if not got.get(i)]
+        faltantes += len(missing)
         for i, t in missing:  # reintento uno por uno si el modelo se comió alguna línea
             one = llm.complete(Tarea.TRADUCCION, prompts.TRANSLATE_SYSTEM, prompts.translate_user([(i, t)], names), 2000)
             got[i] = re.sub(r"^\s*\[\[\d+\]\]\s*", "", one).strip()
         db.set_translations(sid, [(i, got[i]) for i, _ in batch])
+    if batches:  # cuántas líneas se comió el modelo y hubo que reintentar una por una
+        langfuse_scores.puntuar("lineas_faltantes", faltantes)
 
     # 4. Resumir sobre el original en inglés (más fiel) con timestamps.
     db.update_session(sid, status="summarizing", progress=None)
     transcript = "\n".join(f"[{hms(b['start_s'])}] {b['en']}" for b in db.get_blocks(sid))
     raw = llm.complete(Tarea.RESUMEN, prompts.SUMMARY_SYSTEM, prompts.summary_user(kind, title, transcript, context), SUMMARY_MAX_TOKENS)
-    summary = llm.parse_json(raw)
+    summary = llm.parse_json_puntuado(raw)
     # 5. Fragmentos para buscar en lo grabado, antes de marcarla lista (si falla, la grabación igual queda lista).
     fragmentos.indexar_sin_fallar(sid)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)

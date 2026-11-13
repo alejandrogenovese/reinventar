@@ -1,5 +1,6 @@
 """STT por el gateway LiteLLM: cada uso (charlas, voz) va a su alias, con tag y usuario, y se leen los segmentos.
 No llama a ninguna API (corre en CI)."""
+import json
 from pathlib import Path
 
 import httpx
@@ -56,7 +57,9 @@ def test_las_charlas_van_a_su_alias_con_tag_usuario_y_segmentos(gateway, audio):
     assert url == "http://litellm.railway.internal:4000/audio/transcriptions"
     assert headers["Authorization"] == "Bearer clave-de-prueba"
     assert (data["model"], data["language"], data["response_format"], data["user"]) == ("stt-charlas", "en", "verbose_json", "ale")
-    assert '"tags": ["stt-charlas"]' in data["metadata"] and '"trace_user_id": "ale"' in data["metadata"]
+    meta = json.loads(data["metadata"])
+    assert meta["tags"][0] == "stt-charlas"
+    assert meta["trace_user_id"] == "ale"
     assert segs == [{"start": 60.0, "end": 62.0, "text": "hola"}, {"start": 62.0, "end": 64.0, "text": "mundo"}]
 
 
@@ -106,7 +109,8 @@ def test_la_grabacion_se_procesa_a_nombre_de_quien_la_encolo(monkeypatch):
         pipeline.enqueue("s1")
     pipeline._procesar(*cola[0])  # fuera del pedido: el usuario viaja en la cola
 
-    assert vistos == [("s1", "ale")] and llm_router.usuario_actual() is None
+    assert vistos == [("s1", "ale")]
+    assert llm_router.usuario_actual() is None
 
 
 @pytest.mark.parametrize("uso, palabras", [
