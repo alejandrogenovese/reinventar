@@ -5,7 +5,6 @@ Login sin usuario (credencial descubrible): el navegador ofrece las passkeys de 
 """
 import json
 import logging
-from typing import Optional
 
 import webauthn
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -34,7 +33,7 @@ RP_NAME = "ReinventAR"
 class RegisterVerify(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=64)
     credential: dict
-    device: Optional[str] = Field(None, max_length=80)
+    device: str | None = Field(None, max_length=80)
 
 
 class LoginVerify(BaseModel):

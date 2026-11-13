@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar una vulnerabilidad de seguridad
+    url: https://github.com/alejandrogenovese/reinventar/security/advisories/new
+    about: En privado, por GitHub Security Advisories. No abras un issue público (ver SECURITY.md).
+  - name: Cómo contribuir
+    url: https://github.com/alejandrogenovese/reinventar/blob/dev/CONTRIBUTING.md
+    about: Ramas, commits, tests y lint antes de abrir un PR.

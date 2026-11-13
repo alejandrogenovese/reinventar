@@ -10,6 +10,8 @@ indent_size = 2
 
 [*.py]
 indent_size = 4
+# Mismo largo que ruff (pyproject.toml); es una guía para el editor, no se reformatea.
+max_line_length = 120
 
 [*.md]
 trim_trailing_whitespace = false

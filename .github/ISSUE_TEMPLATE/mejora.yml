@@ -1,0 +1,32 @@
+name: Propuesta de mejora
+description: Sugerí algo nuevo o un cambio en algo que ya existe.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Contá el problema antes que la solución: ayuda a encontrar la mejor forma de resolverlo.
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: Qué querés hacer con la app que hoy no se puede, o qué te resulta incómodo.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Qué proponés
+      description: Cómo te imaginás que funcione.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que pensaste
+  - type: textarea
+    id: extra
+    attributes:
+      label: Contexto extra
+      description: Capturas, ejemplos de otras apps, links.

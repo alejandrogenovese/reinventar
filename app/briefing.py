@@ -9,8 +9,7 @@ import json
 import logging
 import time
 
-from . import ask, catalog, config, db, knowledge, langfuse_scores, llm, pg, prompts, trazas
-from . import llm_router
+from . import ask, catalog, config, db, knowledge, langfuse_scores, llm, llm_router, pg, prompts, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.briefing")

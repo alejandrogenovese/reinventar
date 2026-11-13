@@ -11,7 +11,7 @@ from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, login_headers
 
 HOST = "https://langfuse.test"
-AHORA = dt.datetime.now(dt.timezone.utc)
+AHORA = dt.datetime.now(dt.UTC)
 HOY = AHORA.date().isoformat()
 
 

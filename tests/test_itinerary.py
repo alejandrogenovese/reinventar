@@ -83,7 +83,7 @@ def test_ask_llm_falla_con_mensaje_claro_tras_dos_intentos(monkeypatch):
     monkeypatch.setattr(llm, "complete", lambda *a, **k: "No puedo ayudar con eso.")
     try:
         itinerary._ask_llm({"role": "", "experience": "", "interests": []}, "x", [], [])
-        assert False, "tenía que fallar"
+        raise AssertionError("tenía que fallar")
     except ValueError as e:
         assert "2 intentos" in str(e)
         assert "No puedo ayudar" in str(e)

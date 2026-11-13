@@ -1,0 +1,21 @@
+# Configuración de herramientas del repo. La app no se empaqueta: las dependencias siguen en requirements*.txt
+# y sus locks (ver CONTRIBUTING.md → Dependencias).
+
+[tool.ruff]
+line-length = 120
+# Docker (python:3.12-slim) y CI corren Python 3.12: no hay que sugerir sintaxis que solo exista en 3.13.
+target-version = "py312"
+extend-exclude = ["data", "datos"]
+
+[tool.ruff.lint]
+# E/W: pycodestyle · F: pyflakes · I: orden de imports · B: bugbear · UP: sintaxis moderna · SIM: simplificaciones
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = [
+    # El código tiene un estilo compacto deliberado (consultas SQL y diccionarios en pocas líneas) y no se
+    # reformatea con ruff format. line-length queda como referencia para isort y para el editor.
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+# No partir un import en una línea por nombre solo porque termina en coma: respeta el estilo compacto.
+split-on-trailing-comma = false

@@ -4,18 +4,14 @@ Cada lote se guarda apenas vuelve; un lote fallido no frena al resto y queda pen
 """
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TypeVar
-
-T = TypeVar("T")
-R = TypeVar("R")
 
 
-def en_lotes(items: Sequence[T], tamano: int) -> list[list[T]]:
+def en_lotes[T](items: Sequence[T], tamano: int) -> list[list[T]]:
     return [list(items[i:i + tamano]) for i in range(0, len(items), tamano)]
 
 
-def procesar(lotes: list[list[T]], llamar: Callable[[list[T]], R], al_volver: Callable[[list[T], R], None], *,
-             hilos: int, describir: Callable[[list[T]], str], avisar: Callable[[str], None]) -> tuple[str, ...]:
+def procesar[T, R](lotes: list[list[T]], llamar: Callable[[list[T]], R], al_volver: Callable[[list[T], R], None], *,
+                   hilos: int, describir: Callable[[list[T]], str], avisar: Callable[[str], None]) -> tuple[str, ...]:
     """Llama al LLM por lote en paralelo; al_volver corre en este hilo (acá se escribe en la base).
     Devuelve los errores de los lotes que fallaron."""
     fallidos = []

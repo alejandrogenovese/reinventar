@@ -78,7 +78,7 @@ def test_el_calendario_tiene_cada_item_con_alarma_de_cola():
     cards = [_card("A", "08:30", "09:30", salir_antes=4, title="Grafos, seguridad; y más"),
              _card("B", "10:00", "11:00", reservada=True), _card("E", "19:00", None, kind="mine")]
 
-    texto = ics.calendario(cards, ahora=dt.datetime(2026, 11, 20, tzinfo=dt.timezone.utc))
+    texto = ics.calendario(cards, ahora=dt.datetime(2026, 11, 20, tzinfo=dt.UTC))
     lineas = texto.split("\r\n")
 
     assert lineas[0] == "BEGIN:VCALENDAR" and texto.endswith("END:VCALENDAR\r\n")
