@@ -2,7 +2,7 @@
 # En Railway: servicio aparte con Root Directory = infra/litellm. Las keys van en las variables del servicio, nunca acá.
 # Imagen "-database": incluye lo necesario para el panel y las claves virtuales (DATABASE_URL). Versión fija: se
 # actualiza a mano, probando antes.
-FROM ghcr.io/berriai/litellm-database:v1.108.5-lts
+FROM ghcr.io/berriai/litellm-database:v1.108.7-lts
 
 COPY --chown=nonroot:nonroot config.yaml /app/config.yaml
 
