@@ -111,6 +111,7 @@ def indexar_pendientes() -> int:
         hechas += 1
     if hechas:
         log.info("Fragmentos indexados de %d grabaciones", hechas)
+        embeddings.devolver_memoria()
     return hechas
 
 

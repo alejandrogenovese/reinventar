@@ -4,6 +4,8 @@
   fake  → hashing de palabras, determinístico y sin dependencias (tests)
   off   → sin vectores: la búsqueda queda solo por palabras
 """
+import ctypes
+import ctypes.util
 import logging
 import re
 import threading
@@ -109,3 +111,16 @@ def embed(texts: list[str], tipo: str = DOCUMENTO) -> np.ndarray:
         textos = con_prefijo(texts, tipo)
         return _normalized(np.array(list(_local_model().embed(textos, batch_size=config.EMBED_BATCH))))
     raise RuntimeError(f"Embeddings deshabilitados (EMBED_PROVIDER={config.EMBED_PROVIDER})")
+
+
+def devolver_memoria() -> bool:
+    """Le devuelve al sistema la memoria libre que quedó tomada después de un cálculo grande (el del catálogo).
+    En Linux (glibc) Python no la suelta sola: sin esto el servicio queda con el pico del cálculo para siempre.
+    En otros sistemas no hace nada y devuelve False."""
+    nombre = ctypes.util.find_library("c")
+    if not nombre:
+        return False
+    try:
+        return bool(ctypes.CDLL(nombre).malloc_trim(0))
+    except (OSError, AttributeError):  # libc sin malloc_trim (macOS, musl)
+        return False

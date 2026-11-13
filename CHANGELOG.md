@@ -21,7 +21,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   guiado y la búsqueda en lo grabado.
 - **El servidor usa mucha menos memoria para la búsqueda**: el modelo de embeddings pasa a su versión de 4 bits y corre
   con 2 hilos fijos. Misma calidad en el set de 30 preguntas (81 % → 80 %) y en la búsqueda por nombre de speaker, con
-  ~0,4 GB de RAM en vez de más de 3 GB en Railway.
+  ~0,4 GB de RAM en vez de más de 3 GB en Railway. Además, al terminar el cálculo del catálogo le devuelve al sistema la
+  memoria que quedó libre.
 - **Responder con la voz, más claro**: un botón compacto con el micrófono y, mientras graba, una barra con punto rojo,
   tiempo y nivel del micrófono (como al grabar una charla), para terminar o cancelar. Al terminar muestra "Pasando a
   texto…".
