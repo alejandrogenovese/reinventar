@@ -1,0 +1,20 @@
+# Chequeos locales antes de cada commit (opcional): pip install pre-commit && pre-commit install
+# Los hooks van fijados por SHA de commit, con la versión en un comentario (igual que las Actions).
+# No incluye ruff format a propósito: el código tiene un estilo compacto deliberado (ver CONTRIBUTING.md → Lint).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 25bcf95026b96e2dd3c0aec3090c3d6ef6ca2e6c  # frozen: v0.17.3 (misma versión que requirements-dev.txt)
+    hooks:
+      - id: ruff-check
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        # En Markdown dos espacios al final son un salto de línea (igual que en .editorconfig).
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
