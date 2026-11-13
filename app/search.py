@@ -189,6 +189,8 @@ def _warm() -> None:
         clusters.ensure()
     except Exception:
         log.exception("No se pudieron armar los temas emergentes; el explorador sigue sin esa faceta")
+    finally:
+        embeddings.devolver_memoria()  # el cálculo del catálogo deja mucha memoria libre pero tomada
 
 
 def ready_vectors() -> np.ndarray | None:
