@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from . import catalog, changes, config, db, ics, itinerary, missed, today
+from . import anuncios, catalog, changes, config, db, ics, itinerary, missed, sandbox, today
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -72,6 +72,14 @@ def ack_changes(body: Acknowledge, username: str = Depends(auth)):
 @router.get("/api/today")
 def get_today(username: str = Depends(auth)):
     return today.for_user(username)
+
+
+@router.get("/api/anuncios")
+def get_anuncios(username: str = Depends(auth)):
+    """Anuncios sin reserva para Inicio (los que quedan hoy, sin los que ya están en el itinerario)."""
+    days = itinerary.get_current(username)["days"]
+    en_itinerario = {code for d in days for s in d["sessions"] for code in (s.get("code"), s.get("base")) if code}
+    return anuncios.del_dia(sandbox.ahora(today.EVENT_TZ), en_itinerario)
 
 
 @router.get("/api/maps-key")

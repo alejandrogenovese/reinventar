@@ -5,6 +5,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Anuncios sin reserva en Inicio.** Debajo de «Hoy», una fila que se desliza con el dedo (no se mueve sola) con
+  las keynotes, el mainstage, los lanzamientos y los «What's new» a los que se entra por la cola, de los que quedan
+  hoy (antes del evento y de noche, los del próximo día). Keynote y mainstage van en tarjeta oscura. Cada tarjeta
+  dice desde qué hora hacer la cola y trae Agregar y Llevame; Grabar aparece solo con la charla en curso. Lo que ya
+  está en tu itinerario no se repite y lo que terminó desaparece. La última tarjeta lleva a Buscar con el nuevo
+  filtro «Anuncios» puesto.
+
 ### Arreglado
 - **Agregar una charla ahora se nota.** El botón queda en naranja como «Agregada» (también si ya la tenías) y no
   vuelve a agregarla; si fue sin querer, otro toque la quita. En la ficha de la charla, el horario que ya está en tu

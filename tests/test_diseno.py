@@ -115,6 +115,8 @@ PARES_USADOS = [
     (".ra-hint.is-error", ".ra-hint.is-error"), (".ra-hint.is-info", ".ra-hint.is-info"),
     (".ra-cite", ".ra-cite"), (".ra-cite.ra-moment-ref", ".ra-cite.ra-moment-ref"), (".ra-hit-time", ".ra-hit-time"),
     (".ra-check-list .is-ok strong", "--surface-1"), (".ra-check-list .is-fail strong", "--surface-1"),
+    (".ra-ann.is-hero", ".ra-ann.is-hero"), (".ra-ann.is-hero .ra-card-meta, .ra-ann.is-hero .ra-ann-es", "--hero"),
+    (".ra-ann.is-hero .ra-tag.is-new", ".ra-ann.is-hero .ra-tag.is-new"), (".ra-ann-cta", "--surface-2"),
 ]
 
 

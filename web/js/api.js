@@ -48,6 +48,11 @@ export const Today = {
   get: () => api("/api/today"),
 };
 
+// Anuncios sin reserva para Inicio (app/anuncios.py).
+export const Anuncios = {
+  get: () => api("/api/anuncios"),
+};
+
 export const Itinerary = {
   profile: () => api("/api/itinerary/profile"),
   generate: (profile, prompt) => api("/api/itinerary/generate", { method: "POST", json: { profile, prompt } }),
