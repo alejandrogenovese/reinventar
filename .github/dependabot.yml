@@ -3,6 +3,9 @@
 #
 # Ojo con pip: Dependabot actualiza requirements*.txt pero no regenera los locks con hashes. Antes de mergear,
 # regenerá requirements.lock y requirements-dev.lock (CONTRIBUTING.md → Dependencias) en la misma rama.
+#
+# En pausa hasta después de re:Invent (5/12/2026): con open-pull-requests-limit en 0 no llegan PRs de versión,
+# pero los de seguridad (si están activados en Settings → Security) entran igual.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -12,9 +15,7 @@ updates:
       interval: weekly
       day: monday
       timezone: America/Argentina/Buenos_Aires
-    # En pausa hasta después de re:Invent (5/12/2026): 0 corta los PRs de versión pero deja pasar los de seguridad.
-    # Volver a 3 cuando termine el evento.
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 0  # en pausa hasta después de re:Invent: volver a 3
     commit-message:
       prefix: "chore"
       include: scope
@@ -29,7 +30,7 @@ updates:
       interval: weekly
       day: monday
       timezone: America/Argentina/Buenos_Aires
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0  # en pausa hasta después de re:Invent: volver a 2
     commit-message:
       prefix: "ci"
     groups:
@@ -44,7 +45,7 @@ updates:
       interval: weekly
       day: monday
       timezone: America/Argentina/Buenos_Aires
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0  # en pausa hasta después de re:Invent: volver a 2
     ignore:
       # Pasar de Python 3.12 a otro minor se hace a mano y junto con CI (setup-python) y los locks (--python-version).
       - dependency-name: python
