@@ -27,14 +27,20 @@ function Bar(label, value, max, text, tone = "") {
 const Stat = (label, value, note) => h("div", { class: "ra-stat" },
   h("span", { class: "label" }, label), h("strong", { class: "ra-stat-value" }, value), note ? h("span", { class: "caption" }, note) : null);
 
+/** Cómo se calcularon las unidades del mes (null si vienen exactas). */
+function UnitsNote(m) {
+  if (!m.unidades_estimadas) return null;
+  const tipo = m.unidades_cota_superior ? "cota superior estimada" : "estimado";
+  return `${tipo}: ${int(m.detalle.trazas)} trazas + ${int(m.detalle.observaciones)} observaciones + ${int(m.detalle.scores)} scores`;
+}
+
 function Summary(d) {
   const m = d.mes;
   return h("div", { class: "ra-stats" },
     Stat(`Costo ${d.dias} días`, usd(d.costo_semana)),
     Stat("Costo del mes", usd(m.costo)),
     Stat("Errores 7 días", int(d.errores_semana)),
-    Stat("Unidades Langfuse del mes", `${int(m.unidades)} / ${int(m.limite_unidades)}`,
-      m.unidades_estimadas ? `${m.unidades_cota_superior ? "cota superior estimada" : "estimado"}: ${int(m.detalle.trazas)} trazas + ${int(m.detalle.observaciones)} observaciones + ${int(m.detalle.scores)} scores` : null));
+    Stat("Unidades Langfuse del mes", `${int(m.unidades)} / ${int(m.limite_unidades)}`, UnitsNote(m)));
 }
 
 function UnitsBar(m) {
