@@ -173,6 +173,18 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
 .ra-check-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .ra-check-list .is-ok strong { color: var(--on-success-soft); }
 .ra-check-list .is-fail strong { color: var(--on-error-soft); }
+
+/* Tablero de LLM del admin (web/js/adminLlm.js): números grandes y barras horizontales simples. */
+.ra-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
+.ra-stat { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); background: var(--surface-1); box-shadow: var(--edge); border-radius: var(--radius-m); }
+.ra-stat-value { font: var(--t-title); font-variant-numeric: tabular-nums; }
+.ra-bar-row { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; align-items: center; gap: var(--space-2); font: var(--t-small); }
+.ra-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ra-bar-track { height: 10px; background: var(--surface-3); border-radius: var(--radius-s); overflow: hidden; }
+.ra-bar-fill { display: block; height: 100%; background: var(--brand); border-radius: var(--radius-s); }
+.ra-bar-fill.is-warn { background: var(--warning); }
+.ra-bar-fill.is-err { background: var(--error); }
+.ra-bar-value { font: var(--t-data); font-variant-numeric: tabular-nums; color: var(--ink-muted); text-align: right; }
 .ra-countdown { font: var(--t-small-strong); font-variant-numeric: tabular-nums; color: var(--brand-ink); }
 
 /* "Llevame" (web/js/location.js): distancia y tiempo a pie, con el link a Google Maps. */

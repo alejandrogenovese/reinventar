@@ -65,3 +65,10 @@ def delete_passkey(username: str, credential_id: str) -> bool:
     with conn() as c:
         cur = c.execute("DELETE FROM passkeys WHERE id=%s AND username=%s", (credential_id, username))
     return cur.rowcount > 0
+
+
+def delete_all(username: str) -> int:
+    """Borra todas las passkeys del usuario: al cambiar o resetear la contraseña y al revocar sus sesiones, para que
+    una passkey registrada con un token robado no sobreviva a la recuperación de la cuenta."""
+    with conn() as c:
+        return c.execute("DELETE FROM passkeys WHERE username=%s", (username,)).rowcount

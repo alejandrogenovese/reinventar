@@ -28,11 +28,14 @@ class PlacesNoDisponible(RuntimeError):
 
 
 def _headers(campos: str | None = None) -> dict:
-    if not config.GOOGLE_MAPS_API_KEY:
-        raise PlacesNoDisponible("Falta GOOGLE_MAPS_API_KEY")
-    h = {"X-Goog-Api-Key": config.GOOGLE_MAPS_API_KEY}
-    if config.WEBAUTHN_ORIGIN:  # si la key está restringida por sitio web, Google mira el Referer
-        h["Referer"] = config.WEBAUTHN_ORIGIN.rstrip("/") + "/"
+    if config.GOOGLE_PLACES_SERVER_KEY:  # la buena: key propia del servidor, sin Referer
+        h = {"X-Goog-Api-Key": config.GOOGLE_PLACES_SERVER_KEY}
+    elif config.GOOGLE_MAPS_API_KEY:
+        h = {"X-Goog-Api-Key": config.GOOGLE_MAPS_API_KEY}
+        if config.WEBAUTHN_ORIGIN:  # la key del navegador está restringida por sitio web: Google mira el Referer
+            h["Referer"] = config.WEBAUTHN_ORIGIN.rstrip("/") + "/"
+    else:
+        raise PlacesNoDisponible("Falta GOOGLE_PLACES_SERVER_KEY (o GOOGLE_MAPS_API_KEY)")
     if campos:
         h["X-Goog-FieldMask"] = campos
     return h

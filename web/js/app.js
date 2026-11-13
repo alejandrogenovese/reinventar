@@ -4,6 +4,7 @@ import { viewAdmin, viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
+import { disable as disablePush } from "./notifications.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewPerdida } from "./missed.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
@@ -512,6 +513,7 @@ async function viewSettings() {
   const username = me.username || "";
 
   async function logout() {
+    try { await disablePush(); } catch {}  // antes de borrar el token: la baja necesita la sesión
     try { await Auth.logout(); } catch {}
     setToken("");
     location.hash = "#/login";

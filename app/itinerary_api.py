@@ -1,5 +1,5 @@
 """Endpoints de catálogo e itinerario: recomendación de sesiones de re:Invent y armado de agenda."""
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -10,11 +10,16 @@ from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
 
+# Los intereses van al prompt del LLM: con tope, para que nadie infle la base ni el gasto de tokens.
+MAX_INTERESES = 30
+MAX_LARGO_INTERES = 80
+
 
 class Profile(BaseModel):
     role: str = Field("", max_length=200)
     experience: str = Field("", max_length=200)
-    interests: list[str] = Field(default_factory=list)
+    interests: list[Annotated[str, Field(max_length=MAX_LARGO_INTERES)]] = Field(default_factory=list,
+                                                                                  max_length=MAX_INTERESES)
 
 
 class Generate(BaseModel):
