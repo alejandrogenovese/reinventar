@@ -1,5 +1,9 @@
 # ReinventAR
 
+[![CI](https://github.com/alejandrogenovese/reinventar/actions/workflows/ci-promote.yml/badge.svg?branch=dev)](https://github.com/alejandrogenovese/reinventar/actions/workflows/ci-promote.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=alejandrogenovese_reinventar&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=alejandrogenovese_reinventar)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+
 PWA para aprovechar AWS re:Invent desde el celular. Tiene tres enfoques:
 
 1. **Grabar charlas**: graba con el micrófono (pensado para el DJI Mic Mini 2) y, al terminar, el backend transcribe, traduce al castellano y resume según el tipo de sesión.
@@ -17,6 +21,13 @@ PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastA
                                                                  └─ resumen según el tipo de sesión (Claude Opus)
                                                        Postgres + pgvector: estado de la app y catálogo de re:Invent
 ```
+
+**Contenido:** [Estructura](#estructura) · [Correr local](#correr-local) · [Deploy en Railway](#deploy-en-railway) ·
+[Usuarios](#usuarios) · [Cómo se comporta la grabación](#cómo-se-comporta-la-grabación) ·
+[Cómo trabajar en el repo](#cómo-trabajar-en-el-repo) · [Licencia](#licencia)
+
+**Documentación:** [Arquitectura](docs/arquitectura.md) · [Cómo contribuir](CONTRIBUTING.md) ·
+[Seguridad](SECURITY.md) · [Código de conducta](CODE_OF_CONDUCT.md) · [CHANGELOG](CHANGELOG.md)
 
 ## Estructura
 
@@ -173,36 +184,13 @@ Cada parte de la app pide una **tarea** (`app/llm_router.py`: resumen, traducci�
 3. Activar el modo avión a mitad de la sesión y desactivarlo: la cola tiene que vaciarse sola.
 4. Cuánto tarda y cuánto cuesta procesar una keynote de 2 h.
 
-## Dependencias
-
-Las dependencias directas se declaran en `requirements.txt` (producción) y `requirements-dev.txt` (más pytest).
-CI y Docker instalan desde los locks (`requirements.lock`, `requirements-dev.lock`): todas las versiones fijas, transitivas incluidas,
-con hashes y solo wheels (`--require-hashes --only-binary :all:`). Después de cambiar un `requirements*.txt`, regenerá los dos:
-
-```bash
-OPTS="--generate-hashes --only-binary :all: --python-version 3.12 --python-platform x86_64-manylinux_2_28 --no-header"
-uv pip compile requirements.txt $OPTS -o requirements.lock
-uv pip compile requirements-dev.txt $OPTS -o requirements-dev.lock
-```
-
-Las acciones de GitHub en `.github/workflows` van fijadas por SHA de commit (con la versión en un comentario).
-
 ## Cómo trabajar en el repo
 
-- **Ramas**: `main` es producción (cada push despliega en Railway) y no se toca a mano. Se trabaja en `dev`; para cambios grandes, una rama `feat/...` o `fix/...` desde `dev` y un PR contra `dev`. Cuando `dev` pasa los tests, Actions adelanta `main` (fast-forward).
-- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en castellano: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`.
-- **Tests**: `pytest -q` antes de cada push. Las funcionalidades nuevas van con su test.
-- **Secretos**: nunca al repo (es público). Van en `.env` local (ignorado por git) o en las variables de Railway.
+Las reglas (ramas, commits, tests, lint, dependencias con locks y hashes, cómo publicar una versión) están en
+[CONTRIBUTING.md](CONTRIBUTING.md). Lo esencial: se trabaja en ramas desde `dev` con PR contra `dev` (nunca contra
+`main`), commits con Conventional Commits en castellano, cada funcionalidad nueva con su test y nada de secretos en el
+repo. Para reportar una vulnerabilidad, [SECURITY.md](SECURITY.md).
 
-### Publicar una versión
+## Licencia
 
-La versión sigue [SemVer](https://semver.org/lang/es/): `MAJOR.MINOR.PATCH` (`fix` sube PATCH, `feat` sube MINOR).
-
-1. Subí `__version__` en `app/__init__.py`.
-2. Subí `VERSION` en `web/sw.js` al mismo número, para que los celulares descarguen la PWA nueva.
-3. En `CHANGELOG.md`, pasá lo de *Sin publicar* a una sección `## [X.Y.Z] - AAAA-MM-DD` y actualizá los links del final.
-4. `pytest -q` (`tests/test_version.py` verifica que los tres coincidan).
-5. Commit `chore: versión X.Y.Z`, tag y push:
-   ```bash
-   git tag -a vX.Y.Z -m "vX.Y.Z" && git push && git push --tags
-   ```
+[MIT](LICENSE) © 2026 Alejandro Genovese.
