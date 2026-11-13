@@ -115,8 +115,11 @@ def test_las_charlas_no_van_enmascaradas(gateway_stt):
 # ---------- versión del prompt ----------
 
 def test_el_hash_cambia_solo_si_cambia_el_prompt():
-    assert trazas.hash_prompt("prompt v1") == trazas.hash_prompt("prompt v1")
-    assert trazas.hash_prompt("prompt v1") != trazas.hash_prompt("prompt v2")
+    mismo_prompt = "prompt v1"
+    otra_copia = "".join(["prompt", " v1"])  # mismo texto, otro objeto: el hash depende del contenido
+
+    assert trazas.hash_prompt(mismo_prompt) == trazas.hash_prompt(otra_copia)
+    assert trazas.hash_prompt(mismo_prompt) != trazas.hash_prompt("prompt v2")
     assert re.fullmatch(r"[0-9a-f]{8}", trazas.hash_prompt("prompt v1"))
 
 
