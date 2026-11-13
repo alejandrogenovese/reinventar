@@ -12,7 +12,7 @@ const FACETS = [
   ["tema", "Tema emergente"], ["sector", "Sector"], ["dia", "Día"], ["empresa", "Empresa"], ["topico", "Tópico"],
   ["area", "Área de interés"], ["sede", "Sede"], ["tipo", "Tipo"], ["nivel", "Nivel"], ["servicio", "Servicio de AWS"],
   ["tecnologia", "Tecnología"], ["concepto", "Concepto"], ["enfoque", "Enfoque"],
-  ["industria", "Industria"], ["seniority", "Seniority"], ["lanzamiento", "Nuevo lanzamiento"],
+  ["hora", "Hora de inicio"], ["industria", "Industria"], ["seniority", "Seniority"], ["lanzamiento", "Nuevo lanzamiento"],
 ];
 const LABEL = Object.fromEntries(FACETS);
 // Facetas abiertas al abrir el panel: las que más se usan para acotar ("bancos el martes").

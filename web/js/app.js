@@ -23,6 +23,7 @@ import * as it from "./itinerary.js";
 import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
+import { viewNumeros } from "./numeros.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
@@ -81,6 +82,7 @@ const routes = [
   [/^#\/itinerario\/entrevista$/, () => viewEntrevista(view)],
   [/^#\/itinerario\/ficha$/, () => viewFicha(view)],
   [/^#\/itinerario\/armar$/, () => viewArmar(view)],
+  [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],

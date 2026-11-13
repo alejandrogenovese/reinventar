@@ -764,3 +764,81 @@ body:has(.ra-composer) .toast { bottom: calc(var(--nav-h) + var(--composer-h, 64
 @media (min-width: 900px) {
   .ra-composer-box { max-width: 928px; }
 }
+
+/* --- «Tu re:Invent en números» (web/js/numeros.js y charts.js) ------------------------------------------ */
+.ra-back { align-self: flex-start; min-height: var(--touch); padding: 0 var(--space-2); margin-left: calc(-1 * var(--space-2)); gap: var(--space-1); font: var(--t-small-strong); text-decoration: none; }
+.ra-center { justify-content: center; margin-top: var(--space-4); }
+.ra-num-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); }
+.ra-num-card .ra-sec-action { align-self: flex-start; margin: calc(-1 * var(--space-2)) 0; }
+/* KPIs */
+.ra-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.ra-kpi { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); min-width: 0; }
+.ra-kpi.is-wide { grid-column: 1 / -1; }
+.ra-kpi-label { font: var(--t-micro); color: var(--ink-muted); }
+.ra-kpi-value { font: var(--t-display); letter-spacing: var(--track-tight); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ra-kpi-value small { font: var(--t-small-strong); color: var(--ink-muted); margin-left: 2px; }
+.ra-kpi-note { font: var(--t-small); color: var(--ink-muted); }
+.ra-kpi.is-err .ra-kpi-value { color: var(--error); }
+/* barras: las de Admin › LLM (.ra-bar-row), en lista; con link llevan a Buscar */
+.ra-bars { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-bars .ra-bar-row { grid-template-columns: minmax(96px, 38%) 1fr auto; }
+.ra-bars.is-wide .ra-bar-row { grid-template-columns: minmax(128px, 46%) 1fr auto; }
+.ra-bar-link { color: inherit; text-decoration: none; min-height: 28px; border-radius: var(--radius-s); }
+.ra-bar-link:hover .ra-bar-label { text-decoration: underline; text-underline-offset: 3px; }
+.ra-bar-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-bar-fill.is-muted { background: var(--line-strong); }
+.ra-bar-row.is-gap .ra-bar-label, .ra-bar-row.is-gap .ra-bar-value { color: var(--error); font-weight: 600; }
+.ra-weight { font: var(--t-data); color: var(--brand-ink); margin-left: var(--space-1); }
+/* columnas: charlas por día */
+.ra-cols { display: grid; gap: var(--space-2); align-items: end; }
+.ra-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--space-1); color: inherit; text-decoration: none; border-radius: var(--radius-s); padding-top: var(--space-1); }
+.ra-col:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-col-num { font: var(--t-data); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ra-col-stick { width: 100%; max-width: 40px; background: color-mix(in srgb, var(--brand) 30%, var(--surface-3)); border-radius: 3px 3px 0 0; transition: background var(--ease); }
+.ra-col:hover .ra-col-stick { background: color-mix(in srgb, var(--brand) 55%, var(--surface-3)); }
+.ra-col-day { font: var(--t-micro); color: var(--ink-muted); }
+.ra-col.is-today .ra-col-day { color: var(--brand-ink); }
+.ra-col-mine { font: var(--t-data); color: var(--brand-ink); }
+/* leyendas */
+.ra-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font: var(--t-small); color: var(--ink-muted); }
+.ra-legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.ra-legend-swatch.is-talk { background: var(--brand); }
+.ra-legend-swatch.is-key { background: var(--ink); }
+.ra-legend-swatch.is-event { background: var(--info); }
+.ra-legend-swatch.is-clash { background: var(--error); }
+.ra-legend-swatch.is-late { box-shadow: 0 0 0 2px var(--warning); }
+.ra-legend-swatch.is-catalog { background: color-mix(in srgb, var(--brand) 30%, var(--surface-3)); }
+.ra-legend-swatch.is-mine-text { display: none; }
+.ra-legend-swatch.is-mine-cell { box-shadow: inset 0 0 0 2px var(--ink); }
+.ra-legend > span:has(.is-mine-text) { color: var(--brand-ink); }
+.ra-ramp { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ra-ramp-sw { width: 14px; height: 14px; border-radius: 3px; }
+/* heatmap día × hora */
+.ra-heat { --heat-label: 36px; display: grid; gap: 3px; }
+.ra-heat-col { font: var(--t-data); color: var(--ink-muted); text-align: center; }
+.ra-heat-row { font: var(--t-micro); color: var(--ink-muted); align-self: center; }
+.ra-heat-cell { aspect-ratio: 1; border-radius: 3px; background: var(--surface-3); position: relative; display: block; }
+.ra-heat-cell.is-mine::after { content: ""; position: absolute; inset: 0; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--ink); }
+a.ra-heat-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* franja de la semana (8 a 22 h) */
+.ra-tl { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-tl-row { display: grid; grid-template-columns: 36px 1fr; gap: var(--space-2); align-items: center; }
+.ra-tl-ticks { position: relative; height: 18px; }
+.ra-tl-ticks span { position: absolute; transform: translateX(-50%); font: var(--t-data); color: var(--ink-muted); }
+.ra-tl-day { font: var(--t-micro); color: var(--ink-muted); }
+.ra-tl-lane {
+  position: relative; height: 40px; border-radius: var(--radius-s); box-shadow: var(--edge);
+  background: repeating-linear-gradient(90deg, var(--surface-3) 0 1px, transparent 1px calc(100% / 14)) var(--surface-1);
+}
+.ra-tl-blk { position: absolute; height: 16px; min-width: 3px; border-radius: 3px; background: var(--brand); }
+.ra-tl-blk.is-solo { top: 12px; }
+.ra-tl-blk.l0 { top: 4px; }
+.ra-tl-blk.l1 { top: 20px; }
+.ra-tl-blk.is-key { background: var(--ink); }
+.ra-tl-blk.is-event { background: var(--info); }
+.ra-tl-blk.is-clash { background: var(--error); }
+.ra-tl-blk.is-late { box-shadow: 0 0 0 2px var(--warning); }
+.ra-tl-walk { position: absolute; top: 19px; height: 0; border-top: 2px dotted var(--ink-muted); }
+/* barra apilada: nivel */
+.ra-stack100 { display: flex; height: 28px; gap: 2px; border-radius: var(--radius-s); overflow: hidden; }
+.ra-stack100 span { display: grid; place-items: center; min-width: 28px; font: var(--t-data); color: var(--ink); }
