@@ -12,8 +12,9 @@ seguí [SECURITY.md](SECURITY.md).
 - `main` es producción: cada push despliega en Railway. **No se toca a mano** ni se abren PRs contra `main`.
 - Se trabaja en `dev`. Para cada cambio, una rama `feat/...`, `fix/...`, `docs/...` o `chore/...` desde `dev` y un PR
   contra `dev`. Al completar el PR, el template te pide qué cambia, cómo lo probaste y un checklist.
-- Cuando `dev` pasa los tests, `.github/workflows/ci-promote.yml` adelanta `main` a `dev` (fast-forward) y Railway
-  deploya solo.
+- Lo que entra a `dev` se deploya en staging (`staging.reinventar.app`, servicio aparte en Railway con su propio schema).
+- Producción se publica a mano: Actions → *CI y publicación en producción* → *Run workflow* sobre `dev`. Corren los
+  tests y, si pasan, `main` se adelanta a `dev` (fast-forward) y Railway deploya.
 - Si la promoción falla porque `main` tiene commits que `dev` no tiene: `git checkout dev && git merge origin/main && git push`.
 
 ## Idioma y commits

@@ -75,6 +75,8 @@ def hash_prompt(texto: str) -> str:
 
 
 def entorno() -> str:
+    if config.ENTORNO:
+        return config.ENTORNO
     return "prod" if config.RAILWAY_ENVIRONMENT_NAME == "production" else "dev"
 
 

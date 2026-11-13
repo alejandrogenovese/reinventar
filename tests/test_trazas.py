@@ -172,6 +172,14 @@ def test_en_produccion_va_el_tag_prod(gateway_llm, monkeypatch):
     assert gateway_llm[0]["tags"] == ["chat", "prod"]
 
 
+def test_staging_lleva_su_propio_tag_aunque_este_en_el_entorno_de_produccion(gateway_llm, monkeypatch):
+    monkeypatch.setattr(config, "RAILWAY_ENVIRONMENT_NAME", "production")
+    monkeypatch.setattr(config, "ENTORNO", "staging")
+    llm.complete(Tarea.CHAT, "s", "u", 10)
+
+    assert gateway_llm[0]["tags"] == ["chat", "staging"]
+
+
 def test_en_modo_prueba_va_el_tag_prueba(gateway_llm):
     with sandbox.activar(sandbox.Sandbox(username="ale", llm="real")):
         llm.complete(Tarea.CHAT, "s", "u", 10)
