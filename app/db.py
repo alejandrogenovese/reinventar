@@ -120,6 +120,15 @@ CREATE TABLE IF NOT EXISTS ubicacion_reciente (
   id_sede INTEGER,                     -- NULL = no está en ninguna sede
   visto_en DOUBLE PRECISION NOT NULL
 );
+-- «Está llena / hay mucha cola» (app/lleno.py): avisos de la gente en la puerta de la charla. Una fila por persona y
+-- horario que se sobreescribe; valen 1 h y se borran a las 6 h.
+CREATE TABLE IF NOT EXISTS reporte_lleno (
+  code TEXT NOT NULL,
+  username TEXT NOT NULL,
+  estado TEXT NOT NULL CHECK (estado IN ('lleno', 'cola')),
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (code, username)
+);
 CREATE TABLE IF NOT EXISTS preferencias_avisos (
   username TEXT PRIMARY KEY,
   grabar BOOLEAN NOT NULL DEFAULT TRUE,
@@ -128,7 +137,8 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
 );
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
-                        "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos")
+                        "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
+                        "reporte_lleno")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
@@ -525,6 +535,35 @@ def purgar_ubicaciones(antes_de) -> int:
     with sandbox.real(), conn() as c:
         for schema in (config.DB_SCHEMA, sandbox.schema_prueba()):
             total += c.execute(f"DELETE FROM {schema}.ubicacion_reciente WHERE visto_en < %s", (antes_de,)).rowcount
+    return total
+
+
+def set_reporte_lleno(code, username, estado) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO reporte_lleno (code,username,estado,creado) VALUES (%s,%s,%s,%s) "
+                  "ON CONFLICT (code, username) DO UPDATE SET estado=EXCLUDED.estado, creado=EXCLUDED.creado",
+                  (code, username, estado, time.time()))
+
+
+def delete_reporte_lleno(code, username) -> None:
+    with conn() as c:
+        c.execute("DELETE FROM reporte_lleno WHERE code=%s AND username=%s", (code, username))
+
+
+def reportes_lleno(codes, desde) -> list[dict]:
+    """[{code, username, estado, creado}] de esos horarios reportados desde `desde` (time.time())."""
+    with conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT code, username, estado, creado FROM reporte_lleno WHERE code = ANY(%s) AND creado >= %s",
+            (list(codes), desde)).fetchall()]
+
+
+def purgar_reportes_lleno(antes_de) -> int:
+    """Borra los avisos de lleno anteriores a `antes_de`, en el schema real y en el de prueba. Devuelve cuántos."""
+    total = 0
+    with sandbox.real(), conn() as c:
+        for schema in (config.DB_SCHEMA, sandbox.schema_prueba()):
+            total += c.execute(f"DELETE FROM {schema}.reporte_lleno WHERE creado < %s", (antes_de,)).rowcount
     return total
 
 

@@ -28,6 +28,7 @@ from . import (
     interview_api,
     itinerary_api,
     knowledge_api,
+    lleno_api,
     my_events_api,
     numeros_api,
     passkey_api,
@@ -100,6 +101,7 @@ app.include_router(events_api.router)
 app.include_router(push_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
+app.include_router(lleno_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)
