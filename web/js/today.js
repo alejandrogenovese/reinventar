@@ -3,6 +3,7 @@ import { Sessions, Today } from "./api.js";
 import { CountdownBadge } from "./countdown.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { icon } from "./icons.js";
+import { LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, h, toast } from "./ui.js";
 
 const LATER_LIMIT = 4;
@@ -55,7 +56,7 @@ const WhenLabel = (s, label, highlight) => (highlight
   ? h("span", { class: "ra-status is-now" }, h("span", { class: "ra-status-dot", "aria-hidden": "true" }), label)
   : h("span", { class: "ra-soon" }, label, s.day && s.start ? [" · ", CountdownBadge(startsAt(s.day, s.start))] : null));
 
-function TalkCard(s, { label, recorded, variant, highlight }) {
+function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
   // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
   const go = GoThereParts(destination(s), { start: s.day && s.start ? startsAt(s.day, s.cola_desde || s.start) : null, eta: true, iconOnly: true });
   return h("article", { class: `ra-today${highlight ? " is-now" : ""}` },
@@ -65,6 +66,8 @@ function TalkCard(s, { label, recorded, variant, highlight }) {
     s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
     go ? go.info : null,
+    // Lo que avisa la gente en la puerta (y los botones para avisar). La pista de sin reserva ya está arriba.
+    LlenoAvisos(s.code, aviso, { conPista: false }),
     // "Grabar esta charla" ocupa la fila y "Llevame" queda al lado como botón de solo ícono (48 px).
     h("div", { class: "ra-today-actions" }, TalkAction(s, recorded, variant), go ? go.link : null));
 }
@@ -82,11 +85,12 @@ const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { c
  */
 export async function TodayPanel(sessions) {
   const data = await Today.get();
+  const avisos = await avisosDe(codigosDeCharlas([data.now, data.next]));
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
   const body = [];
 
-  if (data.now) body.push(TalkCard(data.now, { label: "Ahora", recorded, variant: "primary", highlight: true }));
-  if (data.next) body.push(TalkCard(data.next, { label: data.now ? "Después" : "Próxima", recorded, variant: data.now ? "secondary" : "primary" }));
+  if (data.now) body.push(TalkCard(data.now, { label: "Ahora", recorded, variant: "primary", highlight: true, aviso: avisos[data.now.code] }));
+  if (data.next) body.push(TalkCard(data.next, { label: data.now ? "Después" : "Próxima", recorded, variant: data.now ? "secondary" : "primary", aviso: avisos[data.next.code] }));
   body.push(LaterList(data.later));
 
   if (!data.now && !data.next) {

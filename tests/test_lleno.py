@@ -117,7 +117,31 @@ def test_los_avisos_viejos_se_purgan(cli):
     assert cli.get("/api/lleno?codes=ARC300", headers=cli.H).json()["ARC300"]["lleno"] == 0
 
 
+def _js(nombre):
+    return (Path(__file__).resolve().parent.parent / "web" / "js" / nombre).read_text()
+
+
 def test_la_ficha_muestra_los_avisos_en_cada_horario():
-    js = (Path(__file__).resolve().parent.parent / "web" / "js" / "knowledge.js").read_text()
-    assert "Lleno.estado(s.instances.map((i) => i.code))" in js
-    assert "LlenoAvisos(i.code, aviso)" in js and '"Está llena"' in js and '"Hay mucha cola"' in js
+    js = _js("knowledge.js")
+    assert "avisosDe(s.instances.map((i) => i.code))" in js and "LlenoAvisos(i.code, aviso)" in js
+    lleno_js = _js("lleno.js")
+    assert '"Está llena"' in lleno_js and '"Hay mucha cola"' in lleno_js
+
+
+def test_las_tarjetas_de_hoy_y_del_itinerario_muestran_los_avisos():
+    hoy = _js("today.js")
+    assert "avisosDe(codigosDeCharlas([data.now, data.next]))" in hoy
+    assert "LlenoAvisos(s.code, aviso, { conPista: false })" in hoy  # Hoy ya dice si es sin reserva
+    itinerario = _js("itinerary.js")
+    assert "avisosDe([...lugares.keys()])" in itinerario and "extra: lleno" in itinerario
+
+
+def test_los_eventos_no_piden_avisos_y_el_pedido_respeta_el_tope():
+    lleno_js = _js("lleno.js")
+    assert 'new Set(["event", "mine"])' in lleno_js
+    assert f"TOPE_CODIGOS = {lleno.CODIGOS_POR_PEDIDO};" in lleno_js
+
+
+def test_el_modulo_nuevo_queda_en_el_cache_offline():
+    sw = (Path(__file__).resolve().parent.parent / "web" / "sw.js").read_text()
+    assert '"/js/lleno.js"' in sw
