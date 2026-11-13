@@ -29,6 +29,8 @@ PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastA
 | `app/pipeline.py` | worker: ensamblar → transcribir → traducir → resumir; export a Markdown |
 | `app/audio.py` | ffmpeg: une pedazos por parte, normaliza a 16 kHz mono, corta para el STT |
 | `app/stt.py`, `app/llm.py` | proveedores intercambiables por variables de entorno |
+| `app/trazas.py` | metadata de Langfuse de cada llamada por el gateway: una traza por grabación o por pedido, sesión, versión del prompt y de la app, tags `prod`/`dev`/`prueba`, entrevista enmascarada |
+| `app/langfuse_scores.py` | scores automáticos sobre las trazas (`json_valido`, `lineas_faltantes`, `codigos_inventados`, `momentos_citados`), en segundo plano |
 | `app/prompts.py` | glosario AWS, prompt de traducción, plantillas de resumen por tipo, prompt del itinerario |
 | `app/catalog.py` | catálogo de re:Invent leído de Postgres (schema `reinvent`) a memoria al arrancar: facets y búsqueda, con speakers, empresa y sector |
 | `app/search.py`, `app/embeddings.py` | búsqueda híbrida: embeddings multilingües locales (fastembed) + BM25, fusionados con RRF; vectores guardados en `speech_embedding`; prefiltro del itinerario |
@@ -120,6 +122,9 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `STT_BASE_URL` | `https://api.groq.com/openai/v1` | `https://api.openai.com/v1` con `STT_MODEL=whisper-1` (no se usa con `STT_PROVIDER=litellm`) |
 | `STT_MODEL` | `whisper-large-v3-turbo` | `whisper-large-v3` (más preciso, más lento) |
 | `LLM_PROVIDER` | `anthropic` | `litellm` + `LLM_BASE_URL` + `LLM_API_KEY`: cada tarea va a su alias del gateway (ver *Gateway de LLM*); `openai` para otro endpoint compatible |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | — (sin claves no se mandan scores) | las claves del proyecto de Langfuse, para mandar los scores automáticos de calidad. Van en el servicio **de la app** en Railway (no solo en `litellm`) y las cargás vos |
+| `LANGFUSE_HOST` | `https://us.cloud.langfuse.com` | el host de tu proyecto de Langfuse (en el servicio de la app, junto a las claves) |
+| `RAILWAY_ENVIRONMENT_NAME` | la pone Railway | con `production`, las trazas llevan el tag `prod`; si no, `dev` |
 | `LLM_RUTA_<TAREA>` | — | fuerza el modelo de una tarea (ej. `LLM_RUTA_RAZONES=rx-razones-haiku`); tareas en `app/llm_router.py` |
 | `TRANSLATE_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar |
 | `SUMMARY_MODEL` | `claude-opus-5-5` | `claude-sonnet-5-5` |

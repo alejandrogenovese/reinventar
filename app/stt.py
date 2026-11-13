@@ -9,7 +9,7 @@ from pathlib import Path
 
 import httpx
 
-from . import config, llm_router, sandbox
+from . import config, llm_router, sandbox, trazas
 from .llm_router import UsoSTT
 
 # Vocabulario que se le pasa a Whisper como "prompt": sin contexto confunde nombres propios ("lighthouse" por lakehouse,
@@ -49,10 +49,12 @@ def transcribe(path: Path, offset: float, language: str | None = None, uso: UsoS
 
 
 def _metadata(uso: UsoSTT) -> dict:
-    """Campos extra del form para el gateway: el uso como tag y traza, y el usuario (gasto por parte y por persona)."""
+    """Campos extra del form para el gateway: el uso como tag y la traza de Langfuse (app/trazas.py), serializada
+    porque va en un form. La voz de la entrevista va a la sesión de la entrevista; las charlas, a la de la grabación."""
     tag = llm_router.alias_stt(uso)
     usuario = llm_router.usuario_actual()
-    meta = {"tags": [tag], "trace_name": tag, "generation_name": tag, **({"trace_user_id": usuario} if usuario else {})}
+    flujo = trazas.FLUJO_ENTREVISTA if uso == UsoSTT.VOZ else "grabacion"
+    meta = trazas.metadata(tag, VOCABULARIO[uso], flujo)
     return {"metadata": json.dumps(meta), **({"user": usuario} if usuario else {})}
 
 

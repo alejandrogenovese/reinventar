@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
-from . import llm, prompts
+from . import llm, prompts, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.interview")
@@ -213,10 +213,11 @@ def armar_ficha(data: dict, r: Respuestas) -> Ficha:
 
 def generar_ficha(r: Respuestas) -> Ficha:
     exigir_completas(r)
-    texto = llm.complete(Tarea.ENTREVISTA, prompts.PROFILE_FICHA_SYSTEM,
-                         prompts.profile_ficha_user(respuestas_a_texto(r)), max_tokens=4000)
-    try:
-        return armar_ficha(llm.parse_json(texto), r)
-    except (ValueError, ValidationError) as e:
-        log.warning("Ficha inválida del LLM: %s", e)
-        raise FichaInvalida("No pude armar la ficha; probá de nuevo.") from e
+    with trazas.abrir():
+        texto = llm.complete(Tarea.ENTREVISTA, prompts.PROFILE_FICHA_SYSTEM,
+                             prompts.profile_ficha_user(respuestas_a_texto(r)), max_tokens=4000)
+        try:
+            return armar_ficha(llm.parse_json_puntuado(texto), r)
+        except (ValueError, ValidationError) as e:
+            log.warning("Ficha inválida del LLM: %s", e)
+            raise FichaInvalida("No pude armar la ficha; probá de nuevo.") from e

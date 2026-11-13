@@ -3,7 +3,7 @@ código, [ARC407]) y con lo que se dijo en las grabaciones (app/fragmentos.py, c
 import logging
 import re
 
-from . import catalog, fragmentos, llm, prompts, search
+from . import catalog, fragmentos, langfuse_scores, llm, prompts, search, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.ask")
@@ -26,6 +26,12 @@ def _cited(text: str) -> list[str]:
     return list(dict.fromkeys(real))
 
 
+def codigos_inventados(text: str) -> list[str]:
+    """Códigos citados que no existen en el catálogo (sin repetir). Los momentos [G10] no cuentan: no son charlas."""
+    citados = dict.fromkeys(c for c in _CODE.findall(text) if not _MOMENTO.fullmatch(f"[{c}]"))
+    return [c for c in citados if catalog.get_session(c) is None]
+
+
 def _momentos(question: str) -> list[dict]:
     """Fragmentos de las grabaciones para la pregunta. Si la búsqueda falla, el chat sigue solo con el catálogo."""
     try:
@@ -45,13 +51,17 @@ def answer(question: str, ficha: str | None = None) -> dict:
     """ficha: la de la entrevista guiada de quien pregunta, para priorizar lo que le sirve (None si no la tiene)."""
     hits = search.hybrid(question, ASK_CANDIDATES)
     momentos = _momentos(question)
-    try:
-        text = llm.complete(Tarea.CHAT, prompts.ASK_SYSTEM, prompts.ask_user(question, hits, ficha, momentos),
-                            ASK_MAX_TOKENS).strip()
-    except Exception as e:
-        log.exception("El chat de búsqueda no pudo consultar al LLM (tarea %s)", Tarea.CHAT)
-        raise AskUnavailable from e
+    with trazas.abrir(trazas.Traza(metadata={"candidatas": len(hits), "momentos": len(momentos)})):
+        try:
+            text = llm.complete(Tarea.CHAT, prompts.ASK_SYSTEM, prompts.ask_user(question, hits, ficha, momentos),
+                                ASK_MAX_TOKENS).strip()
+        except Exception as e:
+            log.exception("El chat de búsqueda no pudo consultar al LLM (tarea %s)", Tarea.CHAT)
+            raise AskUnavailable from e
+        citados = _momentos_citados(text, momentos)
+        langfuse_scores.puntuar("codigos_inventados", len(codigos_inventados(text)))
+        langfuse_scores.puntuar("momentos_citados", len(citados))
     cited = _cited(text)
     extra = [s["base"] for s in hits if s["base"] not in cited and s.get("instances")][:EXTRA_SESSIONS]
     sessions = [catalog.first_card(catalog.get_session(base)) for base in cited + extra]
-    return {"answer": text, "cited": cited, "sessions": sessions, "momentos": _momentos_citados(text, momentos)}
+    return {"answer": text, "cited": cited, "sessions": sessions, "momentos": citados}

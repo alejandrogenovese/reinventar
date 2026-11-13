@@ -74,7 +74,7 @@ def test_por_litellm_cada_llamada_lleva_su_tag_y_su_usuario(monkeypatch):
     assert url == "http://litellm.railway.internal:4000/chat/completions"
     assert headers["Authorization"] == "Bearer clave-de-prueba"
     assert (body["model"], body["user"], body["max_tokens"]) == ("rx-razones", "ale", 100)
-    assert body["metadata"]["tags"] == ["razones"]
+    assert body["metadata"]["tags"] == ["razones", "dev"]
     assert (body["metadata"]["trace_name"], body["metadata"]["trace_user_id"]) == ("razones", "ale")
 
 

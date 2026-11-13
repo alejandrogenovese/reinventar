@@ -9,7 +9,7 @@ import json
 import logging
 import time
 
-from . import catalog, config, db, knowledge, llm, pg, prompts
+from . import ask, catalog, config, db, knowledge, langfuse_scores, llm, pg, prompts, trazas
 from . import llm_router
 from .llm_router import Tarea
 
@@ -150,12 +150,15 @@ def _valid(parsed: dict) -> bool:
 
 
 def _ask(user: str) -> dict:
-    try:
-        raw = llm.complete(Tarea.BRIEFING, prompts.BRIEFING_SYSTEM, user, BRIEFING_MAX_TOKENS)
-        parsed = llm.parse_json(raw)
-    except Exception as e:
-        log.exception("No se pudo generar el briefing (tarea %s)", Tarea.BRIEFING)
-        raise BriefingUnavailable from e
+    with trazas.abrir():
+        try:
+            raw = llm.complete(Tarea.BRIEFING, prompts.BRIEFING_SYSTEM, user, BRIEFING_MAX_TOKENS)
+            parsed = llm.parse_json_puntuado(raw)
+        except Exception as e:
+            log.exception("No se pudo generar el briefing (tarea %s)", Tarea.BRIEFING)
+            raise BriefingUnavailable from e
+        # Los códigos que cita la ficha ([ARC407]) tienen que existir en el catálogo.
+        langfuse_scores.puntuar("codigos_inventados", len(ask.codigos_inventados(json.dumps(parsed, ensure_ascii=False))))
     if not _valid(parsed):
         log.error("Briefing sin la forma esperada: %r", str(parsed)[:300])
         raise BriefingUnavailable

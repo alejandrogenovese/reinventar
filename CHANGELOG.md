@@ -6,6 +6,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Langfuse se entiende mejor**: cada grabación queda en una sola traza (los pedazos de transcripción, la traducción y
+  el resumen juntos) y las llamadas de una persona se agrupan por día en sesiones. Cada traza lleva la versión de la
+  app, una versión del prompt (cambia solo si cambia el prompt) y los tags `prod`/`dev` y `prueba` para separar las
+  pruebas de lo real. Las respuestas de la entrevista guiada no se guardan en Langfuse.
+- **Calidad medida sola en producción**: con las claves de Langfuse en el servicio de la app (`LANGFUSE_PUBLIC_KEY`,
+  `LANGFUSE_SECRET_KEY`), la app manda scores sobre cada traza: si el JSON vino bien, cuántas líneas de la traducción
+  hubo que reintentar, cuántos códigos de charla inventó el chat o el briefing y cuántos momentos grabados citó el chat.
+  Sin claves sigue todo igual.
 - **Buscar en lo que grabaste**: en Inicio, arriba de tus grabaciones, un buscador que encuentra el momento de cada
   charla donde se habló de algo ("¿qué dijeron de Neptune?", "migrar Teradata"), por significado y por palabras, en
   castellano o en inglés. Cada resultado abre la transcripción en ese minuto. Las grabaciones viejas se indexan solas.

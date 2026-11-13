@@ -8,7 +8,7 @@ import re
 
 import httpx
 
-from . import config, llm_router, sandbox
+from . import config, langfuse_scores, llm_router, sandbox, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.llm")
@@ -25,17 +25,15 @@ def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000) -> st
     if p == "openai":
         return _openai(model, system, user, max_tokens)
     if p == "litellm":
-        return _openai(model, system, user, max_tokens, extra=_metadata(tarea))
+        return _openai(model, system, user, max_tokens, extra=_metadata(tarea, system))
     raise ValueError(f"LLM_PROVIDER desconocido: {p}")
 
 
-def _metadata(tarea: Tarea) -> dict:
-    """Para el gateway: la tarea como tag (gasto por parte en el panel de LiteLLM) y traza y usuario para Langfuse."""
+def _metadata(tarea: Tarea, system: str) -> dict:
+    """Para el gateway: la tarea como tag (gasto por parte en el panel de LiteLLM) y la traza de Langfuse
+    (app/trazas.py: traza, sesión, versión del prompt y de la app, entorno, usuario)."""
     usuario = llm_router.usuario_actual()
-    meta = {"tags": [tarea.value], "trace_name": tarea.value, "generation_name": tarea.value}
-    if usuario:
-        meta["trace_user_id"] = usuario
-    return {"metadata": meta, **({"user": usuario} if usuario else {})}
+    return {"metadata": trazas.metadata(tarea.value, system), **({"user": usuario} if usuario else {})}
 
 
 DEFAULT_EFFORT = "medium"
@@ -175,3 +173,14 @@ def parse_json(text: str) -> dict:
     if not m:
         raise ValueError("La respuesta del LLM no trae JSON")
     return json.loads(m.group(0))
+
+
+def parse_json_puntuado(text: str) -> dict:
+    """parse_json que además manda el score json_valido (1/0) sobre la traza abierta (app/langfuse_scores.py)."""
+    try:
+        data = parse_json(text)
+    except ValueError:  # json.JSONDecodeError también es ValueError
+        langfuse_scores.puntuar("json_valido", 0)
+        raise
+    langfuse_scores.puntuar("json_valido", 1)
+    return data
