@@ -35,7 +35,7 @@ let activeRecorder = null;
 
 // --- tema --------------------------------------------------------------------
 const THEME = "reinventar.theme";
-const THEME_COLOR = { light: "#f4f4f4", dark: "#121212" };
+const THEME_COLOR = { light: "#f4f4f4", dark: "#111111" };
 for (const slot of document.querySelectorAll("[data-icon]")) slot.replaceWith(icon(slot.dataset.icon));
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -53,6 +53,14 @@ document.getElementById("themeBtn").addEventListener("click", () => {
   const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   applyTheme(t); try { localStorage.setItem(THEME, t); } catch {}
 });
+
+// --- encabezado pegado arriba ---------------------------------------------------
+// Lo que se pega debajo (pestañas del detalle) usa --masthead-h: el alto real de franjas + barra, que cambia con el
+// notch y cuando aparece una franja. Antes estaba fijo en 68 px y las pestañas quedaban tapadas.
+const masthead = document.getElementById("masthead");
+if (masthead && "ResizeObserver" in window) {
+  new ResizeObserver(() => document.documentElement.style.setProperty("--masthead-h", `${masthead.offsetHeight}px`)).observe(masthead);
+}
 
 // --- router ------------------------------------------------------------------
 const routes = [
@@ -393,7 +401,7 @@ async function viewDetail(id, at) {
     const meta = [s.venue, s.speaker, s.duration_s ? hms(s.duration_s) : null].filter(Boolean).join(" · ");
     head.replaceChildren(...kids(
       h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")),
-      h("h1", { class: "title" }, s.title),
+      h("h1", { class: "title ra-detail-title" }, s.title),
       s.talk ? h("p", {}, h("a", { class: "ra-link", href: `#/charla/${s.talk.base}` }, `Ficha de la charla: ${s.talk.title}`)) : null,
       h("div", { class: "actions is-center" }, StatusPill(s.status, s.progress || undefined), meta ? h("span", { class: "caption" }, meta) : null),
       s.error ? h("div", { class: "notice err" }, s.error) : null));
@@ -483,7 +491,7 @@ function AlertSettings() {
     h("h2", { class: "label" }, "Alertas"),
     h("label", { class: "field" }, h("span", { class: "label" }, "Margen para salir (min)"), number("leave-margin", s.leaveMarginMin, "leaveMarginMin")),
     h("label", { class: "field" }, h("span", { class: "label" }, "Aviso de inicio (min antes)"), number("start-notice", s.startNoticeMin, "startNoticeMin")),
-    h("p", { class: "caption" }, "Para lo que fijaste 📌 en el itinerario: la franja de arriba cuenta cuánto falta y te avisa cuándo salir y cuándo empieza."));
+    h("p", { class: "caption" }, "Para lo que fijaste en el itinerario: la franja de arriba cuenta cuánto falta y te avisa cuándo salir y cuándo empieza."));
 }
 
 function LocationSetting() {

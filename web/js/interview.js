@@ -311,7 +311,7 @@ function paintFicha(view, ficha) {
     h("span", {}, h("strong", {}, p.tema), p.claves.length ? h("span", { class: "caption" }, ` (${p.claves.join(", ")})`) : null),
     draft.prioridades.length > 1 ? h("button", { type: "button", class: "ra-more", "aria-label": `Sacar ${p.tema}`, onclick: () => {
       draft.prioridades.splice(idx, 1); dirty = true; paintPrioridades();
-    } }, "✕") : null)));
+    } }, icon("cerrar", 18)) : null)));
   paintPrioridades();
 
   view.replaceChildren(h("div", { class: "stack-lg ra-interview" },

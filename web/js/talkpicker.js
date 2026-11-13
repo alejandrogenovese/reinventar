@@ -38,7 +38,7 @@ export function TalkPicker({ onPick }) {
       results.replaceChildren();
       input.value = "";
       chosen.replaceChildren(h("button", { type: "button", class: "ra-chip ra-chip-on", "aria-label": `Desvincular ${talk.code}`,
-        onclick: () => { chosen.replaceChildren(); onPick(null); } }, `Vinculada a ${talk.code} ✕`));
+        onclick: () => { chosen.replaceChildren(); onPick(null); } }, `Vinculada a ${talk.code}`));
       onPick(talk);
     } catch (e) { toast(e.message); }
   };

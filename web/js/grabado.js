@@ -16,7 +16,7 @@ export function MomentCard(r) {
   const meta = [r.kind, r.code].filter(Boolean).join(" · ");
   return h("a", { class: "ra-hit", href: momentHash(r.session_id, r.start_s) },
     h("div", { class: "ra-hit-top" },
-      h("span", { class: "ra-hit-time ra-mono" }, icon("grabar", 14), hms(r.start_s)),
+      h("span", { class: "ra-hit-time ra-mono" }, icon("reproducir", 14), hms(r.start_s)),
       meta ? h("span", { class: "ra-kind" }, meta) : null),
     h("strong", { class: "ra-hit-title" }, r.title),
     h("p", { class: "ra-hit-text", lang: r.es ? "es" : "en" }, r.es || r.en));

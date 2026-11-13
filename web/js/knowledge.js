@@ -5,7 +5,7 @@ import { Abstract, People, SessionMiniCard, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
 import { recordTalk } from "./today.js";
-import { Button, StatusPill, Tag, h, toast } from "./ui.js";
+import { Button, IconText, StatusPill, Tag, h, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
 const chips = (items) => (items?.length ? h("div", { class: "ra-chips" }, items.map(Tag)) : null);
@@ -17,7 +17,7 @@ const addToItinerary = (code) => async () => {
   try {
     const r = await Itinerary.add(code);
     const mine = r.days.flatMap((d) => d.sessions).find((s) => s.code === code);
-    toast(mine?.overlaps?.length ? `Agregada y fijada. ⚠ Se superpone con ${mine.overlaps.join(", ")}.` : "Agregada y fijada en tu itinerario.");
+    toast(mine?.overlaps?.length ? `Agregada y fijada. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregada y fijada en tu itinerario.");
     void refreshCountdown({ force: true });
   } catch (e) { toast(e.message); }
 };
@@ -60,7 +60,8 @@ function Slot(i, mine, onChange) {
     catch (err) { toast(err.message); }
   };
   let action;
-  if (own) action = h("span", { class: "ra-tag is-new" }, own.locked ? "En tu itinerario 📌" : "En tu itinerario");
+  if (own) action = own.locked ? IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 })
+    : h("span", { class: "ra-tag is-new" }, "En tu itinerario");
   else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
   else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
   return h("li", { class: "ra-slot" },
@@ -68,7 +69,7 @@ function Slot(i, mine, onChange) {
     h("div", { class: "ra-slot-body" },
       h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
-      !own && clashes.length ? h("span", { class: "caption" }, `⚠ choca con ${clashes.join(", ")}`) : null,
+      !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
     action);
 }
@@ -112,7 +113,7 @@ function Profile(p) {
     p.x ? external("X", `https://x.com/${encodeURIComponent(p.x.replace(/^@/, ""))}`) : null].filter(Boolean);
   return h("div", { class: "stack" },
     p.unverified ? h("p", { class: "ra-disclaimer", role: "note" },
-      "⚠ Puede no ser esta persona: el perfil se encontró por nombre y empresa, pero no lo pudimos confirmar.") : null,
+      "Puede no ser esta persona: el perfil se encontró por nombre y empresa, pero no lo pudimos confirmar.") : null,
     p.headline && !p.headline.startsWith(p.title || "\u0000") ? h("p", {}, p.headline) : null,
     h("p", { class: "caption" }, [p.seniority, p.location, p.since ? `en el cargo desde ${p.since.slice(0, 7)}` : null].filter(Boolean).join(" · ")),
     links.length ? h("div", { class: "actions" }, links) : null,
