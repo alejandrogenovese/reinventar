@@ -79,7 +79,7 @@ def cli(monkeypatch):
         c.post("/api/itinerary/items", headers=c.H, json={"code": "evt-push"})
         yield c
         c.delete("/api/itinerary/items/evt-push", headers=c.H)
-        c.post("/api/push/unsubscribe", headers=c.H, json={"endpoint": "https://push.example/1"})
+        c.post("/api/push/unsubscribe", headers=c.H, json={"endpoint": "https://fcm.googleapis.com/fcm/send/1"})
 
 
 def _ahora(hhmm):
@@ -96,7 +96,7 @@ def test_cada_aviso_sale_una_sola_vez(cli, monkeypatch):
     enviados = []
     monkeypatch.setattr(push, "send", lambda sub, msg, http=None: enviados.append(msg) or 201)
     monkeypatch.setattr(push.sandbox, "ahora", lambda tz=None: _ahora("17:45"))
-    sub = {"endpoint": "https://push.example/1", "keys": {"p256dh": "x" * 87, "auth": "y" * 22}}
+    sub = {"endpoint": "https://fcm.googleapis.com/fcm/send/1", "keys": {"p256dh": "x" * 87, "auth": "y" * 22}}
     assert cli.post("/api/push/subscribe", headers=cli.H, json=sub).status_code == 200
 
     push.tick()

@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import db, guided, itinerary, reservas_aws
+from . import cuerpo, db, guided, itinerary, reservas_aws
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -80,9 +80,7 @@ def booked(code: str, body: Booked, username: str = Depends(auth)):
 @router.post("/api/itinerary/import-ics")
 async def import_reservations(request: Request, username: str = Depends(auth)):
     """El .ics que exporta el portal de AWS → esas charlas al itinerario, fijadas y marcadas como reservadas."""
-    data = await request.body()
-    if len(data) > reservas_aws.MAX_BYTES:
-        raise HTTPException(413, "El archivo es demasiado grande")
+    data = await cuerpo.leer_con_tope(request, reservas_aws.MAX_BYTES)
     try:
         return reservas_aws.importar(username, data.decode("utf-8", errors="replace"))
     except reservas_aws.CalendarioInvalido as e:
