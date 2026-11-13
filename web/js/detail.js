@@ -6,12 +6,41 @@ import { scrollToMoment } from "./grabado.js";
 import { icon } from "./icons.js";
 import { MenuButton } from "./menu.js";
 import * as store from "./store.js";
-import { Button, StatusPill, SummaryPanel, TranscriptBlock, clock, h, toastOnError } from "./ui.js";
+import { Button, StatusPill, SummaryPanel, TranscriptBlock, clock, h, toast, toastOnError } from "./ui.js";
 
 const PROCESSING = ["queued", "transcribing", "translating", "summarizing"];
 const LIVE = ["recording", "uploading"];
 const RELOAD_MS = 4000;
 const MD_TYPE = "text/markdown";
+
+// --- 👍/👎 del resumen (app/voto_resumen_api.py) ------------------------------------------------------
+const OPCIONES_VOTO = [[true, "👍 Sí", "Me sirvió"], [false, "👎 No", "No me sirvió"]];
+const personas = (n) => `${n} persona${n === 1 ? "" : "s"}`;
+
+/** «¿Te sirvió este resumen?» con 👍 y 👎. Tocar el voto propio lo retira; otro toque lo cambia. */
+function VotoResumen(id, voto) {
+  const box = h("div", { class: "ra-voto" });
+  const pintar = (v) => {
+    const botones = OPCIONES_VOTO.map(([util, label, nombre]) => {
+      const mio = v.mio === util;
+      const btn = h("button", { type: "button", class: mio ? "ra-chip ra-chip-on" : "ra-chip", "aria-pressed": String(mio), "aria-label": nombre,
+        onclick: async () => {
+          btn.disabled = true;
+          try {
+            pintar(mio ? await Sessions.retirarVoto(id) : await Sessions.votar(id, util));
+            if (!mio) toast(util ? "¡Gracias!" : "Gracias: nos ayuda a mejorar los resúmenes.");
+          } catch (e) { toast(e.message); btn.disabled = false; }
+        } }, label);
+      return btn;
+    });
+    const total = v.si + v.no;
+    box.replaceChildren(h("span", { class: "caption", id: `voto-${id}` }, "¿Te sirvió este resumen?"),
+      h("div", { class: "ra-voto-botones", role: "group", "aria-labelledby": `voto-${id}` }, botones),
+      total ? h("span", { class: "caption" }, `Le sirvió a ${v.si} de ${personas(total)}`) : null);
+  };
+  pintar(voto || { si: 0, no: 0, mio: null });
+  return box;
+}
 
 // --- barra de la pantalla (reemplaza al logo y a tema/ajustes mientras se ve un detalle) ----------------
 const pagebar = document.getElementById("pagebar");
@@ -145,7 +174,7 @@ export async function viewDetail(view, id, { at = null, q = "", canGoBack = fals
       [["resumen", "Resumen"], ["transcripcion", "Transcripción"]].map(([k, label]) =>
         h("button", { class: "ra-tab", role: "tab", "aria-selected": String(tab === k), onclick: () => { tab = k; toastOnError(load()); } }, label)));
     const content = tab === "resumen"
-      ? (s.summary ? SummaryPanel(s.summary) : h("div", { class: "empty" }, PROCESSING.includes(s.status) ? "El resumen aparece cuando termina el procesamiento." : "Sin resumen todavía."))
+      ? (s.summary ? h("div", {}, SummaryPanel(s.summary), VotoResumen(id, s.voto)) : h("div", { class: "empty" }, PROCESSING.includes(s.status) ? "El resumen aparece cuando termina el procesamiento." : "Sin resumen todavía."))
       : paintTranscript(s);
     body.replaceChildren(tabs, content);
 
