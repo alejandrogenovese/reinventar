@@ -34,6 +34,7 @@ PWA (Chrome Android / Safari iOS) ──pedazos webm/opus de 10 s──▶ FastA
 | `app/search.py`, `app/embeddings.py` | búsqueda híbrida: embeddings multilingües locales (fastembed) + BM25, fusionados con RRF; vectores guardados en `speech_embedding`; prefiltro del itinerario |
 | `app/fragmentos.py` | buscar en lo grabado: transcripciones en fragmentos de ~40 s con pgvector (coseno) + `tsvector`, fusionados con RRF; se indexa al terminar cada grabación |
 | `scripts/evaluar_busqueda.py` | mide la búsqueda del catálogo contra `scripts/eval/busqueda_catalogo.json` (acierto, recall y MRR en los primeros 10) |
+| `scripts/evaluar_modelos.py` | compara el modelo de cada tarea contra uno más barato, con los prompts de la app y un juez a ciegas (`--estimar` muestra el costo sin llamar a la API) |
 | `app/ask.py` | chat de búsqueda (`POST /api/k/ask`): responde citando charlas por código |
 | `app/briefing.py` | "Preparar conversación" (`POST /api/k/briefing`): ficha de un speaker o empresa cruzada con el perfil del usuario y sus grabaciones; caché por usuario en `briefings` |
 | `app/nl_filters.py` | filtros en lenguaje natural (`POST /api/k/explore/parse`): el LLM propone, se valida contra los valores reales de cada faceta |
