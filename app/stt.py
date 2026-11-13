@@ -5,6 +5,7 @@
   el uso como tag y el usuario del pedido, igual que las tareas del LLM.
 """
 import json
+import re
 from pathlib import Path
 
 import httpx
@@ -45,7 +46,27 @@ def transcribe(path: Path, offset: float, language: str | None = None, uso: UsoS
         segs = _fake(path)
     else:
         raise ValueError(f"STT_PROVIDER desconocido: {provider}")
-    return [{"start": s["start"] + offset, "end": s["end"] + offset, "text": s["text"].strip()} for s in segs if s["text"].strip()]
+    return [{"start": s["start"] + offset, "end": s["end"] + offset, "text": s["text"].strip()}
+            for s in segs if s["text"].strip() and not es_silencio(s)]
+
+
+# Whisper no devuelve vacío cuando el audio es silencio: inventa una frase de cierre de video ("Thank you.").
+# Se descarta con su propia regla (mucha probabilidad de no-habla y poca confianza) y con las frases típicas.
+NO_HABLA_MINIMA = 0.6
+CONFIANZA_MAXIMA = -1.0
+FRASES_DE_SILENCIO = {
+    "thank you", "thank you very much", "thanks for watching", "thank you for watching", "thank you so much",
+    "bye", "you", "gracias", "gracias por ver el video", "subtítulos realizados por la comunidad de amaraorg",
+}
+
+
+def es_silencio(seg: dict) -> bool:
+    """Un segmento que Whisper inventó sobre audio sin voz."""
+    texto = re.sub(r"[^\w\s]", "", seg.get("text", "").lower()).strip()
+    if texto in FRASES_DE_SILENCIO:
+        return True
+    no_habla, confianza = seg.get("no_speech_prob"), seg.get("avg_logprob")
+    return no_habla is not None and confianza is not None and no_habla >= NO_HABLA_MINIMA and confianza <= CONFIANZA_MAXIMA
 
 
 def _metadata(uso: UsoSTT) -> dict:
@@ -79,7 +100,8 @@ def _openai_compatible(path: Path, language: str, base_url: str, api_key: str | 
     segs = body.get("segments")
     if not segs:  # algunos modelos no devuelven segmentos: un solo bloque
         return [{"start": 0.0, "end": float(body.get("duration") or 0), "text": body.get("text", "")}]
-    return [{"start": float(s["start"]), "end": float(s["end"]), "text": s["text"]} for s in segs]
+    return [{"start": float(s["start"]), "end": float(s["end"]), "text": s["text"],
+             "no_speech_prob": s.get("no_speech_prob"), "avg_logprob": s.get("avg_logprob")} for s in segs]
 
 
 _model = None

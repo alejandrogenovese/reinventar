@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Arreglado
+- **Grabar sin que llegue sonido ya no deja una transcripción falsa.** Whisper inventaba un «Thank you.» sobre el
+  silencio; ahora eso se descarta y la grabación avisa que no se escuchó voz, con qué revisar. Mientras grabás, si
+  pasan unos segundos sin sonido aparece un aviso arriba del medidor («No llega sonido al micrófono»). La respuesta
+  por voz de la entrevista también avisa si no se escuchó nada, en vez de devolver «Gracias.».
+
 ### Cambiado
 - **Detalle de una grabación:** arriba quedan Volver, Compartir (el resumen en `.md`, en los celulares que pueden
   compartir archivos) y un menú ⋯ con Exportar y Eliminar; Eliminar sigue pidiendo confirmación. El título baja a
