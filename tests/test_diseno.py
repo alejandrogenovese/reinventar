@@ -215,10 +215,12 @@ def _iconos_dinamicos() -> dict[str, set[str]]:
     hint = set(re.findall(r"\"(\w+)\"", re.search(r"const HINT_ICON = \{([^}]*)\}", JS["ui.js"]).group(1)))
     tema = re.search(r"const next = ([^;]+);", JS["app.js"]).group(1)
     kind = _primeros_de("KIND_ICON", JS["today.js"])
+    explicitos = set(re.findall(r"\biconName:\s*\"(\w+)\"", todo))
     return {
         "slot.dataset.icon": set(re.findall(r'data-icon="(\w+)"', (WEB / "index.html").read_text())),
         "next": _literales_de_icono(tema),
-        "iconName": hint | set(re.findall(r"\biconName:\s*\"(\w+)\"", todo)),  # Hint: por tono o explícito
+        "iconName": hint | explicitos,  # Hint: por tono o explícito
+        "it.iconName": explicitos,  # opciones del menú ⋯ (menu.js), declaradas con iconName: "..."
         "name": set(),  # dentro de IconText: sus llamadas se revisan una por una
         "...KIND_ICON[s.kind]": kind, "KIND_ICON[s.kind][0]": kind,
     }

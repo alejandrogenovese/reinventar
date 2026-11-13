@@ -7,7 +7,8 @@ const MODES = [["filtrar", "Filtrar"], ["preguntar", "Preguntar"]];
 
 const modeFromUrl = () => (new URLSearchParams(location.hash.split("?")[1] || "").get("modo") === "preguntar" ? "preguntar" : "filtrar");
 
-/** Pantalla Buscar. Devuelve la función de limpieza para el router (saca el panel de filtros del <body>). */
+/** Pantalla Buscar. Devuelve la función de limpieza para el router (saca el panel de filtros del <body> y suelta el
+ *  campo fijo de Preguntar). */
 export async function viewSearch(view) {
   let mode = modeFromUrl();
   const explore = await ExplorePanel();
@@ -23,17 +24,19 @@ export async function viewSearch(view) {
     if (mode === "preguntar") {
       ask ??= AskPanel();
       slot.replaceChildren(ask);
+      ask.attach();
       history.replaceState(null, "", "#/buscar?modo=preguntar");
     } else {
+      ask?.detach();
       slot.replaceChildren(explore.el);
       explore.syncUrl();
     }
   }
 
-  view.append(h("div", { class: "stack-lg" },
+  view.append(h("div", { class: "ra-search-page" },
     h("h1", { class: "title" }, "Buscar"),
     h("div", { class: "ra-segtabs", role: "tablist", "aria-label": "Modo de búsqueda" }, tabs),
     h("div", { id: "buscar-panel", role: "tabpanel" }, slot)));
   show(mode);
-  return explore.dispose;
+  return () => { explore.dispose(); ask?.detach(); };
 }

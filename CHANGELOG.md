@@ -5,6 +5,24 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+- **Detalle de una grabación:** arriba quedan Volver, Compartir (el resumen en `.md`, en los celulares que pueden
+  compartir archivos) y un menú ⋯ con Exportar y Eliminar; Eliminar sigue pidiendo confirmación. El título baja a
+  24 px, el estado, quién la dio, dónde y cuánto duró van en una sola fila, y la ficha de la charla es un link
+  «Ver la ficha de la charla ›». La transcripción muestra el castellano grande y el inglés abajo, con el minuto
+  corto (12:40).
+- **Llegando desde un buscador,** el momento encontrado queda marcado de borde a borde con una pastilla
+  «Desde la búsqueda «…»» que se cierra con la ✕.
+- **Preguntar:** el campo para escribir queda fijo abajo, sobre la barra de navegación, con un botón de enviar; sube
+  con el teclado del celular y no tapa la última respuesta. La conversación se lee de la más vieja a la más nueva.
+- **Inicio:** «Nueva» pasa al encabezado de *Tus grabaciones* y «Llevame» es un botón de solo ícono al lado de
+  «Grabar esta charla». «Después» muestra la cuenta regresiva en la misma línea. Las grabaciones se ven más
+  compactas: título y estado arriba, datos y duración abajo.
+- **Buscar › Filtrar:** el botón de Filtros está dentro del campo de búsqueda con el número de filtros activos;
+  «Convertir en filtros» aparece como sugerencia solo cuando escribiste algo; los filtros activos muestran solo el
+  valor, «Agrupar» es un selector y «Limpiar» queda al lado del total de charlas. La tarjeta de cada charla sigue
+  completa (speakers, resumen, Leer más, Agregar).
+
 ### Corregido
 - **Mapa del itinerario con un solo lugar:** ya no queda con el zoom al máximo adentro del edificio; se ven las calles y los hoteles de alrededor.
 

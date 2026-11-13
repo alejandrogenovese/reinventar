@@ -11,7 +11,8 @@ import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import { refreshChanges } from "./changes.js";
 import { refreshCountdown } from "./countdown.js";
-import { RecordingSearch, scrollToMoment } from "./grabado.js";
+import { RecordingSearch } from "./grabado.js";
+import { clearPageBar, viewDetail } from "./detail.js";
 import { alertSettings, locationEnabled, saveAlertSettings, setLocationEnabled } from "./location.js";
 import { PushSettings } from "./notifications.js";
 import { refreshSandbox } from "./sandbox.js";
@@ -24,13 +25,11 @@ import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, SummaryPanel, TranscriptBlock, h, hms, toast, toastOnError } from "./ui.js";
+import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
-const PROCESSING = ["queued", "transcribing", "translating", "summarizing"];
 let cleanup = () => {};
-const kids = (...xs) => xs.filter((x) => x != null && x !== false);
 let activeRecorder = null;
 
 // --- tema --------------------------------------------------------------------
@@ -71,8 +70,8 @@ const routes = [
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
-  [/^#\/s\/([\w-]+)$/, viewDetail],
-  [/^#\/s\/([\w-]+)\/t\/(\d+)$/, viewDetail],
+  [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => viewDetail(view, id, {
+    at, q: q ? decodeURIComponent(q) : "", canGoBack: navigatedInApp, setCleanup: (fn) => { cleanup = fn; }, onError: renderError })],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/eventos$/, () => viewEventos(view)],
   [/^#\/perdida\/([^/?#]+)$/, (code) => viewPerdida(view, code)],
@@ -136,6 +135,8 @@ function markNav(hash) {
 }
 
 let ignoreNextHash = false;
+let navigatedInApp = false; // Volver del detalle usa el historial solo si se llegó navegando dentro de la app
+let routedOnce = false;
 async function route() {
   if (ignoreNextHash) { ignoreNextHash = false; return; }
   if (activeRecorder && ["recording", "paused"].includes(activeRecorder.state) && !location.hash.startsWith("#/grabar/")) {
@@ -144,6 +145,9 @@ async function route() {
     await activeRecorder.stop(); activeRecorder.close(); activeRecorder = null;
   }
   cleanup(); cleanup = () => {};
+  clearPageBar();
+  navigatedInApp = routedOnce;
+  routedOnce = true;
   const hash = location.hash || "#/";
   if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
   if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
@@ -177,16 +181,20 @@ function renderError(e) {
 async function viewList() {
   // Los dos bloques que llegan de la API reservan su lugar con un skeleton: así no empujan la pantalla (CLS).
   const list = h("div", { class: "stack" }, h("div", { class: "ra-skel ra-skel-card" }));
-  const banner = h("div");
-  const searchSlot = h("div");
+  // Lugares que pueden quedar vacíos (subida pendiente, buscador): .ra-optional:empty no ocupa lugar ni suma espacio.
+  const banner = h("div", { class: "ra-optional" });
+  const searchSlot = h("div", { class: "ra-optional" });
   const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
-  const newBtn = Button("Nueva sesión", { variant: "primary", onclick: () => (location.hash = "#/nueva") });
+  // "Nueva" es la acción de la sección (botón chico en su encabezado), no un botón grande suelto.
+  const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
+    icon("agregar", 16), h("span", {}, "Nueva"));
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
     todaySlot,
-    h("div", { class: "actions" }, newBtn),
-    InstallPrompt({ dismissible: true }), PasskeyOffer(), banner,
-    h("h2", { class: "label" }, "Tus grabaciones"), searchSlot, list));
+    InstallPrompt({ dismissible: true }), PasskeyOffer(),
+    h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
+      h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "grabaciones-title" }, "Tus grabaciones"), newBtn),
+      banner, searchSlot, list)));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
@@ -200,15 +208,11 @@ async function viewList() {
   // Buscar en lo grabado: solo tiene sentido cuando hay alguna grabación procesada.
   if (sessions.some((s) => s.status === "ready")) searchSlot.replaceChildren(search = RecordingSearch());
   TodayPanel(sessions)
-    .then(({ el, hasTalk }) => {
-      todaySlot.replaceChildren(el);
-      // Un solo botón primario: si hay una charla para grabar, "Nueva sesión" pasa a secundario.
-      if (hasTalk) newBtn.className = "ra-btn ra-btn-secondary";
-    })
+    .then(({ el }) => todaySlot.replaceChildren(el))
     .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${err.message}`)));
   list.replaceChildren();
   if (!sessions.length) {
-    list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva sesión.")));
+    list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva.")));
     return;
   }
   for (const s of sessions) {
@@ -383,69 +387,6 @@ async function viewRecord(id) {
 
   cleanup = () => { uploader.removeEventListener("change", onUp); sala?.remove();
     if (!["recording", "paused"].includes(rec.state)) { rec.close(); if (activeRecorder === rec) activeRecorder = null; } };
-}
-
-// --- detalle -----------------------------------------------------------------
-async function viewDetail(id, at) {
-  // #/s/<id>/t/<segundo> (desde Buscar en lo grabado): abre la transcripción en ese momento.
-  let tab = at != null ? "transcripcion" : "resumen";
-  let jumpTo = at != null ? Number(at) : null;
-  let timer;
-  const head = h("div");
-  const body = h("div", { class: "stack" });
-  const actions = h("div", { class: "actions" });
-  view.append(h("div", { class: "stack-lg" }, head, actions, body));
-
-  async function load() {
-    const s = await Sessions.get(id);
-    const meta = [s.venue, s.speaker, s.duration_s ? hms(s.duration_s) : null].filter(Boolean).join(" · ");
-    head.replaceChildren(...kids(
-      h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")),
-      h("h1", { class: "title ra-detail-title" }, s.title),
-      s.talk ? h("p", {}, h("a", { class: "ra-link", href: `#/charla/${s.talk.base}` }, `Ficha de la charla: ${s.talk.title}`)) : null,
-      h("div", { class: "actions is-center" }, StatusPill(s.status, s.progress || undefined), meta ? h("span", { class: "caption" }, meta) : null),
-      s.error ? h("div", { class: "notice err" }, s.error) : null));
-
-    actions.replaceChildren(...kids(
-      s.status === "ready" ? Button("Exportar .md", { onclick: () => exportMd(s) }) : null,
-      s.status === "error" ? Button("Reintentar", { variant: "primary", onclick: () => toastOnError(Sessions.retry(id).then(load)) }) : null,
-      ["recording", "uploading"].includes(s.status) ? Button("Seguir grabando", { variant: "primary", onclick: () => (location.hash = `#/grabar/${id}`) }) : null,
-      Button("Eliminar", { variant: "danger", onclick: async () => {
-        if (!await confirmDialog("¿Eliminar la sesión?", { text: "Se borran el audio, la transcripción y el resumen. No se puede deshacer.", confirmLabel: "Eliminar", danger: true })) return;
-        await Sessions.remove(id); store.dropRecMeta(id); location.hash = "#/";
-      } })));
-
-    const tabs = h("div", { class: "tabs", role: "tablist" },
-      [["resumen", "Resumen"], ["transcripcion", "Transcripción"]].map(([k, label]) =>
-        h("button", { class: "ra-tab", role: "tab", "aria-selected": String(tab === k), onclick: () => { tab = k; toastOnError(load()); } }, label)));
-    let content;
-    if (tab === "resumen") {
-      content = s.summary ? SummaryPanel(s.summary) : h("div", { class: "empty" }, PROCESSING.includes(s.status) ? "El resumen aparece cuando termina el procesamiento." : "Sin resumen todavía.");
-    } else {
-      content = s.blocks?.length ? h("div", {}, s.blocks.map(TranscriptBlock)) : h("div", { class: "empty" }, "Sin transcripción todavía.");
-    }
-    body.replaceChildren(tabs, content);
-    if (jumpTo != null && tab === "transcripcion" && s.blocks?.length) {
-      const seconds = jumpTo;
-      jumpTo = null; // una sola vez: las recargas mientras procesa no vuelven a mover la vista
-      setTimeout(() => scrollToMoment(content, seconds)); // después del scrollTo(0, 0) del router
-    }
-
-    clearTimeout(timer);
-    if (PROCESSING.includes(s.status)) timer = setTimeout(() => load().catch(renderError), 4000);
-  }
-
-  async function exportMd(s) {
-    const md = await Sessions.exportMd(id);
-    const name = `${(s.code ? s.code + "-" : "") + s.title}`.replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g, "").trim().replace(/\s+/g, "-") + ".md";
-    const file = new File([md], name, { type: "text/markdown" });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: s.title }); return; } catch {} }
-    const a = h("a", { href: URL.createObjectURL(file), download: name });
-    document.body.append(a); a.click(); a.remove();
-  }
-
-  cleanup = () => clearTimeout(timer);
-  await load();
 }
 
 // --- login -------------------------------------------------------------------

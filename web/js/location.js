@@ -100,18 +100,29 @@ const hhmm = (date) => date.toLocaleTimeString("es-AR", { timeZone: "America/Los
  * dest: { lat, lng, name, placeId?, approx? }; opts.start: Date del inicio (para "salí a las"); opts.eta: pedir tiempo a pie.
  * approx = la fuente solo da una zona (Luma muestra la dirección al anotarte): no se muestran distancia ni horarios.
  */
-export function GoThere(dest, { start = null, eta = false } = {}) {
+export function GoThere(dest, opts = {}) {
+  const parts = GoThereParts(dest, opts);
+  if (!parts) return null;
+  return h("div", { class: "ra-go" }, parts.info, parts.link);
+}
+
+/**
+ * Las dos piezas de GoThere por separado, para ponerlas en lugares distintos (en Hoy, el link va como botón de solo
+ * ícono al lado de "Grabar"). `iconOnly`: el link muestra solo el ícono (48 px) y su nombre queda en aria-label.
+ * @returns {{ info: HTMLElement, link: HTMLElement|null } | null}
+ */
+export function GoThereParts(dest, { start = null, eta = false, iconOnly = false } = {}) {
   if (dest?.lat == null) return null;
   const text = h("span", {});
   const info = h("span", { class: "ra-go-info ra-icotext" }, icon("ubicacion", 16), text);
   if (dest.approx) {
     text.textContent = "dirección exacta al anotarte";
-    return h("div", { class: "ra-go" }, info);
+    return { info, link: null };
   }
-  const link = h("a", { class: "ra-btn ra-btn-secondary ra-go-btn", href: directionsUrl(dest), target: "_blank",
-    rel: "noopener", "aria-label": `Llevame a ${dest.name || "la sede"} con Google Maps` }, icon("llevar", 20), "Llevame");
+  const label = `Llevame a ${dest.name || "la sede"} con Google Maps`;
+  const link = h("a", { class: `ra-btn ra-btn-secondary ra-go-btn${iconOnly ? " ra-btn-icon" : ""}`, href: directionsUrl(dest), target: "_blank",
+    rel: "noopener", "aria-label": label, title: iconOnly ? "Llevame" : null }, icon("llevar", 20), iconOnly ? null : "Llevame");
   info.hidden = true; // sin ubicación no hay nada que decir: queda solo el botón
-  const el = h("div", { class: "ra-go" }, info, link);
   void (async () => {
     const here = await currentPosition();
     if (!here) return;
@@ -129,5 +140,5 @@ export function GoThere(dest, { start = null, eta = false } = {}) {
     text.textContent = parts.join(" · ");
     info.hidden = false;
   })();
-  return el;
+  return { info, link };
 }
