@@ -47,7 +47,7 @@ export function RecordButton(state, onClick) {
 const METER_SEGMENTS = 24;
 const METER_HOT = 0.75;   // desde acá conviene alejar el micrófono
 const METER_CLIP = 0.95;  // satura: se pierde audio
-const METER_SILENT = 0.05;
+export const METER_SILENT = 0.05;
 
 const meterZone = (x) => (x > METER_CLIP ? "clip" : x > METER_HOT ? "hot" : "ok");
 

@@ -25,7 +25,7 @@ import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
+import { Button, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -267,6 +267,8 @@ function fillFromTalk(form, talk) {
 }
 
 // --- grabación ---------------------------------------------------------------
+const SILENCE_WARN_MS = 8000;  // grabando sin sonido este rato → aviso visible
+
 async function viewRecord(id) {
   const s = await Sessions.get(id);
   if (!["recording", "uploading", "error"].includes(s.status) || s.blocks?.length) { location.hash = `#/s/${id}`; return; }
@@ -288,7 +290,7 @@ async function viewRecord(id) {
     h("div", {}, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), h("h1", { class: "title" }, s.title),
       resumed ? h("p", { class: "caption" }, "Retomás una grabación: lo nuevo se agrega a continuación.") : null),
     h("section", { class: "ra-input", "aria-label": "Entrada de audio" },
-      h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter),
+      h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter, silence),
     h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, upl, msg,
       h("div", { class: "actions" }, salaBtn, finishBtn),
       h("div", { class: "actions" }, Button("Descartar", { variant: "danger", onclick: discard })))));
@@ -302,7 +304,16 @@ async function viewRecord(id) {
   };
   rec.addEventListener("state", () => { paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
-  rec.addEventListener("level", (e) => meter.update(e.detail, rec.deviceLabel));
+  // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
+  const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
+    "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
+  let quietSince = null;
+  rec.addEventListener("level", (e) => {
+    meter.update(e.detail, rec.deviceLabel);
+    const quiet = rec.state === "recording" && e.detail < METER_SILENT;
+    quietSince = quiet ? (quietSince ?? performance.now()) : null;
+    silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
+  });
   rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, e.detail.message)); });
   const onUp = (e) => {
     const { pending, error } = e.detail;

@@ -98,4 +98,6 @@ async def voice_answer(request: Request):
     except Exception as e:  # noqa: BLE001 - falla del proveedor de STT: se informa sin cortar la entrevista
         log.warning("No se pudo transcribir la respuesta por voz: %s", e)
         raise HTTPException(502, "No pude pasar el audio a texto; probá de nuevo o escribilo.") from e
+    if not texto:  # solo silencio (o lo que Whisper inventa sobre el silencio)
+        raise HTTPException(422, "No se escuchó voz. Probá de nuevo más cerca del micrófono o escribilo.")
     return {"texto": texto}

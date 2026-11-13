@@ -282,6 +282,8 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .segmented input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
 .notice { background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); box-shadow: var(--edge); }
 .notice.err { background: var(--error-soft); color: var(--on-error-soft); box-shadow: none; }
+.notice.warn { background: var(--warning-soft); color: var(--on-warning-soft); box-shadow: none; }
+.notice[hidden] { display: none; }
 
 /* --- grabación ------------------------------------------------------------ */
 .recorder { display: flex; flex-direction: column; align-items: center; gap: var(--space-6); padding-top: var(--space-6); }

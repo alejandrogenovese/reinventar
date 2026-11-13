@@ -17,6 +17,8 @@ log = logging.getLogger("reinventar.pipeline")
 # las llamadas al STT y al LLM quedan a nombre de quien grabó (gasto por persona en el gateway).
 _q: "queue.Queue[tuple[str, sandbox.Sandbox | None, str | None]]" = queue.Queue()
 _started = False
+SIN_VOZ = ("No se escuchó voz en la grabación. Revisá que el medidor del micrófono se mueva mientras grabás "
+           "(con auriculares, el micrófono no oye lo que suena en el mismo equipo) y volvé a grabar.")
 SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
 
 
@@ -114,7 +116,7 @@ def _etapas(sid: str, s: dict):
             segs += stt.transcribe(path, offset)
             path.unlink(missing_ok=True)
         if not segs:
-            raise RuntimeError("La transcripción vino vacía: ¿se grabó audio?")
+            raise RuntimeError(SIN_VOZ)
         db.replace_blocks(sid, group_blocks(segs, config.BLOCK_SECONDS))
         blocks = db.get_blocks(sid)
 
