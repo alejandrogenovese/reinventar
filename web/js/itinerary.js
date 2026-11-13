@@ -251,6 +251,10 @@ function ItineraryItem(s, onChanged) {
   return card;
 }
 
+/** Entrada a «Tu re:Invent en números» (horas, choques, caminata y el catálogo en gráficos). */
+const NumerosLink = (href = "#/itinerario/numeros", text = "Tu semana en números") =>
+  h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href }, h("span", {}, text), icon("seguir", 16));
+
 export async function viewItinerario(view) {
   async function paint() {
     const data = await Itinerary.get();
@@ -262,7 +266,8 @@ export async function viewItinerario(view) {
           h("p", { class: "caption" }, "Te conocemos y armamos cada día charla por charla, o lo armamos rápido con un par de preguntas.")),
         h("div", { class: "actions" },
           Button("Armar itinerario", { variant: "primary", onclick: () => (location.hash = "#/itinerario/nuevo") }),
-          Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") }))));
+          Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
+        NumerosLink("#/itinerario/numeros?modo=catalogo", "El catálogo en números")));
       return;
     }
 
@@ -272,7 +277,7 @@ export async function viewItinerario(view) {
     const list = h("div", { class: "daylist" });
     const dayHeading = h("h2", { class: "sr-only" }); // título para el lector de pantalla: las pestañas no son encabezados
     view.append(h("div", { class: "stack-lg" },
-      h("h1", { class: "title" }, "Tu itinerario"),
+      h("div", { class: "ra-sec-head" }, h("h1", { class: "title" }, "Tu itinerario"), NumerosLink()),
       h("div", { class: "actions" },
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),

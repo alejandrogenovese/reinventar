@@ -86,7 +86,7 @@ def evaluar(fin_previa: int | None, inicio: int, viaje: int | None, reservada: b
     return Traslado(estado, hhmm(llegada), hhmm(salida), -holgura)
 
 
-def _viaje(a: dict | None, b: dict | None) -> travel.Viaje | None:
+def viaje_entre(a: dict | None, b: dict | None) -> travel.Viaje | None:
     """Minutos caminando entre dos lugares de tarjetas (charla, evento): por sede, o por coordenadas."""
     if not a or not b:
         return None
@@ -101,7 +101,7 @@ def _viaje(a: dict | None, b: dict | None) -> travel.Viaje | None:
 
 # ---------- afinidad ----------
 
-def _contiene(texto: str, frase: str) -> bool:
+def contiene(texto: str, frase: str) -> bool:
     """Frase entera, con o sin plural ("knowledge graph" está en "knowledge graphs"), pero no adentro de otra palabra
     ("AI" no está en "maintain")."""
     f = catalog.fold(frase).strip()
@@ -118,7 +118,7 @@ def _nivel(session: dict) -> int | None:
 def afinidad(session: dict, ficha: Ficha, busqueda: float = 0.0, pendiente: bool = False) -> tuple[float, list[str]]:
     """(puntaje, temas de la ficha que toca). Solo mira la charla: el traslado se descuenta aparte."""
     texto = catalog.fold(" ".join(str(session.get(k) or "") for k in _CAMPOS_TEXTO))
-    motivos = [p.tema for p in ficha.prioridades if any(_contiene(texto, c) for c in p.claves)]
+    motivos = [p.tema for p in ficha.prioridades if any(contiene(texto, c) for c in p.claves)]
     puntaje = PESO_BUSQUEDA * busqueda
     puntaje += sum(PESO_CLAVE * p.peso for p in ficha.prioridades if p.tema in motivos)
     nivel = _nivel(session)
@@ -129,7 +129,7 @@ def afinidad(session: dict, ficha: Ficha, busqueda: float = 0.0, pendiente: bool
     if session.get("type") in ficha.formatos:
         puntaje += PESO_FORMATO
     titulo_y_resumen = catalog.fold(f"{session.get('title') or ''} {session.get('abstract') or ''}")
-    if any(_contiene(titulo_y_resumen, e) for e in ficha.evitar):
+    if any(contiene(titulo_y_resumen, e) for e in ficha.evitar):
         puntaje -= PENALIDAD_EVITAR
     if pendiente:
         puntaje += BONO_PENDIENTE
@@ -214,7 +214,7 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
     card = {**catalog.card(session, inst), "kind": "talk"}
     card["end"] = itinerary._end(card)
     previa_lugar = (ctx.previa or {}).get("venue")
-    v = _viaje(previa_lugar, card.get("venue")) if ctx.previa else None
+    v = viaje_entre(previa_lugar, card.get("venue")) if ctx.previa else None
     t = evaluar(ctx.fin_previa, minutos(card["start"]), v.minutos if v else None, reservada=False)
     af, motivos = afinidad(session, ctx.ficha, ctx.busqueda.get(session["base"], 0.0),
                            session["base"] in ctx.pendientes)

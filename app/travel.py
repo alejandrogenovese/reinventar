@@ -14,9 +14,10 @@ METROS_POR_MIN = 75      # paso tranquilo (el mismo de web/js/location.js)
 RADIO_TIERRA_M = 6_371_000
 
 EXISTE_SQL = "SELECT to_regclass('reinvent.sede_tiempo') IS NOT NULL AS existe"
-LOAD_SQL = "SELECT id_origen, id_destino, minutos FROM reinvent.sede_tiempo"
+LOAD_SQL = "SELECT id_origen, id_destino, minutos, metros FROM reinvent.sede_tiempo"
 
 _minutos: dict[tuple[int, int], int] = {}
+_metros: dict[tuple[int, int], int] = {}
 
 
 @dataclass(frozen=True)
@@ -26,9 +27,10 @@ class Viaje:
 
 
 def load(rows) -> None:
-    """Reemplaza los tiempos medidos en memoria. rows: dicts con id_origen, id_destino y minutos."""
-    global _minutos
+    """Reemplaza los tiempos medidos en memoria. rows: dicts con id_origen, id_destino, minutos y (opcional) metros."""
+    global _minutos, _metros
     _minutos = {(r["id_origen"], r["id_destino"]): int(r["minutos"]) for r in rows}
+    _metros = {(r["id_origen"], r["id_destino"]): int(r["metros"]) for r in rows if r.get("metros") is not None}
 
 
 def metros(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -63,3 +65,17 @@ def viaje(origen: int | None, destino: int | None) -> Viaje | None:
     if a is None or b is None:
         return None
     return Viaje(estimar_minutos(a, b), estimado=True)
+
+
+def metros_caminando(origen: int | None, destino: int | None) -> int | None:
+    """Metros caminando de una sede a otra: el medido, o la línea recta con rodeo. 0 si es la misma sede; None si falta
+    alguna sede o no tiene coordenadas."""
+    if origen is None or destino is None:
+        return None
+    if origen == destino:
+        return 0
+    medido = _metros.get((origen, destino))
+    if medido is not None:
+        return medido
+    a, b = _coordenadas(origen), _coordenadas(destino)
+    return round(metros(a, b) * FACTOR_RODEO) if a and b else None

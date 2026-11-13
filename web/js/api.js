@@ -44,6 +44,11 @@ export const Catalog = {
   get: (base) => api(`/api/catalog/sessions/${base}`),
 };
 
+export const Numeros = {
+  catalogo: () => api("/api/numeros/catalogo"),
+  mio: () => api("/api/numeros/mio"),
+};
+
 export const Today = {
   get: () => api("/api/today"),
 };

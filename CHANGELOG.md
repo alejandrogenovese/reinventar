@@ -6,6 +6,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Tu re:Invent en números** (Itinerario › «Tu semana en números»). En *Mi semana*: cuántas charlas y keynotes
+  tenés, horas ocupadas, kilómetros caminando entre sedes, choques y cambios de sede a los que no llegás; tu semana en
+  franjas de 8 a 22 h con los choques en rojo y los «no llegás» marcados; la caminata por día; cuánto de tu agenda
+  cubre cada prioridad de tu ficha (y qué tema pediste y no agendaste); el nivel de lo agendado y cuánto grabaste. En
+  *Catálogo*: charlas por día (con las tuyas abajo), un mapa de calor día × hora con tus horarios marcados, y las
+  charlas por tipo, sede y tema. Tocar una columna, celda o barra abre Buscar con ese filtro.
+- **Buscar › Filtrar** suma la faceta «Hora de inicio» (ej. 13 h = empieza entre las 13:00 y las 13:59).
+- Las grabaciones nuevas guardan quién las grabó; las de antes quedan sin dueño y no cuentan en «cuánto grabaste».
 - **Anuncios sin reserva en Inicio.** Debajo de «Hoy», una fila que se desliza con el dedo (no se mueve sola) con
   las keynotes, el mainstage, los lanzamientos y los «What's new» a los que se entra por la cola, de los que quedan
   hoy (antes del evento y de noche, los del próximo día). Keynote y mainstage van en tarjeta oscura. Cada tarjeta

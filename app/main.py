@@ -29,6 +29,7 @@ from . import (
     itinerary_api,
     knowledge_api,
     my_events_api,
+    numeros_api,
     passkey_api,
     pg,
     pipeline,
@@ -96,6 +97,7 @@ app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(push_api.router)
+app.include_router(numeros_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)
@@ -138,11 +140,12 @@ def health():
     return {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
 
 
-@app.post("/api/sessions", dependencies=[Depends(auth)])
-def create_session(body: NewSession):
+@app.post("/api/sessions")
+def create_session(body: NewSession, username: str = Depends(auth)):
     if body.kind not in db.KINDS:
         raise HTTPException(422, f"kind debe ser uno de {db.KINDS}")
-    return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker)
+    return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker,
+                             created_by=username)
 
 
 @app.get("/api/sessions", dependencies=[Depends(auth)])
