@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
-from . import db, interview, stt
+from . import cuerpo, db, interview, stt
 from .auth import auth
 from .interview import Ficha, Respuestas
 from .llm_router import UsoSTT
@@ -89,11 +89,9 @@ def _transcribir(data: bytes, extension: str) -> str:
 @router.post("/api/itinerary/interview/voz")
 async def voice_answer(request: Request):
     """Audio de una respuesta → texto en castellano, para que la persona lo revise antes de guardarlo."""
-    data = await request.body()
+    data = await cuerpo.leer_con_tope(request, interview.MAX_VOZ_BYTES, "El audio es demasiado largo")
     if not data:
         raise HTTPException(422, "Audio vacío")
-    if len(data) > interview.MAX_VOZ_BYTES:
-        raise HTTPException(413, "El audio es demasiado largo")
     tipo = request.headers.get("content-type", "").split(";")[0].strip().lower()
     try:
         texto = await run_in_threadpool(_transcribir, data, _EXTENSIONES.get(tipo, ".webm"))

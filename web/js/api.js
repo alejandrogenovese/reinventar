@@ -19,6 +19,8 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
   const r = await fetch(path, { method, headers: h, body, signal });
   if (!r.ok) {
     let detail; try { detail = (await r.json()).detail; } catch { detail = r.statusText; }
+    // El servidor exige cambiar la contraseña temporal antes de usar el resto de la API.
+    if (r.status === 403 && detail === "must_change_password") { setMustChangePassword(true); location.hash = "#/password"; }
     throw new ApiError(r.status, detail);
   }
   return raw ? r : r.json();

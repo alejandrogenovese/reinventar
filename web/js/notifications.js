@@ -22,8 +22,11 @@ async function enable() {
   await Push.subscribe(subscription.toJSON());
 }
 
-async function disable() {
-  const { sub } = await currentSubscription();
+/** Da de baja las notificaciones de este dispositivo (también al cerrar sesión: que no le lleguen al próximo). */
+export async function disable() {
+  // getRegistration y no .ready: .ready no resuelve nunca si no hay service worker (y el logout quedaría colgado).
+  const reg = await navigator.serviceWorker?.getRegistration();
+  const sub = await reg?.pushManager?.getSubscription();
   if (!sub) return;
   await Push.unsubscribe(sub.endpoint).catch(() => {});
   await sub.unsubscribe();

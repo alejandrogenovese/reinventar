@@ -5,6 +5,18 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Seguridad
+- **Sesiones más seguras:** el token se guarda hasheado en la base (un backup no sirve para entrar como nadie) y la sesión vence después de 30 días sin usar la app. Las sesiones abiertas siguen valiendo.
+- **Login con límite de intentos:** después de 5 contraseñas mal en la misma cuenta, o de 20 desde el mismo lugar, hay que esperar 15 minutos. La respuesta tarda lo mismo exista o no el usuario.
+- **La contraseña temporal se tiene que cambiar sí o sí:** hasta cambiarla, el servidor no deja usar nada más (antes lo controlaba solo la app).
+- **Face ID / huella:** para agregar una passkey hay que haber entrado con la contraseña hace menos de 15 minutos. Al cambiar la contraseña, o si el admin la resetea, revoca las sesiones o desactiva al usuario, se borran sus passkeys y dejan de llegarle notificaciones.
+- **Al cerrar sesión,** ese celular deja de recibir los avisos del usuario.
+- **El mapa del itinerario** ya no arma HTML con títulos de eventos externos (podían ejecutar código).
+- **Subidas con tope real:** el audio de las grabaciones, la voz de la entrevista y el `.ics` se cortan apenas pasan el máximo, sin cargarlos enteros en memoria; "Terminar" valida las partes de la grabación. Subir pedazos de audio ya no frena al resto de la app.
+- **Cabeceras de seguridad** en todas las respuestas (CSP, no se puede embeber en otro sitio, HSTS).
+- **Notificaciones:** solo se aceptan suscripciones de los servicios de push de los navegadores.
+- **Google Places** puede usar una key propia del servidor (`GOOGLE_PLACES_SERVER_KEY`), separada de la que ve el navegador.
+
 ### Agregado
 - **Buscar en lo que grabaste**: en Inicio, arriba de tus grabaciones, un buscador que encuentra el momento de cada
   charla donde se habló de algo ("¿qué dijeron de Neptune?", "migrar Teradata"), por significado y por palabras, en

@@ -2,11 +2,11 @@
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import config, db, passwords, sandbox, venues
-from .auth import auth, bearer, is_admin
+from . import config, db, limites, passwords, passkeys_db, sandbox, venues
+from .auth import auth_pendiente, bearer, is_admin
 
 router = APIRouter()
 
@@ -38,11 +38,28 @@ def issue_session(user: dict) -> dict:
     return {"token": token, **_session_info(user)}
 
 
+# Hash de relleno: si el usuario no existe se verifica igual contra esto, así la respuesta tarda lo mismo y no se
+# puede saber por el tiempo qué usuarios existen.
+_SALT_RELLENO, _HASH_RELLENO = passwords.hash_password(secrets.token_hex(16))
+
+
+def ip_cliente(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
 @router.post("/api/login")
-def login(body: Login):
+def login(body: Login, request: Request):
+    username, ip = body.username.strip().lower(), ip_cliente(request)
+    if limites.fallos_usuario.excedido(username) or limites.fallos_ip.excedido(ip):
+        raise limites.demasiados_intentos()
     user = db.get_user(body.username.strip())
-    if not user or not user["is_active"] or not passwords.verify_password(body.password, user["salt"], user["password_hash"]):
+    salt, password_hash = (user["salt"], user["password_hash"]) if user else (_SALT_RELLENO, _HASH_RELLENO)
+    valida = passwords.verify_password(body.password, salt, password_hash)
+    if not user or not user["is_active"] or not valida:
+        limites.fallos_usuario.sumar(username)
+        limites.fallos_ip.sumar(ip)
         raise HTTPException(401, "Usuario o contraseña inválidos")
+    limites.fallos_usuario.limpiar(username)
     return issue_session(user)
 
 
@@ -55,12 +72,13 @@ def logout(authorization: Optional[str] = Header(None)):
 
 
 @router.get("/api/me")
-def me(username: str = Depends(auth)):
+def me(username: str = Depends(auth_pendiente)):
     return {"ok": True, **_session_info(db.get_user(username))}
 
 
 @router.post("/api/password")
-def change_password(body: PasswordChange, username: str = Depends(auth), authorization: Optional[str] = Header(None)):
+def change_password(body: PasswordChange, username: str = Depends(auth_pendiente),
+                    authorization: Optional[str] = Header(None)):
     user = db.get_user(username)
     if not passwords.verify_password(body.current_password, user["salt"], user["password_hash"]):
         raise HTTPException(400, "La contraseña actual no es correcta")
@@ -69,4 +87,5 @@ def change_password(body: PasswordChange, username: str = Depends(auth), authori
     salt, password_hash = passwords.hash_password(body.new_password)
     db.set_password(username, salt, password_hash, must_change_password=False)
     db.revoke_tokens(username, except_token=bearer(authorization))  # cierra la sesión en los otros celulares
+    passkeys_db.delete_all(username)  # una passkey agregada por quien tenía la contraseña vieja no sobrevive
     return {"ok": True}

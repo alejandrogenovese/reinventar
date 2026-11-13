@@ -52,6 +52,7 @@ SUMMARY_MODEL = _env("SUMMARY_MODEL", "claude-opus-5-5")
 TARGET_LANGUAGE = _env("TARGET_LANGUAGE", "castellano rioplatense (Argentina)")
 
 # Límites.
+CSP_MODO = _env("CSP_MODO", "enforce")  # enforce | report | off (ver app/cabeceras.py)
 MAX_CHUNK_BYTES = int(_env("MAX_CHUNK_BYTES", str(5 * 1024 * 1024)))
 TRANSLATE_BATCH = int(_env("TRANSLATE_BATCH", "60"))  # bloques por llamada (~15 min de charla)
 BLOCK_SECONDS = float(_env("BLOCK_SECONDS", "15"))  # largo objetivo de cada bloque de lectura (estilo subtítulos)
@@ -75,7 +76,10 @@ EMBED_BATCH = int(_env("EMBED_BATCH", "8"))  # lotes chicos: menos pico de memor
 EMBED_THREADS = int(_env("EMBED_THREADS", "2"))  # hilos de ONNX: cada hilo suma memoria
 
 # Mapa de venues: key de Google Maps JavaScript API (restringida por dominio en Google Cloud Console).
-GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")
+GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")  # la del navegador (Maps JavaScript API, restringida por sitio)
+# Key solo para el servidor (Places API New, restringida por API y sin exponerse al navegador). Si falta, Places usa la
+# del navegador fingiendo el Referer, como antes: funciona, pero quien vea la key del navegador puede usar Places.
+GOOGLE_PLACES_SERVER_KEY = _env("GOOGLE_PLACES_SERVER_KEY")
 
 # Web Push (notificaciones con la app cerrada): generar las claves con `python -m app.push`.
 VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")

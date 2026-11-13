@@ -1,8 +1,11 @@
 """API de ReinventAR + hosting de la PWA."""
+import itertools
 import logging
 import shutil
 from contextlib import asynccontextmanager
 from typing import Optional
+
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
@@ -10,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import (__version__, admin_api, audio, auth_api, catalog, config, db, events, events_api, fragmentos, guided_api, interview_api,
+from . import (__version__, admin_api, audio, auth_api, cabeceras, catalog, config, cuerpo, db, events, events_api, fragmentos, guided_api, interview_api,
                itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
 from .auth import auth, bearer, context_for_token
 from .llm_router import como_usuario
@@ -58,6 +61,7 @@ class SandboxMiddleware:
 
 app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
 app.add_middleware(SandboxMiddleware)
+app.add_middleware(cabeceras.CabecerasMiddleware)
 app.add_middleware(WwwRedirectMiddleware)  # el último que se agrega corre primero: www. redirige antes que nada
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
@@ -92,9 +96,18 @@ class NewSession(BaseModel):
     speaker: Optional[str] = Field(None, max_length=200)
 
 
+# Topes de una grabación: parte = tramo entre pausas o cambios de micrófono; pedazo = 10 s de audio
+# (TIMESLICE_MS en web/js/recorder.js), así que 100.000 pedazos son más de 270 horas.
+MAX_PARTES = 1000
+MAX_PEDAZOS = 100_000
+MAX_PARTES_POR_GRABACION = 200
+MAX_FALTANTES_INFORMADOS = 1000  # por parte: la PWA solo muestra la cantidad y vuelve a subir lo que tenga
+
+
 class Finish(BaseModel):
     # {"0": 132, "1": 7}: cantidad de pedazos que la PWA generó en cada parte.
-    parts: dict[str, int]
+    parts: dict[Annotated[int, Field(ge=0, lt=MAX_PARTES)], Annotated[int, Field(ge=0, le=MAX_PEDAZOS)]] = Field(
+        max_length=MAX_PARTES_POR_GRABACION)
 
 
 @app.get("/health")
@@ -130,19 +143,22 @@ def get_session(sid: str):
 
 @app.put("/api/sessions/{sid}/chunks/{part}/{seq}", dependencies=[Depends(auth)])
 async def put_chunk(sid: str, part: int, seq: int, request: Request):
+    if not (0 <= part < MAX_PARTES and 0 <= seq < MAX_PEDAZOS):
+        raise HTTPException(422, "part/seq fuera de rango")
+    data = await cuerpo.leer_con_tope(request, config.MAX_CHUNK_BYTES, "Pedazo demasiado grande")
+    if not data:
+        raise HTTPException(422, "Pedazo vacío")
+    # Base y disco en el threadpool: en el event loop frenarían todos los demás pedidos (hay un solo worker).
+    return await run_in_threadpool(_guardar_pedazo, sid, part, seq, data)
+
+
+def _guardar_pedazo(sid: str, part: int, seq: int, data: bytes) -> dict:
     s = _session_or_404(sid)
     if s["status"] not in ("recording", "uploading", "error"):
         # Ya se está procesando: un pedazo tardío solo se acepta si ya lo teníamos (reintento idempotente).
         if seq in db.chunk_index(sid).get(part, set()):
             return {"ok": True, "duplicate": True}
         raise HTTPException(409, "La sesión ya se cerró")
-    if not (0 <= part < 1000 and 0 <= seq < 1_000_000):
-        raise HTTPException(422, "part/seq fuera de rango")
-    data = await request.body()
-    if not data:
-        raise HTTPException(422, "Pedazo vacío")
-    if len(data) > config.MAX_CHUNK_BYTES:
-        raise HTTPException(413, "Pedazo demasiado grande")
     path = audio.chunk_path(sid, part, seq)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -158,7 +174,8 @@ def finish(sid: str, body: Finish):
     if s["status"] in db.PROCESSING or s["status"] == "ready":
         return s
     have = db.chunk_index(sid)
-    missing = {p: [q for q in range(n) if q not in have.get(int(p), set())] for p, n in body.parts.items()}
+    missing = {p: list(itertools.islice((q for q in range(n) if q not in have.get(p, set())), MAX_FALTANTES_INFORMADOS))
+               for p, n in body.parts.items()}
     missing = {p: m for p, m in missing.items() if m}
     db.update_session(sid, expected_parts=body.parts)
     if missing:

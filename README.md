@@ -96,6 +96,8 @@ Con micrófono simulado en Chrome: `--use-fake-device-for-media-stream --use-fak
    `BOOTSTRAP_USERS` crea al arrancar los usuarios que todavía no existen (no pisa contraseñas); usalo solo para el primer admin. El resto de los usuarios se da de alta desde la app (ver [Usuarios](#usuarios)). Las demás variables tienen defaults (ver `.env.example`).
 
    Para `GOOGLE_MAPS_API_KEY`: en [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) activá la *Maps JavaScript API*, creá una API key y restringila por *HTTP referrer* a tu dominio de Railway (p. ej. `https://tu-dominio.up.railway.app/*`) para que nadie más la pueda usar aunque la vea en el código del navegador. Sin esta variable el itinerario funciona igual, pero sin mapa.
+
+   **Key aparte para el servidor (`GOOGLE_PLACES_SERVER_KEY`):** el autocompletado de lugares (Places API New) corre en el servidor. Creá una segunda API key **restringida solo a Places API (New)**, sin restricción por sitio, y cargala en esa variable. La de `GOOGLE_MAPS_API_KEY` se ve en el navegador: si también tuviera Places habilitado, cualquiera que la viera podría usar Places a tu costo. Mientras no exista la key del servidor, la app sigue usando la del navegador (como antes).
 4. **Healthcheck**: *Settings → Deploy → Healthcheck Path* = `/health`.
 5. **Dominio**: *Settings → Networking → Generate Domain* (o `railway domain`). Hace falta HTTPS para que el celular habilite el micrófono y el service worker.
 6. **Celular**: abrí el dominio en Chrome, ingresá con tu usuario y contraseña → *Agregar a pantalla principal*. Cada persona (Mariana, Marcos, Ale) tiene su propio login y su propio itinerario; las grabaciones de audio se comparten entre todos.
@@ -127,6 +129,7 @@ No hay `railway.toml` a propósito: Railway marcó Config as Code como deprecado
 | `ASK_MODEL` | `claude-sonnet-5-5` | `claude-haiku-5-5` para abaratar el chat de búsqueda |
 | `EMBED_PROVIDER` | `local` (modelo dentro del contenedor, sin API key) | `off` (solo búsqueda por palabras), `fake` |
 | `EMBED_MODEL` | `google/embeddinggemma-300m-q4` (versión de 4 bits: ~0,4 GB de RAM) | `google/embeddinggemma-300m` (el original: casi igual, el triple de RAM) u otro modelo de fastembed (se recalculan todos los vectores; los prefijos de consulta y documento van en `PREFIJOS` de `app/embeddings.py`). Volver a `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` es instantáneo: sus vectores quedan guardados |
+| `CSP_MODO` | `enforce` | `report` (la política de seguridad de contenido solo avisa, no bloquea: para destrabar sin deploy si algo de Google Maps se rompe), `off` |
 | `EMBED_THREADS` / `EMBED_BATCH` | `2` / `8` | más hilos o lotes más grandes: algo más rápido el primer cálculo, bastante más RAM |
 
 ### Gateway de LLM (LiteLLM + Langfuse)

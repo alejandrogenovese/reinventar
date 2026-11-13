@@ -33,7 +33,23 @@ def _drop_test_schema():
 
 
 def login_headers(client, username=TEST_USER, password=TEST_PASSWORD):
-    """Loguea contra /api/login con el TestClient ya abierto (lifespan corrido) y arma el header Authorization."""
+    """Loguea contra /api/login con el TestClient ya abierto (lifespan corrido) y arma el header Authorization.
+    Los usuarios de BOOTSTRAP_USERS nacen con contraseña temporal y el servidor exige cambiarla: acá se da por
+    cambiada (misma contraseña), salvo en los tests que prueban justamente eso."""
     r = client.post("/api/login", json={"username": username, "password": password})
     assert r.status_code == 200, r.text
+    if r.json()["must_change_password"]:
+        from app import db, passwords
+
+        salt, password_hash = passwords.hash_password(password)
+        db.set_password(username, salt, password_hash, must_change_password=False)
     return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+@pytest.fixture(autouse=True)
+def _sin_intentos_acumulados():
+    """El límite de intentos de login vive en memoria: cada test arranca de cero."""
+    from app import limites
+
+    limites.reiniciar_todo()
+    yield
