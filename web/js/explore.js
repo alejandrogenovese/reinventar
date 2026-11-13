@@ -58,7 +58,7 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 
 // --- piezas ------------------------------------------------------------------
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); }
+  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); return false; }
 };
 const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
 
