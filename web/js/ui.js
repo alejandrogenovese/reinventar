@@ -1,4 +1,6 @@
 // Helpers de DOM y los componentes del design system (misma markup que el bundle de React).
+import { icon } from "./icons.js";
+
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -118,6 +120,16 @@ export function withUndo(msg, { apply, commit, undo }) {
   toast(msg, { action: { label: "Deshacer", onClick: () => { undone = true; clearTimeout(timer); undo(); } } });
 }
 
+/** Ícono + texto en línea (ej. ubicación · 350 m). El ícono es decorativo: el texto dice todo. */
+export const IconText = (name, text, { className = "ra-icotext", size = 16 } = {}) =>
+  h("span", { class: className }, icon(name, size), h("span", {}, text));
+
+const HINT_ICON = { warn: "caminar", info: "reloj", error: "alerta" };
+
+/** Aviso dentro de una tarjeta: fila tintada con ícono (no una tarjeta anidada). tone: warn | info | error. */
+export const Hint = (text, { tone = "info", iconName = HINT_ICON[tone] } = {}) =>
+  h("p", { class: `ra-hint is-${tone}` }, icon(iconName, 16), h("span", {}, text));
+
 /** Etiqueta informativa (no se toca); los filtros que sí se tocan son `button.ra-chip`. */
 export const Tag = (text) => h("span", { class: "ra-tag" }, text);
 
@@ -128,13 +140,14 @@ export const Skeleton = (cards = 3) => h("div", { class: "ra-skeleton", "aria-bu
 
 const CODE = /\[([A-Z0-9][A-Z0-9-]{2,19})\]/g;
 
-/** Texto con [CODIGO] → links a la ficha de la charla; solo para códigos de `valid` (los demás quedan como texto). */
-export function withCodeLinks(text, valid) {
+/** Texto con [CODIGO] → links a la ficha de la charla; solo para códigos de `valid` (los demás quedan como texto).
+ *  className cambia cómo se ve el link (el chat usa "ra-cite": pastilla mono). */
+export function withCodeLinks(text, valid, { className = "ra-link" } = {}) {
   const parts = [];
   let last = 0;
   for (const m of text.matchAll(CODE)) {
     parts.push(text.slice(last, m.index));
-    parts.push(valid.has(m[1]) ? h("a", { class: "ra-link", href: `#/charla/${m[1]}` }, m[1]) : m[0]);
+    parts.push(valid.has(m[1]) ? h("a", { class: className, href: `#/charla/${m[1]}` }, m[1]) : m[0]);
     last = m.index + m[0].length;
   }
   parts.push(text.slice(last));

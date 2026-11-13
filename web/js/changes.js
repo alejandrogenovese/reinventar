@@ -1,6 +1,7 @@
 // Avisos de cambios sobre lo que tenés en el itinerario (AWS movió una charla, cambió el horario, la dio de baja,
 // un evento se llenó). Se muestran en una franja arriba hasta que tocás "Entendido".
 import { Itinerary, getToken } from "./api.js";
+import { icon } from "./icons.js";
 import { Button, h, toast } from "./ui.js";
 
 const REFRESH_MS = 60_000;
@@ -15,7 +16,8 @@ function paint() {
   const first = pending[0];
   const more = pending.length > 1 ? ` (y ${pending.length - 1} aviso${pending.length > 2 ? "s" : ""} más)` : "";
   bar.replaceChildren(
-    h("p", {}, `⚠ ${first.messages.join(" ")}${more}`),
+    icon("alerta", 20),
+    h("p", {}, `${first.messages.join(" ")}${more}`),
     Button("Entendido", { onclick: async () => {
       try { ({ changes: pending } = await Itinerary.ackChanges([first.code])); paint(); } catch (err) { toast(err.message); }
     } }));

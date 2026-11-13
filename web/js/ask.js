@@ -3,6 +3,7 @@
 import { Itinerary, Knowledge } from "./api.js";
 import { MomentCard, momentHash } from "./grabado.js";
 import { SessionMiniCard } from "./itinerary.js";
+import { icon } from "./icons.js";
 import { Button, h, hms, toast, withCodeLinks } from "./ui.js";
 
 const MAX_QUESTION = 500;
@@ -23,17 +24,21 @@ const addToItinerary = (code) => async () => {
 
 const MOMENT_REF = /\[(G\d{1,2})\]/g;
 
-/** Texto con links: [G1] → al minuto de la grabación (si vino citado) y [ARC407] → a la ficha de la charla. */
+const CITE = { className: "ra-cite" };
+
+/** Texto con citas: [G1] → pastilla naranja ▶ al minuto de la grabación (si vino citado) y [ARC407] → pastilla gris
+ *  a la ficha de la charla. Las dos en mono, como los demás datos. */
 function withLinks(text, cited, moments) {
   const parts = [];
   let last = 0;
   for (const m of text.matchAll(MOMENT_REF)) {
-    parts.push(...withCodeLinks(text.slice(last, m.index), cited));
+    parts.push(...withCodeLinks(text.slice(last, m.index), cited, CITE));
     const moment = moments.get(m[1]);
-    parts.push(moment ? h("a", { class: "ra-link ra-moment-ref", href: momentHash(moment.session_id, moment.start_s), title: moment.title }, `▶ ${hms(moment.start_s)}`) : "");
+    parts.push(moment ? h("a", { class: "ra-cite ra-moment-ref", href: momentHash(moment.session_id, moment.start_s),
+      title: moment.title, "aria-label": `Ir al momento ${hms(moment.start_s)} de ${moment.title}` }, icon("reproducir", 14), hms(moment.start_s)) : "");
     last = m.index + m[0].length;
   }
-  parts.push(...withCodeLinks(text.slice(last), cited));
+  parts.push(...withCodeLinks(text.slice(last), cited, CITE));
   return parts;
 }
 
@@ -43,9 +48,9 @@ function Answer(text, citedList, momentList = []) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const bullets = lines.filter((l) => l.startsWith("- "));
   const paragraphs = lines.filter((l) => !l.startsWith("- "));
-  return h("div", { class: "stack" },
+  return h("div", { class: "ra-answer" },
     paragraphs.map((l) => h("p", {}, withLinks(l, cited, moments))),
-    bullets.length ? h("ul", { class: "ra-people" }, bullets.map((l) => h("li", {}, withLinks(l.slice(2), cited, moments)))) : null);
+    bullets.length ? h("ul", {}, bullets.map((l) => h("li", {}, withLinks(l.slice(2), cited, moments)))) : null);
 }
 
 function Exchange({ q, result }) {
@@ -54,9 +59,9 @@ function Exchange({ q, result }) {
   const others = result.sessions.filter((s) => !cited.has(s.base));
   const cards = (rows) => h("div", { class: "daylist" }, rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
   return h("section", { class: "stack ra-ask-turn" },
-    h("h2", { class: "label" }, q),
-    h("div", { class: "notice" }, Answer(result.answer, result.cited, result.momentos)),
-    result.momentos?.length ? h("div", { class: "stack" }, h("h3", { class: "label" }, "Lo que se dijo en tus grabaciones"),
+    h("h2", { class: "ra-ask-q" }, q),
+    Answer(result.answer, result.cited, result.momentos),
+    result.momentos?.length ? h("div", { class: "stack" }, h("h3", { class: "ra-group-label" }, `En tus grabaciones · ${result.momentos.length}`),
       h("div", { class: "ra-hits" }, result.momentos.map(MomentCard))) : null,
     citedCards.length ? cards(citedCards) : null,
     others.length ? h("details", { class: "notice" }, h("summary", { class: "label" }, `Otras que pueden servirte (${others.length})`), cards(others)) : null);

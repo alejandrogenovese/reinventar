@@ -4,7 +4,8 @@ import { refreshCountdown } from "./countdown.js";
 import { EventCard } from "./events.js";
 import { shortDay } from "./itinerary.js";
 import { sandboxNow } from "./sandbox.js";
-import { Button, Skeleton, Tag, h, toast } from "./ui.js";
+import { icon } from "./icons.js";
+import { Button, Hint, IconText, Skeleton, Tag, h, toast } from "./ui.js";
 
 const PAUSA_MIN = 60;                                    // "Hacer una pausa": la próxima, una hora después
 const OBJETIVO_POR_DIA = { "3-4": 4, "5-6": 6, todas: 12 }; // "Completá por mí" llena hasta esto
@@ -13,9 +14,9 @@ const NOCHE = "17:00";      // al cerrar el día: eventos de networking desde es
 const MAX_NOCHE = 4;
 const MAX_PERSONAS = 5;     // "Personas para conocer" al cerrar el día
 const LLEGABLES = ["a_tiempo", "justo"];
-const ESTADOS = {
-  a_tiempo: ["🟢", "a tiempo"], justo: ["🟡", "justo"], salir_antes: ["🟠", "salí antes"], se_superpone: ["🔴", "se superpone"],
-};
+// Semáforo del traslado: un punto del color del estado y la palabra, que es la que informa.
+const ESTADOS = { a_tiempo: "a tiempo", justo: "justo", salir_antes: "salí antes", se_superpone: "se superpone" };
+const AVISO_TONO = { justo: "warn", salir_antes: "warn", se_superpone: "error" };
 
 const toMin = (t) => { const [hh, mm] = t.split(":").map(Number); return hh * 60 + mm; };
 const hhmm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -31,7 +32,7 @@ function aviso(o, previa) {
   const anterior = previa ? `«${previa.title}»` : "la anterior";
   switch (o.estado) {
     case "justo": return `Llegás justo para la cola de las ${o.llegada}, sin margen.`;
-    case "salir_antes": return `⚠ Empieza mientras estás en ${anterior}. Si te vas ${o.salir_antes_min} min antes (${o.salir_a}), llegás a la cola de las ${o.llegada}.`;
+    case "salir_antes": return `Empieza mientras estás en ${anterior}. Si te vas ${o.salir_antes_min} min antes (${o.salir_a}), llegás a la cola de las ${o.llegada}.`;
     case "se_superpone": return `Ojo: para llegar tenés que salir a las ${o.salir_a}, así que se superpone ${o.salir_antes_min} min con ${anterior}. Si te interesa más, cambiala.`;
     default: return `Sin reserva: hacé la cola desde las ${o.llegada}.`;
   }
@@ -39,18 +40,18 @@ function aviso(o, previa) {
 
 function OptionCard(o, previa, { onChoose, onLater }) {
   const c = o.card;
-  const [icono, estado] = ESTADOS[o.estado] || ["", o.estado];
+  const estado = ESTADOS[o.estado] || o.estado;
   return h("article", { class: `ra-option is-${o.estado}` },
     h("div", { class: "ra-option-head" },
       h("span", { class: "ra-option-time" }, c.start),
       h("span", { class: "ra-kind" }, [c.type, c.level ? `L${c.level}` : null].filter(Boolean).join(" · ")),
-      previa ? h("span", { class: "ra-option-state" }, `${icono} ${estado}`) : null),
+      previa ? h("span", { class: `ra-option-state is-${o.estado}` }, h("span", { class: "ra-state-dot", "aria-hidden": "true" }), estado) : null),
     h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${c.base}` }, c.title)),
-    h("p", { class: "caption" }, ["📍", c.venue?.hotel, viaje(o)].filter(Boolean).join(" ")),
+    c.venue?.hotel || viaje(o) ? h("p", { class: "caption" }, IconText("ubicacion", [c.venue?.hotel, viaje(o)].filter(Boolean).join(" · "))) : null,
     o.pendiente ? h("p", { class: "ra-pending-tag" }, `☆ La marcaste el ${shortDay(o.pendiente)}`) : null,
-    o.motivos?.length ? h("div", { class: "ra-chips" }, o.motivos.map((m) => Tag(`🎯 ${m}`))) : null,
+    o.motivos?.length ? h("div", { class: "ra-chips" }, o.motivos.map((m) => Tag(m))) : null,
     o.razon ? h("p", { class: "ra-reason" }, `“${o.razon}”`) : null,
-    h("p", { class: o.estado === "se_superpone" ? "notice err" : "notice" }, aviso(o, previa)),
+    Hint(aviso(o, previa), { tone: AVISO_TONO[o.estado] || "info" }),
     h("div", { class: "actions" },
       Button("Elegir", { variant: o.estado === "se_superpone" ? "secondary" : "primary", onclick: (e) => { e.target.disabled = true; onChoose(o); } }),
       Button("☆ Para otro día", { variant: "ghost", onclick: () => onLater(o) })));
@@ -75,14 +76,14 @@ function PeopleToMeet(items) {
 /** Lo que ya elegiste ese día, con la marca de reservada (cambia la cola) y quitar. */
 function ChosenRow(s, onChanged) {
   const fin = s.salir_antes && s.end ? hhmm(toMin(s.end) - s.salir_antes) : s.end;
-  const booked = Button(s.reservada ? "✓ Reservada" : "Marcar reservada", {
+  const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Marcar reservada", {
     variant: "ghost", "aria-pressed": String(Boolean(s.reservada)),
     title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 30 min antes",
     onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(err.message)) });
   return h("li", { class: "ra-chosen" },
     h("span", { class: "ra-chosen-time" }, `${s.start}–${fin || "?"}`),
     h("span", { class: "ra-chosen-body" },
-      h("strong", {}, s.kind === "mine" ? `📌 ${s.title}` : s.title),
+      h("strong", {}, s.kind === "mine" ? IconText("fijar", s.title) : s.title),
       h("span", { class: "caption" }, [s.venue?.hotel, s.salir_antes ? `salís ${fin} (antes de que termine)` : null].filter(Boolean).join(" · "))),
     h("span", { class: "ra-chosen-actions" },
       s.kind === "talk" ? booked : null,
@@ -97,7 +98,7 @@ function PendingList(pendientes, onChanged) {
       h("a", { class: "ra-link", href: `#/charla/${p.base}` }, p.title),
       h("span", { class: "caption" }, ` · la marcaste el ${shortDay(p.dia_marcada)} · `,
         p.horarios.filter((x) => x.day > p.dia_marcada).map((x) => `${shortDay(x.day)} ${x.start}`).join(", ") || "no se repite"),
-      " ", Button("✕", { variant: "ghost", "aria-label": `Sacar ${p.title} de pendientes`,
+      " ", Button(icon("cerrar", 18), { variant: "ghost", "aria-label": `Sacar ${p.title} de pendientes`,
         onclick: () => Guided.removePending(p.base).then(onChanged).catch((err) => toast(err.message)) })))));
 }
 
@@ -149,7 +150,7 @@ export async function viewArmar(view) {
       : state.desde ? `¿Qué hacés desde las ${state.desde}?` : `¿Con qué arrancás el ${shortDay(state.day)}?`;
     const desde = !previa ? h("label", { class: "caption" }, "Arrancar más tarde: ",
       h("input", { type: "time", value: state.desde || "", onchange: (e) => { state.desde = e.target.value || null; void paint(); } })) : null;
-    const pausa = { almuerzo: "🥪 Es la hora del almuerzo: podés hacer una pausa.", libre: "☕ Hay un hueco largo hasta la próxima: buen momento para una pausa o la expo." }[r.pausa];
+    const pausa = { almuerzo: "Es la hora del almuerzo: podés hacer una pausa.", libre: "Hay un hueco largo hasta la próxima: buen momento para una pausa o la expo." }[r.pausa];
     // h() aplana listas y descarta null; replaceChildren no (los pintaría como texto).
     next.replaceChildren(h("div", { class: "stack" },
       h("h2", { class: "subtitle" }, titulo), desde,

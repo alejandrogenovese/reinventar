@@ -1,6 +1,7 @@
 // Cuenta → Admin → LLM: costo, demora, errores y scores de los últimos 7 días, leídos de Langfuse por el servidor
 // (/api/admin/llm, con cache de 5 minutos). Barras y números con h() y los tokens de la app, sin librerías.
 import { api } from "./api.js";
+import { icon } from "./icons.js";
 import { Button, h } from "./ui.js";
 
 const SCORE_LABEL = {
@@ -81,7 +82,7 @@ function Scores(scores) {
 }
 
 const LangfuseLink = (url) => (url
-  ? h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, "Abrir en Langfuse ↗")
+  ? h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, "Abrir en Langfuse", icon("externo", 16))
   : null);
 
 function Dashboard(d) {
