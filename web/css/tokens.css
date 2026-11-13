@@ -42,6 +42,10 @@
     --brand-ink: #a84308;     /* classic action · 6,0:1 sobre blanco, 5,1:1 sobre --brand-soft */
     --brand-soft: #ffe8d9;    /* fondo de "ahora", momentos y lo resaltado */
     --accent-on-ink: #fa6400; /* acción sobre fondo --ink (toast): 5,4:1 */
+    /* Banner de anuncios (keynote y mainstage en Inicio): fondo oscuro también en claro */
+    --hero: #1a1a1a;
+    --on-hero: #f4f4f4;           /* 16,0:1 */
+    --on-hero-muted: #bdbdbd;     /* 9,5:1 */
 
     /* Estados de Brick. Cada uno con su tinte (-soft) y el texto que va encima (--on-*-soft, ≥ 4,5:1). */
     --success: #1f7a1f;
@@ -128,6 +132,9 @@
     --brand-ink: #ff9a57;     /* 8,2:1 sobre --surface-1, 7,1:1 sobre --brand-soft */
     --brand-soft: #3a2210;
     --accent-on-ink: #a84308; /* el toast es claro en oscuro: 5,4:1 (el naranja daba 2,8:1) */
+    --hero: #2a1a0e;              /* marrón de marca: se distingue de las tarjetas grises */
+    --on-hero: #f2f2f2;           /* 15,0:1 */
+    --on-hero-muted: #c9b5a6;     /* 8,9:1 */
     --success: #5cc45c;
     --success-soft: #16301a;
     --on-success-soft: #7fd67f;   /* 8,0:1 */

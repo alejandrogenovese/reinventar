@@ -23,6 +23,7 @@ _LABELS = {
     "enfoque": "Enfoque (novedades, arquitectura, caso de cliente, práctica guiada…)",
     "tipo": "Tipo de sesión", "nivel": "Nivel (100 introductorio … 500 experto)", "lanzamiento": "Es un lanzamiento nuevo",
     "dia": "Día", "sede": "Sede (hotel)",
+    "anuncio": "Anuncio sin reserva: keynote, mainstage, lanzamiento o novedades a los que se entra por la cola",
 }
 
 

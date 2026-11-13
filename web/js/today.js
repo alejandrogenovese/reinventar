@@ -10,7 +10,7 @@ const LATER_LIMIT = 4;
 const dayLabel = (iso) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "short" });
 
-const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
+export const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
 
 /** Crea la sesión de grabación con los datos de la charla y abre el grabador. */
 export async function recordTalk(s, btn) {
@@ -33,7 +33,7 @@ const itemLabel = (s) => (KIND_ICON[s.kind] ? IconText(...KIND_ICON[s.kind]) : h
 const itemTitle = (s) => (KIND_ICON[s.kind] ? [icon(KIND_ICON[s.kind][0], 16), h("span", {}, s.title)] : s.title);
 
 /** Acción de la charla: si ya hay una grabación con ese código, abrirla; si no, grabar. */
-function TalkAction(s, recorded, variant) {
+export function TalkAction(s, recorded, variant) {
   if (s.kind === "mine") return s.note ? h("p", { class: "caption" }, s.note) : null;
   if (s.kind === "event") return Button("Ver evento", { variant, onclick: () => (location.hash = `#/evento/${encodeURIComponent(s.code)}`) });
   const mine = recorded.get(s.code);
@@ -46,7 +46,7 @@ function TalkAction(s, recorded, variant) {
   return btn;
 }
 
-const destination = (s) => (s.venue?.lat != null
+export const destination = (s) => (s.venue?.lat != null
   ? { lat: s.venue.lat, lng: s.venue.lng, name: s.venue.hotel, placeId: s.venue.place_id, approx: s.venue.exact === false } : null);
 
 // "Ahora" es un estado con punto (y la tarjeta lleva borde de marca); "Después"/"Próxima", texto de marca con la
