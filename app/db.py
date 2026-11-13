@@ -129,6 +129,14 @@ CREATE TABLE IF NOT EXISTS reporte_lleno (
   creado DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (code, username)
 );
+-- 👍/👎 de cada persona sobre el resumen de una grabación (app/voto_resumen_api.py): uno por persona, se pisa si cambia.
+CREATE TABLE IF NOT EXISTS voto_resumen (
+  session_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  util BOOLEAN NOT NULL,
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (session_id, username)
+);
 CREATE TABLE IF NOT EXISTS preferencias_avisos (
   username TEXT PRIMARY KEY,
   grabar BOOLEAN NOT NULL DEFAULT TRUE,
@@ -138,7 +146,7 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
-                        "reporte_lleno")
+                        "reporte_lleno", "voto_resumen")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
@@ -329,6 +337,7 @@ def delete_session(sid):
             c.execute("DELETE FROM fragmentos WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM chunks WHERE session_id=%s", (sid,))
+        c.execute("DELETE FROM voto_resumen WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM sessions WHERE id=%s", (sid,))
 
 
@@ -565,6 +574,26 @@ def purgar_reportes_lleno(antes_de) -> int:
         for schema in (config.DB_SCHEMA, sandbox.schema_prueba()):
             total += c.execute(f"DELETE FROM {schema}.reporte_lleno WHERE creado < %s", (antes_de,)).rowcount
     return total
+
+
+def set_voto_resumen(sid, username, util: bool) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO voto_resumen (session_id,username,util,creado) VALUES (%s,%s,%s,%s) "
+                  "ON CONFLICT (session_id, username) DO UPDATE SET util=EXCLUDED.util, creado=EXCLUDED.creado",
+                  (sid, username, util, time.time()))
+
+
+def delete_voto_resumen(sid, username) -> None:
+    with conn() as c:
+        c.execute("DELETE FROM voto_resumen WHERE session_id=%s AND username=%s", (sid, username))
+
+
+def votos_resumen(sid, username) -> dict:
+    """{si, no, mio}: cuántos dijeron que el resumen les sirvió, cuántos que no, y qué votó esta persona (o None)."""
+    with conn() as c:
+        filas = c.execute("SELECT username, util FROM voto_resumen WHERE session_id=%s", (sid,)).fetchall()
+    return {"si": sum(f["util"] for f in filas), "no": sum(not f["util"] for f in filas),
+            "mio": next((f["util"] for f in filas if f["username"] == username), None)}
 
 
 def get_preferencias_avisos(username) -> dict:

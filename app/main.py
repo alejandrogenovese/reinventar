@@ -40,6 +40,7 @@ from . import (
     search,
     talks,
     ubicacion_api,
+    voto_resumen_api,
 )
 from .auth import auth, bearer, context_for_token
 from .canonical_host import WwwRedirectMiddleware
@@ -102,6 +103,7 @@ app.include_router(push_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
+app.include_router(voto_resumen_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)
@@ -163,9 +165,10 @@ def buscar_en_grabaciones(q: str = Query(min_length=2, max_length=fragmentos.LAR
     return {"disponible": db.vector_disponible, "resultados": fragmentos.buscar(q)}
 
 
-@app.get("/api/sessions/{sid}", dependencies=[Depends(auth)])
-def get_session(sid: str):
+@app.get("/api/sessions/{sid}")
+def get_session(sid: str, username: str = Depends(auth)):
     s = _session_or_404(sid)
+    s["voto"] = db.votos_resumen(sid, username)  # 👍/👎 del resumen (app/voto_resumen_api.py)
     s["blocks"] = db.get_blocks(sid)
     s["talk"] = talks.link(s.get("code"))  # {base, title} si el código es de una charla del catálogo
     return s

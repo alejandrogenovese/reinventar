@@ -38,15 +38,36 @@ def _mandar(cuerpo: dict) -> None:
         log.warning("No se pudo mandar el score %s a Langfuse: %s", cuerpo["name"], type(e).__name__)
 
 
-def enviar(trace_id: str, nombre: str, valor: float, comentario: str | None = None) -> threading.Thread | None:
-    """Manda el score en segundo plano. Devuelve el thread (para esperarlo en los tests) o None si no hay claves."""
+def enviar(trace_id: str, nombre: str, valor: float, comentario: str | None = None,
+           id_score: str | None = None) -> threading.Thread | None:
+    """Manda el score en segundo plano. Devuelve el thread (para esperarlo en los tests) o None si no hay claves.
+    id_score: para más de un score con el mismo nombre en una traza (uno por persona); sin él, "<trace_id>-<nombre>"."""
     if not activo():
         return None
-    cuerpo = {"id": f"{trace_id}-{nombre}", "traceId": trace_id, "name": nombre, "value": valor, "dataType": "NUMERIC",
+    cuerpo = {"id": id_score or f"{trace_id}-{nombre}", "traceId": trace_id, "name": nombre, "value": valor, "dataType": "NUMERIC",
               "environment": trazas.entorno(),
               **({"metadata": {"prueba": True}} if sandbox.actual() else {}),
               **({"comment": comentario} if comentario else {})}
     hilo = threading.Thread(target=_mandar, args=(cuerpo,), name="langfuse-score", daemon=True)
+    hilo.start()
+    return hilo
+
+
+def _borrar(id_score: str) -> None:
+    try:
+        r = httpx.delete(f"{config.LANGFUSE_HOST.rstrip('/')}{_RUTA}/{id_score}",
+                         auth=(config.LANGFUSE_PUBLIC_KEY, config.LANGFUSE_SECRET_KEY), timeout=TIMEOUT_SEGUNDOS)
+        if r.status_code >= 400 and r.status_code != 404:  # 404: ya no estaba (o nunca llegó)
+            log.warning("Langfuse no borró un score (HTTP %d)", r.status_code)
+    except Exception as e:  # noqa: BLE001 - un score que queda no puede romper nada
+        log.warning("No se pudo borrar un score en Langfuse: %s", type(e).__name__)
+
+
+def borrar(id_score: str) -> threading.Thread | None:
+    """Borra un score en segundo plano (ej. alguien retira su voto). None si no hay claves."""
+    if not activo():
+        return None
+    hilo = threading.Thread(target=_borrar, args=(id_score,), name="langfuse-score", daemon=True)
     hilo.start()
     return hilo
 

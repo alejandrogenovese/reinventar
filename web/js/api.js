@@ -36,6 +36,8 @@ export const Sessions = {
   remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
   search: (q, signal) => api(`/api/grabaciones/buscar?q=${encodeURIComponent(q)}`, { signal }),
+  votar: (id, util) => api(`/api/sessions/${id}/voto`, { method: "PUT", json: { util } }),
+  retirarVoto: (id) => api(`/api/sessions/${id}/voto`, { method: "DELETE" }),
 };
 
 export const Catalog = {

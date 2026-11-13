@@ -6,6 +6,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **¿Te sirvió este resumen? 👍 / 👎** debajo del resumen de cada grabación. Un voto por persona (otro toque lo quita)
+  y se ve a cuántos les sirvió. Cada voto va al tablero de LLM («Útil»), para saber qué tan buenos salen los resúmenes.
 - **«Está llena» y «Hay mucha cola»** en cada horario de la ficha de una charla. Desde 45 minutos antes de que empiece
   hasta que termina, quien está en la puerta avisa con un toque y el resto ve «Llena según 3 personas · hace 5 min».
   Cada persona deja un aviso por horario (otro toque lo quita), vale una hora y nunca se muestra quién avisó.
