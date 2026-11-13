@@ -111,9 +111,22 @@ CREATE TABLE IF NOT EXISTS push_sent (
   sent_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, key)
 );
+-- Recordatorio "¿la grabás?" (app/recordatorio.py): la última sede en la que estuvo cada persona, si lo permitió.
+-- Una fila por persona que se sobreescribe (sin historial), nunca coordenadas; se ignora a los 45 min y se borra a las 2 h.
+CREATE TABLE IF NOT EXISTS ubicacion_reciente (
+  username TEXT PRIMARY KEY,
+  id_sede INTEGER,                     -- NULL = no está en ninguna sede
+  visto_en DOUBLE PRECISION NOT NULL
+);
+CREATE TABLE IF NOT EXISTS preferencias_avisos (
+  username TEXT PRIMARY KEY,
+  grabar BOOLEAN NOT NULL DEFAULT TRUE,
+  ubicacion BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at DOUBLE PRECISION NOT NULL
+);
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
-                        "user_events", "push_sent")
+                        "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
@@ -455,6 +468,69 @@ def mark_push_sent(username, key) -> bool:
 def unmark_push_sent(username, key):
     with conn() as c:
         c.execute("DELETE FROM push_sent WHERE username=%s AND key=%s", (username, key))
+
+
+def ultimo_push(username, prefijo) -> float | None:
+    """time.time() del último aviso con claves que empiezan con `prefijo` (para el enfriamiento), o None."""
+    with conn() as c:
+        r = c.execute("SELECT MAX(sent_at) AS t FROM push_sent WHERE username=%s AND key LIKE %s",
+                      (username, prefijo.replace("%", r"\%").replace("_", r"\_") + "%")).fetchone()
+    return r["t"] if r else None
+
+
+# ---------- recordatorio "¿la grabás?" ----------
+
+def grabacion_activa(code, creada_desde, chunk_desde) -> bool:
+    """Si hay una grabación de esa charla creada desde `creada_desde`, o en curso con audio desde `chunk_desde`."""
+    with conn() as c:
+        return c.execute(
+            "SELECT 1 FROM sessions s WHERE upper(s.code) = upper(%s) AND (s.created_at >= %s OR (s.status = 'recording' "
+            "AND EXISTS (SELECT 1 FROM chunks k WHERE k.session_id = s.id AND k.received_at >= %s))) LIMIT 1",
+            (code, creada_desde, chunk_desde)).fetchone() is not None
+
+
+def set_ubicacion(username, id_sede) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO ubicacion_reciente (username,id_sede,visto_en) VALUES (%s,%s,%s) "
+                  "ON CONFLICT (username) DO UPDATE SET id_sede=EXCLUDED.id_sede, visto_en=EXCLUDED.visto_en",
+                  (username, id_sede, time.time()))
+
+
+def get_ubicacion(username, desde) -> dict | None:
+    """{id_sede, visto_en} si se reportó desde `desde` (time.time()); None si no hay o venció."""
+    with conn() as c:
+        r = c.execute("SELECT id_sede, visto_en FROM ubicacion_reciente WHERE username=%s AND visto_en >= %s",
+                      (username, desde)).fetchone()
+    return dict(r) if r else None
+
+
+def delete_ubicacion(username) -> None:
+    with conn() as c:
+        c.execute("DELETE FROM ubicacion_reciente WHERE username=%s", (username,))
+
+
+def purgar_ubicaciones(antes_de) -> int:
+    """Borra las sedes reportadas antes de `antes_de`, en el schema real y en el de prueba. Devuelve cuántas."""
+    total = 0
+    with sandbox.real(), conn() as c:
+        for schema in (config.DB_SCHEMA, sandbox.schema_prueba()):
+            total += c.execute(f"DELETE FROM {schema}.ubicacion_reciente WHERE visto_en < %s", (antes_de,)).rowcount
+    return total
+
+
+def get_preferencias_avisos(username) -> dict:
+    with conn() as c:
+        r = c.execute("SELECT grabar, ubicacion FROM preferencias_avisos WHERE username=%s", (username,)).fetchone()
+    return dict(r) if r else {"grabar": True, "ubicacion": False}
+
+
+def set_preferencias_avisos(username, grabar, ubicacion) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO preferencias_avisos (username,grabar,ubicacion,updated_at) VALUES (%s,%s,%s,%s) "
+                  "ON CONFLICT (username) DO UPDATE SET grabar=EXCLUDED.grabar, ubicacion=EXCLUDED.ubicacion, "
+                  "updated_at=EXCLUDED.updated_at", (username, grabar, ubicacion, time.time()))
+        if not ubicacion:
+            c.execute("DELETE FROM ubicacion_reciente WHERE username=%s", (username,))
 
 
 def set_user_sandbox(username, active, cfg):

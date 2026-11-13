@@ -4,8 +4,8 @@
 - Claves: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (base64url, generar con `python -m app.push`) y VAPID_SUBJECT.
 - Cada minuto, para quienes activaron las notificaciones: "Salí para…" (20 min antes de lo fijado, o de la hora de la
   cola si la charla no está reservada: el servidor no conoce la ubicación), "Empieza en 5 min", "Salí a las HH:MM para
-  llegar a…" (si eligió irse antes en el armado guiado) y los cambios del itinerario (app/changes.py). Cada aviso sale una sola vez.
-  En modo prueba usa el reloj simulado del usuario.
+  llegar a…" (si eligió irse antes en el armado guiado), los cambios del itinerario (app/changes.py) y el recordatorio
+  "¿la grabás?" (app/recordatorio.py). Cada aviso sale una sola vez. En modo prueba usa el reloj y la sede simulados.
 En iPhone funciona solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 """
 import base64
@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, itinerary, leave, sandbox
+from . import changes, config, db, itinerary, leave, recordatorio, sandbox, travel, venues
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -96,10 +96,11 @@ def vapid_authorization(endpoint: str, now: float | None = None) -> str:
     return f"vapid t={jwt}, k={config.VAPID_PUBLIC_KEY}"
 
 
-def send(sub: dict, message: dict, http: httpx.Client | None = None) -> int:
-    """Manda un aviso a una suscripción. Devuelve el status; 404/410 = suscripción vencida (se borra)."""
+def send(sub: dict, message: dict, http: httpx.Client | None = None, ttl: int = TTL_SECONDS) -> int:
+    """Manda un aviso a una suscripción. Devuelve el status; 404/410 = suscripción vencida (se borra).
+    ttl: cuánto lo guarda el servicio de push si el celular está apagado o sin señal."""
     body = encrypt(json.dumps(message, ensure_ascii=False).encode(), sub["p256dh"], sub["auth"])
-    headers = {"Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", "TTL": str(TTL_SECONDS),
+    headers = {"Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", "TTL": str(ttl),
                "Urgency": "high", "Authorization": vapid_authorization(sub["endpoint"])}
     r = (http or httpx).post(sub["endpoint"], content=body, headers=headers, timeout=15)
     if r.status_code in (404, 410):
@@ -110,8 +111,11 @@ def send(sub: dict, message: dict, http: httpx.Client | None = None) -> int:
 
 
 def notify(username: str, message: dict) -> int:
-    """Manda el aviso a todos los dispositivos del usuario; devuelve a cuántos llegó."""
-    return sum(send(sub, message) < 300 for sub in db.push_subscriptions(username))
+    """Manda el aviso a todos los dispositivos del usuario; devuelve a cuántos llegó.
+    Si el mensaje trae "ttl", se usa como TTL del push y no viaja al celular."""
+    ttl = message.get("ttl", TTL_SECONDS)
+    payload = {k: v for k, v in message.items() if k != "ttl"}
+    return sum(send(sub, payload, ttl=ttl) < 300 for sub in db.push_subscriptions(username))
 
 
 # ---------- qué avisar ----------
@@ -124,8 +128,9 @@ def _url(c: dict) -> str:
     return {"event": f"/#/evento/{c['code']}", "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
 
 
-def _notice(c: dict, now: dt.datetime) -> tuple[str, dict] | None:
-    """Aviso de "salí" (contra la hora de la cola si no está reservada) o "empieza" para algo fijado, si corresponde."""
+def _notice(c: dict, now: dt.datetime, grabar: bool = False) -> tuple[str, dict] | None:
+    """Aviso de "salí" (contra la hora de la cola si no está reservada) o "empieza" para algo fijado, si corresponde.
+    grabar: el "empieza" de una charla suma "¿La grabás?" y abre su grabación (regla A de app/recordatorio.py)."""
     if not (c.get("locked") and c.get("start")):
         return None
     venue = c.get("venue") or {}
@@ -138,8 +143,12 @@ def _notice(c: dict, now: dt.datetime) -> tuple[str, dict] | None:
                 {"title": f"Salí para {c['title']}", "body": f"{cuando} · {where}", "url": _url(c)})
     to_start = (_at(c["day"], c["start"]) - now).total_seconds() / 60
     if 0 < to_start <= START_NOTICE_MIN:
-        return (f"start:{c['code']}:{c['day']}",
-                {"title": f"{c['title']} empieza en {round(to_start)} min", "body": where, "url": _url(c)})
+        key = f"start:{c['code']}:{c['day']}"
+        msg = {"title": f"{c['title']} empieza en {round(to_start)} min", "body": where, "url": _url(c)}
+        if grabar and c.get("kind", "talk") == "talk":
+            msg = recordatorio.con_grabar(key, c["code"],
+                                          {**msg, "body": " · ".join(filter(None, (where, "¿La grabás?")))})
+        return key, msg
     return None
 
 
@@ -157,10 +166,10 @@ def _early_notice(c: dict, siguiente: dict | None, now: dt.datetime) -> tuple[st
              "body": " · ".join(filter(None, (destino, f"empieza a las {siguiente['start']}"))), "url": _url(siguiente)})
 
 
-def day_notices(cards: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+def day_notices(cards: list[dict], now: dt.datetime, grabar: bool = False) -> list[tuple[str, dict]]:
     """Avisos de un día del itinerario (cards en orden de inicio)."""
     con_hora = [c for c in cards if c.get("start")]
-    out = [n for c in con_hora if (n := _notice(c, now))]
+    out = [n for c in con_hora if (n := _notice(c, now, grabar))]
     for i, c in enumerate(con_hora):
         n = _early_notice(c, con_hora[i + 1] if i + 1 < len(con_hora) else None, now)
         if n:
@@ -168,9 +177,54 @@ def day_notices(cards: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
     return out
 
 
+def _alguien_graba(username: str, code: str) -> bool:
+    """Si ya hay una grabación de esa charla (las grabaciones son compartidas: alcanza con que la grabe alguien)."""
+    # cuando exista sessions.created_by: filtrar por usuario
+    ahora = time.time()
+    return db.grabacion_activa(code, ahora - recordatorio.GRABACION_RECIENTE_MIN * 60,
+                               ahora - recordatorio.CHUNK_ACTIVO_MIN * 60)
+
+
+def _sede_reciente(username: str, prefs: recordatorio.Preferencias) -> recordatorio.Sede | None:
+    """La sede donde está, si la consulta de ubicación está prendida y el dato es reciente. En modo prueba manda la
+    sede simulada."""
+    sb = sandbox.actual()
+    if sb and sb.id_sede is not None:
+        id_sede = sb.id_sede
+    elif prefs.ubicacion:
+        fila = db.get_ubicacion(username, time.time() - recordatorio.UBICACION_VIGENCIA_MIN * 60)
+        id_sede = fila["id_sede"] if fila else None
+    else:
+        id_sede = None
+    sede = venues.by_id(id_sede)
+    return recordatorio.Sede(sede["id"], sede["name"]) if sede else None
+
+
+def _viaje_min(origen: int, destino: int) -> int | None:
+    v = travel.viaje(origen, destino)
+    return v.minutos if v else None
+
+
+def _recordatorios(username: str, days: list[dict], now: dt.datetime,
+                   prefs: recordatorio.Preferencias) -> list[tuple[str, dict]]:
+    hoy = now.strftime("%Y-%m-%d")
+    cards = [{**c, "id_sede": venues.id_by_name((c.get("venue") or {}).get("hotel"))}
+             for d in days if d["day"] == hoy for c in d["sessions"]]
+    if not cards:
+        return []
+    ultimo = db.ultimo_push(username, recordatorio.PREFIJO)
+    return recordatorio.recordatorios(
+        cards, now, sede=_sede_reciente(username, prefs), prefs=prefs,
+        grabando=lambda code: _alguien_graba(username, code), viaje_min=_viaje_min,
+        minutos_desde_ultimo=(time.time() - ultimo) / 60 if ultimo else None)
+
+
 def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     """[(clave única, mensaje)] de lo que corresponde avisar ahora a este usuario."""
-    out = [n for day in itinerary.get_current(username)["days"] for n in day_notices(day["sessions"], now)]
+    prefs = recordatorio.Preferencias(**db.get_preferencias_avisos(username))
+    days = itinerary.get_current(username)["days"]
+    out = [n for day in days for n in day_notices(day["sessions"], now, prefs.grabar)]
+    out += _recordatorios(username, days, now, prefs)
     for ch in changes.pending(username):
         key = "change:" + hashlib.sha256(json.dumps([ch["code"], ch["messages"]]).encode()).hexdigest()[:16]
         out.append((key, {"title": "Cambió algo de tu itinerario", "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))
@@ -180,6 +234,7 @@ def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
 def tick() -> int:
     """Una vuelta: avisa lo que corresponde a cada usuario suscripto. Devuelve cuántos avisos salieron."""
     sent = 0
+    db.purgar_ubicaciones(time.time() - recordatorio.UBICACION_BORRADO_MIN * 60)
     with sandbox.real():
         users = db.push_usernames()
     for username in users:

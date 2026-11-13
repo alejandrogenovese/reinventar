@@ -54,11 +54,12 @@ def _user_or_404(username: str) -> dict:
 
 
 def _cortar_accesos(username: str) -> None:
-    """Cierra todas las sesiones, borra las passkeys y da de baja las notificaciones del usuario: lo que hace falta
-    para recuperar una cuenta comprometida (o dejar afuera a alguien desactivado)."""
+    """Cierra todas las sesiones, borra las passkeys, da de baja las notificaciones y borra la sede reciente: lo que
+    hace falta para recuperar una cuenta comprometida (o dejar afuera a alguien desactivado)."""
     db.revoke_tokens(username)
     passkeys_db.delete_all(username)
     db.delete_push_subscriptions(username)
+    db.delete_ubicacion(username)
 
 
 @router.get("/users")

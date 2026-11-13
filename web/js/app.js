@@ -7,13 +7,14 @@ import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewPerdida } from "./missed.js";
+import { viewGrabarCharla } from "./grabarCharla.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import { refreshChanges } from "./changes.js";
 import { refreshCountdown } from "./countdown.js";
 import { RecordingSearch } from "./grabado.js";
 import { clearPageBar, viewDetail } from "./detail.js";
-import { alertSettings, locationEnabled, saveAlertSettings, setLocationEnabled } from "./location.js";
+import { alertSettings, locationEnabled, reportVenue, saveAlertSettings, setLocationEnabled } from "./location.js";
 import { PushSettings } from "./notifications.js";
 import { refreshSandbox } from "./sandbox.js";
 import { viewSearch } from "./search.js";
@@ -70,6 +71,7 @@ const routes = [
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
+  [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
   [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => viewDetail(view, id, {
     at, q: q ? decodeURIComponent(q) : "", canGoBack: navigatedInApp, setCleanup: (fn) => { cleanup = fn; }, onError: renderError })],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
@@ -489,4 +491,8 @@ async function viewSettings() {
 
 // --- arranque ----------------------------------------------------------------
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+// Sede reciente para el recordatorio "¿la grabás?": solo con la app abierta (una PWA no tiene GPS en segundo plano).
+const reportVenueIfLoggedIn = () => { if (getToken() && !mustChangePassword()) void reportVenue(); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reportVenueIfLoggedIn(); });
 await route();
+reportVenueIfLoggedIn();

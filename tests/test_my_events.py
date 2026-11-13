@@ -163,7 +163,8 @@ def test_autocompletar_sin_key_avisa(client, headers, monkeypatch):
 
 
 def test_lista_las_sedes_con_coordenadas_para_el_formulario(client, headers):
-    assert client.get("/api/my-events/sedes", headers=headers).json()["sedes"] == [{"id": 5, "nombre": "MGM Grand"}]
+    assert client.get("/api/my-events/sedes", headers=headers).json()["sedes"] == [
+        {"id": 5, "nombre": "MGM Grand", "lat": 36.102219, "lng": -115.169517}]
 
 
 def test_el_itinerario_se_descarga_como_calendario(client, headers):

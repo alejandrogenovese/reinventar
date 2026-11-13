@@ -40,6 +40,11 @@ class Subscription(BaseModel):
         return v
 
 
+class Preferencias(BaseModel):
+    grabar: bool        # "Recordarme grabar" (app/recordatorio.py)
+    ubicacion: bool     # "Usar en qué sede estoy para los avisos": al apagarlo se borra la sede guardada
+
+
 class Unsubscribe(BaseModel):
     endpoint: str = Field(min_length=10, max_length=1000)
 
@@ -72,3 +77,14 @@ def test_notification(username: str = Depends(auth)):
     if not delivered:
         raise HTTPException(404, "No hay ningún dispositivo con las notificaciones activas")
     return {"ok": True, "devices": delivered}
+
+
+@router.get("/preferencias")
+def get_preferencias(username: str = Depends(auth)):
+    return db.get_preferencias_avisos(username)
+
+
+@router.put("/preferencias")
+def put_preferencias(body: Preferencias, username: str = Depends(auth)):
+    db.set_preferencias_avisos(username, body.grabar, body.ubicacion)
+    return db.get_preferencias_avisos(username)

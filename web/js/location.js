@@ -1,5 +1,7 @@
-// Ubicación del celular, distancias y "Llevame". La ubicación no sale del celular: se usa acá y en el link a Google Maps.
+// Ubicación del celular, distancias y "Llevame". Las coordenadas no salen del celular: se usan acá y en el link a
+// Google Maps. Con "Usar en qué sede estoy para los avisos" prendido, al servidor va solo el número de sede (reportVenue).
 // En modo prueba se usa la sede simulada en lugar del GPS (web/js/sandbox.js).
+import { MyEvents, Ubicacion } from "./api.js";
 import { loadGoogleMaps } from "./map.js";
 import { sandboxLocation, sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
@@ -11,6 +13,9 @@ const ETA_CACHE_MS = 5 * 60_000;
 const WALK_M_PER_MIN = 75;               // sin Routes API: línea recta a paso tranquilo, con desvío
 const DETOUR = 1.3;
 const ALERTS = "ra.alerts";
+const VENUE_REPORT = "ra.venueReport";    // "on" = la persona aceptó mandar en qué sede está (espejo de la preferencia)
+const VENUE_RADIUS_M = 350;              // el Venetian es grande: se trabaja a nivel sede, nunca de sala
+const VENUE_REPORT_EVERY_MS = 5 * 60_000;
 
 /** { leaveMarginMin, startNoticeMin }: margen para salir (atravesar el hotel hasta la sala) y aviso de inicio.
  *  Se cambian en Ajustes › Alertas; los usan "Llevame" y el countdown. */
@@ -141,4 +146,51 @@ export function GoThereParts(dest, { start = null, eta = false, iconOnly = false
     info.hidden = false;
   })();
   return { info, link };
+}
+
+// --- sede reciente para el recordatorio "¿la grabás?" (app/recordatorio.py) ---------------------------------------
+
+export const venueReportEnabled = () => { try { return localStorage.getItem(VENUE_REPORT) === "on"; } catch { return false; } };
+export const setVenueReportEnabled = (on) => { try { localStorage.setItem(VENUE_REPORT, on ? "on" : "off"); } catch {} };
+
+/**
+ * id de la sede más cercana dentro del radio, o null si no está en ninguna.
+ * @param {{lat: number, lng: number}} pos
+ * @param {{id: number, lat: number, lng: number}[]} venues
+ * @returns {number|null}
+ */
+export function nearestVenue(pos, venues, radiusM = VENUE_RADIUS_M) {
+  let best = null;
+  for (const v of venues) {
+    if (v.lat == null) continue;
+    const d = distanceMeters(pos, v);
+    if (d <= radiusM && (!best || d < best.d)) best = { id: v.id, d };
+  }
+  return best ? best.id : null;
+}
+
+let venuesCache = null;
+let lastReportAt = 0;
+
+/** Sin el permiso ya concedido no se pide: el diálogo del navegador sale solo al prender el interruptor (ask). */
+async function geolocationGranted() {
+  try { return (await navigator.permissions.query({ name: "geolocation" })).state === "granted"; } catch { return false; }
+}
+
+/**
+ * Manda al servidor en qué sede está (solo el número). Solo con el opt-in, la ubicación prendida y, salvo `ask`, el
+ * permiso ya concedido. Como mucho cada 5 min salvo `force`. Devuelve true si mandó algo. Nunca tira error.
+ */
+export async function reportVenue({ force = false, ask = false } = {}) {
+  if (!venueReportEnabled() || !locationEnabled()) return false;
+  if (!force && Date.now() - lastReportAt < VENUE_REPORT_EVERY_MS) return false;
+  if (!ask && !sandboxLocation() && !(await geolocationGranted())) return false;
+  const here = await currentPosition();
+  if (!here) return false;
+  try {
+    venuesCache = venuesCache || (await MyEvents.venues()).sedes;
+    await Ubicacion.set(nearestVenue(here, venuesCache));
+    lastReportAt = Date.now();
+    return true;
+  } catch { return false; }
 }

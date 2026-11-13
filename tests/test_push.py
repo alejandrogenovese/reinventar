@@ -94,7 +94,7 @@ def test_avisa_salir_20_min_antes_y_empezar_5_min_antes(cli):
 
 def test_cada_aviso_sale_una_sola_vez(cli, monkeypatch):
     enviados = []
-    monkeypatch.setattr(push, "send", lambda sub, msg, http=None: enviados.append(msg) or 201)
+    monkeypatch.setattr(push, "send", lambda sub, msg, http=None, ttl=push.TTL_SECONDS: enviados.append(msg) or 201)
     monkeypatch.setattr(push.sandbox, "ahora", lambda tz=None: _ahora("17:45"))
     sub = {"endpoint": "https://fcm.googleapis.com/fcm/send/1", "keys": {"p256dh": "x" * 87, "auth": "y" * 22}}
     assert cli.post("/api/push/subscribe", headers=cli.H, json=sub).status_code == 200

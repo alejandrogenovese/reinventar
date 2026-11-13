@@ -14,7 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import (__version__, admin_api, audio, auth_api, cabeceras, catalog, config, cuerpo, db, events, events_api, fragmentos, guided_api, interview_api,
-               itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks)
+               itinerary_api, knowledge_api, my_events_api, passkey_api, pg, pipeline, push, push_api, sandbox, search, talks,
+               ubicacion_api)
 from .auth import auth, bearer, context_for_token
 from .llm_router import como_usuario
 from .canonical_host import WwwRedirectMiddleware
@@ -73,6 +74,7 @@ app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(push_api.router)
+app.include_router(ubicacion_api.router)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)

@@ -5,6 +5,18 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **«¿La grabás?»: recordatorio para no olvidarte de grabar.** El aviso «X empieza en 5 min» de una charla fijada
+  ahora pregunta «¿La grabás?» y, al tocarlo, abre esa charla lista para grabar con un botón «Empezar a grabar» (en
+  iPhone hace falta ese toque para usar el micrófono). Si la charla empezó hace 2 a 6 minutos y nadie la está
+  grabando, llega otro aviso. Nunca de 22 a 7, como mucho uno cada 30 minutos, y se apaga con «Recordarme grabar» en
+  Ajustes › Notificaciones.
+- **Usar en qué sede estoy para los avisos** (apagado por defecto, en Ajustes › Notificaciones): con la app abierta,
+  el celular calcula en qué sede estás y manda solo eso, nunca tu posición. Con ese dato el aviso dice «Estás en el
+  Venetian: ¿grabás X?», avisa también charlas no fijadas de tu itinerario si estás en esa sede, y no avisa si estás
+  a 15 minutos o más caminando. Deja de usarse a los 45 minutos y se borra a las 2 horas; al apagarlo se borra al
+  instante.
+
 ### Arreglado
 - **Grabar sin que llegue sonido ya no deja una transcripción falsa.** Whisper inventaba un «Thank you.» sobre el
   silencio; ahora eso se descarta y la grabación avisa que no se escuchó voz, con qué revisar. Mientras grabás, si

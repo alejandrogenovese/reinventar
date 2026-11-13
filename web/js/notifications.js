@@ -1,6 +1,7 @@
 // Ajustes › Notificaciones en el celular (Web Push): avisos de lo fijado y de cambios aunque la app esté cerrada.
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
-import { Push } from "./api.js";
+import { Push, Ubicacion } from "./api.js";
+import { locationEnabled, reportVenue, setVenueReportEnabled } from "./location.js";
 import { Button, h, toast } from "./ui.js";
 
 const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -32,6 +33,57 @@ export async function disable() {
   await sub.unsubscribe();
 }
 
+const Switch = (id, label) => {
+  const input = h("input", { type: "checkbox", id, disabled: true });
+  return { input, row: h("label", { class: "actions is-center", for: id }, input, label) };
+};
+
+/** "Recordarme grabar" (prendido) y "Usar en qué sede estoy para los avisos" (apagado; pide el permiso al prenderlo). */
+function ReminderSettings() {
+  const grabar = Switch("push-grabar", "Recordarme grabar");
+  const sede = Switch("push-sede", "Usar en qué sede estoy para los avisos");
+  const save = () => Push.savePrefs({ grabar: grabar.input.checked, ubicacion: sede.input.checked });
+
+  grabar.input.onchange = async () => {
+    grabar.input.disabled = true;
+    try { await save(); } catch (err) { grabar.input.checked = !grabar.input.checked; toast(err.message); }
+    grabar.input.disabled = false;
+  };
+  sede.input.onchange = async () => {
+    sede.input.disabled = true;
+    const on = sede.input.checked;
+    try {
+      if (on && !locationEnabled()) throw new Error("Primero prendé «Usar mi ubicación».");
+      await save();
+      setVenueReportEnabled(on);
+      if (on && !(await reportVenue({ force: true, ask: true }))) {
+        sede.input.checked = false;
+        setVenueReportEnabled(false);
+        await save();
+        throw new Error("No pudimos leer tu ubicación: revisá el permiso del navegador.");
+      }
+      if (!on) await Ubicacion.clear();
+      toast(on ? "Listo: los avisos van a tener en cuenta en qué sede estás." : "Listo: borramos la sede guardada.");
+    } catch (err) {
+      if (on) sede.input.checked = false;
+      toast(err.message);
+    }
+    sede.input.disabled = false;
+  };
+  void Push.prefs().then((p) => {
+    grabar.input.checked = p.grabar;
+    sede.input.checked = p.ubicacion;
+    setVenueReportEnabled(p.ubicacion);
+    grabar.input.disabled = false;
+    sede.input.disabled = false;
+  }).catch(() => {});
+  return h("div", { class: "stack" },
+    grabar.row,
+    h("p", { class: "caption" }, "Cuando empieza una charla de tu itinerario y nadie la está grabando, te avisamos. Tocás el aviso y queda lista para grabar."),
+    sede.row,
+    h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."));
+}
+
 export function PushSettings() {
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
   if (!supported()) {
@@ -56,6 +108,7 @@ export function PushSettings() {
     toggle.disabled = false;
     testBtn.hidden = !toggle.checked;
   });
-  box.append(h("label", { class: "actions is-center", for: "push-on" }, toggle, "Activar notificaciones"), status, h("div", { class: "actions" }, testBtn));
+  box.append(h("label", { class: "actions is-center", for: "push-on" }, toggle, "Activar notificaciones"), status, h("div", { class: "actions" }, testBtn),
+    ReminderSettings());
   return box;
 }

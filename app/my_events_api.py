@@ -31,8 +31,10 @@ def list_my_events(username: str = Depends(auth)):
 
 @router.get("/api/my-events/sedes")
 def venues_for_form():
-    """Sedes de re:Invent con coordenadas, para elegir dónde es un evento propio."""
-    return {"sedes": [{"id": v["id"], "nombre": v["name"]} for v in venues.all_venues() if v["lat"] is not None]}
+    """Sedes de re:Invent con coordenadas, para elegir dónde es un evento propio y para que el celular calcule en qué
+    sede está (web/js/location.js): las coordenadas de las sedes son públicas; las del celular no salen de él."""
+    return {"sedes": [{"id": v["id"], "nombre": v["name"], "lat": v["lat"], "lng": v["lng"]}
+                      for v in venues.all_venues() if v["lat"] is not None]}
 
 
 @router.post("/api/my-events")
