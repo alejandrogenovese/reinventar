@@ -56,7 +56,9 @@ function shellRedPrimero(e) {
     });
   e.waitUntil(red.catch(() => {})); // que la caché se actualice aunque ya hayamos contestado con la copia
   const sinRed = red.catch(() => shellDeCache(req).then((hit) => hit || Response.error()));
-  const lenta = new Promise((resolve) => setTimeout(() => shellDeCache(req).then((hit) => hit && resolve(hit)), SHELL_TIMEOUT_MS));
+  let timer;
+  const lenta = new Promise((resolve) => { timer = setTimeout(() => shellDeCache(req).then((hit) => hit && resolve(hit)), SHELL_TIMEOUT_MS); });
+  red.then(() => clearTimeout(timer), () => clearTimeout(timer)); // si la red contesta, no hace falta mirar la caché
   return Promise.race([sinRed, lenta]);
 }
 
@@ -93,6 +95,8 @@ self.addEventListener("notificationclick", (e) => {
 // Se re-suscribe con la clave VAPID del servidor y se manda la suscripción nueva al mismo endpoint que usa notifications.js.
 const keyBytes = (b64) => Uint8Array.from(atob(b64.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.codePointAt(0));
 
+const PUSH_TIMEOUT_MS = 10000;
+
 async function leerToken() {
   const hit = await (await caches.open(DATOS)).match("/__token");
   return hit ? hit.text() : "";
@@ -102,10 +106,11 @@ async function resuscribir(e) {
   const token = await leerToken();
   if (!token) return; // sin sesión guardada: la página resincroniza sola la próxima vez que se abra
   const auth = { Authorization: `Bearer ${token}` };
-  const post = (path, json) => fetch(path, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(json) });
+  const signal = () => AbortSignal.timeout(PUSH_TIMEOUT_MS); // un servidor que no contesta no debe colgar al SW
+  const post = (path, json) => fetch(path, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(json), signal: signal() });
   let sub = e.newSubscription;
   if (!sub) {
-    const { key } = await (await fetch("/api/push/key", { headers: auth })).json();
+    const { key } = await (await fetch("/api/push/key", { headers: auth, signal: signal() })).json();
     if (!key) return;
     sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
   }

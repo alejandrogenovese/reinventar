@@ -38,7 +38,13 @@ export async function syncSubscription() {
   await Push.subscribe(sub.toJSON());
   rememberEndpoint(sub.endpoint);
 }
-if (supported()) void syncSubscription().catch(() => {});
+if (supported()) {
+  // Al cargar y cada vez que la app vuelve a primer plano: así el token del SW se renueva aunque el login haya sido
+  // después de cargar el módulo, o la contraseña/sesión haya cambiado.
+  const sync = () => void syncSubscription().catch(() => {});
+  sync();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync(); });
+}
 
 async function enable() {
   // El permiso se pide primero y sin ningún await antes: iOS solo lo muestra si sale directo del toque del usuario.
@@ -124,6 +130,7 @@ function ReminderSettings() {
 }
 
 export function PushSettings() {
+  void syncSubscription().catch(() => {});
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
   if (!supported()) {
     box.append(h("p", { class: "caption" }, "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí."));

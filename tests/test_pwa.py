@@ -112,3 +112,10 @@ def test_robots_txt_prohibe_todo_y_el_index_es_noindex():
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
     assert r.text.splitlines()[:2] == ["User-agent: *", "Disallow: /"]
     assert '<meta name="robots" content="noindex">' in (WEB / "index.html").read_text()
+
+
+def test_el_timer_del_shell_se_cancela_y_el_resuscribir_tiene_timeout():
+    assert "clearTimeout(timer)" in SW
+    assert "AbortSignal.timeout(PUSH_TIMEOUT_MS)" in SW
+    js = (WEB / "js" / "notifications.js").read_text()
+    assert 'addEventListener("visibilitychange"' in js
