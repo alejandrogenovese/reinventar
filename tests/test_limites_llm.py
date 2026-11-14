@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app import limites, nl_filters
+from app import briefing, limites, nl_filters
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
 
@@ -60,6 +60,36 @@ def test_un_usuario_que_agota_su_cupo_no_corta_a_otro(c, monkeypatch):
     assert c.post("/api/k/explore/parse", headers=usuario, json=cuerpo).status_code == 200
     assert c.post("/api/k/explore/parse", headers=usuario, json=cuerpo).status_code == 429
     assert c.post("/api/k/explore/parse", headers=admin, json=cuerpo).status_code == 200
+
+
+def test_las_fichas_en_cache_no_gastan_cupo_y_las_que_llaman_al_llm_si(c, monkeypatch):
+    monkeypatch.setattr(limites.briefings, "maximo", 2)
+    headers = _headers(c, TEST_USER)
+    resultado = {"briefing": "x", "cached": True, "created_at": 0}
+    monkeypatch.setattr(briefing, "get", lambda *args: resultado)
+    cuerpo = {"kind": "speaker", "id": 1}
+
+    for _ in range(5):  # mirar fichas ya cacheadas no gasta nada
+        assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 200
+
+    resultado = {"briefing": "x", "cached": False, "created_at": 0}
+    assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 200
+    assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 200
+    assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 429
+
+
+def test_una_ficha_que_falla_en_el_llm_gasta_cupo(c, monkeypatch):
+    monkeypatch.setattr(limites.briefings, "maximo", 1)
+    headers = _headers(c, TEST_USER)
+
+    def falla(*args):
+        raise briefing.BriefingUnavailable
+
+    monkeypatch.setattr(briefing, "get", falla)
+    cuerpo = {"kind": "speaker", "id": 1}
+
+    assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 502
+    assert c.post("/api/k/briefing", headers=headers, json=cuerpo).status_code == 429
 
 
 def test_el_cupo_vuelve_al_pasar_la_ventana():

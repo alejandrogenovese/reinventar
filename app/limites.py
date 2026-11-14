@@ -87,12 +87,23 @@ def demasiados_intentos() -> HTTPException:
     return HTTPException(429, "Demasiados intentos. Esperá unos minutos y probá de nuevo.")
 
 
+def _demasiados_pedidos(limite: Limite, accion: str) -> HTTPException:
+    minutos = max(1, round(limite.ventana / 60))
+    return HTTPException(429, f"Hiciste muchos pedidos de {accion} en poco tiempo. "
+                              f"Esperá unos minutos (el límite se renueva cada {minutos} min) y probá de nuevo.")
+
+
 def exigir_cupo(limite: Limite, usuario: str, accion: str) -> None:
     """Gasta un uso del usuario o corta con 429 y un mensaje claro. Se llama antes de usar el LLM o el STT."""
     if not limite.consumir(usuario):
-        minutos = max(1, round(limite.ventana / 60))
-        raise HTTPException(429, f"Hiciste muchos pedidos de {accion} en poco tiempo. "
-                                 f"Esperá unos minutos (el límite se renueva cada {minutos} min) y probá de nuevo.")
+        raise _demasiados_pedidos(limite, accion)
+
+
+def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
+    """Corta con 429 si el usuario ya agotó el cupo, sin gastar nada. Para cuando el uso se anota después
+    (con limite.sumar), porque solo algunos pedidos llegan de verdad al LLM."""
+    if limite.excedido(usuario):
+        raise _demasiados_pedidos(limite, accion)
 
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,

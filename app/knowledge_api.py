@@ -95,9 +95,13 @@ class BriefingQuery(BaseModel):
 @router.post("/briefing")
 def make_briefing(body: BriefingQuery, username: str = Depends(auth)):
     """Ficha para conversar con un speaker o empresa, cruzada con el perfil de quien la pide (en caché por usuario)."""
-    limites.exigir_cupo(limites.briefings, username, "fichas")
+    # Solo gasta cupo lo que llega al LLM: mirar fichas ya en caché no cuenta (se anota después, según `cached`).
+    limites.verificar_cupo(limites.briefings, username, "fichas")
     try:
         result = briefing.get(username, body.kind, body.id, body.refresh)
     except briefing.BriefingUnavailable:
+        limites.briefings.sumar(username)  # el LLM se llamó aunque haya fallado
         raise HTTPException(502, "No pude preparar la ficha ahora. Probá de nuevo en un rato.") from None
+    if result and not result["cached"]:
+        limites.briefings.sumar(username)
     return _or_404(result, "Speaker" if body.kind == "speaker" else "Empresa")
