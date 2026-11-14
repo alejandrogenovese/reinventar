@@ -298,12 +298,18 @@ async function viewRecord(id) {
   const finishBtn = Button("Terminar y procesar", { variant: "primary", disabled: true, onclick: finish });
   const salaBtn = Button("Modo sala", { onclick: salaOn });
 
+  // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
+  const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
+    "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
+  // El sistema cortó el audio (llamada, Siri, pantalla bloqueada): se avisa mientras dure y se retoma solo.
+  const paused = h("div", { class: "notice warn", role: "alert", hidden: true },
+    "Grabación pausada: el sistema cortó el audio (llamada, Siri o pantalla bloqueada). Se retoma sola cuando vuelva; si no, tocá el botón.");
   const resumed = Object.keys(rec.meta.parts).length > 0;
   view.append(h("div", { class: "stack-lg" },
     h("div", {}, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), h("h1", { class: "title" }, s.title),
       resumed ? h("p", { class: "caption" }, "Retomás una grabación: lo nuevo se agrega a continuación.") : null),
     h("section", { class: "ra-input", "aria-label": "Entrada de audio" },
-      h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter, silence),
+      h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter, silence, paused),
     h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, upl, msg,
       h("div", { class: "actions" }, salaBtn, finishBtn),
       h("div", { class: "actions" }, Button("Descartar", { variant: "danger", onclick: discard })))));
@@ -315,22 +321,24 @@ async function viewRecord(id) {
     recStatus.dataset.state = rec.state;
     recStatus.textContent = REC_STATUS[rec.state] || "";
   };
-  rec.addEventListener("state", () => { paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
+  rec.addEventListener("state", () => { if (rec.state !== "recording") paused.hidden = true; paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
-  // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
-  const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
-    "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
+  rec.addEventListener("interrupted", () => { paused.hidden = false; silence.hidden = true; });
+  rec.addEventListener("resumed", () => { paused.hidden = true; msg.replaceChildren(); });
   let quietSince = null;
   rec.addEventListener("level", (e) => {
     meter.update(e.detail, rec.deviceLabel);
-    const quiet = rec.state === "recording" && e.detail < METER_SILENT;
+    const quiet = rec.state === "recording" && !rec.interrupted && e.detail < METER_SILENT;
     quietSince = quiet ? (quietSince ?? performance.now()) : null;
     silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
   });
   rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, e.detail.message)); });
   const onUp = (e) => {
-    const { pending, error } = e.detail;
-    upl.replaceChildren(pending ? StatusPill("uploading", `Subiendo ${pending}`) : StatusPill("ready", "Todo subido"), h("span", { class: "caption" }, error || ""));
+    const { pending, failed, error } = e.detail;
+    const pill = pending ? StatusPill("uploading", `Subiendo ${pending}`)
+      : failed ? StatusPill("error", `${failed} sin subir`) : StatusPill("ready", "Todo subido");
+    upl.replaceChildren(pill, h("span", { class: "caption" }, error || ""),
+      failed ? Button("Reintentar", { onclick: () => toastOnError(uploader.retryFailed()) }) : null);
   };
   uploader.addEventListener("change", onUp);
   toastOnError(uploader.refresh());
@@ -388,6 +396,11 @@ async function viewRecord(id) {
       if (i > 0 && i % 15 === 0) uploader.kick();
       await new Promise((r) => setTimeout(r, 1000));
       if (i > 600) { msg.replaceChildren(h("div", { class: "notice err" }, "La subida no termina. Revisá la conexión; lo pendiente queda guardado en el celular.")); finishBtn.disabled = false; return; }
+    }
+    if (await store.failedFor(id)) {
+      msg.replaceChildren(h("div", { class: "notice err" }, "Hay pedazos de audio que el servidor rechazó y no se pudieron subir. Tocá Reintentar; siguen guardados en el celular."));
+      finishBtn.disabled = false;
+      return;
     }
     try {
       await Sessions.finish(id, rec.partsCount());
