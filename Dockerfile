@@ -15,5 +15,7 @@ RUN pip install --no-cache-dir --require-hashes --only-binary :all: -r requireme
 COPY app ./app
 COPY web ./web
 
+# --no-proxy-headers: uvicorn no reescribe request.client desde X-Forwarded-For (lo manda el cliente y esquivaba el
+# límite por IP). La IP sale de X-Real-IP (app/auth_api.py) y el esquema https de app/esquema_proxy.py.
 # Railway inyecta PORT. Un solo worker: el pipeline corre en un thread del proceso.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-proxy-headers"]

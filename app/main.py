@@ -48,6 +48,7 @@ from . import (
 )
 from .auth import auth, bearer, context_for_token
 from .canonical_host import WwwRedirectMiddleware
+from .esquema_proxy import EsquemaProxyMiddleware
 from .llm_router import como_usuario
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -97,6 +98,7 @@ app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
 app.add_middleware(SandboxMiddleware)
 app.add_middleware(cabeceras.CabecerasMiddleware)
 app.add_middleware(WwwRedirectMiddleware)  # el último que se agrega corre primero: www. redirige antes que nada
+app.add_middleware(EsquemaProxyMiddleware)  # el más externo: fija https antes de los redirects de rutas y StaticFiles
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
