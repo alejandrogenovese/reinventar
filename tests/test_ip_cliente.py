@@ -30,6 +30,27 @@ def test_un_x_real_ip_invalido_cae_al_peer(roto):
     assert auth_api.ip_cliente(_pedido(x_real_ip=roto)) == PEER
 
 
+def test_sin_el_header_avisa_en_el_log_una_sola_vez(caplog):
+    auth_api._avisar_sin_header.cache_clear()
+    caplog.set_level("WARNING", logger="reinventar.auth")
+
+    for _ in range(3):
+        auth_api.ip_cliente(_pedido())
+
+    avisos = [r for r in caplog.records if "Falta el header" in r.getMessage()]
+    assert len(avisos) == 1
+    assert "x-real-ip" in avisos[0].getMessage().lower()
+
+
+def test_con_el_header_no_avisa(caplog):
+    auth_api._avisar_sin_header.cache_clear()
+    caplog.set_level("WARNING", logger="reinventar.auth")
+
+    auth_api.ip_cliente(_pedido(x_real_ip="198.51.100.4"))
+
+    assert not [r for r in caplog.records if "Falta el header" in r.getMessage()]
+
+
 def test_el_nombre_del_header_es_configurable(monkeypatch):
     monkeypatch.setattr(auth_api, "HEADER_IP_CLIENTE", "cf-connecting-ip")
 
