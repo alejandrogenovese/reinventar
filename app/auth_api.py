@@ -1,4 +1,8 @@
 """Login/logout, perfil de sesión y cambio de contraseña."""
+import functools
+import ipaddress
+import logging
+import os
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -8,6 +12,7 @@ from . import config, db, limites, passkeys_db, passwords, sandbox, venues
 from .auth import auth_pendiente, bearer, is_admin
 
 router = APIRouter()
+log = logging.getLogger("reinventar.auth")
 
 
 class Login(BaseModel):
@@ -42,8 +47,29 @@ def issue_session(user: dict) -> dict:
 _SALT_RELLENO, _HASH_RELLENO = passwords.hash_password(secrets.token_hex(16))
 
 
+# Header donde el proxy de Railway deja la IP real del cliente (documentado en "Specs & Limits": X-Real-IP). Es
+# configurable por si el proveedor cambia. El X-Forwarded-For no se usa: el cliente puede mandarlo con lo que quiera.
+HEADER_IP_CLIENTE = os.environ.get("IP_CLIENTE_HEADER", "X-Real-IP").strip().lower()
+
+
+@functools.cache
+def _avisar_sin_header(header: str) -> None:
+    """Una sola vez por proceso (functools.cache): sin este header, detrás del proxy todos comparten la IP del peer y los
+    límites por IP (login, passkeys) pasan a ser un único balde global."""
+    log.warning("Falta el header %s (o no es una IP): los límites por IP usan la IP del peer, que detrás del proxy es "
+                "la misma para todos. Revisá IP_CLIENTE_HEADER y lo que manda el proxy.", header)
+
+
 def ip_cliente(request: Request) -> str:
-    return request.client.host if request.client else "?"
+    """IP del cliente para los límites por IP: la del header del proxy si es una IP válida; si no, la del peer.
+    El Dockerfile corre uvicorn con --no-proxy-headers, así que request.client es siempre el peer real y ningún
+    X-Forwarded-For que mande el cliente lo cambia."""
+    valor = request.headers.get(HEADER_IP_CLIENTE, "").strip()
+    try:
+        return str(ipaddress.ip_address(valor))
+    except ValueError:
+        _avisar_sin_header(HEADER_IP_CLIENTE)
+        return request.client.host if request.client else "?"
 
 
 @router.post("/api/login")

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from . import anuncios, catalog, changes, config, db, ics, itinerary, missed, sandbox, today
+from . import anuncios, catalog, changes, config, db, ics, itinerary, limites, missed, sandbox, today
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -114,6 +114,7 @@ def get_profile(username: str = Depends(auth)):
 
 @router.post("/api/itinerary/generate")
 def generate_itinerary(body: Generate, username: str = Depends(auth)):
+    limites.exigir_cupo(limites.itinerarios, username, "itinerarios")
     try:
         return itinerary.generate(username, body.profile.model_dump(), body.prompt.strip())
     except ValueError as e:

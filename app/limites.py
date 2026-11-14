@@ -39,6 +39,17 @@ class Limite:
         with self._lock:
             self._vigentes(clave, ahora or time.monotonic()).append(ahora or time.monotonic())
 
+    def consumir(self, clave: str) -> bool:
+        """Anota un uso si todavía hay cupo y devuelve True; si ya se llegó al máximo, devuelve False sin anotar.
+        Revisa y anota bajo el mismo lock: dos pedidos simultáneos no se cuelan los dos por el último lugar."""
+        with self._lock:
+            ahora = time.monotonic()
+            eventos = self._vigentes(clave, ahora)
+            if len(eventos) >= self.maximo:
+                return False
+            eventos.append(ahora)
+            return True
+
     def limpiar(self, clave: str) -> None:
         with self._lock:
             self._eventos.pop(clave, None)
@@ -52,12 +63,54 @@ fallos_usuario = Limite(FALLOS_POR_USUARIO)
 fallos_ip = Limite(FALLOS_POR_IP)
 pedidos_passkey = Limite(PEDIDOS_PASSKEY_POR_IP)
 
+# Endpoints que gastan LLM/STT, por usuario. Los topes son holgados para uso real en el evento (alguien que prueba
+# varias búsquedas seguidas no los toca) y frenan a un script o una cuenta comprometida que queme crédito.
+# Ventana de 10 minutos para lo que se usa en ráfagas (buscar, preguntar) y de 1 hora para lo pesado.
+VENTANA_CORTA = 10 * 60
+VENTANA_LARGA = 60 * 60
+BUSQUEDAS_NL_POR_USUARIO = 30      # /api/k/explore/parse: un LLM chico por búsqueda en lenguaje natural
+PREGUNTAS_POR_USUARIO = 20         # /api/k/ask
+FICHAS_POR_USUARIO = 40            # /api/k/briefing (en caché por usuario; solo cuenta cuando se pide de nuevo)
+ENTREVISTA_POR_USUARIO = 60        # repreguntas, ficha y audio de la entrevista: ~12 audios + ajustes
+ITINERARIOS_POR_USUARIO = 10       # /api/itinerary/generate: cada uno es una llamada grande al LLM
+ADMIN_LINKS_POR_USUARIO = 30       # vista previa y guardado de eventos por link (admin)
+
+busquedas_nl = Limite(BUSQUEDAS_NL_POR_USUARIO, VENTANA_CORTA)
+preguntas = Limite(PREGUNTAS_POR_USUARIO, VENTANA_CORTA)
+briefings = Limite(FICHAS_POR_USUARIO, VENTANA_LARGA)
+entrevista = Limite(ENTREVISTA_POR_USUARIO, VENTANA_LARGA)
+itinerarios = Limite(ITINERARIOS_POR_USUARIO, VENTANA_LARGA)
+admin_links = Limite(ADMIN_LINKS_POR_USUARIO, VENTANA_LARGA)
+
 
 def demasiados_intentos() -> HTTPException:
     return HTTPException(429, "Demasiados intentos. Esperá unos minutos y probá de nuevo.")
 
 
+def _demasiados_pedidos(limite: Limite, accion: str) -> HTTPException:
+    minutos = max(1, round(limite.ventana / 60))
+    return HTTPException(429, f"Hiciste muchos pedidos de {accion} en poco tiempo. "
+                              f"Esperá unos minutos (el límite se renueva cada {minutos} min) y probá de nuevo.")
+
+
+def exigir_cupo(limite: Limite, usuario: str, accion: str) -> None:
+    """Gasta un uso del usuario o corta con 429 y un mensaje claro. Se llama antes de usar el LLM o el STT."""
+    if not limite.consumir(usuario):
+        raise _demasiados_pedidos(limite, accion)
+
+
+def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
+    """Corta con 429 si el usuario ya agotó el cupo, sin gastar nada. Para cuando el uso se anota después
+    (con limite.sumar), porque solo algunos pedidos llegan de verdad al LLM."""
+    if limite.excedido(usuario):
+        raise _demasiados_pedidos(limite, accion)
+
+
+TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
+         admin_links)
+
+
 def reiniciar_todo() -> None:
     """Para los tests: cada test arranca sin intentos acumulados."""
-    for limite in (fallos_usuario, fallos_ip, pedidos_passkey):
+    for limite in TODOS:
         limite.reiniciar()
