@@ -49,4 +49,6 @@ def test_enable_pide_el_permiso_antes_de_cualquier_await():
     js = (WEB / "js" / "notifications.js").read_text()
     cuerpo = js[js.index("async function enable()"):]
     assert cuerpo.index("Notification.requestPermission()") < cuerpo.index("await Push.key()")
-    assert "await" not in cuerpo[: cuerpo.index("Notification.requestPermission()")].split("{", 1)[1]
+    antes = cuerpo[: cuerpo.index("Notification.requestPermission()")]
+    codigo = "\n".join(l for l in antes.splitlines() if not l.strip().startswith("//"))
+    assert "await" not in codigo.split("{", 1)[1]  # nada asíncrono entre el toque y el permiso
