@@ -23,6 +23,14 @@ def _search_path(en_prueba: bool) -> str:
     return f"{sandbox.schema_prueba()}, {config.DB_SCHEMA}, public" if en_prueba else f"{config.DB_SCHEMA}, public"
 
 
+def catalogo(consulta: str) -> str:
+    """La consulta con el schema del catálogo de este entorno: las consultas se escriben con "reinvent." y en staging
+    pueden apuntar a su copia (CATALOGO_SCHEMA)."""
+    if not _SCHEMA_NAME.match(config.CATALOGO_SCHEMA):
+        raise DatabaseNotConfigured(f"CATALOGO_SCHEMA inválido: {config.CATALOGO_SCHEMA!r}")
+    return consulta if config.CATALOGO_SCHEMA == "reinvent" else consulta.replace("reinvent.", f"{config.CATALOGO_SCHEMA}.")
+
+
 def _crear(en_prueba: bool) -> ConnectionPool:
     if not config.DATABASE_URL:
         raise DatabaseNotConfigured("DATABASE_URL vacío")

@@ -43,6 +43,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   con los botones para avisar desde ahí) y en las del **itinerario**, junto con la pista de sala chica.
 
 ### Cambiado
+- Staging puede usar su propia copia del catálogo (`CATALOGO_SCHEMA=reinvent_staging`, se arma con
+  `scripts/preparar_catalogo_staging.py`) para probar la revisión automática sin tocar lo que ve producción.
 - El botón «+ Itinerario» de las tarjetas de eventos ahora es naranja, como el resto de las acciones principales.
 - Los avisos de «Cambió algo de tu itinerario» ya no llegan de noche: salen a la mañana, como el resto.
 

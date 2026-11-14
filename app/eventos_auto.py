@@ -14,7 +14,7 @@ Cada revisión:
    MIN_ENTRE_FALTAS después), pasa a `cancelado_desde`. Si una fuente falla o trae menos de la mitad de lo que traía,
    no se cancela nada. Si reaparece, se descancela.
 6. Refresca la lista en memoria.
-Solo con EVENTOS_AUTO=1 (producción): staging comparte el schema reinvent.
+Solo con EVENTOS_AUTO=1. El catálogo es el de CATALOGO_SCHEMA (reinvent; staging puede usar su copia).
 """
 import datetime as dt
 import logging
@@ -131,7 +131,7 @@ def _leer_shows(conectar: Conectar, schema: str) -> tuple[dict, int | None] | No
             cur = conn.cursor(row_factory=tuple_row)
             _usar_schema(cur, schema)
             actuales = ticketmaster.leer_actuales(cur)
-            previo = cur.execute("SELECT total FROM evento_revision WHERE fuente = %s AND ok",
+            previo = cur.execute("SELECT total FROM evento_revision WHERE fuente = %s AND total > 0",
                                  (ticketmaster.FUENTE,)).fetchone()
     except UndefinedTable:
         log.warning("reinvent.show_funcion no existe (falta la migración 009): no se revisa Ticketmaster")
@@ -313,10 +313,11 @@ def _pendientes_por_fuente(cur) -> dict[str, int]:
     return cuenta
 
 
-def revisar(*, conectar: Conectar | None = None, http: httpx.Client | None = None, schema: str = "reinvent",
+def revisar(*, conectar: Conectar | None = None, http: httpx.Client | None = None, schema: str | None = None,
             resumir=None, tope: int | None = None, ahora: dt.datetime | None = None,
             pausa: Callable[[], None] | None = None, resolver=None) -> dict:
     """Una revisión completa. Devuelve el resumen por fuente (lo que se guarda en evento_revision)."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     ahora = ahora or dt.datetime.now(dt.UTC)
     pausa = pausa or (lambda: time.sleep(SEGUNDOS_ENTRE_PEDIDOS))
@@ -455,9 +456,10 @@ def start_worker() -> None:
 
 # ---------- admin ----------
 
-def estado(conectar: Conectar | None = None, schema: str = "reinvent") -> dict:
+def estado(conectar: Conectar | None = None, schema: str | None = None) -> dict:
     """Lo que muestra el admin: si está prendido, si hay una revisión en curso, la última de cada fuente y los
     eventos cargados por link. migracion_pendiente: la base todavía no tiene la migración 007."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     base = {"activo": config.EVENTOS_AUTO, "horas": config.EVENTOS_AUTO_HORAS, "ocupado": ocupado(),
             "ticketmaster": bool(config.TICKETMASTER_API_KEY)}
@@ -483,8 +485,9 @@ class LinkRepetido(ValueError):
     """Ese link ya está cargado (por Luma, conferenceparties o a mano)."""
 
 
-def ya_cargado(url: str, conectar: Conectar | None = None, schema: str = "reinvent") -> str | None:
+def ya_cargado(url: str, conectar: Conectar | None = None, schema: str | None = None) -> str | None:
     """El nombre del evento que ya tiene ese link (o el mismo evento de Luma), o None."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     slug = slug_luma(url)
     with conectar() as conn, conn.transaction():
@@ -494,9 +497,10 @@ def ya_cargado(url: str, conectar: Conectar | None = None, schema: str = "reinve
     return next((n for n, u in filas if u == url or (slug and slug_luma(u) == slug)), None)
 
 
-def guardar_link(datos: dict, *, resumen: dict, conectar: Conectar | None = None, schema: str = "reinvent",
+def guardar_link(datos: dict, *, resumen: dict, conectar: Conectar | None = None, schema: str | None = None,
                  ahora: dt.datetime | None = None) -> str:
     """Guarda un evento cargado por link (con alta: dispara el push de "eventos nuevos"). Devuelve su id."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     if nombre := ya_cargado(datos["url"], conectar, schema):
         raise LinkRepetido(f"Ya está cargado: {nombre}")
