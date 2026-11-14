@@ -3,9 +3,11 @@ import itertools
 import logging
 import shutil
 from contextlib import asynccontextmanager
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -93,9 +95,39 @@ class SandboxMiddleware:
             return await self.app(scope, receive, send)
 
 
+GZIP_TAMANO_MINIMO = 1000  # bytes: por debajo, comprimir cuesta más CPU de lo que ahorra
+# Ya vienen comprimidos (imágenes, audio, tipografías, zip): gzip no les saca nada y gasta CPU.
+EXTENSIONES_COMPRIMIDAS = frozenset({
+    ".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".ico", ".woff", ".woff2",
+    ".mp3", ".m4a", ".ogg", ".opus", ".webm", ".mp4", ".zip", ".gz",
+})
+
+
+class GzipSelectivo:
+    """GZipMiddleware de Starlette, salvo en lo que no se comprime: archivos ya comprimidos (por extensión) y pedidos
+    con Range (un 206 gzipeado no sirve para reanudar). Respuestas con Content-Encoding propio las deja pasar la
+    propia GZipMiddleware. ASGI puro, como los otros middlewares."""
+
+    def __init__(self, app, minimum_size: int = GZIP_TAMANO_MINIMO):
+        self.app = app
+        self._gzip = GZipMiddleware(app, minimum_size=minimum_size)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and self._no_comprimir(scope):
+            return await self.app(scope, receive, send)
+        return await self._gzip(scope, receive, send)
+
+    @staticmethod
+    def _no_comprimir(scope) -> bool:
+        if any(nombre == b"range" for nombre, _ in scope.get("headers") or []):
+            return True
+        return PurePosixPath(scope["path"]).suffix.lower() in EXTENSIONES_COMPRIMIDAS
+
+
 app = FastAPI(title="ReinventAR", version=__version__, lifespan=lifespan)
 app.add_middleware(SandboxMiddleware)
 app.add_middleware(cabeceras.CabecerasMiddleware)
+app.add_middleware(GzipSelectivo)  # por fuera de las cabeceras (que no tocan el cuerpo) y por dentro del redirect
 app.add_middleware(WwwRedirectMiddleware)  # el último que se agrega corre primero: www. redirige antes que nada
 app.include_router(auth_api.router)
 app.include_router(admin_api.router)
