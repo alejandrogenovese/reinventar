@@ -51,11 +51,11 @@ def _card(r: dict) -> dict:
 def _leer() -> list[dict]:
     with pg.pool().connection() as c:
         try:
-            return c.execute(_LOAD_SQL.format(extra=_EXTRA)).fetchall()
+            return c.execute(pg.catalogo(_LOAD_SQL.format(extra=_EXTRA))).fetchall()
         except psycopg.errors.UndefinedColumn:
             c.rollback()
             log.warning("reinvent.evento sin las columnas de la revisión automática (falta la migración 007)")
-            return c.execute(_LOAD_SQL.format(extra="")).fetchall()
+            return c.execute(pg.catalogo(_LOAD_SQL.format(extra=""))).fetchall()
 
 
 @sandbox.en_real

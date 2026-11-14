@@ -22,6 +22,9 @@ WEBAUTHN_ORIGIN = _env("WEBAUTHN_ORIGIN")
 # y un Railway Volume en /data para los archivos de audio.
 DATABASE_URL = _env("DATABASE_URL")
 DB_SCHEMA = _env("DB_SCHEMA", "app")
+# Schema del catálogo (charlas, speakers, sedes, eventos, shows). Producción: reinvent. Staging puede usar su propia copia
+# (reinvent_staging) para probar la revisión automática sin tocar lo que ve producción.
+CATALOGO_SCHEMA = _env("CATALOGO_SCHEMA", "reinvent")
 DB_POOL_SIZE = int(_env("DB_POOL_SIZE", "5"))
 DATA_DIR = Path(_env("DATA_DIR", "/data"))
 LEGACY_SQLITE_PATH = DATA_DIR / "reinventar.db"  # base anterior: se importa sola al primer arranque con Postgres
@@ -101,7 +104,8 @@ LANGFUSE_SECRET_KEY = _env("LANGFUSE_SECRET_KEY")
 LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
 
 # Eventos automáticos (app/eventos_auto.py): revisión de Luma, conferenceparties y links sueltos cada N horas.
-# Solo en producción (EVENTOS_AUTO=1): staging comparte el schema reinvent y haría el trabajo y los push dos veces.
+# Prendido (EVENTOS_AUTO=1) en un solo servicio por schema de catálogo: producción en reinvent; staging, solo si usa
+# su copia (CATALOGO_SCHEMA=reinvent_staging), si no haría el trabajo y los push dos veces sobre lo de producción.
 EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
 EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
 EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima

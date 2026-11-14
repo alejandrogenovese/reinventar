@@ -586,3 +586,52 @@ def test_despues_de_una_revision_fallida_se_mantiene_la_referencia_y_el_aviso_de
     evs = _eventos(base)
     assert all(e["cancelado"] is None for e in evs.values())
     assert evs["evt-nuevo"]["alta"] is not None  # no se tomó como carga inicial
+
+
+# ---------- schema del catálogo por entorno ----------
+
+def test_el_catalogo_de_staging_puede_ser_una_copia(monkeypatch):
+    from app import config, pg
+
+    consulta = "SELECT 1 FROM reinvent.evento e JOIN reinvent.sede s ON true WHERE to_regclass('reinvent.sede') IS NOT NULL"
+    assert pg.catalogo(consulta) == consulta  # producción: igual que siempre
+
+    monkeypatch.setattr(config, "CATALOGO_SCHEMA", "reinvent_staging")
+    assert "reinvent." not in pg.catalogo(consulta).replace("reinvent_staging.", "")
+    assert pg.catalogo(consulta).count("reinvent_staging.") == 3
+
+    monkeypatch.setattr(config, "CATALOGO_SCHEMA", "x; DROP TABLE y")
+    with pytest.raises(pg.DatabaseNotConfigured):
+        pg.catalogo(consulta)
+
+
+def test_la_revision_usa_el_schema_del_entorno(monkeypatch):
+    usados = []
+    monkeypatch.setattr(eventos_auto.config, "CATALOGO_SCHEMA", "reinvent_staging")
+    monkeypatch.setattr(eventos_auto, "_leer_estado", lambda conectar, schema: usados.append(schema) or 1 / 0)
+
+    with pytest.raises(ZeroDivisionError):
+        eventos_auto.revisar(conectar=lambda: None, http=httpx.Client(), pausa=lambda: None)
+
+    assert usados == ["reinvent_staging"]
+
+
+def test_preparar_catalogo_staging_copia_sin_tocar_el_origen(base):
+    from scripts import preparar_catalogo_staging as prep
+
+    _c, origen, conn = base
+    destino = f"{origen}_copia"
+    conn.execute(f"INSERT INTO {origen}.evento (id_evento, plataforma, url, nombre, inicio) "
+                 "VALUES ('e1', 'luma', 'https://luma.com/x', 'X', now())")
+    try:
+        with conn.transaction():
+            filas = prep.copiar(conn, origen, destino)
+            prep.aplicar_migraciones(conn, destino)
+        assert filas["evento"] == 1 and filas["sede"] > 0
+        assert conn.execute(f"SELECT count(*) FROM {destino}.evento").fetchone()[0] == 1
+        conn.execute(f"DELETE FROM {destino}.evento")
+        assert conn.execute(f"SELECT count(*) FROM {origen}.evento").fetchone()[0] == 1  # el origen no se toca
+        with pytest.raises(ValueError):
+            prep.copiar(conn, origen, origen)
+    finally:
+        conn.execute(f"DROP SCHEMA IF EXISTS {destino} CASCADE")

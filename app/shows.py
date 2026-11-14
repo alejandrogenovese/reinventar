@@ -66,8 +66,8 @@ def _card(r: dict, sedes: list[tuple[str, float, float]]) -> dict:
 
 def _leer() -> tuple[list[dict], list[tuple[str, float, float]]]:
     with pg.pool().connection() as c:
-        filas = c.execute(_LOAD_SQL).fetchall()
-        sedes = [(r["nombre"], float(r["lat"]), float(r["lng"])) for r in c.execute(_SEDES_SQL).fetchall()]
+        filas = c.execute(pg.catalogo(_LOAD_SQL)).fetchall()
+        sedes = [(r["nombre"], float(r["lat"]), float(r["lng"])) for r in c.execute(pg.catalogo(_SEDES_SQL)).fetchall()]
     return filas, sedes
 
 

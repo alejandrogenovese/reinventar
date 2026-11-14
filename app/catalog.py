@@ -73,10 +73,10 @@ _BAJAS = ", 'falta', h.falta_desde, 'cancelada', h.cancelado_desde IS NOT NULL"
 def _filas(c) -> list:
     try:
         with c.transaction():  # savepoint: si falla, lo anterior (sectors.ensure) sigue en pie
-            return c.execute(_LOAD_SQL.replace("/*BAJAS*/", _BAJAS)).fetchall()
+            return c.execute(pg.catalogo(_LOAD_SQL.replace("/*BAJAS*/", _BAJAS))).fetchall()
     except psycopg.errors.UndefinedColumn:
         log.warning("reinvent.speech_horario sin las columnas de bajas (falta la migración 008)")
-        return c.execute(_LOAD_SQL).fetchall()
+        return c.execute(pg.catalogo(_LOAD_SQL)).fetchall()
 
 
 class CatalogUnavailable(Exception):
@@ -91,9 +91,9 @@ def load() -> int:
         with pg.pool().connection() as c:
             sectors.ensure(c)  # el join con sector_industria no puede depender de que db.init() haya corrido antes
             rows = _filas(c)
-            venues.load(c.execute(venues.LOAD_SQL).fetchall())
+            venues.load(c.execute(pg.catalogo(venues.LOAD_SQL)).fetchall())
             # sede_tiempo llega con el sync del catálogo: si todavía no está, los viajes se estiman por línea recta.
-            tiempos = c.execute(travel.LOAD_SQL).fetchall() if c.execute(travel.EXISTE_SQL).fetchone()["existe"] else []
+            tiempos = c.execute(pg.catalogo(travel.LOAD_SQL)).fetchall() if c.execute(pg.catalogo(travel.EXISTE_SQL)).fetchone()["existe"] else []
             travel.load(tiempos)
     except (psycopg.Error, pg.DatabaseNotConfigured) as e:
         raise CatalogUnavailable(str(e)) from e

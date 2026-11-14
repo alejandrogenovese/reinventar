@@ -121,7 +121,7 @@ def _profile(r: dict) -> dict:
 
 def speaker_detail(speaker_id: int) -> dict | None:
     with pg.pool().connection() as c:
-        r = c.execute(_SPEAKER_SQL, (speaker_id,)).fetchone()
+        r = c.execute(pg.catalogo(_SPEAKER_SQL), (speaker_id,)).fetchone()
     if not r:
         return None
     talks = _talks_of(lambda s: any(p["id"] == speaker_id for p in s.get("people", [])))
@@ -148,7 +148,7 @@ WHERE e.id_empresa = %s
 
 def empresa_detail(empresa_id: int) -> dict | None:
     with pg.pool().connection() as c:
-        r = c.execute(_EMPRESA_SQL, (empresa_id,)).fetchone()
+        r = c.execute(pg.catalogo(_EMPRESA_SQL), (empresa_id,)).fetchone()
     if not r:
         return None
     talks = _talks_of(lambda s: any(p.get("company_id") == empresa_id for p in s.get("people", [])))

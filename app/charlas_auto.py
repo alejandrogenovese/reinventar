@@ -284,9 +284,10 @@ def _detalle(plan: Plan, reducida: bool, en_duda: int) -> str | None:
 
 # ---------- revisión ----------
 
-def revisar(*, conectar: Conectar | None = None, http: httpx.Client | None = None, schema: str = "reinvent",
+def revisar(*, conectar: Conectar | None = None, http: httpx.Client | None = None, schema: str | None = None,
             ahora: dt.datetime | None = None, pausa: Callable[[], None] | None = None) -> dict:
     """Una revisión completa. Devuelve el resumen (lo que se guarda en evento_revision) y los renombres aplicados."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     ahora = ahora or dt.datetime.now(dt.UTC)
     pausa = pausa or (lambda: time.sleep(SEGUNDOS_ENTRE_PEDIDOS))
@@ -394,9 +395,10 @@ def start_worker() -> None:
 
 # ---------- admin ----------
 
-def nuevas(conectar: Conectar | None = None, schema: str = "reinvent") -> list[dict]:
+def nuevas(conectar: Conectar | None = None, schema: str | None = None) -> list[dict]:
     """Las «Charlas nuevas» que encontró la revisión (para que el admin las revise), de la más reciente a la más vieja.
     Sin la migración 008, ninguna."""
+    schema = schema or config.CATALOGO_SCHEMA
     conectar = conectar or (lambda: pg.pool().connection())
     try:
         with conectar() as conn, conn.transaction():
