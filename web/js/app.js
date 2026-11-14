@@ -298,6 +298,10 @@ async function viewRecord(id) {
   const finishBtn = Button("Terminar y procesar", { variant: "primary", disabled: true, onclick: finish });
   const salaBtn = Button("Modo sala", { onclick: salaOn });
 
+  // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
+  // Va antes del view.append que lo usa: un const usado antes de su declaración tira ReferenceError.
+  const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
+    "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
   const resumed = Object.keys(rec.meta.parts).length > 0;
   view.append(h("div", { class: "stack-lg" },
     h("div", {}, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), h("h1", { class: "title" }, s.title),
@@ -317,9 +321,6 @@ async function viewRecord(id) {
   };
   rec.addEventListener("state", () => { paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
-  // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
-  const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
-    "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
   let quietSince = null;
   rec.addEventListener("level", (e) => {
     meter.update(e.detail, rec.deviceLabel);
