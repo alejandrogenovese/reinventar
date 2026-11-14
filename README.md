@@ -171,6 +171,7 @@ Cada parte de la app pide una **tarea** (`app/llm_router.py`: resumen, traducci�
 - **Alta**: un admin entra a *Ajustes → Administración* (`#/admin`) y crea el usuario con una contraseña temporal (mínimo 8 caracteres). Al primer ingreso la app obliga a cambiarla.
 - Desde la misma pantalla se resetean contraseñas, se activan o desactivan usuarios y se cierran sus sesiones.
 - **Admins**: los usuarios listados en `ADMIN_USERS` (separados por coma). Se cambia en las variables de Railway; no hay botón en la app.
+- **Un admin que se olvidó la contraseña** y no tiene passkey ni otro admin que se la resetee (`BOOTSTRAP_USERS` no pisa usuarios existentes): `python -m scripts.resetear_password --schema <DB_SCHEMA> --usuario <usuario>` desde la Mac, con `RAILWAY_DATABASE_URL` exportada. Pide la contraseña nueva sin mostrarla, cierra las sesiones y conserva las passkeys. Sin `--aplicar` corre en modo prueba; antes de `--aplicar`, backup. El schema es el `DB_SCHEMA` del servicio: staging y producción usan schemas distintos.
 
 ## Cómo se comporta la grabación
 
