@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import ask, briefing, db, explore, knowledge, nl_filters, talks
+from . import ask, briefing, db, explore, knowledge, limites, nl_filters, talks
 from .auth import auth
 
 router = APIRouter(prefix="/api/k", dependencies=[Depends(auth)])
@@ -59,8 +59,9 @@ class ParseQuery(BaseModel):
 
 
 @router.post("/explore/parse")
-def parse_filters(body: ParseQuery):
+def parse_filters(body: ParseQuery, username: str = Depends(auth)):
     """Pedido en lenguaje natural → filtros validados contra los valores reales (se aplican después con /explore)."""
+    limites.exigir_cupo(limites.busquedas_nl, username, "búsqueda")
     try:
         return nl_filters.parse(body.text.strip())
     except nl_filters.NLFiltersUnavailable:
@@ -78,6 +79,7 @@ class AskQuery(BaseModel):
 
 @router.post("/ask")
 def ask_catalog(body: AskQuery, username: str = Depends(auth)):
+    limites.exigir_cupo(limites.preguntas, username, "preguntas")
     try:
         return ask.answer(body.q.strip(), db.get_interview(username)["ficha_texto"])
     except ask.AskUnavailable:
@@ -93,6 +95,7 @@ class BriefingQuery(BaseModel):
 @router.post("/briefing")
 def make_briefing(body: BriefingQuery, username: str = Depends(auth)):
     """Ficha para conversar con un speaker o empresa, cruzada con el perfil de quien la pide (en caché por usuario)."""
+    limites.exigir_cupo(limites.briefings, username, "fichas")
     try:
         result = briefing.get(username, body.kind, body.id, body.refresh)
     except briefing.BriefingUnavailable:

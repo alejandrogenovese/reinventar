@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
-from . import cuerpo, db, interview, stt
+from . import cuerpo, db, interview, limites, stt
 from .auth import auth
 from .interview import Ficha, Respuestas
 from .llm_router import UsoSTT
@@ -46,6 +46,7 @@ def save_interview(body: Respuestas, username: str = Depends(auth)):
 @router.post("/api/itinerary/interview/repreguntas")
 def followups(username: str = Depends(auth)):
     """Hasta 2 repreguntas del LLM (opcionales). Reemplazan las anteriores."""
+    limites.exigir_cupo(limites.entrevista, username, "la entrevista")
     r = _respuestas(username)
     try:
         nuevas = interview.repreguntas(r)
@@ -64,6 +65,7 @@ def _guardar_ficha(username: str, ficha: Ficha) -> dict:
 
 @router.post("/api/itinerary/ficha")
 def create_ficha(username: str = Depends(auth)):
+    limites.exigir_cupo(limites.entrevista, username, "la entrevista")
     try:
         ficha = interview.generar_ficha(_respuestas(username))
     except interview.EntrevistaIncompleta as e:
@@ -87,8 +89,9 @@ def _transcribir(data: bytes, extension: str) -> str:
 
 
 @router.post("/api/itinerary/interview/voz")
-async def voice_answer(request: Request):
+async def voice_answer(request: Request, username: str = Depends(auth)):
     """Audio de una respuesta → texto en castellano, para que la persona lo revise antes de guardarlo."""
+    limites.exigir_cupo(limites.entrevista, username, "la entrevista")
     data = await cuerpo.leer_con_tope(request, interview.MAX_VOZ_BYTES, "El audio es demasiado largo")
     if not data:
         raise HTTPException(422, "Audio vacío")

@@ -18,6 +18,7 @@ from . import (
     events,
     healthcheck,
     langfuse_metricas,
+    limites,
     passkeys_db,
     passwords,
     prompts,
@@ -240,8 +241,9 @@ def eventos_revisar(_admin: str = Depends(admin)):
 
 
 @router.post("/eventos/link/vista-previa")
-def eventos_link_vista_previa(body: LinkUrl, _admin: str = Depends(admin)):
+def eventos_link_vista_previa(body: LinkUrl, username: str = Depends(admin)):
     """Baja la página y saca los datos del evento con el LLM, para revisarlos antes de guardar. No guarda nada."""
+    limites.exigir_cupo(limites.admin_links, username, "eventos por link")
     _eventos_activos()
     try:
         previa = eventos_link.vista_previa(body.url)
@@ -254,7 +256,8 @@ def eventos_link_vista_previa(body: LinkUrl, _admin: str = Depends(admin)):
 
 
 @router.post("/eventos/link")
-def eventos_link_guardar(body: LinkEvento, _admin: str = Depends(admin)):
+def eventos_link_guardar(body: LinkEvento, username: str = Depends(admin)):
+    limites.exigir_cupo(limites.admin_links, username, "eventos por link")
     _eventos_activos()
     datos = {**body.model_dump(), "fecha": body.fecha.isoformat()}
     resumen = {"resumen_es": body.resumen_es, "tipo": body.tipo if body.tipo in prompts.EVENT_TYPES else None,
