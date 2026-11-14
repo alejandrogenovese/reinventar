@@ -1,4 +1,6 @@
 """Login/logout, perfil de sesión y cambio de contraseña."""
+import ipaddress
+import os
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -42,8 +44,20 @@ def issue_session(user: dict) -> dict:
 _SALT_RELLENO, _HASH_RELLENO = passwords.hash_password(secrets.token_hex(16))
 
 
+# Header donde el proxy de Railway deja la IP real del cliente (documentado en "Specs & Limits": X-Real-IP). Es
+# configurable por si el proveedor cambia. El X-Forwarded-For no se usa: el cliente puede mandarlo con lo que quiera.
+HEADER_IP_CLIENTE = os.environ.get("IP_CLIENTE_HEADER", "X-Real-IP").strip().lower()
+
+
 def ip_cliente(request: Request) -> str:
-    return request.client.host if request.client else "?"
+    """IP del cliente para los límites por IP: la del header del proxy si es una IP válida; si no, la del peer.
+    El Dockerfile corre uvicorn con --no-proxy-headers, así que request.client es siempre el peer real y ningún
+    X-Forwarded-For que mande el cliente lo cambia."""
+    valor = request.headers.get(HEADER_IP_CLIENTE, "").strip()
+    try:
+        return str(ipaddress.ip_address(valor))
+    except ValueError:
+        return request.client.host if request.client else "?"
 
 
 @router.post("/api/login")
