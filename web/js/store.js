@@ -107,8 +107,8 @@ export async function countFor(session) {
   return new Promise((res, rej) => {
     const t = db.transaction(STORE, "readonly");
     const s = t.objectStore(STORE);
-    const total = s.index("session").count(session), failed = s.index("failed").getAll();
-    t.oncomplete = () => res(total.result - failed.result.filter((c) => c.session === session).length);
+    const total = s.index("session").count(session), failed = s.index("failed").getAllKeys();
+    t.oncomplete = () => res(total.result - failed.result.filter((k) => k[0] === session).length);
     t.onerror = () => rej(t.error);
     t.onabort = () => rej(t.error);
   });
@@ -116,8 +116,9 @@ export async function countFor(session) {
 
 /** Cuántos pedazos fallidos tiene una sesión (los que el servidor rechazó). */
 export async function failedFor(session) {
-  const failed = await tx("readonly", (s) => s.index("failed").getAll());
-  return failed.filter((c) => c.session === session).length;
+  // Solo claves primarias [session, part, seq]: no hace falta traer los blobs de audio para contar.
+  const failed = await tx("readonly", (s) => s.index("failed").getAllKeys());
+  return failed.filter((k) => k[0] === session).length;
 }
 
 /** Marca un pedazo como rechazado: queda en la cola (no se pierde el audio) pero no se reintenta solo. */

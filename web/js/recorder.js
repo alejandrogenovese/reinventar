@@ -67,6 +67,8 @@ export class Recorder extends EventTarget {
     track.addEventListener("mute", () => this._signal("mute", true));
     track.addEventListener("unmute", () => this._signal("mute", false));
 
+    // Un AudioContext nuevo nace "suspended" sin gesto del usuario, pero eso no dispara statechange: solo
+    // cuenta como corte un cambio posterior. _recover() lo reanuda con resume().
     const ctx = this.ctx = new AudioContext();
     // Safari pasa el AudioContext a "interrupted" en esos mismos casos; Chrome puede dejarlo "suspended".
     // Se ignora el de un contexto viejo (close() lo cierra y avisa "closed" tarde).
