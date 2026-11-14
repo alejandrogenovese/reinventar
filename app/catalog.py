@@ -3,6 +3,7 @@
 Cada sesión conserva la forma que tenía el JSON original (base, title, topic "a;b", instances [{c,d,st,en,v,seats,walk}])
 y suma "people": los speakers en orden, con cargo, empresa, industria y sector.
 """
+import datetime as dt
 import logging
 import unicodedata
 
@@ -41,6 +42,7 @@ WITH people AS (
          jsonb_agg(jsonb_build_object(
            'c', h.codigo, 'd', h.fecha::text, 'st', to_char(h.hora_inicio, 'HH24:MI'), 'en', to_char(h.hora_fin, 'HH24:MI'),
            'v', sd.nombre || coalesce('|' || replace(h.sala, ' · ', '|'), ''), 'seats', h.cupo, 'walk', h.walk_up
+           /*BAJAS*/
          ) ORDER BY h.fecha, h.hora_inicio) AS instances
   FROM reinvent.speech_horario h
   JOIN reinvent.sede sd ON sd.id_sede = h.id_sede
@@ -64,6 +66,19 @@ ORDER BY i.first_at NULLS LAST, s.id_speech
 """
 
 
+# Charlas que se bajan (migración 008, app/charlas_auto.py): sin esas columnas (base sin migrar) la app sigue igual.
+_BAJAS = ", 'falta', h.falta_desde, 'cancelada', h.cancelado_desde IS NOT NULL"
+
+
+def _filas(c) -> list:
+    try:
+        with c.transaction():  # savepoint: si falla, lo anterior (sectors.ensure) sigue en pie
+            return c.execute(_LOAD_SQL.replace("/*BAJAS*/", _BAJAS)).fetchall()
+    except psycopg.errors.UndefinedColumn:
+        log.warning("reinvent.speech_horario sin las columnas de bajas (falta la migración 008)")
+        return c.execute(_LOAD_SQL).fetchall()
+
+
 class CatalogUnavailable(Exception):
     """El schema reinvent no está cargado en Postgres (correr scripts/sync_to_railway.sh) o la base no responde."""
 
@@ -75,7 +90,7 @@ def load() -> int:
     try:
         with pg.pool().connection() as c:
             sectors.ensure(c)  # el join con sector_industria no puede depender de que db.init() haya corrido antes
-            rows = c.execute(_LOAD_SQL).fetchall()
+            rows = _filas(c)
             venues.load(c.execute(venues.LOAD_SQL).fetchall())
             # sede_tiempo llega con el sync del catálogo: si todavía no está, los viajes se estiman por línea recta.
             tiempos = c.execute(travel.LOAD_SQL).fetchall() if c.execute(travel.EXISTE_SQL).fetchone()["existe"] else []
@@ -149,7 +164,16 @@ def card(session: dict, instance: dict) -> dict:
         "seats": instance.get("seats"),
         "walk_in": bool(instance.get("walk")),
         "venue": venues.resolve(instance.get("v", "")),
+        "cancelled": bool(instance.get("cancelada")),
+        "missing_since": None if instance.get("cancelada") else _hora_vegas(instance.get("falta")),
     }
+
+
+def _hora_vegas(cuando: str | None) -> str | None:
+    """'2026-11-30T22:30:00+00:00' → '14:30' (hora de Las Vegas): desde cuándo no aparece en el catálogo oficial."""
+    if not cuando:
+        return None
+    return dt.datetime.fromisoformat(cuando).astimezone(sandbox.EVENT_TZ).strftime("%H:%M")
 
 
 def _sectors(session: dict) -> set[str]:

@@ -17,6 +17,15 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   Notificaciones con «Avisarme de eventos nuevos».
 - Administración: estado de cada fuente, «Revisar ahora» y **«Agregar evento por link»** para los que no están en
   ninguna lista (pegás el link, la app arma el evento y lo revisás antes de guardar).
+- **Charlas que se bajan o cambian.** La app revisa sola el catálogo oficial de AWS (el buscador público, sin tu
+  usuario): cada 3 horas en noviembre y cada 30 minutos durante el evento. Si una charla deja de aparecer, avisa en la
+  tarjeta, la ficha, el itinerario e Inicio («No aparece en el catálogo oficial desde las 14:30…»); si sigue sin
+  aparecer en la revisión siguiente, queda **«Cancelada»** (tachada) y llega un push a quien la tenía («Se canceló
+  AIM301 (mié 2/12 10:00)»). Si reaparece, vuelve a la normalidad.
+- Los **cambios de sala u horario** se actualizan solos y el push dice qué cambió («AIM301 cambió de sala: ahora…»).
+  Si AWS le cambia el código a una charla, sigue en tu itinerario con el código nuevo.
+- Las **charlas nuevas** del catálogo oficial entran solas (con el resumen en inglés hasta la próxima carga) y se
+  listan en Administración → Eventos automáticos para revisarlas.
 - **¿Te sirvió este resumen? 👍 / 👎** debajo del resumen de cada grabación. Un voto por persona (otro toque lo quita)
   y se ve a cuántos les sirvió. Cada voto va al tablero de LLM («Útil»), para saber qué tan buenos salen los resúmenes.
 - **«Está llena» y «Hay mucha cola»** en cada horario de la ficha de una charla. Desde 45 minutos antes de que empiece
@@ -28,6 +37,7 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ### Cambiado
 - El botón «+ Itinerario» de las tarjetas de eventos ahora es naranja, como el resto de las acciones principales.
+- Los avisos de «Cambió algo de tu itinerario» ya no llegan de noche: salen a la mañana, como el resto.
 
 ### Corregido
 - Las imágenes de los eventos (Luma) salían rotas en un celular nuevo, en eventos nuevos o en algunos navegadores.

@@ -1,9 +1,10 @@
-// Cuenta → Admin → Eventos automáticos: la última revisión de cada fuente (Luma, conferenceparties, links), «Revisar
-// ahora» y «Agregar evento por link» (vista previa con el LLM, corregible, y guardar). Ver app/eventos_auto.py.
+// Cuenta → Admin → Eventos automáticos: la última revisión de cada fuente (Luma, conferenceparties, links y el catálogo
+// oficial de charlas), «Revisar ahora», «Agregar evento por link» (vista previa con el LLM, corregible, y guardar) y las
+// «Charlas nuevas» que encontró la revisión. Ver app/eventos_auto.py y app/charlas_auto.py.
 import { Admin } from "./api.js";
 import { Button, Hint, h, toast } from "./ui.js";
 
-const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano" };
+const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas" };
 const ESPERA_MS = 5000;
 
 const hace = (iso) => {
@@ -15,7 +16,8 @@ const hace = (iso) => {
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 function RevisionRow(r) {
-  const partes = [`${r.total} eventos`, plural(r.nuevos, "nuevo", "nuevos"), plural(r.cambiados, "cambiado", "cambiados"),
+  const unidad = r.fuente === "catalogo" ? "horarios futuros" : "eventos";
+  const partes = [`${r.total} ${unidad}`, plural(r.nuevos, "nuevo", "nuevos"), plural(r.cambiados, "cambiado", "cambiados"),
     plural(r.cancelados, "cancelado", "cancelados"), r.pendientes ? `${r.pendientes} sin resumen todavía` : null].filter(Boolean);
   return h("div", { class: "stack" },
     h("p", {}, h("strong", {}, FUENTE[r.fuente] || r.fuente), ` · ${hace(r.revisado)} · `, r.ok ? partes.join(" · ") : "falló"),
@@ -79,6 +81,19 @@ function AddLink(onSaved) {
   return h("div", { class: "stack" }, form, preview);
 }
 
+const diaHora = (iso) => (iso ? new Date(iso).toLocaleString("es-AR", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "sin horario");
+
+/** Las charlas que entraron solas desde el catálogo oficial (con el resumen en inglés): para revisarlas. */
+function CharlasNuevas(nuevas) {
+  if (!nuevas?.length) return null;
+  return h("div", { class: "stack" },
+    h("h3", { class: "label" }, "Charlas nuevas"),
+    h("p", { class: "caption" }, "Las agregó la revisión desde el catálogo oficial, con el resumen en inglés hasta la próxima carga manual."),
+    h("ul", { class: "stack" }, nuevas.map((c) => h("li", {},
+      h("a", { class: "ra-link", href: `#/charla/${encodeURIComponent(c.base)}` }, `${c.base} · ${c.titulo}`),
+      h("span", { class: "caption" }, ` · ${diaHora(c.primero)} · encontrada ${hace(c.alta)}`)))));
+}
+
 export function EventosPanel() {
   const box = h("div", { class: "stack" });
   async function paint() {
@@ -94,11 +109,12 @@ export function EventosPanel() {
     box.replaceChildren(
       !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
       d.migracion_pendiente ? Hint("Falta la migración 007 en la base.", { tone: "error" }) : null,
-      d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties y los links cada ${d.horas} h.`) : null,
+      d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
       ...d.revisiones.map(RevisionRow),
       h("div", { class: "actions" }, revisar),
       d.links.length ? h("ul", { class: "stack" }, d.links.map((l) => h("li", {},
         h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(l.id)}` }, l.nombre), l.cancelado ? " · cancelado" : ""))) : null,
+      CharlasNuevas(d.charlas_nuevas),
       d.activo && !d.migracion_pendiente ? AddLink(paint) : null);
   }
   void paint();

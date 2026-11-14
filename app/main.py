@@ -18,6 +18,7 @@ from . import (
     auth_api,
     cabeceras,
     catalog,
+    charlas_auto,
     config,
     cuerpo,
     db,
@@ -66,6 +67,7 @@ async def lifespan(_app):
     pipeline.start_worker()
     push.start_worker()
     eventos_auto.start_worker()
+    charlas_auto.start_worker()
     yield
     pg.close()
 

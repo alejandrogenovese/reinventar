@@ -1,6 +1,6 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
-import { LlenoAvisos, avisosDe } from "./lleno.js";
+import { AvisoBaja, LlenoAvisos, avisosDe } from "./lleno.js";
 import { BriefingPanel } from "./briefing.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
@@ -71,11 +71,12 @@ function Slot(i, mine, onChange, aviso) {
     Button("Quitar", { onclick: remove, "aria-label": `Quitar el horario ${shortDay(i.day)} ${i.start} del itinerario` }));
   else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
   else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
-  return h("li", { class: "ra-slot" },
+  return h("li", { class: `ra-slot${i.cancelled ? " is-cancelled" : ""}` },
     h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, i.start || "—"), h("span", { class: "ra-rail-day" }, shortDay(i.day))),
     h("div", { class: "ra-slot-body" },
       h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
+      AvisoBaja(i),
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
     action,

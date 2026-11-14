@@ -1,6 +1,8 @@
 """Push de eventos (los arma app/push.due junto con el resto de los avisos; cada uno sale una sola vez por clave).
 
 - Cancelado: a quien tiene el evento en su itinerario, si todavía no empezó. Llega aunque haya apagado los de nuevos.
+- Charla cancelada: lo mismo para una charla del itinerario que dejó de aparecer en el catálogo oficial dos revisiones
+  seguidas (app/charlas_auto.py): «Se canceló AIM301 (mar 2/12 10:00)».
 - Eventos nuevos: uno solo por tanda, con los nombres ("3 eventos nuevos: A, B y 1 más"). Solo los que encontró la
   revisión automática (app/eventos_auto.py; la carga inicial no cuenta) y si la persona no los apagó en su perfil.
 Ninguno sale en el horario de silencio (app/recordatorio.py): lo que se junte de noche sale a la mañana.
@@ -12,6 +14,7 @@ from . import events, recordatorio, sandbox
 
 PREFIJO_NUEVOS = "evnuevos:"
 PREFIJO_CANCELADO = "evcancel:"
+PREFIJO_CHARLA_CANCELADA = "chcancel:"
 VENTANA_PRIMERA_VEZ_H = 24   # sin un aviso anterior, se cuentan los nuevos de las últimas 24 h
 NOMBRES_EN_AVISO = 2
 
@@ -36,6 +39,26 @@ def cancelados(days: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
             out.append((f"{PREFIJO_CANCELADO}{c['code']}",
                         {"title": f"Se canceló {c['title']}",
                          "body": f"{_dia(c)} a las {c['start']} · ya no aparece en su página. Revisalo antes de ir.",
+                         "url": "/#/itinerario"}))
+    return out
+
+
+def cuando(card: dict) -> str:
+    """'mar 2/12 10:00' (los días como en app/changes.py)."""
+    dia = dt.date.fromisoformat(card["day"])
+    return f"{('lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom')[dia.weekday()]} {dia.day}/{dia.month} {card['start']}"
+
+
+def charlas_canceladas(days: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    out = []
+    for day in days:
+        for c in day["sessions"]:
+            empieza = _empieza(c)
+            if c.get("kind", "talk") != "talk" or not c.get("cancelled") or not empieza or empieza <= now:
+                continue
+            out.append((f"{PREFIJO_CHARLA_CANCELADA}{c['code']}",
+                        {"title": f"Se canceló {c['code']} ({cuando(c)})",
+                         "body": f"«{c['title']}» ya no aparece en el catálogo oficial de AWS. Buscá otra charla.",
                          "url": "/#/itinerario"}))
     return out
 
@@ -65,7 +88,7 @@ def nuevos(ultimo: float | None, ahora: float) -> tuple[str, dict] | None:
 def avisos(days: list[dict], now: dt.datetime, *, quiere_nuevos: bool, ultimo_nuevos: float | None) -> list[tuple[str, dict]]:
     if recordatorio.en_silencio(now):
         return []
-    out = cancelados(days, now)
+    out = cancelados(days, now) + charlas_canceladas(days, now)
     if quiere_nuevos and (aviso := nuevos(ultimo_nuevos, time.time())):
         out.append(aviso)
     return out

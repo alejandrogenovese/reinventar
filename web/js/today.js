@@ -3,7 +3,7 @@ import { Sessions, Today } from "./api.js";
 import { CountdownBadge } from "./countdown.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { icon } from "./icons.js";
-import { LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
+import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, h, toast } from "./ui.js";
 
 const LATER_LIMIT = 4;
@@ -64,6 +64,7 @@ function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
     h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: itemHref(s) }, s.title)),
     h("div", { class: "ra-card-meta" }, place(s) ? IconText("ubicacion", place(s)) : null, itemLabel(s)),
     s.kind === "event" && s.cancelled ? Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" }) : null,
+    s.kind === "talk" ? AvisoBaja(s) : null,
     s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
     go ? go.info : null,

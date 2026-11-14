@@ -30,7 +30,7 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 
-from scripts.catalogo_oficial import (
+from app.catalogo_oficial import (
     Catalogo,
     Homonimo,
     SpeakerExistente,

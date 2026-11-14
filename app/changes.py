@@ -30,6 +30,17 @@ def diff(old: dict, new: dict) -> list[str]:
     return out
 
 
+def push_title(code: str, kind: str, old: dict, new: dict) -> str:
+    """Título del push: para una charla, qué cambió y cómo queda («AIM301 cambió de sala: ahora Wynn/Encore · Chopin 4»)."""
+    if kind != "talk":
+        return "Cambió algo de tu itinerario"
+    if (old.get("day"), old.get("start")) != (new.get("day"), new.get("start")):
+        return f"{code} cambió de horario: ahora {_when(new)}"
+    if old.get("venue") and new.get("venue") and old["venue"] != new["venue"]:
+        return f"{code} cambió de sala: ahora {new['venue']}"
+    return "Cambió algo de tu itinerario"
+
+
 def pending(username: str) -> list[dict]:
     """[{code, kind, title, messages, gone}] de lo que cambió y el usuario todavía no vio."""
     out = []
@@ -45,10 +56,12 @@ def pending(username: str) -> list[dict]:
                         "messages": [f"«{old.get('title')}» ya no figura en el catálogo: puede haberse dado de baja o "
                                      "cambiado de código. Buscala de nuevo."]})
             continue
-        messages = diff(old, itinerary.snapshot(card))
+        new = itinerary.snapshot(card)
+        messages = diff(old, new)
         if messages:
-            out.append({"code": it["code"], "kind": it.get("kind") or "talk", "title": card["title"], "gone": False,
-                        "messages": messages})
+            kind = it.get("kind") or "talk"
+            out.append({"code": it["code"], "kind": kind, "title": card["title"], "gone": False,
+                        "messages": messages, "push_title": push_title(it["code"], kind, old, new)})
     return out
 
 

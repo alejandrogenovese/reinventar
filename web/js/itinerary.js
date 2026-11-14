@@ -7,7 +7,7 @@ import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
 import { icon } from "./icons.js";
-import { LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
+import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
@@ -126,7 +126,7 @@ export function AddButton(code, onAdd) {
 
 export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, extra } = {}) {
   const tags = [...(s.topic || []), ...(s.aoi || [])];
-  return h("article", { class: "ra-minicard" },
+  return h("article", { class: `ra-minicard${s.cancelled ? " is-cancelled" : ""}` },
     h("div", { class: "ra-rail" },
       h("span", { class: "ra-rail-time" }, s.start || "—"),
       h("span", { class: "ra-rail-day" }, shortDay(s.day))),
@@ -134,6 +134,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, ex
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
       h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
+      AvisoBaja(s),
       tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         tags.slice(0, 6).map(Tag)) : null,
