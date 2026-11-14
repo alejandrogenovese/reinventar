@@ -68,16 +68,27 @@ self.addEventListener("fetch", (e) => {
   // algunos navegadores.
 
   if (url.origin !== location.origin) return;
-  // App shell: red primero (para tomar cambios), caché si no hay señal.
-  e.respondWith(
-    fetch(e.request, { cache: "no-cache" }) // revalida con el servidor: nunca una copia vieja de la caché HTTP
-      .then((r) => {
-        if (r.ok) void cachePut(VERSION, e.request, r.clone());
-        return r;
-      })
-      .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
-  );
+  // App shell: red primero (para tomar cambios), pero con tope: si la red no contesta en 3 s se sirve la caché y la red
+  // sigue y la actualiza igual. Sin esto, un Wi-Fi que conecta pero no responde dejaba la app en blanco.
+  e.respondWith(shellRedPrimero(e));
 });
+
+const SHELL_TIMEOUT_MS = 3000;
+
+const shellDeCache = (req) => caches.match(req).then((hit) => hit || caches.match("/index.html"));
+
+function shellRedPrimero(e) {
+  const req = e.request;
+  const red = fetch(req, { cache: "no-cache" }) // revalida con el servidor: nunca una copia vieja de la caché HTTP
+    .then((r) => {
+      if (r.ok) void cachePut(VERSION, req, r.clone());
+      return r;
+    });
+  e.waitUntil(red.catch(() => {})); // que la caché se actualice aunque ya hayamos contestado con la copia
+  const sinRed = red.catch(() => shellDeCache(req).then((hit) => hit || Response.error()));
+  const lenta = new Promise((resolve) => setTimeout(() => shellDeCache(req).then((hit) => hit && resolve(hit)), SHELL_TIMEOUT_MS));
+  return Promise.race([sinRed, lenta]);
+}
 
 // Web Push (app/push.py): avisos de lo fijado y de cambios, con la app cerrada. Tocar la notificación abre esa pantalla.
 // El recordatorio "¿la grabás?" trae el botón "Grabar" (actions: Chrome lo muestra, Safari/iOS no) y en los dos casos
