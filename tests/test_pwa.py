@@ -53,3 +53,50 @@ def test_enable_pide_el_permiso_antes_de_cualquier_await():
     codigo = "\n".join(l for l in antes.splitlines() if not l.strip().startswith("//"))
     previo = codigo.split("{", 1)[1].replace("if (await ", "")  # el await propio de requestPermission no cuenta
     assert "await" not in previo  # nada asíncrono entre el toque y el permiso
+
+
+FUENTES = {
+    "inter": (400, 500, 600, 700, 800),
+    "jetbrains-mono": (500, 600),
+}
+ARCHIVOS_DE_FUENTES = [f"{familia}-latin-{peso}-normal.woff2" for familia, pesos in FUENTES.items() for peso in pesos]
+
+
+def test_las_fuentes_son_locales_sin_google_fonts():
+    index = (WEB / "index.html").read_text()
+    tokens = (WEB / "css" / "tokens.css").read_text()
+    for texto in (index, SW, tokens, (WEB / "styles.css").read_text()):
+        assert "fonts.googleapis.com" not in texto and "fonts.gstatic.com" not in texto
+    assert "precacheFonts" not in SW and "FONTS_CSS" not in SW
+
+
+def test_cada_fuente_tiene_su_font_face_con_swap_y_su_archivo_precacheado():
+    tokens = (WEB / "css" / "tokens.css").read_text()
+    bloques = re.findall(r"@font-face\s*\{[^}]*\}", tokens)
+    locales = [b for b in bloques if "/fonts/" in b]
+
+    assert len(locales) == len(ARCHIVOS_DE_FUENTES)
+    assert all("font-display: swap" in b and 'format("woff2")' in b and "unicode-range" in b for b in locales)
+    for archivo in ARCHIVOS_DE_FUENTES:
+        assert f'url("/fonts/{archivo}")' in tokens
+        assert (WEB / "fonts" / archivo).stat().st_size > 10_000
+        assert f'"/fonts/{archivo}"' in SW
+
+
+def test_las_licencias_ofl_viajan_con_las_fuentes():
+    for licencia in ("OFL-Inter.txt", "OFL-JetBrainsMono.txt"):
+        texto = (WEB / "fonts" / licencia).read_text()
+        assert "SIL Open Font License, Version 1.1" in texto
+
+
+def test_el_backend_sirve_los_woff2_con_su_content_type():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        for archivo in ARCHIVOS_DE_FUENTES:
+            r = c.get(f"/fonts/{archivo}")
+            assert r.status_code == 200, archivo
+            assert r.headers["content-type"] == "font/woff2", archivo
+            assert r.content[:4] == b"wOF2"

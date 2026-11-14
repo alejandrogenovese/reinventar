@@ -6,39 +6,20 @@ const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/adminEventos.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/lleno.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/charts.js",
   "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/shows.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js",
+  "/fonts/inter-latin-400-normal.woff2", "/fonts/inter-latin-500-normal.woff2", "/fonts/inter-latin-600-normal.woff2", "/fonts/inter-latin-700-normal.woff2", "/fonts/inter-latin-800-normal.woff2", "/fonts/jetbrains-mono-latin-500-normal.woff2", "/fonts/jetbrains-mono-latin-600-normal.woff2",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/badge-96.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
   // Los que piden index.html y el manifest llevan ?v=2: la caché compara la URL entera, así que sin estos offline no aparecen.
   "/icons/icon.svg?v=2", "/icons/icon-192.png?v=2", "/icons/icon-512.png?v=2", "/icons/icon-maskable-512.png?v=2", "/icons/apple-touch-icon.png?v=2",
 ];
 
-const FONTS_CSS = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap";
-
-// Precarga la tipografía (CSS + woff2) para que la app abra sin señal con su fuente desde la primera visita.
-// Si falla (sin red al instalar), no frena la instalación: se cachea sola en el próximo uso.
-async function precacheFonts() {
-  try {
-    const cache = await caches.open("fonts");
-    const css = await fetch(FONTS_CSS);
-    if (!css.ok) return;
-    await cache.put(FONTS_CSS, css.clone());
-    // Solo el subset "latin" (cubre el español: á é ñ ¿ ¡); los demás alfabetos se bajan si alguna vez hacen falta.
-    const latin = (await css.text()).split("/* ").filter((block) => block.startsWith("latin */"));
-    const files = latin.flatMap((block) => [...block.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map((m) => m[1]));
-    await Promise.all(files.map((u) => fetch(u).then((r) => (r.ok ? cache.put(u, r) : null))));
-  } catch {}
-}
-
 self.addEventListener("install", (e) => {
-  e.waitUntil(Promise.all([
-    caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))),
-    precacheFonts(),
-  ]).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts" && k !== DATOS).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== DATOS).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -51,21 +32,6 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   if (url.origin === location.origin && (url.pathname.startsWith("/api/") || url.pathname === "/health")) return;
-
-  // Google Fonts: stale-while-revalidate en su propia caché.
-  if (url.hostname.endsWith("fonts.googleapis.com") || url.hostname.endsWith("fonts.gstatic.com")) {
-    e.respondWith((async () => {
-      const hit = await caches.match(e.request, { cacheName: "fonts" });
-      const net = fetch(e.request)
-        .then((r) => {
-          if (r.ok || r.type === "opaque") void cachePut("fonts", e.request, r.clone());
-          return r;
-        })
-        .catch(() => hit);
-      return hit || net;
-    })());
-    return;
-  }
 
   // Las imágenes de los eventos (Luma) y de los shows (Ticketmaster, s1.ticketm.net) no pasan por acá: las manda su
   // CDN con caché larga, así que el navegador las guarda y las muestra sin señal solo. Interceptarlas las rompía en
