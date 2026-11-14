@@ -1,6 +1,6 @@
 // Ajustes › Notificaciones en el celular (Web Push): avisos de lo fijado y de cambios aunque la app esté cerrada.
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
-import { Push, Ubicacion } from "./api.js";
+import { getToken, Push, Ubicacion } from "./api.js";
 import { locationEnabled, reportVenue, setVenueReportEnabled } from "./location.js";
 import { Button, h, toast } from "./ui.js";
 
@@ -14,13 +14,48 @@ async function currentSubscription() {
   return { reg, sub: await reg.pushManager.getSubscription() };
 }
 
+// El SW no ve localStorage: le dejamos el token en la Cache API para que, si el navegador rota la suscripción con la app
+// cerrada (pushsubscriptionchange), pueda mandar la nueva al servidor. Si no alcanza, syncSubscription lo hace al abrir.
+const SW_DATOS = "sw-datos";
+const ENDPOINT_KEY = "reinventar.pushEndpoint";
+
+async function guardarTokenParaSw() {
+  const cache = await caches.open(SW_DATOS);
+  const token = getToken();
+  if (token) await cache.put("/__token", new Response(token)); else await cache.delete("/__token");
+}
+
+const lastEndpoint = () => { try { return localStorage.getItem(ENDPOINT_KEY); } catch { return null; } };
+const rememberEndpoint = (v) => { try { v ? localStorage.setItem(ENDPOINT_KEY, v) : localStorage.removeItem(ENDPOINT_KEY); } catch {} };
+
+/** Al abrir la app: renueva el token que lee el SW y, si la suscripción cambió desde la última vez, la manda al servidor. */
+export async function syncSubscription() {
+  if (!supported() || !getToken() || Notification.permission !== "granted") return;
+  const { sub } = await currentSubscription();
+  if (!sub) return;
+  await guardarTokenParaSw();
+  if (sub.endpoint === lastEndpoint()) return;
+  await Push.subscribe(sub.toJSON());
+  rememberEndpoint(sub.endpoint);
+}
+if (supported()) {
+  // Al cargar y cada vez que la app vuelve a primer plano: así el token del SW se renueva aunque el login haya sido
+  // después de cargar el módulo, o la contraseña/sesión haya cambiado.
+  const sync = () => void syncSubscription().catch(() => {});
+  sync();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync(); });
+}
+
 async function enable() {
+  // El permiso se pide primero y sin ningún await antes: iOS solo lo muestra si sale directo del toque del usuario.
+  if (await Notification.requestPermission() !== "granted") throw new Error("Sin permiso para notificaciones: activalo en los ajustes del navegador.");
   const { key } = await Push.key();
   if (!key) throw new Error("Las notificaciones todavía no están configuradas en el servidor.");
-  if (await Notification.requestPermission() !== "granted") throw new Error("Sin permiso para notificaciones: activalo en los ajustes del navegador.");
   const { reg, sub } = await currentSubscription();
   const subscription = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
   await Push.subscribe(subscription.toJSON());
+  rememberEndpoint(subscription.endpoint);
+  await guardarTokenParaSw();
 }
 
 /** Da de baja las notificaciones de este dispositivo (también al cerrar sesión: que no le lleguen al próximo). */
@@ -28,6 +63,8 @@ export async function disable() {
   // getRegistration y no .ready: .ready no resuelve nunca si no hay service worker (y el logout quedaría colgado).
   const reg = await navigator.serviceWorker?.getRegistration();
   const sub = await reg?.pushManager?.getSubscription();
+  rememberEndpoint(null);
+  await caches.delete(SW_DATOS).catch(() => {});
   if (!sub) return;
   await Push.unsubscribe(sub.endpoint).catch(() => {});
   await sub.unsubscribe();
@@ -93,6 +130,7 @@ function ReminderSettings() {
 }
 
 export function PushSettings() {
+  void syncSubscription().catch(() => {});
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
   if (!supported()) {
     box.append(h("p", { class: "caption" }, "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí."));
