@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [0.22.0] - 2026-11-14
+
 ### Agregado
 - **Los eventos se actualizan solos.** Cada 3 horas la app revisa el calendario de Luma de re:Invent y la lista de
   conferenceparties.com: suma los nuevos (con su resumen en castellano y el hotel más cercano) y actualiza los que
@@ -47,12 +49,39 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   `scripts/preparar_catalogo_staging.py`) para probar la revisión automática sin tocar lo que ve producción.
 - El botón «+ Itinerario» de las tarjetas de eventos ahora es naranja, como el resto de las acciones principales.
 - Los avisos de «Cambió algo de tu itinerario» ya no llegan de noche: salen a la mañana, como el resto.
+- Las tipografías (Inter y JetBrains Mono) las sirve la app y no Google Fonts: la letra es la misma, carga más rápido
+  y se ve igual sin conexión.
+- La app no aparece en buscadores (`robots.txt` y `noindex`).
+- Las respuestas grandes viajan comprimidas (gzip): menos datos en el celular.
+- `/health` ahora prueba también la base de datos y el disco; si alguno falla, responde 503.
+- Las funciones con IA tienen un tope por persona (búsqueda en lenguaje natural, Preguntar, fichas, entrevista,
+  armar itinerario y «Agregar evento por link»). Con uso normal no se alcanza; si se pasa, la app pide esperar unos
+  minutos. Las fichas que ya estaban hechas no cuentan.
 
 ### Corregido
+- **La pantalla de grabar no abría**: daba un error al armarse y quedaba en blanco.
+- **Cortes de grabación en iPhone.** Si iOS corta el micrófono (una llamada, Siri, la pantalla bloqueada), se ve
+  «Grabación pausada» y, al volver, la grabación sigue en una parte nueva sin mezclar ni romper el audio. Mientras
+  dura el corte no sale el aviso de «No llega sonido».
+- **Pedazos de audio rechazados.** Si el servidor rechaza un pedazo, ya no se borra en silencio: queda guardado, la
+  pantalla dice «N sin subir» con un botón «Reintentar», y «Terminar» avisa en vez de quedarse esperando.
+- La subida de lo pendiente ya no carga todas las grabaciones en memoria en cada vuelta: toma de a un pedazo.
+- Con un Wi-Fi que conecta pero no responde, la app abre en unos 3 segundos con lo guardado en vez de quedar en
+  blanco.
+- Los íconos de la app se ven también sin conexión.
+- En iPhone, «Activar notificaciones» pide el permiso al primer toque.
+- Las notificaciones siguen llegando cuando el navegador renueva la suscripción, y tocar un aviso abre bien la app.
 - Las imágenes de los eventos (Luma) salían rotas en un celular nuevo, en eventos nuevos o en algunos navegadores.
   Ahora las guarda el navegador directamente (siguen viéndose sin señal una vez vistas).
 - En Android, el ícono chico de las notificaciones en la barra de estado se veía como un cuadrado blanco; ahora
   muestra las barras de ReinventAR.
+
+### Seguridad
+- FastAPI 0.162.2 con Starlette 1.10.0 (CVE-2025-62727, CVE-2026-48710, CVE-2026-54282); `pip-audit` sin
+  vulnerabilidades conocidas.
+- El límite de intentos de login por IP ya no se puede esquivar mandando un `X-Forwarded-For` falso: la IP sale de
+  `X-Real-IP`, que pone el proxy de Railway.
+- La CSP ya no permite Google Fonts.
 
 ## [0.21.0] - 2026-11-13
 
@@ -316,7 +345,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.18.0...v0.19.0
