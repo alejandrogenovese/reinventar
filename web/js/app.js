@@ -299,6 +299,7 @@ async function viewRecord(id) {
   const salaBtn = Button("Modo sala", { onclick: salaOn });
 
   // Si mientras graba no llega sonido por un rato, se avisa arriba: el medidor solo dice "Sin señal" en chico.
+  // Va antes del view.append que lo usa: un const usado antes de su declaración tira ReferenceError.
   const silence = h("div", { class: "notice warn", role: "alert", hidden: true },
     "No llega sonido al micrófono. Revisá cuál está elegido; con auriculares, no oye lo que suena en el mismo equipo.");
   // El sistema cortó el audio (llamada, Siri, pantalla bloqueada): se avisa mientras dure y se retoma solo.
