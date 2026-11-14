@@ -30,8 +30,8 @@ def politica() -> str:
     return "; ".join([
         "default-src 'self'",
         f"script-src 'self' {_hashes_inline()} {_GOOGLE}",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  # Google Maps inyecta estilos inline
-        "font-src 'self' https://fonts.gstatic.com",
+        "style-src 'self' 'unsafe-inline'",  # Google Maps inyecta estilos inline
+        "font-src 'self'",  # las tipografías se sirven desde /fonts
         "img-src 'self' data: blob: https:",  # imágenes de eventos (Luma y otras) y teselas del mapa
         f"connect-src 'self' {_GOOGLE}",
         "worker-src 'self' blob:",
