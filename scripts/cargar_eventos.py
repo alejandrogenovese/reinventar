@@ -22,29 +22,22 @@ import os
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
 import psycopg
-from psycopg import sql
 
-from app import config, llm, prompts
-from app.llm_router import Tarea
-from scripts import lotes_llm
+from app import config
+from app.eventos_carga import fila as armar_fila
+from app.eventos_carga import resumir_con_llm, sedes_con_coordenadas, upsert
+from app.eventos_fuentes import Evento, completar_con_pagina_luma, desde_json_luma
 from scripts.actualizar_catalogo import _HOSTS_LOCALES, _backup, aplicar_migraciones
-from scripts.eventos_fuentes import Evento, completar_con_pagina_luma, desde_json_luma, sede_mas_cercana
 
 CACHE_DIR = Path(os.environ.get("LUMA_CACHE_DIR", "~/Documents/Proyectos/Scripts/reinventar/out/luma")).expanduser()
 SEGUNDOS_ENTRE_PAGINAS = 1.0
-LOTE, HILOS, MAX_TOKENS = 10, 3, 32000
-MAX_DESCRIPCION = 4000  # caracteres que van al LLM
 USER_AGENT = "ReinventAR/1.0 (agenda personal de re:Invent)"
 MUESTRA = 3
-
-_COLUMNAS = ("plataforma", "url", "nombre", "inicio", "fin", "imagen_url", "lat", "lng", "lugar", "direccion",
-             "direccion_exacta", "google_place_id", "descripcion", "resumen_es", "tipo", "temas", "organizadores",
-             "anotados", "lleno", "precio", "requiere_aprobacion", "id_sede_cercana", "metros_a_sede")
 
 Resumir = Callable[[list[Evento]], dict[str, dict]]
 
@@ -95,37 +88,6 @@ def bajar_paginas(eventos: list[Evento], *, refrescar: bool = False, http: httpx
     return completos
 
 
-# ---------- LLM ----------
-
-def leer_resumenes(respuesta: str, ids: list[str]) -> dict[str, dict]:
-    try:
-        items = {str(e["id"]): e for e in llm.parse_json(respuesta)["eventos"]}
-    except (ValueError, KeyError, TypeError) as e:
-        raise ValueError(f"respuesta ilegible: {e}") from e
-    faltan = [i for i in ids if not (items.get(i) or {}).get("resumen_es")]
-    if faltan:
-        raise ValueError(f"faltan {faltan}")
-    lista = lambda v, n: tuple(str(x).strip() for x in (v or []) if str(x).strip())[:n]  # noqa: E731
-    return {i: {"resumen_es": str(items[i]["resumen_es"]).strip(),
-                "tipo": items[i].get("tipo") if items[i].get("tipo") in prompts.EVENT_TYPES else None,
-                "temas": list(lista(items[i].get("temas"), 4)),
-                "organizadores": list(lista(items[i].get("organizadores"), 8))} for i in ids}
-
-
-def resumir_con_llm(eventos: list[Evento], avisar: Callable[[str], None] = lambda _: None) -> tuple[dict, tuple]:
-    """Resúmenes por id, en lotes paralelos; devuelve (resúmenes, errores de lotes)."""
-    resultado: dict[str, dict] = {}
-
-    def llamar(lote: list[Evento]) -> dict[str, dict]:
-        items = [(e.id_evento, e.nombre, e.lugar or "", (e.descripcion or "")[:MAX_DESCRIPCION]) for e in lote]
-        respuesta = llm.complete(Tarea.CATALOGO, prompts.EVENTS_SYSTEM, prompts.events_user(items), MAX_TOKENS)
-        return leer_resumenes(respuesta, [e.id_evento for e in lote])
-
-    fallidos = lotes_llm.procesar(lotes_llm.en_lotes(eventos, LOTE), llamar, lambda _l, r: resultado.update(r),
-                                  hilos=HILOS, describir=lambda lote: str([e.id_evento for e in lote]), avisar=avisar)
-    return resultado, fallidos
-
-
 # ---------- base ----------
 
 def _actuales(conn) -> dict[str, dict]:
@@ -135,30 +97,13 @@ def _actuales(conn) -> dict[str, dict]:
                             "organizadores"), f, strict=False)) for f in filas}
 
 
-def _upsert(conn, fila: dict) -> str:
-    """'nuevo' | 'actualizado' | 'igual'. Solo escribe (y toca `actualizado`) si algo cambió."""
-    columnas = sql.SQL(", ").join(map(sql.Identifier, ("id_evento", *_COLUMNAS)))
-    marcas = sql.SQL(", ").join(sql.Placeholder(c) for c in ("id_evento", *_COLUMNAS))
-    asignar = sql.SQL(", ").join(sql.SQL("{c} = EXCLUDED.{c}").format(c=sql.Identifier(c)) for c in _COLUMNAS)
-    viejas = sql.SQL(", ").join(sql.SQL("evento.{c}").format(c=sql.Identifier(c)) for c in _COLUMNAS)
-    nuevas = sql.SQL(", ").join(sql.SQL("EXCLUDED.{c}").format(c=sql.Identifier(c)) for c in _COLUMNAS)
-    r = conn.execute(sql.SQL("""
-      INSERT INTO evento ({}) VALUES ({})
-      ON CONFLICT (id_evento) DO UPDATE SET {}, actualizado = now() WHERE ({}) IS DISTINCT FROM ({})
-      RETURNING (xmax = 0) AS nuevo""").format(columnas, marcas, asignar, viejas, nuevas), fila).fetchone()
-    if r is None:
-        return "igual"
-    return "nuevo" if r[0] else "actualizado"
-
-
 def cargar(conn, eventos: list[Evento], *, schema: str = "reinvent", resumir: Callable | None = None,
            limite_llm: int | None = None, borrar_bajas: bool = False) -> Reporte:
     """Aplica los eventos dentro de la transacción de conn; quien llama decide COMMIT o ROLLBACK.
     resumir(eventos) → (resúmenes por id, lotes fallidos); None = sin LLM (se conserva lo que ya había)."""
     aplicar_migraciones(conn, schema)
     actuales = _actuales(conn)
-    sedes = [(i, float(lat), float(lng)) for i, lat, lng in
-             conn.execute("SELECT id_sede, lat, lng FROM sede WHERE lat IS NOT NULL").fetchall()]
+    sedes = sedes_con_coordenadas(conn)
 
     # Al LLM solo lo nuevo o lo que cambió de nombre o descripción.
     pendientes = [e for e in eventos if not (a := actuales.get(e.id_evento)) or not a["resumen_es"]
@@ -171,11 +116,8 @@ def cargar(conn, eventos: list[Evento], *, schema: str = "reinvent", resumir: Ca
     for ev in eventos:
         previo = actuales.get(ev.id_evento) or {}
         res = resumenes.get(ev.id_evento) or {k: previo.get(k) for k in ("resumen_es", "tipo", "temas", "organizadores")}
-        id_sede, metros = sede_mas_cercana(ev, sedes)
-        fila = {**asdict(ev), "resumen_es": res.get("resumen_es"), "tipo": res.get("tipo"),
-                "temas": list(res.get("temas") or []), "organizadores": list(res.get("organizadores") or []),
-                "id_sede_cercana": id_sede, "metros_a_sede": metros}
-        cuenta[_upsert(conn, fila)] += 1
+        fila = armar_fila(ev, res, sedes)
+        cuenta[upsert(conn, fila)] += 1
         if ev.id_evento in resumenes:
             muestra.append(fila)
 

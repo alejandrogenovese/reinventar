@@ -13,9 +13,18 @@ const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR"
 const when = (e) => [e.start, e.end].filter(Boolean).join("–");
 const destination = (e) => (e.venue?.lat != null
   ? { lat: e.venue.lat, lng: e.venue.lng, name: e.venue.hotel, placeId: e.venue.place_id, approx: e.venue.exact === false } : null);
-const place = (e) => (e.venue?.exact ? e.venue.hotel : "Las Vegas · dirección al anotarte");
+const place = (e) => {
+  if (e.venue?.exact) return e.venue.hotel;
+  const hotel = e.venue?.hotel;
+  return hotel && hotel !== "Las Vegas" ? [hotel, e.venue.detail].filter(Boolean).join(" · ") : "Las Vegas · dirección al anotarte";
+};
+// Dónde anotarse: Luma, o la página del organizador (conferenceparties o un link cargado a mano).
+const signupLabel = (e) => (e.platform === "luma" ? "Anotarme en Luma" : "Anotarme en la página del evento");
+// Los cancelados (ya no aparecen en su fuente) van al final de la lista.
+const byCancelled = (a, b) => Number(Boolean(a.cancelled)) - Number(Boolean(b.cancelled));
+const Cancelled = () => Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" });
 
-// Imagen y link vienen de la fuente externa (Luma): solo https.
+// Imagen y link vienen de la fuente externa (Luma, conferenceparties o la página del organizador): solo https.
 const safeUrl = (url) => (typeof url === "string" && url.startsWith("https://") ? url : null);
 
 const Cover = (e, cls) => (safeUrl(e.image)
@@ -29,7 +38,7 @@ function facts(e) {
 /** Botón "+ Itinerario" / "En tu itinerario" (fijado). */
 function AddButton(e, onAdded) {
   if (e.in_itinerary) return IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 });
-  const btn = Button("+ Itinerario", { onclick: async () => {
+  const btn = Button("+ Itinerario", { variant: "primary", onclick: async () => {
     btn.disabled = true;
     try {
       const r = await Itinerary.add(e.code);
@@ -44,12 +53,13 @@ function AddButton(e, onAdded) {
 
 /** Tarjeta de evento: la usan la lista de Eventos y el itinerario. */
 export function EventCard(e, { onAdded, actions = null } = {}) {
-  return h("article", { class: "ra-event" },
+  return h("article", { class: `ra-event${e.cancelled ? " is-cancelled" : ""}` },
     Cover(e, "ra-event-cover"),
     h("div", { class: "ra-event-body" },
       h("span", { class: "ra-kind" }, [e.type ? e.type.toUpperCase() : "EVENTO", dayLabel(e.day), when(e)].filter(Boolean).join(" · ")),
       h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(e.code)}` }, e.title)),
       h("div", { class: "ra-card-meta" }, h("span", {}, place(e)), e.organizers?.length ? h("span", {}, e.organizers.join(" · ")) : null),
+      e.cancelled ? Cancelled() : null,
       facts(e) ? h("p", { class: "caption" }, facts(e)) : null,
       e.overlaps?.length ? Hint(`Se superpone con ${e.overlaps.join(", ")}`, { tone: "error" }) : null,
       GoThere(destination(e)),
@@ -89,6 +99,7 @@ export async function viewEventos(view) {
     let shown = days.find((d) => d.day === state.day)?.events || [];
     if (state.type !== ALL) shown = shown.filter((e) => e.type === state.type);
     if (state.near && here) shown = [...shown].sort((a, b) => distanceMeters(here, a.venue) - distanceMeters(here, b.venue));
+    shown = [...shown].sort(byCancelled);
     list.replaceChildren(...(shown.length ? shown.map((e) => EventCard(e, { onAdded: reload })) : [h("p", { class: "caption" }, "No hay eventos de ese tipo ese día.")]));
   }
   async function reload() {
@@ -117,20 +128,22 @@ export async function viewEvento(view, code) {
       h("span", { class: "ra-kind" }, [e.type ? e.type.toUpperCase() : "EVENTO", dayLabel(e.day), when(e)].filter(Boolean).join(" · ")),
       h("h1", { class: "title" }, e.title),
       CountdownBadge(startsAt(e.day, e.start)),
-      e.topics?.length ? h("div", { class: "ra-chips" }, e.topics.map(Tag)) : null),
+      e.topics?.length ? h("div", { class: "ra-chips" }, e.topics.map(Tag)) : null,
+      e.cancelled ? Cancelled() : null),
     e.summary ? section("De qué se trata", h("p", { class: "ra-prose" }, e.summary), original) : original,
     section("Cuándo y dónde",
       row("Cuándo", `${dayLabel(e.day)} · ${when(e)}`),
-      row("Dónde", e.venue?.exact ? [e.venue.hotel, e.venue.address].filter(Boolean).join(" · ") : "Las Vegas · la dirección exacta aparece al anotarte en Luma"),
+      row("Dónde", e.venue?.exact ? [e.venue.hotel, e.venue.address].filter(Boolean).join(" · ")
+        : e.platform === "luma" ? "Las Vegas · la dirección exacta aparece al anotarte en Luma" : place(e)),
       e.near?.meters != null ? row("Cerca de", `${e.near.name} (${Math.round(e.near.meters / 100) / 10} km)`) : null,
       GoThere(destination(e), { start: startsAt(e.day, e.start), eta: true })),
     section("Detalles",
       row("Organizan", e.organizers?.join(" · ")),
       row("Entrada", [e.price, e.approval ? "requiere aprobación" : null].filter(Boolean).join(" · ")),
       row("Anotados", e.guests ? String(e.guests) : null),
-      e.full ? Hint("Está lleno: anotate en la lista de espera de Luma.", { tone: "error" }) : null),
+      e.full ? Hint(e.platform === "luma" ? "Está lleno: anotate en la lista de espera de Luma." : "Está lleno.", { tone: "error" }) : null),
     e.clashes?.length ? Hint(`Choca con: ${e.clashes.map((c) => `${c.title} (${c.start})`).join(", ")}`, { tone: "error" }) : null,
     h("div", { class: "actions" },
-      safeUrl(e.url) ? h("a", { class: "ra-btn ra-btn-primary", href: e.url, target: "_blank", rel: "noopener noreferrer" }, "Anotarme en Luma", icon("externo", 16)) : null,
+      safeUrl(e.url) ? h("a", { class: "ra-btn ra-btn-primary", href: e.url, target: "_blank", rel: "noopener noreferrer" }, signupLabel(e), icon("externo", 16)) : null,
       AddButton(e, () => { view.replaceChildren(); void viewEvento(view, code); }))));
 }

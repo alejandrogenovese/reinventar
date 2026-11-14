@@ -27,8 +27,7 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 
-from app import config, llm, prompts
-from scripts import lotes_llm
+from app import config, llm, lotes_llm, prompts
 from scripts.enriquecer_speakers import MIN_CARGO_EMPRESA_GRANDE, _similitud
 
 MODELO = os.environ.get("AUDIT_MODEL", "claude-fable-5-1")

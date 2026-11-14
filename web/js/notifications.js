@@ -38,17 +38,21 @@ const Switch = (id, label) => {
   return { input, row: h("label", { class: "actions is-center", for: id }, input, label) };
 };
 
-/** "Recordarme grabar" (prendido) y "Usar en qué sede estoy para los avisos" (apagado; pide el permiso al prenderlo). */
+/** "Recordarme grabar" y "Avisarme de eventos nuevos" (prendidos) y "Usar en qué sede estoy para los avisos" (apagado;
+ *  pide el permiso al prenderlo). */
 function ReminderSettings() {
   const grabar = Switch("push-grabar", "Recordarme grabar");
+  const nuevos = Switch("push-eventos-nuevos", "Avisarme de eventos nuevos");
   const sede = Switch("push-sede", "Usar en qué sede estoy para los avisos");
-  const save = () => Push.savePrefs({ grabar: grabar.input.checked, ubicacion: sede.input.checked });
-
-  grabar.input.onchange = async () => {
-    grabar.input.disabled = true;
-    try { await save(); } catch (err) { grabar.input.checked = !grabar.input.checked; toast(err.message); }
-    grabar.input.disabled = false;
+  const save = () => Push.savePrefs({ grabar: grabar.input.checked, ubicacion: sede.input.checked, eventos_nuevos: nuevos.input.checked });
+  const toggleSimple = (sw) => async () => {
+    sw.input.disabled = true;
+    try { await save(); } catch (err) { sw.input.checked = !sw.input.checked; toast(err.message); }
+    sw.input.disabled = false;
   };
+
+  grabar.input.onchange = toggleSimple(grabar);
+  nuevos.input.onchange = toggleSimple(nuevos);
   sede.input.onchange = async () => {
     sede.input.disabled = true;
     const on = sede.input.checked;
@@ -73,13 +77,17 @@ function ReminderSettings() {
   void Push.prefs().then((p) => {
     grabar.input.checked = p.grabar;
     sede.input.checked = p.ubicacion;
+    nuevos.input.checked = p.eventos_nuevos !== false;
     setVenueReportEnabled(p.ubicacion);
     grabar.input.disabled = false;
+    nuevos.input.disabled = false;
     sede.input.disabled = false;
   }).catch(() => {});
   return h("div", { class: "stack" },
     grabar.row,
     h("p", { class: "caption" }, "Cuando empieza una charla de tu itinerario y nadie la está grabando, te avisamos. Tocás el aviso y queda lista para grabar."),
+    nuevos.row,
+    h("p", { class: "caption" }, "Un aviso cuando aparecen eventos nuevos (nunca de noche). Si se cancela uno de tu itinerario, te avisamos igual."),
     sede.row,
     h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."));
 }

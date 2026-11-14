@@ -32,6 +32,7 @@ ACCION_GRABAR = "grabar"
 class Preferencias:
     grabar: bool = True         # "Recordarme grabar"
     ubicacion: bool = False     # "Usar en qué sede estoy para los avisos": apagado por defecto
+    eventos_nuevos: bool = True  # "Avisarme de eventos nuevos" (los cancelados de su itinerario llegan siempre)
 
 
 @dataclass(frozen=True)

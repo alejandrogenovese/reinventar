@@ -5,17 +5,21 @@ import shutil
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from psycopg.errors import UndefinedColumn, UndefinedTable
 from pydantic import BaseModel, Field
 
 from . import (
     catalog,
     config,
     db,
+    eventos_auto,
+    eventos_link,
     events,
     healthcheck,
     langfuse_metricas,
     passkeys_db,
     passwords,
+    prompts,
     sandbox,
     search,
     venues,
@@ -47,6 +51,28 @@ class SandboxSettings(BaseModel):
     llm: Literal["fake", "real"] = "fake"
     clock: dt.datetime | None = None
     venue_id: int | None = None
+
+
+class LinkUrl(BaseModel):
+    url: str = Field(min_length=12, max_length=2000)
+
+
+class LinkEvento(BaseModel):
+    """La vista previa de un evento por link, revisada (y corregida si hizo falta) por el admin."""
+    model_config = {"extra": "forbid"}
+    url: str = Field(min_length=12, max_length=2000, pattern=r"^https://")
+    nombre: str = Field(min_length=2, max_length=200)
+    fecha: dt.date
+    inicio: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    fin: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    lugar: str | None = Field(default=None, max_length=120)
+    direccion: str | None = Field(default=None, max_length=200)
+    imagen: str | None = Field(default=None, max_length=2000, pattern=r"^https://")
+    descripcion: str | None = Field(default=None, max_length=4000)
+    resumen_es: str | None = Field(default=None, max_length=1200)
+    tipo: str | None = Field(default=None, max_length=40)
+    temas: list[str] = Field(default_factory=list, max_length=4)
+    organizadores: list[str] = Field(default_factory=list, max_length=8)
 
 
 class AdvanceClock(BaseModel):
@@ -185,3 +211,55 @@ def usage(_admin: str = Depends(admin)):
 def llm_dashboard(_admin: str = Depends(admin)):
     """Tablero de LLM: costo, demora, errores y scores de los últimos 7 días, leídos de Langfuse (cache de 5 min)."""
     return langfuse_metricas.tablero()
+
+
+# ---------- eventos automáticos ----------
+
+def _eventos_activos() -> None:
+    if not config.EVENTOS_AUTO:
+        raise HTTPException(409, "Los eventos automáticos están apagados en este entorno (EVENTOS_AUTO)")
+
+
+@router.get("/eventos")
+def eventos_estado(_admin: str = Depends(admin)):
+    """Última revisión de cada fuente y los eventos cargados por link."""
+    return eventos_auto.estado()
+
+
+@router.post("/eventos/revisar", status_code=202)
+def eventos_revisar(_admin: str = Depends(admin)):
+    """Arranca una revisión ya (corre en segundo plano: el estado se ve en GET /eventos)."""
+    _eventos_activos()
+    if not eventos_auto.en_segundo_plano():
+        raise HTTPException(409, "Ya hay una revisión en curso")
+    return {"ok": True}
+
+
+@router.post("/eventos/link/vista-previa")
+def eventos_link_vista_previa(body: LinkUrl, _admin: str = Depends(admin)):
+    """Baja la página y saca los datos del evento con el LLM, para revisarlos antes de guardar. No guarda nada."""
+    _eventos_activos()
+    try:
+        previa = eventos_link.vista_previa(body.url)
+        repetido = eventos_auto.ya_cargado(previa["url"])
+    except eventos_link.LinkInvalido as e:
+        raise HTTPException(422, str(e)) from e
+    except (UndefinedTable, UndefinedColumn) as e:
+        raise HTTPException(409, "Falta la migración 007 en la base") from e
+    return {**previa, "ya_cargado": repetido}
+
+
+@router.post("/eventos/link")
+def eventos_link_guardar(body: LinkEvento, _admin: str = Depends(admin)):
+    _eventos_activos()
+    datos = {**body.model_dump(), "fecha": body.fecha.isoformat()}
+    resumen = {"resumen_es": body.resumen_es, "tipo": body.tipo if body.tipo in prompts.EVENT_TYPES else None,
+               "temas": body.temas, "organizadores": body.organizadores}
+    try:
+        id_evento = eventos_auto.guardar_link(datos, resumen=resumen)
+    except eventos_auto.LinkRepetido as e:
+        raise HTTPException(409, str(e)) from e
+    except eventos_link.LinkInvalido as e:
+        raise HTTPException(422, str(e)) from e
+    events.load()
+    return {"ok": True, "id": id_evento}

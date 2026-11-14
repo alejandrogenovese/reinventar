@@ -63,7 +63,8 @@ def _prender_ubicacion(cli):
 # ---------- API ----------
 
 def test_las_preferencias_vienen_con_la_ubicacion_apagada(cli):
-    assert cli.get("/api/push/preferencias", headers=cli.H).json() == {"grabar": True, "ubicacion": False}
+    assert cli.get("/api/push/preferencias", headers=cli.H).json() == {"grabar": True, "ubicacion": False,
+                                                                       "eventos_nuevos": True}
 
 
 def test_sin_opt_in_no_se_guarda_la_sede(cli):

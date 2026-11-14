@@ -21,9 +21,8 @@ from dataclasses import dataclass
 import psycopg
 from psycopg import sql
 
-from app import config, llm, llm_router, prompts
+from app import config, llm, llm_router, lotes_llm, prompts
 from app.llm_router import Tarea
-from scripts import lotes_llm
 
 LOTE = 15  # resúmenes por llamada (~610 caracteres cada uno: entra holgado en la respuesta)
 HILOS = 4

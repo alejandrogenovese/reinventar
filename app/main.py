@@ -21,6 +21,7 @@ from . import (
     config,
     cuerpo,
     db,
+    eventos_auto,
     events,
     events_api,
     fragmentos,
@@ -64,6 +65,7 @@ async def lifespan(_app):
     fragmentos.indexar_pendientes_async()  # grabaciones viejas o sin indexar: en segundo plano
     pipeline.start_worker()
     push.start_worker()
+    eventos_auto.start_worker()
     yield
     pg.close()
 

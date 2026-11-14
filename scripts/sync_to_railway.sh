@@ -13,6 +13,11 @@
 # (postgresql://<PGUSER>:<PGPASSWORD>@<RAILWAY_TCP_PROXY_DOMAIN>:<RAILWAY_TCP_PROXY_PORT>/<PGDATABASE>).
 # Después de aplicar, reiniciá el servicio de la app (o "Recargar catálogo" en Administración).
 #
+# Eventos: desde que la app los mantiene sola (app/eventos_auto.py, links cargados a mano, cancelados), los de Railway
+# mandan: reinvent.evento y reinvent.evento_revision se guardan antes del DROP y se reponen después (por nombre de
+# columna, así una base sin la migración 007 también sirve). Para pisarlos con los del docker local:
+#   REEMPLAZAR_EVENTOS=1 scripts/sync_to_railway.sh --aplicar
+#
 # Versiones: el docker local corre Postgres 16 y Railway 18. Restaurar en una versión mayor está soportado; el backup
 # de Railway se hace con un contenedor pgvector de la versión del servidor (pg_dump tiene que ser igual o más nuevo).
 set -euo pipefail
@@ -20,6 +25,7 @@ set -euo pipefail
 MODO="${1:-}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_CONTAINER="${LOCAL_CONTAINER:-reinvent-pg}"
+REEMPLAZAR_EVENTOS="${REEMPLAZAR_EVENTOS:-0}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/Documents/Proyectos/Scripts/reinventar/backups_reinvent}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -90,11 +96,57 @@ echo "    $(du -h "$SQL_LOCAL" | cut -f1)"
 echo "> Aplicando en Railway (una sola transacción)..."
 {
   echo "BEGIN;"
+  if [[ "$REEMPLAZAR_EVENTOS" != "1" ]]; then
+    cat <<'SQL'
+DO $$ BEGIN
+  IF to_regclass('reinvent.evento') IS NOT NULL THEN
+    EXECUTE 'CREATE TEMP TABLE guardado_evento ON COMMIT DROP AS SELECT * FROM reinvent.evento';
+  END IF;
+  IF to_regclass('reinvent.evento_revision') IS NOT NULL THEN
+    EXECUTE 'CREATE TEMP TABLE guardado_evento_revision ON COMMIT DROP AS SELECT * FROM reinvent.evento_revision';
+  END IF;
+END $$;
+SQL
+  fi
   echo "DROP SCHEMA IF EXISTS reinvent CASCADE;"
   echo "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;"
   echo "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;"
   echo "CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;"
   cat "$SQL_LOCAL"
+  if [[ "$REEMPLAZAR_EVENTOS" != "1" ]]; then
+    cat <<'SQL'
+\echo '> Reponiendo los eventos de Railway (los mantiene la app)...'
+DO $$ BEGIN
+  IF to_regclass('pg_temp.guardado_evento') IS NOT NULL THEN
+    -- Si Railway ya tiene las columnas de la revisión automática y el docker local no, se perderían los cancelados.
+    IF EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass('pg_temp.guardado_evento')
+                 AND attname = 'cancelado_desde' AND NOT attisdropped)
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'reinvent'
+                         AND table_name = 'evento' AND column_name = 'cancelado_desde') THEN
+      RAISE EXCEPTION 'El docker local no tiene la migración 007: corré las migraciones locales antes del sync';
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_temp.guardado_evento) THEN  -- Railway sin eventos: quedan los del docker local
+    EXECUTE 'DELETE FROM reinvent.evento';
+    -- Por nombre de columna; una sede que ya no existe en el maestro local queda vacía (no rompe la FK).
+    EXECUTE $q$
+      INSERT INTO reinvent.evento
+      SELECT (jsonb_populate_record(NULL::reinvent.evento, to_jsonb(g) ||
+              CASE WHEN g.id_sede_cercana IS NULL
+                     OR EXISTS (SELECT 1 FROM reinvent.sede s WHERE s.id_sede = g.id_sede_cercana)
+                   THEN '{}'::jsonb ELSE '{"id_sede_cercana": null, "metros_a_sede": null}'::jsonb END)).*
+      FROM pg_temp.guardado_evento g
+    $q$;
+    END IF;
+  END IF;
+  IF to_regclass('pg_temp.guardado_evento_revision') IS NOT NULL
+     AND to_regclass('reinvent.evento_revision') IS NOT NULL THEN
+    EXECUTE 'DELETE FROM reinvent.evento_revision';
+    EXECUTE 'INSERT INTO reinvent.evento_revision SELECT (jsonb_populate_record(NULL::reinvent.evento_revision, '
+            'to_jsonb(g))).* FROM pg_temp.guardado_evento_revision g';
+  END IF;
+END $$;
+SQL
+  fi
   # El DROP ... CASCADE se lleva los permisos: el rol de solo lectura de los colaboradores (si existe) los recupera.
   cat <<'SQL'
 DO $$ BEGIN

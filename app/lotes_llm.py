@@ -1,4 +1,4 @@
-"""Procesa charlas del catálogo en lotes paralelos contra el LLM (lo comparten traducir_resumenes y extraer_claves).
+"""Procesa ítems (charlas, eventos) en lotes paralelos contra el LLM (lo comparten traducir_resumenes y extraer_claves).
 
 Cada lote se guarda apenas vuelve; un lote fallido no frena al resto y queda pendiente para la próxima corrida.
 """
