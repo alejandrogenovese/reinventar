@@ -5,6 +5,8 @@ const SHELL = [
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/adminEventos.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/lleno.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/charts.js",
   "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/shows.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/badge-96.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
+  // Los que piden index.html y el manifest llevan ?v=2: la caché compara la URL entera, así que sin estos offline no aparecen.
+  "/icons/icon.svg?v=2", "/icons/icon-192.png?v=2", "/icons/icon-512.png?v=2", "/icons/icon-maskable-512.png?v=2", "/icons/apple-touch-icon.png?v=2",
 ];
 
 const FONTS_CSS = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap";

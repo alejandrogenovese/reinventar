@@ -10,3 +10,18 @@ def test_el_shell_cae_a_la_cache_si_la_red_no_contesta_en_3_segundos():
     assert "const SHELL_TIMEOUT_MS = 3000;" in SW
     assert "Promise.race([sinRed, lenta])" in SW
     assert "e.waitUntil(red.catch" in SW  # la red sigue y actualiza la caché después del timeout
+
+
+def _shell():
+    return set(re.findall(r'"(/[^"]*)"', re.search(r"const SHELL = \[(.*?)\];", SW, re.S).group(1)))
+
+
+def test_los_iconos_con_version_de_index_y_manifest_estan_precacheados():
+    import json
+
+    index = (WEB / "index.html").read_text()
+    manifest = json.loads((WEB / "manifest.webmanifest").read_text())
+    pedidos = set(re.findall(r'<link rel="(?:icon|apple-touch-icon)" href="(/icons/[^"]+)"', index))
+    pedidos |= {i["src"] for i in manifest["icons"]}
+
+    assert pedidos and pedidos <= _shell()
