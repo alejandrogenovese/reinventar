@@ -569,3 +569,20 @@ def test_el_sync_conserva_los_eventos_de_railway():
     assert 'REEMPLAZAR_EVENTOS" != "1"' in script
     assert "no tiene la migración 007" in script  # no reponer perdiendo los cancelados
     assert '"id_sede_cercana": null' in script     # una sede que ya no existe no rompe la FK
+
+
+def test_despues_de_una_revision_fallida_se_mantiene_la_referencia_y_el_aviso_de_nuevos(base):
+    fuentes, resumir = Fuentes(), ResumidorFalso()
+    fuentes.luma = [_item_luma(f"evt-{i}", f"s{i}", f"Ev {i}") for i in range(10)]
+    _revisar(base, fuentes, resumir)
+    fuentes.luma_rota = True
+    _revisar(base, fuentes, resumir, AHORA + dt.timedelta(hours=3))
+    fuentes.luma_rota = False
+    fuentes.luma = fuentes.luma[:3] + [_item_luma("evt-nuevo", "nuevo", "Nuevo")]
+
+    for horas in (6, 9):  # vino a la mitad después de la falla: tampoco cancela
+        _revisar(base, fuentes, resumir, AHORA + dt.timedelta(hours=horas))
+
+    evs = _eventos(base)
+    assert all(e["cancelado"] is None for e in evs.values())
+    assert evs["evt-nuevo"]["alta"] is not None  # no se tomó como carga inicial
