@@ -1,5 +1,5 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
-const VERSION = "reinventar-v0.21.0";
+const VERSION = "reinventar-v0.22.0";
 // Datos chicos para el SW (el token de sesión, que la página guarda al activar las notificaciones): el SW no ve localStorage.
 const DATOS = "sw-datos";
 const SHELL = [
