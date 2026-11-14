@@ -238,8 +238,12 @@ document.addEventListener("visibilitychange", () => {
 export const MSG_PEDAZO_GRANDE = "Pedazo demasiado grande, no se pudo subir";
 export const MSG_PEDAZO_RECHAZADO = "El servidor rechazó un pedazo, no se pudo subir";
 export function clasificarFalloDeSubida(status) {
-  // La sesión no existe o ya cerró, o el pedazo es demasiado grande: no se va a aceptar nunca.
-  if (status === 404 || status === 409 || status === 413) return { accion: "descartar" };
+  // La sesión no existe o ya cerró: ese pedazo no se va a aceptar nunca y no hay nada que mostrar.
+  if (status === 404 || status === 409) return { accion: "descartar" };
+  // El servidor lo rechaza por su contenido: reintentar es inútil y borrarlo perdería audio sin avisar.
+  // Queda en la cola marcado con error (y no frena a los demás) hasta que el usuario decida.
+  if (status === 413) return { accion: "fallido", mensaje: MSG_PEDAZO_GRANDE };
+  if (status === 422) return { accion: "fallido", mensaje: MSG_PEDAZO_RECHAZADO };
   return { accion: "reintentar" };
 }
 
