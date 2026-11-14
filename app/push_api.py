@@ -43,6 +43,7 @@ class Subscription(BaseModel):
 class Preferencias(BaseModel):
     grabar: bool        # "Recordarme grabar" (app/recordatorio.py)
     ubicacion: bool     # "Usar en qué sede estoy para los avisos": al apagarlo se borra la sede guardada
+    eventos_nuevos: bool = True  # "Avisarme de eventos nuevos" (app/eventos_avisos.py)
 
 
 class Unsubscribe(BaseModel):
@@ -86,5 +87,5 @@ def get_preferencias(username: str = Depends(auth)):
 
 @router.put("/preferencias")
 def put_preferencias(body: Preferencias, username: str = Depends(auth)):
-    db.set_preferencias_avisos(username, body.grabar, body.ubicacion)
+    db.set_preferencias_avisos(username, body.grabar, body.ubicacion, body.eventos_nuevos)
     return db.get_preferencias_avisos(username)

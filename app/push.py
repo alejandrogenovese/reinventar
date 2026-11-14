@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, itinerary, leave, lleno, recordatorio, sandbox, travel, venues
+from . import changes, config, db, eventos_avisos, itinerary, leave, lleno, recordatorio, sandbox, travel, venues
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -225,6 +225,8 @@ def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     days = itinerary.get_current(username)["days"]
     out = [n for day in days for n in day_notices(day["sessions"], now, prefs.grabar)]
     out += _recordatorios(username, days, now, prefs)
+    out += eventos_avisos.avisos(days, now, quiere_nuevos=prefs.eventos_nuevos,
+                                 ultimo_nuevos=db.ultimo_push(username, eventos_avisos.PREFIJO_NUEVOS))
     for ch in changes.pending(username):
         key = "change:" + hashlib.sha256(json.dumps([ch["code"], ch["messages"]]).encode()).hexdigest()[:16]
         out.append((key, {"title": "Cambió algo de tu itinerario", "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))

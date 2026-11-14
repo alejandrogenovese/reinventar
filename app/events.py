@@ -16,11 +16,14 @@ EVENT_TZ = ZoneInfo("America/Los_Angeles")
 _LOAD_SQL = """
 SELECT e.id_evento, e.plataforma, e.url, e.nombre, e.inicio, e.fin, e.imagen_url, e.lat, e.lng, e.lugar, e.direccion,
        e.direccion_exacta, e.google_place_id, e.descripcion, e.resumen_es, e.tipo, e.temas, e.organizadores,
-       e.anotados, e.lleno, e.precio, e.requiere_aprobacion, s.nombre AS sede_cercana, e.metros_a_sede
+       e.anotados, e.lleno, e.precio, e.requiere_aprobacion, s.nombre AS sede_cercana, e.metros_a_sede{extra}
 FROM reinvent.evento e
 LEFT JOIN reinvent.sede s ON s.id_sede = e.id_sede_cercana
 ORDER BY e.inicio, e.nombre
 """
+
+# Columnas de la revisión automática (migración 007): sin ellas (base sin migrar) la app sigue con lo de antes.
+_EXTRA = ", e.cancelado_desde, e.alta"
 
 _events: dict[str, dict] = {}
 
@@ -40,7 +43,19 @@ def _card(r: dict) -> dict:
         "guests": r["anotados"] or None, "full": r["lleno"], "price": r["precio"], "approval": r["requiere_aprobacion"],
         "url": r["url"], "platform": r["plataforma"],
         "near": {"name": r["sede_cercana"], "meters": r["metros_a_sede"]} if r["sede_cercana"] else None,
+        "cancelled": r.get("cancelado_desde") is not None,
+        "added": r["alta"].timestamp() if r.get("alta") else None,
     }
+
+
+def _leer() -> list[dict]:
+    with pg.pool().connection() as c:
+        try:
+            return c.execute(_LOAD_SQL.format(extra=_EXTRA)).fetchall()
+        except psycopg.errors.UndefinedColumn:
+            c.rollback()
+            log.warning("reinvent.evento sin las columnas de la revisión automática (falta la migración 007)")
+            return c.execute(_LOAD_SQL.format(extra="")).fetchall()
 
 
 @sandbox.en_real
@@ -48,8 +63,7 @@ def load() -> int:
     """(Re)carga los eventos. Si la tabla todavía no existe (base sin sincronizar), la app sigue sin eventos."""
     global _events
     try:
-        with pg.pool().connection() as c:
-            rows = c.execute(_LOAD_SQL).fetchall()
+        rows = _leer()
     except psycopg.errors.UndefinedTable:
         log.warning("reinvent.evento no existe todavía: la sección Eventos queda vacía hasta el próximo sync")
         rows = []
@@ -60,6 +74,12 @@ def load() -> int:
 
 def get(code: str) -> dict | None:
     return _events.get(code)
+
+
+def nuevos_desde(desde: float) -> list[dict]:
+    """Los eventos que encontró la revisión automática después de `desde` (time.time()), sin los cancelados."""
+    return sorted((e for e in _events.values() if (e.get("added") or 0) > desde and not e.get("cancelled")),
+                  key=lambda e: e["added"])
 
 
 def by_day() -> list[dict]:

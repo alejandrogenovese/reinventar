@@ -99,3 +99,9 @@ ENTORNO = _env("ENTORNO")
 LANGFUSE_PUBLIC_KEY = _env("LANGFUSE_PUBLIC_KEY")
 LANGFUSE_SECRET_KEY = _env("LANGFUSE_SECRET_KEY")
 LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
+
+# Eventos automáticos (app/eventos_auto.py): revisión de Luma, conferenceparties y links sueltos cada N horas.
+# Solo en producción (EVENTOS_AUTO=1): staging comparte el schema reinvent y haría el trabajo y los push dos veces.
+EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
+EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
+EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima

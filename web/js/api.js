@@ -108,6 +108,10 @@ export const Admin = {
   clearSandboxData: () => api("/api/admin/sandbox/data", { method: "DELETE" }),
   venues: () => api("/api/admin/venues"),
   check: () => api("/api/admin/check"),
+  eventos: () => api("/api/admin/eventos"),
+  eventosRevisar: () => api("/api/admin/eventos/revisar", { method: "POST" }),
+  eventosVistaPrevia: (url) => api("/api/admin/eventos/link/vista-previa", { method: "POST", json: { url } }),
+  eventosGuardarLink: (datos) => api("/api/admin/eventos/link", { method: "POST", json: datos }),
 };
 
 export const Push = {

@@ -6,6 +6,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Los eventos se actualizan solos.** Cada 3 horas la app revisa el calendario de Luma de re:Invent y la lista de
+  conferenceparties.com: suma los nuevos (con su resumen en castellano y el hotel más cercano) y actualiza los que
+  cambiaron. Entran también los ~140 eventos de conferenceparties que no están en Luma; su botón lleva a la página del
+  organizador.
+- **Eventos cancelados.** Si un evento futuro deja de aparecer en su página en dos revisiones seguidas, se marca
+  «Cancelado» (tachado y al final de la lista, también en el itinerario y en Inicio) y avisa por push a quien lo tenía
+  en su itinerario. Si vuelve a aparecer, se descancela.
+- **Aviso de eventos nuevos**: un push por tanda («3 eventos nuevos: …»), nunca de noche. Se apaga en Cuenta →
+  Notificaciones con «Avisarme de eventos nuevos».
+- Administración: estado de cada fuente, «Revisar ahora» y **«Agregar evento por link»** para los que no están en
+  ninguna lista (pegás el link, la app arma el evento y lo revisás antes de guardar).
 - **¿Te sirvió este resumen? 👍 / 👎** debajo del resumen de cada grabación. Un voto por persona (otro toque lo quita)
   y se ve a cuántos les sirvió. Cada voto va al tablero de LLM («Útil»), para saber qué tan buenos salen los resúmenes.
 - **«Está llena» y «Hay mucha cola»** en cada horario de la ficha de una charla. Desde 45 minutos antes de que empiece
@@ -14,6 +25,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   Además, cada horario dice si es sin reserva («se entra por orden de llegada») o si la sala es chica.
 - Los avisos de «llena» y «mucha cola» también aparecen en las tarjetas de **Hoy** (la charla de ahora y la que sigue,
   con los botones para avisar desde ahí) y en las del **itinerario**, junto con la pista de sala chica.
+
+### Cambiado
+- El botón «+ Itinerario» de las tarjetas de eventos ahora es naranja, como el resto de las acciones principales.
 
 ### Corregido
 - Las imágenes de los eventos (Luma) salían rotas en un celular nuevo, en eventos nuevos o en algunos navegadores.

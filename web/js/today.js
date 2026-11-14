@@ -63,6 +63,7 @@ function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
     h("div", { class: "ra-today-when" }, WhenLabel(s, label, highlight), h("span", { class: "ra-time" }, `${s.start}–${s.end}`)),
     h("h3", { class: "ra-card-title" }, h("a", { class: "ra-link", href: itemHref(s) }, s.title)),
     h("div", { class: "ra-card-meta" }, place(s) ? IconText("ubicacion", place(s)) : null, itemLabel(s)),
+    s.kind === "event" && s.cancelled ? Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" }) : null,
     s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
     go ? go.info : null,

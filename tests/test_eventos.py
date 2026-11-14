@@ -7,8 +7,9 @@ import uuid
 import psycopg
 import pytest
 
-from scripts.cargar_eventos import cargar, leer_export, leer_resumenes
-from scripts.eventos_fuentes import Evento, _precio, completar_con_pagina_luma, sede_mas_cercana, texto_de_mirror
+from app.eventos_carga import leer_resumenes
+from app.eventos_fuentes import Evento, _precio, completar_con_pagina_luma, sede_mas_cercana, texto_de_mirror
+from scripts.cargar_eventos import cargar, leer_export
 
 
 def _entrada(i="evt-1", nombre="Happy Hour at Topgolf", inicio="2026-12-02T03:00:00.000Z"):

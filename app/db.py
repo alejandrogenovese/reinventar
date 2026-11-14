@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
   ubicacion BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at DOUBLE PRECISION NOT NULL
 );
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS eventos_nuevos BOOLEAN NOT NULL DEFAULT TRUE;
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
@@ -598,15 +599,17 @@ def votos_resumen(sid, username) -> dict:
 
 def get_preferencias_avisos(username) -> dict:
     with conn() as c:
-        r = c.execute("SELECT grabar, ubicacion FROM preferencias_avisos WHERE username=%s", (username,)).fetchone()
-    return dict(r) if r else {"grabar": True, "ubicacion": False}
+        r = c.execute("SELECT grabar, ubicacion, eventos_nuevos FROM preferencias_avisos WHERE username=%s",
+                      (username,)).fetchone()
+    return dict(r) if r else {"grabar": True, "ubicacion": False, "eventos_nuevos": True}
 
 
-def set_preferencias_avisos(username, grabar, ubicacion) -> None:
+def set_preferencias_avisos(username, grabar, ubicacion, eventos_nuevos=True) -> None:
     with conn() as c:
-        c.execute("INSERT INTO preferencias_avisos (username,grabar,ubicacion,updated_at) VALUES (%s,%s,%s,%s) "
-                  "ON CONFLICT (username) DO UPDATE SET grabar=EXCLUDED.grabar, ubicacion=EXCLUDED.ubicacion, "
-                  "updated_at=EXCLUDED.updated_at", (username, grabar, ubicacion, time.time()))
+        c.execute("INSERT INTO preferencias_avisos (username,grabar,ubicacion,eventos_nuevos,updated_at) "
+                  "VALUES (%s,%s,%s,%s,%s) ON CONFLICT (username) DO UPDATE SET grabar=EXCLUDED.grabar, "
+                  "ubicacion=EXCLUDED.ubicacion, eventos_nuevos=EXCLUDED.eventos_nuevos, updated_at=EXCLUDED.updated_at",
+                  (username, grabar, ubicacion, eventos_nuevos, time.time()))
         if not ubicacion:
             c.execute("DELETE FROM ubicacion_reciente WHERE username=%s", (username,))
 

@@ -85,6 +85,25 @@ def events_user(items: list[tuple[str, str, str, str]]) -> str:
     return "Eventos para resumir:\n" + json.dumps({"eventos": payload}, ensure_ascii=False)
 
 
+EVENT_LINK_SYSTEM = f"""Te paso el contenido de la página de un evento de networking alrededor de AWS re:Invent 2026 en Las Vegas (29 de noviembre al 4 de diciembre de 2026). Sacás los datos para cargarlo en una agenda y lo resumís para alguien que decide a cuál ir desde el celular. Escribís en {config.TARGET_LANGUAGE}, con voseo.
+Solo con lo que dice la página: si un dato no está, va null. No inventes fecha, hora, lugar ni sponsors.
+
+Devolvé SOLO un JSON con:
+- "nombre": el nombre del evento, como lo pone la página.
+- "fecha": "AAAA-MM-DD" (hora de Las Vegas).
+- "inicio" y "fin": "HH:MM" en 24 horas, hora de Las Vegas. "fin" null si no está.
+- "lugar": el nombre del lugar ("SUSHISAMBA", "Topgolf"); "direccion": la dirección o el hotel donde queda, si está.
+- "resumen_es": 2 o 3 oraciones. Qué es, para quién está pensado y por qué ir. Sin repetir la fecha ni la dirección.
+- "tipo": exactamente uno de: {", ".join(EVENT_TYPES)}.
+- "temas": de 0 a 4 temas técnicos cortos en castellano.
+- "organizadores": las empresas que lo organizan o patrocinan."""
+
+
+def event_link_user(url: str, datos: dict) -> str:
+    """datos: lo que sacó app/eventos_fuentes.datos_de_pagina (título, descripción, JSON-LD y texto visible)."""
+    payload = {"url": url, **{k: datos.get(k) for k in ("titulo", "descripcion", "jsonld", "texto")}}
+    return "Página del evento:\n" + json.dumps(payload, ensure_ascii=False, default=str)
+
 PROFILE_AUDIT_SYSTEM = """Revisás si un perfil profesional (sacado de LinkedIn por Crustdata) corresponde de verdad a un speaker de AWS re:Invent 2026, o a otra persona con el mismo nombre.
 
 De cada caso recibís:
