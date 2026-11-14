@@ -102,6 +102,14 @@ async function leerToken() {
   return hit ? hit.text() : "";
 }
 
+// Token vencido o revocado (401/403): se descarta la copia y se sale en silencio. No se reintenta: pushsubscriptionchange
+// no se repite solo, y la página vuelve a guardar un token válido (syncSubscription) cuando el usuario inicia sesión.
+async function sesionVencida(res) {
+  if (res.status !== 401 && res.status !== 403) return false;
+  await caches.open(DATOS).then((c) => c.delete("/__token")).catch(() => {});
+  return true;
+}
+
 async function resuscribir(e) {
   const token = await leerToken();
   if (!token) return; // sin sesión guardada: la página resincroniza sola la próxima vez que se abra
@@ -110,11 +118,14 @@ async function resuscribir(e) {
   const post = (path, json) => fetch(path, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(json), signal: signal() });
   let sub = e.newSubscription;
   if (!sub) {
-    const { key } = await (await fetch("/api/push/key", { headers: auth, signal: signal() })).json();
+    const rKey = await fetch("/api/push/key", { headers: auth, signal: signal() });
+    if (await sesionVencida(rKey)) return;
+    const { key } = await rKey.json();
     if (!key) return;
     sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
   }
   const r = await post("/api/push/subscribe", sub.toJSON());
+  if (await sesionVencida(r)) return;
   if (!r.ok) throw new Error(`push/subscribe respondió ${r.status}`);
   const viejo = e.oldSubscription?.endpoint;
   if (viejo && viejo !== sub.endpoint) await post("/api/push/unsubscribe", { endpoint: viejo }).catch(() => {});

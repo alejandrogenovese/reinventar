@@ -119,3 +119,23 @@ def test_el_timer_del_shell_se_cancela_y_el_resuscribir_tiene_timeout():
     assert "AbortSignal.timeout(PUSH_TIMEOUT_MS)" in SW
     js = (WEB / "js" / "notifications.js").read_text()
     assert 'addEventListener("visibilitychange"' in js
+
+
+def test_el_token_del_sw_se_borra_al_desactivar_y_al_cerrar_sesion():
+    js = (WEB / "js" / "notifications.js").read_text()
+    app_js = (WEB / "js" / "app.js").read_text()
+    disable = js[js.index("export async function disable()"):]
+    # disable() borra la caché de datos antes de cualquier return (también sin suscripción)...
+    assert disable.index("caches.delete(SW_DATOS)") < disable.index("if (!sub) return")
+    # ...y el logout la llama antes de borrar el token.
+    logout = app_js[app_js.index("async function logout()"):]
+    assert logout.index("await disablePush()") < logout.index('setToken("")')
+
+
+def test_el_token_del_sw_vencido_se_descarta_sin_reintentos():
+    assert "async function sesionVencida(res)" in SW
+    assert "res.status !== 401 && res.status !== 403" in SW
+    assert 'c.delete("/__token")' in SW
+    # Las dos llamadas autenticadas lo consultan y salen sin lanzar error (el catch del listener solo avisa).
+    assert SW.count("await sesionVencida(") == 2
+    assert "setTimeout" not in SW[SW.index("async function resuscribir"):]  # sin reintentos propios
