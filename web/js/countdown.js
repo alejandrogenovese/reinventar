@@ -34,8 +34,10 @@ export function formatCountdown(ms) {
 const hhmm = (d) => d.toLocaleTimeString("es-AR", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const label = (it) => it.title;
 // Ícono de la franja: evento o fijado; el reloj cuando hay que salir ya.
-const bannerIcon = (it, tone) => icon(tone === "urgent" ? "reloj" : it.kind === "event" ? "eventos" : "fijar", 16);
-const link = (it) => (it.kind === "event" ? `#/evento/${encodeURIComponent(it.code)}` : `#/charla/${it.base}`);
+const isEvent = (it) => it.kind === "event" || it.kind === "show";
+const bannerIcon = (it, tone) => icon(tone === "urgent" ? "reloj" : isEvent(it) ? "eventos" : "fijar", 16);
+const link = (it) => ({ event: `#/evento/${encodeURIComponent(it.code)}`, show: `#/show/${encodeURIComponent(it.show)}`, mine: "#/itinerario" }[it.kind]
+  || `#/charla/${it.base}`);
 
 async function loadPinned() {
   const { days } = await Itinerary.get();
@@ -45,7 +47,7 @@ async function loadPinned() {
     if (end <= start) end = new Date(end.getTime() + 86_400_000); // termina pasada la medianoche
     // Charla sin reserva: hay que llegar QUEUE_MIN antes por la fila de walk-up (armado guiado).
     const queue = (s.kind || "talk") === "talk" && !s.reservada;
-    return { code: s.code, base: s.base, kind: s.kind || "talk", title: s.title, start, end, venue: s.venue, queue };
+    return { code: s.code, base: s.base, show: s.show, kind: s.kind || "talk", title: s.title, start, end, venue: s.venue, queue };
   })).sort((a, b) => a.start - b.start);
 }
 
@@ -79,8 +81,8 @@ function state(it, now, lead) {
       : `Salí ahora para ${it.title}: empieza a las ${hhmm(it.start)}.`);
     return { tone: "urgent", text: `Salí ya · ${label(it)} en ${formatCountdown(toStart)}` };
   }
-  if (toStart <= 3_600_000) return { tone: it.kind === "event" ? "event" : "soon", text: `${label(it)} en ${formatCountdown(toStart)} · salí ${hhmm(leave)}` };
-  return { tone: it.kind === "event" ? "event" : "calm", text: `${label(it)} a las ${hhmm(it.start)}` };
+  if (toStart <= 3_600_000) return { tone: isEvent(it) ? "event" : "soon", text: `${label(it)} en ${formatCountdown(toStart)} · salí ${hhmm(leave)}` };
+  return { tone: isEvent(it) ? "event" : "calm", text: `${label(it)} a las ${hhmm(it.start)}` };
 }
 
 const badgeText = (ms) => (ms > 0 ? `Empieza en ${formatCountdown(ms)}` : "Ya empezó");

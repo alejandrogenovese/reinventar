@@ -5,7 +5,7 @@ import { Hint, h, toast } from "./ui.js";
 
 const ESTADOS_LLENO = { lleno: "Está llena", cola: "Hay mucha cola" };
 const TOPE_CODIGOS = 30; // app/lleno.py CODIGOS_POR_PEDIDO
-const NO_SON_CHARLAS = new Set(["event", "mine"]); // eventos y eventos propios no están en el catálogo
+const NO_SON_CHARLAS = new Set(["event", "show", "mine"]); // eventos, shows y eventos propios no están en el catálogo
 const personas = (n) => `${n} persona${n === 1 ? "" : "s"}`;
 
 /**

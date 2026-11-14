@@ -138,7 +138,7 @@ def test_las_tarjetas_de_hoy_y_del_itinerario_muestran_los_avisos():
 
 def test_los_eventos_no_piden_avisos_y_el_pedido_respeta_el_tope():
     lleno_js = _js("lleno.js")
-    assert 'new Set(["event", "mine"])' in lleno_js
+    assert 'new Set(["event", "show", "mine"])' in lleno_js
     assert f"TOPE_CODIGOS = {lleno.CODIGOS_POR_PEDIDO};" in lleno_js
 
 

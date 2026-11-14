@@ -2,7 +2,8 @@
 reinvent.evento sola (pensado para la semana de re:Invent, cuando nadie corre scripts).
 
 Fuentes: el calendario Luma "aws-re-invent" (API pública), la tabla de conferenceparties.com (los que llevan a Luma se
-completan con su página) y los links sueltos que cargó un admin (app/eventos_link.py).
+completan con su página) y los links sueltos que cargó un admin (app/eventos_link.py). Además, si hay
+TICKETMASTER_API_KEY, los shows de Ticketmaster (app/ticketmaster.py → reinvent.show_funcion), en la misma transacción.
 
 Cada revisión:
 1. Baja las fuentes. Una que falla no toca nada de lo suyo.
@@ -28,7 +29,7 @@ from psycopg import sql
 from psycopg.errors import UndefinedColumn, UndefinedTable
 from psycopg.rows import tuple_row
 
-from . import config, eventos_link, events, pg, sandbox
+from . import config, eventos_link, events, pg, sandbox, shows, ticketmaster
 from .eventos_carga import fila, resumir_con_llm, sedes_con_coordenadas, upsert
 from .eventos_fuentes import (
     Evento,
@@ -118,6 +119,24 @@ _COLUMNAS_ESTADO = ("id_evento", "plataforma", "url", "nombre", "inicio", "fin",
 
 def _usar_schema(cur, schema: str) -> None:
     cur.execute(sql.SQL("SET LOCAL search_path TO {}, public").format(sql.Identifier(schema)))
+
+
+def _leer_shows(conectar: Conectar, schema: str) -> tuple[dict, int | None] | None:
+    """(funciones guardadas, total de la última revisión OK) de Ticketmaster; None si no hay key o falta la
+    migración 009 (la revisión de eventos sigue igual)."""
+    if not config.TICKETMASTER_API_KEY:
+        return None
+    try:
+        with conectar() as conn, conn.transaction():
+            cur = conn.cursor(row_factory=tuple_row)
+            _usar_schema(cur, schema)
+            actuales = ticketmaster.leer_actuales(cur)
+            previo = cur.execute("SELECT total FROM evento_revision WHERE fuente = %s AND ok",
+                                 (ticketmaster.FUENTE,)).fetchone()
+    except UndefinedTable:
+        log.warning("reinvent.show_funcion no existe (falta la migración 009): no se revisa Ticketmaster")
+        return None
+    return actuales, previo[0] if previo else None
 
 
 def _sedes_con_nombre(cur) -> list[tuple[int, str, float, float]]:
@@ -323,6 +342,9 @@ def _revisar(conectar, http, schema, resumir, tope, ahora, pausa, resolver) -> d
     a_resumir = para_resumir(guardar, actuales, tope)
     resumenes, fallidos = resumir(a_resumir) if a_resumir else ({}, ())
     links_vistos, links_faltan = revisar_links(actuales, http, resolver, ahora, pausa)
+    estado_shows = _leer_shows(conectar, schema)
+    shows_leidos = ticketmaster.leer(http, config.TICKETMASTER_API_KEY, *estado_shows, ahora, pausa) \
+        if estado_shows else None
 
     reducidas = {lec.fuente for lec in (luma, cp) if _reducida(lec, previas, ahora)}
     lecturas_ok = luma.ok and cp.ok and not reducidas
@@ -368,8 +390,15 @@ def _revisar(conectar, http, schema, resumir, tope, ahora, pausa, resolver) -> d
             detalle = lectura.error or "; ".join(filter(None, (aviso, lote))) or None
             _guardar_revision(cur, lectura.fuente, ahora, lectura.ok, conteo[lectura.fuente], detalle)
         _guardar_revision(cur, LINKS, ahora, True, conteo[LINKS], None)
+        if shows_leidos:
+            conteo[ticketmaster.FUENTE] = ticketmaster.guardar(cur, shows_leidos, estado_shows[0], ahora)
+            _guardar_revision(cur, ticketmaster.FUENTE, ahora, shows_leidos.ok, conteo[ticketmaster.FUENTE],
+                              shows_leidos.error or ("pedido un día por vez" if shows_leidos.partida else None))
     log.info("eventos: %s", {f: c for f, c in conteo.items() if any(c.values())})
-    return {"estado": "ok", "fuentes": conteo, "errores": {lec.fuente: lec.error for lec in (luma, cp) if lec.error}}
+    errores = {lec.fuente: lec.error for lec in (luma, cp) if lec.error}
+    if shows_leidos and shows_leidos.error:
+        errores[ticketmaster.FUENTE] = shows_leidos.error
+    return {"estado": "ok", "fuentes": conteo, "errores": errores}
 
 
 # ---------- en segundo plano ----------
@@ -389,6 +418,7 @@ def revisar_ahora(**kw) -> dict:
         with sandbox.real():
             resultado = revisar(**kw)
             events.load()
+            shows.load()
         return resultado
     finally:
         _en_curso.release()
@@ -429,7 +459,8 @@ def estado(conectar: Conectar | None = None, schema: str = "reinvent") -> dict:
     """Lo que muestra el admin: si está prendido, si hay una revisión en curso, la última de cada fuente y los
     eventos cargados por link. migracion_pendiente: la base todavía no tiene la migración 007."""
     conectar = conectar or (lambda: pg.pool().connection())
-    base = {"activo": config.EVENTOS_AUTO, "horas": config.EVENTOS_AUTO_HORAS, "ocupado": ocupado()}
+    base = {"activo": config.EVENTOS_AUTO, "horas": config.EVENTOS_AUTO_HORAS, "ocupado": ocupado(),
+            "ticketmaster": bool(config.TICKETMASTER_API_KEY)}
     try:
         with conectar() as conn, conn.transaction():
             cur = conn.cursor(row_factory=tuple_row)

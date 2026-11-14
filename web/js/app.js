@@ -6,6 +6,7 @@ import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
 import { viewEvento, viewEventos } from "./events.js";
+import { viewShow } from "./shows.js";
 import { viewPerdida } from "./missed.js";
 import { viewGrabarCharla } from "./grabarCharla.js";
 import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
@@ -78,6 +79,8 @@ const routes = [
     at, q: q ? decodeURIComponent(q) : "", canGoBack: navigatedInApp, setCleanup: (fn) => { cleanup = fn; }, onError: renderError })],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/eventos$/, () => viewEventos(view)],
+  [/^#\/eventos\/shows$/, () => viewEventos(view, "shows")],
+  [/^#\/show\/([\w-]+)(\?.*)?$/, (id, qs) => viewShow(view, id, qs || "")],
   [/^#\/perdida\/([^/?#]+)$/, (code) => viewPerdida(view, code)],
   [/^#\/evento\/([^/?#]+)$/, (code) => viewEvento(view, code)],
   [/^#\/itinerario\/cuestionario$/, () => it.viewCuestionario(view)],

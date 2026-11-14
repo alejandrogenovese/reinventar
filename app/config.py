@@ -105,3 +105,8 @@ LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
 EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
 EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
 EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima
+
+# Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de
+# la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
+# se loguea (ver app/ticketmaster.py).
+TICKETMASTER_API_KEY = _env("TICKETMASTER_API_KEY")

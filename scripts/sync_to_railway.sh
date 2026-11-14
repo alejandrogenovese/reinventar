@@ -15,7 +15,8 @@
 #
 # Eventos: desde que la app los mantiene sola (app/eventos_auto.py, links cargados a mano, cancelados), los de Railway
 # mandan: reinvent.evento y reinvent.evento_revision se guardan antes del DROP y se reponen después (por nombre de
-# columna, así una base sin la migración 007 también sirve). Para pisarlos con los del docker local:
+# columna, así una base sin la migración 007 también sirve). Lo mismo con los shows de Ticketmaster (reinvent.show_funcion,
+# migración 009). Para pisarlos con los del docker local:
 #   REEMPLAZAR_EVENTOS=1 scripts/sync_to_railway.sh --aplicar
 #
 # Versiones: el docker local corre Postgres 16 y Railway 18. Restaurar en una versión mayor está soportado; el backup
@@ -105,6 +106,9 @@ DO $$ BEGIN
   IF to_regclass('reinvent.evento_revision') IS NOT NULL THEN
     EXECUTE 'CREATE TEMP TABLE guardado_evento_revision ON COMMIT DROP AS SELECT * FROM reinvent.evento_revision';
   END IF;
+  IF to_regclass('reinvent.show_funcion') IS NOT NULL THEN
+    EXECUTE 'CREATE TEMP TABLE guardado_show_funcion ON COMMIT DROP AS SELECT * FROM reinvent.show_funcion';
+  END IF;
 END $$;
 SQL
   fi
@@ -144,6 +148,11 @@ DO $$ BEGIN
     EXECUTE 'INSERT INTO reinvent.evento_revision SELECT (jsonb_populate_record(NULL::reinvent.evento_revision, '
             'to_jsonb(g))).* FROM pg_temp.guardado_evento_revision g';
   END IF;
+  IF to_regclass('pg_temp.guardado_show_funcion') IS NOT NULL AND to_regclass('reinvent.show_funcion') IS NOT NULL THEN
+    EXECUTE 'DELETE FROM reinvent.show_funcion';
+    EXECUTE 'INSERT INTO reinvent.show_funcion SELECT (jsonb_populate_record(NULL::reinvent.show_funcion, '
+            'to_jsonb(g))).* FROM pg_temp.guardado_show_funcion g';
+  END IF;
 END $$;
 SQL
   fi
@@ -158,7 +167,8 @@ DO $$ BEGIN
 END $$;
 SQL
   cat "$REPO/scripts/migrar_codigos_app.sql"
-  # Solo las charlas tienen que existir en el catálogo: los eventos (kind=event) y los propios (kind=mine) no.
+  # Solo las charlas tienen que existir en el catálogo: los eventos (kind=event), los shows (kind=show) y los propios
+  # (kind=mine) no.
   cat <<'SQL'
 \echo '> Verificación (dentro de la transacción):'
 \pset pager off

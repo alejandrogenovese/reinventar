@@ -3,7 +3,7 @@ const VERSION = "reinventar-v0.21.0";
 const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/adminEventos.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/lleno.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/charts.js",
-  "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js",
+  "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/shows.js", "/js/location.js", "/js/missed.js", "/js/notifications.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js",
   "/icons/icon.svg", "/icons/icon-192.png", "/icons/badge-96.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
 ];
 
@@ -63,8 +63,9 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Las imágenes de los eventos (Luma) no pasan por acá: Luma las manda con caché de 31 días, así que el navegador
-  // las guarda y las muestra sin señal solo. Interceptarlas las rompía en algunos navegadores.
+  // Las imágenes de los eventos (Luma) y de los shows (Ticketmaster, s1.ticketm.net) no pasan por acá: las manda su
+  // CDN con caché larga, así que el navegador las guarda y las muestra sin señal solo. Interceptarlas las rompía en
+  // algunos navegadores.
 
   if (url.origin !== location.origin) return;
   // App shell: red primero (para tomar cambios), caché si no hay señal.

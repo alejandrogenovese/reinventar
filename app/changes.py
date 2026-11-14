@@ -52,6 +52,8 @@ def pending(username: str) -> list[dict]:
                 db.set_item_snapshot(username, it["code"], itinerary.snapshot(card))
             continue
         if card is None:
+            if it.get("kind") == "show":  # una función se borra un día después de pasar; la que se cae, se cancela
+                continue
             out.append({"code": it["code"], "kind": it.get("kind") or "talk", "title": old.get("title"), "gone": True,
                         "messages": [f"«{old.get('title')}» ya no figura en el catálogo: puede haberse dado de baja o "
                                      "cambiado de código. Buscala de nuevo."]})

@@ -4,7 +4,7 @@
 import { Admin } from "./api.js";
 import { Button, Hint, h, toast } from "./ui.js";
 
-const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas" };
+const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)" };
 const ESPERA_MS = 5000;
 
 const hace = (iso) => {
@@ -16,7 +16,7 @@ const hace = (iso) => {
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 function RevisionRow(r) {
-  const unidad = r.fuente === "catalogo" ? "horarios futuros" : "eventos";
+  const unidad = { catalogo: "horarios futuros", ticketmaster: "funciones" }[r.fuente] || "eventos";
   const partes = [`${r.total} ${unidad}`, plural(r.nuevos, "nuevo", "nuevos"), plural(r.cambiados, "cambiado", "cambiados"),
     plural(r.cancelados, "cancelado", "cancelados"), r.pendientes ? `${r.pendientes} sin resumen todavía` : null].filter(Boolean);
   return h("div", { class: "stack" },
@@ -109,7 +109,8 @@ export function EventosPanel() {
     box.replaceChildren(
       !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
       d.migracion_pendiente ? Hint("Falta la migración 007 en la base.", { tone: "error" }) : null,
-      d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
+      d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties${d.ticketmaster ? ", Ticketmaster" : ""} y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
+      !d.ticketmaster ? h("p", { class: "caption" }, "Ticketmaster apagado: falta TICKETMASTER_API_KEY (sin key no aparece la pestaña Shows).") : null,
       ...d.revisiones.map(RevisionRow),
       h("div", { class: "actions" }, revisar),
       d.links.length ? h("ul", { class: "stack" }, d.links.map((l) => h("li", {},
