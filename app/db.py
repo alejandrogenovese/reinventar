@@ -577,6 +577,23 @@ def purgar_reportes_lleno(antes_de) -> int:
     return total
 
 
+def renombrar_codigos(renombres) -> int:
+    """AWS renombró horarios [(viejo, nuevo, base nueva)] (app/charlas_auto.py): los itinerarios y las grabaciones
+    pasan al código nuevo, en el schema real y en el de prueba. Si alguien ya tenía el nuevo, el viejo sobra.
+    Lo mismo que scripts/migrar_codigos_app.sql, para lo que detecta la revisión automática. Devuelve los ítems movidos."""
+    movidos = 0
+    with sandbox.real(), conn() as c:
+        for schema in (config.DB_SCHEMA, sandbox.schema_prueba()):
+            for viejo, nuevo, base in renombres:
+                c.execute(f"DELETE FROM {schema}.itinerary_items i WHERE i.code = %s AND EXISTS "
+                          f"(SELECT 1 FROM {schema}.itinerary_items x WHERE x.username = i.username AND x.code = %s)",
+                          (viejo, nuevo))
+                movidos += c.execute(f"UPDATE {schema}.itinerary_items SET code = %s, base = %s WHERE code = %s",
+                                     (nuevo, base, viejo)).rowcount
+                c.execute(f"UPDATE {schema}.sessions SET code = %s WHERE upper(code) = %s", (nuevo, viejo))
+    return movidos
+
+
 def set_voto_resumen(sid, username, util: bool) -> None:
     with conn() as c:
         c.execute("INSERT INTO voto_resumen (session_id,username,util,creado) VALUES (%s,%s,%s,%s) "

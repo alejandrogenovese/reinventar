@@ -1,12 +1,22 @@
 // «Está llena / hay mucha cola»: lo que avisa la gente en la puerta (app/lleno.py). Va en la ficha de la charla, en las
 // tarjetas de Hoy y en las del itinerario.
 import { Lleno } from "./api.js";
-import { h, toast } from "./ui.js";
+import { Hint, h, toast } from "./ui.js";
 
 const ESTADOS_LLENO = { lleno: "Está llena", cola: "Hay mucha cola" };
 const TOPE_CODIGOS = 30; // app/lleno.py CODIGOS_POR_PEDIDO
 const NO_SON_CHARLAS = new Set(["event", "mine"]); // eventos y eventos propios no están en el catálogo
 const personas = (n) => `${n} persona${n === 1 ? "" : "s"}`;
+
+/**
+ * Charla que dejó de aparecer en el catálogo oficial (app/charlas_auto.py): primero la duda, después «Cancelada».
+ * Va en la tarjeta, en la ficha, en el itinerario y en Hoy. null si está todo bien.
+ */
+export function AvisoBaja(s) {
+  if (s?.cancelled) return Hint("Cancelada: ya no aparece en el catálogo oficial de AWS. Buscá otra charla.", { tone: "error" });
+  if (s?.missing_since) return Hint(`No aparece en el catálogo oficial desde las ${s.missing_since}. Puede haberse dado de baja: confirmalo antes de ir.`, { tone: "warn" });
+  return null;
+}
 
 /** Lo que avisó la gente en la puerta: «Llena según 3 personas · hace 5 min». */
 function LlenoResumen(a) {

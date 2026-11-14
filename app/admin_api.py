@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from . import (
     catalog,
+    charlas_auto,
     config,
     db,
     eventos_auto,
@@ -222,15 +223,18 @@ def _eventos_activos() -> None:
 
 @router.get("/eventos")
 def eventos_estado(_admin: str = Depends(admin)):
-    """Última revisión de cada fuente y los eventos cargados por link."""
-    return eventos_auto.estado()
+    """Última revisión de cada fuente (también el catálogo oficial de charlas), los eventos cargados por link y las
+    charlas nuevas que encontró la revisión."""
+    estado = eventos_auto.estado()
+    return {**estado, "ocupado": estado["ocupado"] or charlas_auto.ocupado(), "charlas_nuevas": charlas_auto.nuevas()}
 
 
 @router.post("/eventos/revisar", status_code=202)
 def eventos_revisar(_admin: str = Depends(admin)):
-    """Arranca una revisión ya (corre en segundo plano: el estado se ve en GET /eventos)."""
+    """Arranca una revisión ya de eventos y de charlas (en segundo plano: el estado se ve en GET /eventos)."""
     _eventos_activos()
-    if not eventos_auto.en_segundo_plano():
+    eventos, charlas = eventos_auto.en_segundo_plano(), charlas_auto.en_segundo_plano()
+    if not (eventos or charlas):
         raise HTTPException(409, "Ya hay una revisión en curso")
     return {"ok": True}
 

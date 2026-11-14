@@ -1,4 +1,8 @@
-"""Catálogo oficial de re:Invent (sessions_full.json) → filas del schema reinvent. Funciones puras, sin base.
+"""Catálogo oficial de re:Invent → filas del schema reinvent. Funciones puras, sin base (salvo bajar_buscador, que pide
+el buscador público por HTTP).
+
+Lo usan scripts/actualizar_catalogo.py (con sessions_full.json, la carga manual) y app/charlas_auto.py (con el buscador
+público catalog.awsevents.com/api/search, sin login: la revisión automática de bajas y cambios).
 
 En el JSON cada item es UN horario: las repeticiones (-R, -R1…) vienen como items aparte, cada uno con su sessionID y
 su sessionTimeID. La charla se identifica por el código base (el código sin el sufijo -R\\d*).
@@ -139,8 +143,8 @@ def _charla(item: dict, attrs: dict, nombres: list[str]) -> Charla:
     )
 
 
-def _horario(item: dict, attrs: dict) -> Horario:
-    t = item["times"][0]
+def _horario(item: dict, attrs: dict, t: dict | None = None) -> Horario:
+    t = t or item["times"][0]
     sede, sala = _sede_y_sala(t.get("room"))
     cupo = str(t.get("capacity") or "")
     return Horario(
@@ -207,6 +211,70 @@ def parsear(crudo: dict) -> Catalogo:
         horarios=tuple(sorted(horarios.values(), key=lambda h: (h.fecha, h.hora_inicio, h.codigo))),
         participaciones=tuple(sorted(participaciones.values(), key=lambda p: (p.id_speech, p.orden))),
     )
+
+
+# ---------- Buscador público (catalog.awsevents.com/api/search) ----------
+
+URL_BUSCADOR = "https://catalog.awsevents.com/api/search"
+# Perfil público del catálogo web de AWS (va en el JavaScript de la página): no es una credencial ni toca ninguna cuenta.
+PERFIL_BUSCADOR = "W7g1iXGSnubuepOruvDWMM9ecuUXKP4v"
+POR_PAGINA_BUSCADOR = 50     # el buscador devuelve como mucho 50 por pedido aunque se le pida más
+MAX_PAGINAS_BUSCADOR = 120   # ~6000 horarios: más que eso es un buscador que no corta
+
+
+class BuscadorRoto(ValueError):
+    """El buscador respondió algo que no se puede leer (o vino incompleto)."""
+
+
+def pagina_del_buscador(datos: dict) -> tuple[list[dict], int]:
+    """(items, total). La primera página viene en sectionList; las siguientes, en items sueltos."""
+    if str(datos.get("responseCode")) != "0":
+        raise BuscadorRoto(f"responseCode {datos.get('responseCode')!r}: {str(datos.get('responseMessage'))[:100]}")
+    if "sectionList" in datos:
+        secciones = datos["sectionList"] or []
+        items = [it for sec in secciones for it in sec.get("items") or []]
+        total = datos.get("totalSearchItems", secciones[0].get("total") if secciones else 0)
+    else:
+        items, total = datos.get("items"), datos.get("total")
+    if not isinstance(items, list) or not isinstance(total, int):
+        raise BuscadorRoto("la respuesta no trae items ni total")
+    return items, total
+
+
+def bajar_buscador(http, pausa) -> list[dict]:
+    """Todos los items del buscador, de a POR_PAGINA_BUSCADOR, con una pausa entre pedidos. http: httpx.Client."""
+    items: list[dict] = []
+    total = 0
+    for _ in range(MAX_PAGINAS_BUSCADOR):
+        r = http.post(URL_BUSCADOR, data={"type": "session", "size": str(POR_PAGINA_BUSCADOR), "from": str(len(items))},
+                      headers={"rfApiProfileId": PERFIL_BUSCADOR})
+        r.raise_for_status()
+        pagina, total = pagina_del_buscador(r.json())
+        items += pagina
+        if not pagina or len(items) >= total:
+            break
+        pausa()
+    if len(items) < total:
+        raise BuscadorRoto(f"vino incompleto: {len(items)} de {total}")
+    return items
+
+
+def leer_buscador(items: list[dict]) -> tuple[list[Horario], dict[str, Charla]]:
+    """(horarios, charlas por código base). A diferencia de parsear(), no corta por un item raro: uno con varios
+    horarios da varios Horario (con el mismo código; quien compara se queda con uno) y uno sin horarios no da ninguno.
+    Si un sessionTimeID se repite, gana el item modificado más recientemente."""
+    horarios: dict[str, Horario] = {}
+    charlas: dict[str, Charla] = {}
+    for item in sorted(items, key=lambda x: x.get("modified") or ""):
+        if not item.get("times"):
+            continue
+        attrs = _atributos(item)
+        for t in item["times"]:
+            h = _horario(item, attrs, t)
+            horarios[h.aws_time_id] = h
+        charla = _charla(item, attrs, [_limpio(p["globalFullName"]) for p in _personas(item)])
+        charlas[charla.id_speech] = charla
+    return sorted(horarios.values(), key=lambda h: (h.fecha, h.hora_inicio, h.codigo)), charlas
 
 
 # ---------- Speakers: id de AWS primero, nombre como respaldo ----------

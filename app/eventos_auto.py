@@ -132,7 +132,8 @@ def _leer_estado(conectar: Conectar, schema: str) -> tuple[dict, dict, list, lis
         _usar_schema(cur, schema)
         filas = cur.execute(sql.SQL("SELECT {} FROM evento").format(
             sql.SQL(", ").join(map(sql.Identifier, _COLUMNAS_ESTADO)))).fetchall()
-        revisiones = dict(cur.execute("SELECT fuente, total FROM evento_revision WHERE ok").fetchall())
+        # La referencia sobrevive a una revisión fallida (guarda ok = false pero conserva el total de la última buena).
+        revisiones = dict(cur.execute("SELECT fuente, total FROM evento_revision WHERE total > 0").fetchall())
         sedes = _sedes_con_nombre(cur)
         coordenadas = sedes_con_coordenadas(cur)
     return {f[0]: dict(zip(_COLUMNAS_ESTADO, f, strict=True)) for f in filas}, revisiones, sedes, coordenadas

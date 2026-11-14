@@ -227,9 +227,12 @@ def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     out += _recordatorios(username, days, now, prefs)
     out += eventos_avisos.avisos(days, now, quiere_nuevos=prefs.eventos_nuevos,
                                  ultimo_nuevos=db.ultimo_push(username, eventos_avisos.PREFIJO_NUEVOS))
+    if recordatorio.en_silencio(now):  # los cambios siguen pendientes: el aviso sale a la mañana
+        return out
     for ch in changes.pending(username):
         key = "change:" + hashlib.sha256(json.dumps([ch["code"], ch["messages"]]).encode()).hexdigest()[:16]
-        out.append((key, {"title": "Cambió algo de tu itinerario", "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))
+        title = ch.get("push_title") or "Cambió algo de tu itinerario"
+        out.append((key, {"title": title, "body": " ".join(ch["messages"]), "url": "/#/itinerario"}))
     return out
 
 

@@ -346,6 +346,8 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .ra-minicard-title .ra-link { text-decoration: none; }
 .ra-minicard-title .ra-link:hover { text-decoration: underline; }
 .ra-minicard-meta { font: var(--t-small); color: var(--ink-muted); }
+/* charla cancelada (ya no está en el catálogo oficial): tachada, como un evento cancelado */
+.ra-minicard.is-cancelled .ra-minicard-title, .ra-slot.is-cancelled .ra-slot-body > span:first-child { text-decoration: line-through; text-decoration-thickness: 1px; }
 .ra-abstract { font: var(--t-small); color: var(--ink-muted); }
 .ra-abstract.is-folded { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ra-more { align-self: flex-start; background: none; border: 0; padding: var(--space-1) 0; min-height: 32px; cursor: pointer; font: var(--t-small-strong); color: var(--brand-ink); }

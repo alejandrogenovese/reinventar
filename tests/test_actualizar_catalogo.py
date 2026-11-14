@@ -5,8 +5,8 @@ import uuid
 import psycopg
 import pytest
 
+from app.catalogo_oficial import parsear
 from scripts.actualizar_catalogo import actualizar, aplicar_migraciones, migrar_codigos_app
-from scripts.catalogo_oficial import parsear
 from tests.catalogo_fixture import catalogo_v1, catalogo_v2
 
 V1, V2 = parsear(catalogo_v1()), parsear(catalogo_v2())

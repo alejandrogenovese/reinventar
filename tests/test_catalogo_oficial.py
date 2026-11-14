@@ -3,7 +3,7 @@ import datetime as dt
 
 import pytest
 
-from scripts.catalogo_oficial import SpeakerExistente, SpeakerOficial, clave, codigo_base, parsear, planear_speakers
+from app.catalogo_oficial import SpeakerExistente, SpeakerOficial, clave, codigo_base, parsear, planear_speakers
 from tests.catalogo_fixture import catalogo_v1
 
 
