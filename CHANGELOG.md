@@ -16,8 +16,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   con los botones para avisar desde ahí) y en las del **itinerario**, junto con la pista de sala chica.
 
 ### Corregido
-- Las imágenes de los eventos (Luma) salían rotas en un celular nuevo o en eventos nuevos: la política de seguridad no
-  dejaba que la app las guardara para verlas sin señal.
+- Las imágenes de los eventos (Luma) salían rotas en un celular nuevo, en eventos nuevos o en algunos navegadores.
+  Ahora las guarda el navegador directamente (siguen viéndose sin señal una vez vistas).
 - En Android, el ícono chico de las notificaciones en la barra de estado se veía como un cuadrado blanco; ahora
   muestra las barras de ReinventAR.
 

@@ -247,13 +247,12 @@ def test_la_csp_permite_el_script_inline_de_index_por_su_hash():
     assert "'unsafe-inline'" not in politica.split("script-src")[1].split(";")[0]
 
 
-def test_el_service_worker_puede_bajar_las_imagenes_de_luma_que_guarda():
-    """El SW baja con fetch() las imágenes que guarda en "event-images" y ese fetch lo rige connect-src (no img-src):
-    sin el host acá, la imagen que no estaba en caché sale rota (en un celular nuevo, o un evento nuevo)."""
+def test_las_imagenes_de_los_eventos_no_pasan_por_el_service_worker():
+    """Interceptarlas en el SW las rompía en algunos navegadores; Luma las manda con caché de 31 días, así que el
+    navegador las guarda solo. Además, el SW borra la caché vieja "event-images" al activarse."""
     sw = (Path(__file__).resolve().parent.parent / "web" / "sw.js").read_text()
-    assert 'url.hostname.endsWith("lumacdn.com")' in sw
-    connect = cabeceras.politica().split("connect-src")[1].split(";")[0]
-    assert "https://images.lumacdn.com" in connect
+    assert 'endsWith("lumacdn.com")' not in sw and 'k !== "event-images"' not in sw
+    assert "img-src 'self' data: blob: https:" in cabeceras.politica()  # las carga el navegador directo
 
 
 def test_csp_en_modo_report_no_bloquea(monkeypatch):
