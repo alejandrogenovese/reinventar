@@ -140,30 +140,39 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && wakeLock.wanted) void wakeLock.acquire();
 });
 
-// Sube la cola de IndexedDB en orden, con backoff. Un solo loop para toda la app.
+// Qué hacer con un pedazo según la respuesta del servidor.
+export const MSG_PEDAZO_GRANDE = "Pedazo demasiado grande, no se pudo subir";
+export const MSG_PEDAZO_RECHAZADO = "El servidor rechazó un pedazo, no se pudo subir";
+export function clasificarFalloDeSubida(status) {
+  // La sesión no existe o ya cerró, o el pedazo es demasiado grande: no se va a aceptar nunca.
+  if (status === 404 || status === 409 || status === 413) return { accion: "descartar" };
+  return { accion: "reintentar" };
+}
+
+// Sube la cola de IndexedDB: de a un pedazo por vuelta, el más viejo primero, con backoff.
+// Un solo loop para toda la app.
 export const uploader = new (class extends EventTarget {
-  constructor() { super(); this.running = false; this.pending = 0; this.lastError = null; this.backoff = 1000; }
+  constructor() { super(); this.running = false; this.pending = 0; this.failed = 0; this.failedError = null; this.lastError = null; this.backoff = 1000; }
   kick() { if (!this.running) this._run().catch((e) => { this.lastError = e.message; this._emit(); }); }
-  async refresh() { this.pending = (await store.allChunks()).length; this._emit(); }
+  async refresh() { await this._count(); this._emit(); }
+  async retryFailed() { await store.retryFailed(); await this.refresh(); this.kick(); }
+  async _count() { ({ pending: this.pending, failed: this.failed, failedError: this.failedError } = await store.queueStatus()); }
   async _run() {
     this.running = true;
     try {
       for (;;) {
-        const all = (await store.allChunks()).sort((a, b) => a.at - b.at);
-        this.pending = all.length; this._emit();
-        if (!all.length) break;
+        const c = await store.nextChunk();
+        await this._count(); this._emit();
+        if (!c) break;
         if (!navigator.onLine) { this.lastError = "Sin conexión"; this._emit(); break; }
-        const c = all[0];
         try {
           await Sessions.putChunk(c.session, c.part, c.seq, c.blob, AbortSignal.timeout?.(60_000));
           await store.deleteChunk(c.session, c.part, c.seq);
           this.lastError = null; this.backoff = 1000;
         } catch (e) {
-          if (e.status === 404 || e.status === 409 || e.status === 413) {
-            // La sesión no existe o ya cerró: ese pedazo no se va a aceptar nunca.
-            await store.deleteChunk(c.session, c.part, c.seq);
-            continue;
-          }
+          const { accion, mensaje } = clasificarFalloDeSubida(e.status);
+          if (accion === "descartar") { await store.deleteChunk(c.session, c.part, c.seq); continue; }
+          if (accion === "fallido") { await store.markFailed(c.session, c.part, c.seq, mensaje); continue; }
           this.lastError = e.status === 401 ? "Token inválido" : "Reintentando subida";
           this._emit();
           await new Promise((r) => setTimeout(r, this.backoff));
@@ -172,7 +181,8 @@ export const uploader = new (class extends EventTarget {
       }
     } finally { this.running = false; this._emit(); }
   }
-  _emit() { this.dispatchEvent(new CustomEvent("change", { detail: { pending: this.pending, error: this.lastError } })); }
+  // "error" es lo que se muestra: un problema de red pasajero, o si no, el de los pedazos que quedaron fallidos.
+  _emit() { this.dispatchEvent(new CustomEvent("change", { detail: { pending: this.pending, failed: this.failed, error: this.lastError || (this.failed ? this.failedError : null) } })); }
 })();
 window.addEventListener("online", () => uploader.kick());
 setInterval(() => uploader.kick(), 30_000);
