@@ -207,6 +207,11 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
 .ra-event.is-cancelled .ra-card-title { text-decoration: line-through; text-decoration-thickness: 1px; }
 .ra-event-row { display: grid; grid-template-columns: 7rem 1fr; gap: var(--space-2); align-items: baseline; }
 
+/* Shows (web/js/shows.js): link a Ticketmaster debajo del botón y las funciones para elegir en la ficha */
+.ra-link.ra-tm-link { align-self: center; display: inline-flex; align-items: center; min-height: 44px; color: var(--brand-ink); font: var(--t-small-strong); }
+.ra-funciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.ra-funciones .ra-chip { justify-content: center; }
+
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   min-height: 60px; padding: var(--space-2) 0; margin-bottom: var(--space-4); border-bottom: 1px solid var(--line); background: var(--bg);

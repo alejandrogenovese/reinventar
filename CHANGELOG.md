@@ -15,6 +15,13 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   en su itinerario. Si vuelve a aparecer, se descancela.
 - **Aviso de eventos nuevos**: un push por tanda («3 eventos nuevos: …»), nunca de noche. Se apaga en Cuenta →
   Notificaciones con «Avisarme de eventos nuevos».
+- **Shows en Eventos.** Arriba de Eventos, dos pestañas: **Networking** y **Shows**. En Shows están los conciertos,
+  espectáculos, deportes y actividades de Las Vegas del 29/11 al 4/12, de Ticketmaster: una tarjeta por show con sus
+  horarios del día, la sala, el precio «desde US$ X» (si Ticketmaster lo publica), filtros por día, por tipo (música,
+  teatro y shows, comedia, deportes, actividades) y «↕ Más cerca». La ficha muestra las funciones de la semana para
+  elegir cuál agregar al itinerario (queda fijada y avisa cuándo salir), «Cómo llegar» y el link **«Entradas en
+  Ticketmaster»** (la compra se hace en su página). Se actualiza sola con la revisión de eventos; si una función se
+  cancela o se posterga, avisa por push a quien la tiene en el itinerario, y si cambia de horario, avisa el cambio.
 - Administración: estado de cada fuente, «Revisar ahora» y **«Agregar evento por link»** para los que no están en
   ninguna lista (pegás el link, la app arma el evento y lo revisás antes de guardar).
 - **Charlas que se bajan o cambian.** La app revisa sola el catálogo oficial de AWS (el buscador público, sin tu

@@ -3,6 +3,8 @@
 - Cancelado: a quien tiene el evento en su itinerario, si todavía no empezó. Llega aunque haya apagado los de nuevos.
 - Charla cancelada: lo mismo para una charla del itinerario que dejó de aparecer en el catálogo oficial dos revisiones
   seguidas (app/charlas_auto.py): «Se canceló AIM301 (mar 2/12 10:00)».
+- Shows de Ticketmaster: cancelado o postergado, igual (los cambios de horario los avisa app/changes.py). No hay aviso
+  de shows nuevos.
 - Eventos nuevos: uno solo por tanda, con los nombres ("3 eventos nuevos: A, B y 1 más"). Solo los que encontró la
   revisión automática (app/eventos_auto.py; la carga inicial no cuenta) y si la persona no los apagó en su perfil.
 Ninguno sale en el horario de silencio (app/recordatorio.py): lo que se junte de noche sale a la mañana.
@@ -15,6 +17,8 @@ from . import events, recordatorio, sandbox
 PREFIJO_NUEVOS = "evnuevos:"
 PREFIJO_CANCELADO = "evcancel:"
 PREFIJO_CHARLA_CANCELADA = "chcancel:"
+PREFIJO_SHOW_CANCELADO = "showcancel:"
+PREFIJO_SHOW_POSTERGADO = "showpost:"
 VENTANA_PRIMERA_VEZ_H = 24   # sin un aviso anterior, se cuentan los nuevos de las últimas 24 h
 NOMBRES_EN_AVISO = 2
 
@@ -29,17 +33,42 @@ def _dia(card: dict) -> str:
     return dt.date.fromisoformat(card["day"]).strftime("%d/%m")
 
 
+def _aviso_show(c: dict) -> tuple[str, dict] | None:
+    url = f"/#/show/{c.get('show')}"
+    if c.get("cancelled"):
+        return (f"{PREFIJO_SHOW_CANCELADO}{c['code']}",
+                {"title": f"Se canceló {c['title']}",
+                 "body": f"{_dia(c)} a las {c['start']} · Ticketmaster la marca cancelada. Revisá tu entrada.", "url": url})
+    if c.get("postponed"):
+        return (f"{PREFIJO_SHOW_POSTERGADO}{c['code']}",
+                {"title": f"Se postergó {c['title']}",
+                 "body": f"{_dia(c)} a las {c['start']} · Ticketmaster la marca postergada. Revisá tu entrada.",
+                 "url": url})
+    return None
+
+
+def _aviso_evento(c: dict) -> tuple[str, dict] | None:
+    if not c.get("cancelled"):
+        return None
+    return (f"{PREFIJO_CANCELADO}{c['code']}",
+            {"title": f"Se canceló {c['title']}",
+             "body": f"{_dia(c)} a las {c['start']} · ya no aparece en su página. Revisalo antes de ir.",
+             "url": "/#/itinerario"})
+
+
+_AVISO_POR_KIND = {"event": _aviso_evento, "show": _aviso_show}
+
+
 def cancelados(days: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    """Eventos cancelados y shows cancelados o postergados del itinerario que todavía no empezaron."""
     out = []
     for day in days:
         for c in day["sessions"]:
-            empieza = _empieza(c)
-            if c.get("kind") != "event" or not c.get("cancelled") or not empieza or empieza <= now:
+            empieza, armar = _empieza(c), _AVISO_POR_KIND.get(c.get("kind"))
+            if not armar or not empieza or empieza <= now:
                 continue
-            out.append((f"{PREFIJO_CANCELADO}{c['code']}",
-                        {"title": f"Se canceló {c['title']}",
-                         "body": f"{_dia(c)} a las {c['start']} · ya no aparece en su página. Revisalo antes de ir.",
-                         "url": "/#/itinerario"}))
+            if aviso := armar(c):
+                out.append(aviso)
     return out
 
 

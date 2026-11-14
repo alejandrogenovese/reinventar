@@ -6,6 +6,7 @@ import { sandboxNow } from "./sandbox.js";
 import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
+import { ShowFunctionCard } from "./shows.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
@@ -241,7 +242,8 @@ function ItineraryItem(s, onChanged, lleno) {
   let card = null;
   const show = (visible) => { card.hidden = !visible; };
   const onBook = () => toastOnError(Guided.booked(s.code, !s.reservada).then(() => onChanged()));
-  const removed = { event: "Evento quitado del itinerario.", mine: "Evento borrado." }[s.kind] || "Sesión quitada del itinerario.";
+  const removed = { event: "Evento quitado del itinerario.", show: "Show quitado del itinerario.", mine: "Evento borrado." }[s.kind]
+    || "Sesión quitada del itinerario.";
   const onRemove = () => withUndo(removed, {
     apply: () => show(false),
     commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(err.message); }),
@@ -250,6 +252,7 @@ function ItineraryItem(s, onChanged, lleno) {
   const quitar = Button("Quitar", { variant: "danger", onclick: onRemove });
   if (s.kind === "mine") card = MyEventCard(s, [quitar]);
   else if (s.kind === "event") card = EventCard(s, { actions: [PinButton(s.locked, onLock), quitar] });
+  else if (s.kind === "show") card = ShowFunctionCard(s, { actions: [PinButton(s.locked, onLock), quitar] });
   else card = SessionMiniCard(s, { locked: s.locked, onLock, onRemove, onBook, extra: lleno });
   return card;
 }

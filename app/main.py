@@ -40,6 +40,8 @@ from . import (
     push_api,
     sandbox,
     search,
+    shows,
+    shows_api,
     talks,
     ubicacion_api,
     voto_resumen_api,
@@ -59,6 +61,7 @@ async def lifespan(_app):
     try:
         catalog.load()
         events.load()
+        shows.load()
         search.warm_async()  # embeddings en segundo plano: mientras tanto se busca solo por palabras
     except catalog.CatalogUnavailable as e:
         # No tumbamos la grabación por esto: el itinerario queda sin catálogo hasta que se resuelva.
@@ -103,6 +106,7 @@ app.include_router(interview_api.router)
 app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
 app.include_router(events_api.router)
+app.include_router(shows_api.router)
 app.include_router(push_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)

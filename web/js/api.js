@@ -140,6 +140,11 @@ export const Events = {
   get: (code) => api(`/api/events/${enc(code)}`),
 };
 
+export const Shows = {
+  list: () => api("/api/shows"),
+  get: (id) => api(`/api/shows/${enc(id)}`),
+};
+
 export const Knowledge = {
   speech: (base) => api(`/api/k/speech/${encodeURIComponent(base)}`),
   speaker: (id) => api(`/api/k/speaker/${encodeURIComponent(id)}`),

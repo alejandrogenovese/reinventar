@@ -125,7 +125,8 @@ def _at(day: str, hhmm_: str) -> dt.datetime:
 
 
 def _url(c: dict) -> str:
-    return {"event": f"/#/evento/{c['code']}", "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
+    return {"event": f"/#/evento/{c['code']}", "show": f"/#/show/{c.get('show')}",
+            "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
 
 
 def _notice(c: dict, now: dt.datetime, grabar: bool = False) -> tuple[str, dict] | None:

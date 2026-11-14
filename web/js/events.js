@@ -1,9 +1,11 @@
 // Eventos de networking (desayunos, happy hours, fiestas, meetups): lista por día con filtros y ficha.
 // Se agregan al itinerario (fijados) y se manejan desde ahí, igual que las charlas.
-import { Events, Itinerary } from "./api.js";
+// Arriba, dos pestañas: Networking (esto) y Shows (web/js/shows.js, Ticketmaster; solo si el servidor tiene la key).
+import { Events, Itinerary, Shows } from "./api.js";
 import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, startsAt } from "./location.js";
 import { MyEventsSection } from "./myEvents.js";
+import { ShowsPanel } from "./shows.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
 import { Button, Hint, IconText, Tag, h, toast } from "./ui.js";
@@ -67,11 +69,25 @@ export function EventCard(e, { onAdded, actions = null } = {}) {
 }
 
 // --- lista ---------------------------------------------------------------------
-export async function viewEventos(view) {
+const TABS = [["networking", "Networking", "#/eventos"], ["shows", "Shows", "#/eventos/shows"]];
+
+/** Control segmentado Networking / Shows: cada pestaña es su ruta (así «← Shows» de la ficha vuelve a la pestaña). */
+const EventTabs = (current) => h("div", { class: "ra-segtabs", role: "tablist", "aria-label": "Qué eventos ver" },
+  TABS.map(([value, label, href]) => h("button", { type: "button", class: "ra-segtab", role: "tab", "aria-selected": String(value === current),
+    onclick: () => { if (value !== current) location.hash = href; } }, label)));
+
+/** Eventos: la pestaña Networking (por defecto) o Shows. Sin shows habilitados, no hay pestañas. */
+export async function viewEventos(view, tab = "networking") {
+  const shows = await Shows.list().catch(() => ({ enabled: false, days: [] }));
+  const tabs = shows.enabled ? EventTabs(tab) : null;
+  if (tab === "shows" && shows.enabled) {
+    view.append(h("div", { class: "stack-lg" }, h("header", { class: "stack" }, h("h1", { class: "title" }, "Eventos"), tabs), ShowsPanel(shows)));
+    return;
+  }
   let [{ days }, mios] = await Promise.all([Events.list(), MyEventsSection()]);
   const all = days.flatMap((d) => d.events);
   if (!all.length) {
-    view.append(h("div", { class: "stack" }, h("h1", { class: "title" }, "Eventos"), mios,
+    view.append(h("div", { class: "stack" }, h("h1", { class: "title" }, "Eventos"), tabs, mios,
       h("p", { class: "caption" }, "Todavía no hay eventos cargados.")));
     return;
   }
@@ -108,7 +124,7 @@ export async function viewEventos(view) {
   }
   paint();
   view.append(h("div", { class: "stack-lg" },
-    h("header", { class: "stack" }, h("h1", { class: "title" }, "Eventos"),
+    h("header", { class: "stack" }, h("h1", { class: "title" }, "Eventos"), tabs,
       h("p", { class: "caption" }, "Desayunos, happy hours, fiestas y meetups alrededor de re:Invent. Agregalos al itinerario y quedan fijados.")),
     mios, dayTabs, typeChips, list));
 }

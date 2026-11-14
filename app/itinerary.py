@@ -1,7 +1,7 @@
 """Motor de itinerario: prefiltro determinístico -> LLM elige y justifica -> se resuelven choques de horario."""
 import logging
 
-from . import catalog, config, db, events, llm, prompts, search, talks, trazas
+from . import catalog, config, db, events, llm, prompts, search, shows, talks, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.itinerary")
@@ -61,6 +61,9 @@ def _item_card(it: dict) -> dict | None:
     if it.get("kind") == "event":
         ev = events.get(it["code"])
         return dict(ev) if ev else None
+    if it.get("kind") == "show":
+        funcion = shows.get(it["code"])
+        return dict(funcion) if funcion else None
     found = catalog.get_instance(it["code"])
     return {**catalog.card(*found), "kind": "talk"} if found else None
 
@@ -141,8 +144,8 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
     taken: list[tuple[str, int, int, str]] = []
     confirmed_cards = []
     for it in locked:
-        if it.get("kind") == "event":  # los eventos fijados ocupan su horario: el LLM no propone charlas encima
-            ev = events.get(it["code"])
+        if it.get("kind") in ("event", "show"):  # eventos y shows fijados ocupan su horario: sin charlas encima
+            ev = events.get(it["code"]) if it.get("kind") == "event" else shows.get(it["code"])
             if ev and ev["start"]:
                 start, end = _span(ev)
                 taken.append((ev["day"], start, end - start, ev["code"]))
@@ -205,11 +208,16 @@ def generate(username: str, profile: dict, prompt: str) -> dict:
 
 
 def add_manual(username: str, code: str, reason: str | None = None) -> dict:
-    """Agrega una charla (código de horario) o un evento (id) fijado: regenerar el itinerario no lo saca.
-    Si la charla estaba en pendientes ("☆ para otro día"), sale de ahí."""
+    """Agrega una charla (código de horario), un evento (id) o una función de un show ("tm-<id>") fijado: regenerar
+    el itinerario no lo saca. Si la charla estaba en pendientes ("☆ para otro día"), sale de ahí."""
     ev = events.get(code)
     if ev:
         db.add_item(username, code, code, ev["day"], ev["start"], locked=True, kind="event", snapshot=snapshot(ev))
+        return get_current(username)
+    funcion = shows.get(code)
+    if funcion:
+        db.add_item(username, code, code, funcion["day"], funcion["start"], locked=True, kind="show",
+                    snapshot=snapshot(funcion))
         return get_current(username)
     found = catalog.get_instance(code)
     if not found:

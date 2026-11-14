@@ -26,10 +26,11 @@ export async function recordTalk(s, btn) {
   } catch (err) { toast(err.message); btn.disabled = false; }
 }
 
-// A dónde lleva tocar un ítem: la charla, el evento, o el itinerario (los eventos propios no tienen ficha).
-const itemHref = (s) => ({ event: `#/evento/${encodeURIComponent(s.code)}`, mine: "#/itinerario" }[s.kind] || `#/charla/${s.base}`);
-// Eventos y eventos propios llevan su ícono; las charlas, el código en mono.
-const KIND_ICON = { event: ["eventos", "Evento"], mine: ["fijar", "Mi evento"] };
+// A dónde lleva tocar un ítem: la charla, el evento, el show, o el itinerario (los eventos propios no tienen ficha).
+const itemHref = (s) => ({ event: `#/evento/${encodeURIComponent(s.code)}`, show: `#/show/${encodeURIComponent(s.show)}`, mine: "#/itinerario" }[s.kind] || `#/charla/${s.base}`);
+// Eventos, shows y eventos propios llevan su ícono; las charlas, el código en mono.
+const KIND_ICON = { event: ["eventos", "Evento"], show: ["eventos", "Show"], mine: ["fijar", "Mi evento"] };
+const SHOW_HINT = { canceled: "Cancelado por el organizador. Revisalo antes de ir.", postponed: "Postergado: revisalo antes de ir." };
 const itemLabel = (s) => (KIND_ICON[s.kind] ? IconText(...KIND_ICON[s.kind]) : h("span", { class: "ra-mono" }, s.code));
 const itemTitle = (s) => (KIND_ICON[s.kind] ? [icon(KIND_ICON[s.kind][0], 16), h("span", {}, s.title)] : s.title);
 
@@ -37,6 +38,7 @@ const itemTitle = (s) => (KIND_ICON[s.kind] ? [icon(KIND_ICON[s.kind][0], 16), h
 export function TalkAction(s, recorded, variant) {
   if (s.kind === "mine") return s.note ? h("p", { class: "caption" }, s.note) : null;
   if (s.kind === "event") return Button("Ver evento", { variant, onclick: () => (location.hash = `#/evento/${encodeURIComponent(s.code)}`) });
+  if (s.kind === "show") return Button("Ver show", { variant, onclick: () => (location.hash = itemHref(s)) });
   const mine = recorded.get(s.code);
   if (mine) {
     const live = mine.status === "recording" || mine.status === "uploading";
@@ -65,6 +67,7 @@ function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
     h("div", { class: "ra-card-meta" }, place(s) ? IconText("ubicacion", place(s)) : null, itemLabel(s)),
     s.kind === "event" && s.cancelled ? Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" }) : null,
     s.kind === "talk" ? AvisoBaja(s) : null,
+    s.kind === "show" && SHOW_HINT[s.status] ? Hint(SHOW_HINT[s.status], { tone: "error" }) : null,
     s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
     go ? go.info : null,
