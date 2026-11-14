@@ -247,6 +247,15 @@ def test_la_csp_permite_el_script_inline_de_index_por_su_hash():
     assert "'unsafe-inline'" not in politica.split("script-src")[1].split(";")[0]
 
 
+def test_el_service_worker_puede_bajar_las_imagenes_de_luma_que_guarda():
+    """El SW baja con fetch() las imágenes que guarda en "event-images" y ese fetch lo rige connect-src (no img-src):
+    sin el host acá, la imagen que no estaba en caché sale rota (en un celular nuevo, o un evento nuevo)."""
+    sw = (Path(__file__).resolve().parent.parent / "web" / "sw.js").read_text()
+    assert 'url.hostname.endsWith("lumacdn.com")' in sw
+    connect = cabeceras.politica().split("connect-src")[1].split(";")[0]
+    assert "https://images.lumacdn.com" in connect
+
+
 def test_csp_en_modo_report_no_bloquea(monkeypatch):
     monkeypatch.setattr(config, "CSP_MODO", "report")
 

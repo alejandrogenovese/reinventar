@@ -26,6 +26,9 @@ def _hashes_inline() -> str:
     return " ".join(f"'sha256-{base64.b64encode(hashlib.sha256(b.encode()).digest()).decode()}'" for b in bloques)
 
 
+_LUMA_IMAGENES = "https://images.lumacdn.com"  # el mismo host que web/sw.js guarda en "event-images"
+
+
 def politica() -> str:
     return "; ".join([
         "default-src 'self'",
@@ -33,7 +36,9 @@ def politica() -> str:
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  # Google Maps inyecta estilos inline
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: blob: https:",  # imágenes de eventos (Luma y otras) y teselas del mapa
-        f"connect-src 'self' {_GOOGLE}",
+        # El service worker baja las imágenes de Luma con fetch() para guardarlas (web/sw.js) y ese fetch lo rige
+        # connect-src, no img-src: sin el CDN de Luma acá, las imágenes que no estaban en caché salen rotas.
+        f"connect-src 'self' {_GOOGLE} {_LUMA_IMAGENES}",
         "worker-src 'self' blob:",
         "frame-src https://*.google.com",
         "manifest-src 'self'",
