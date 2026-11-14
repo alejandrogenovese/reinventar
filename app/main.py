@@ -1,7 +1,11 @@
 """API de ReinventAR + hosting de la PWA."""
+import asyncio
 import itertools
 import logging
+import os
 import shutil
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import PurePosixPath
 from typing import Annotated
@@ -181,9 +185,47 @@ class Finish(BaseModel):
         max_length=MAX_PARTES_POR_GRABACION)
 
 
+HEALTH_TIMEOUT_SEGUNDOS = 2
+# Un ejecutor por chequeo: si el disco se cuelga, el hilo queda ocupado pero Postgres se sigue informando bien.
+_EJECUTOR_POSTGRES = ThreadPoolExecutor(max_workers=2, thread_name_prefix="health-pg")
+_EJECUTOR_DISCO = ThreadPoolExecutor(max_workers=2, thread_name_prefix="health-disco")
+
+
+def _probar_postgres() -> None:
+    timeout_ms = HEALTH_TIMEOUT_SEGUNDOS * 1000
+    with pg.pool().connection(timeout=HEALTH_TIMEOUT_SEGUNDOS) as c:
+        c.execute(f"SET LOCAL statement_timeout = {timeout_ms}")
+        c.execute("SELECT 1")
+
+
+def _probar_disco() -> None:
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=config.DATA_DIR, prefix=".health-", delete=True) as f:
+        f.write(b"ok")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+async def _chequear(nombre: str, ejecutor: ThreadPoolExecutor, prueba) -> str | None:
+    """None si la prueba anduvo; si no, el nombre de lo que falló (el detalle va al log, no a la respuesta)."""
+    try:
+        await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(ejecutor, prueba), HEALTH_TIMEOUT_SEGUNDOS)
+    except Exception as e:  # noqa: BLE001 - cualquier falla (timeout incluido) es "no anda"
+        logging.error("Health: falló %s (%s: %s)", nombre, type(e).__name__, e)
+        return nombre
+    return None
+
+
 @app.get("/health")
-def health():
-    return {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
+async def health():
+    fallas = [f for f in await asyncio.gather(
+        _chequear("postgres", _EJECUTOR_POSTGRES, _probar_postgres),
+        _chequear("disco", _EJECUTOR_DISCO, _probar_disco),
+    ) if f]
+    cuerpo = {"ok": not fallas, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
+    if fallas:
+        return JSONResponse({**cuerpo, "fallas": fallas}, status_code=503)
+    return cuerpo
 
 
 @app.post("/api/sessions")
