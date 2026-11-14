@@ -1,5 +1,7 @@
 // Service worker de ReinventAR: la app abre sin red; la API nunca se cachea.
 const VERSION = "reinventar-v0.21.0";
+// Datos chicos para el SW (el token de sesión, que la página guarda al activar las notificaciones): el SW no ve localStorage.
+const DATOS = "sw-datos";
 const SHELL = [
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/adminEventos.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/lleno.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/charts.js",
@@ -36,7 +38,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts").map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts" && k !== DATOS).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -111,9 +113,42 @@ self.addEventListener("notificationclick", (e) => {
   const target = e.action === "grabar" ? data.recordUrl || data.url : data.url;
   const url = new URL(target || "/#/", self.location.origin).href;
   e.waitUntil((async () => {
-    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    // Solo ventanas que este SW controla: WindowClient.navigate() falla (o no hace nada) sobre las que no controla.
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: false });
     const open = wins.find((w) => w.url.startsWith(self.location.origin));
-    if (open) { await open.focus(); return open.navigate(url); }
+    if (open) {
+      try { await open.focus(); if (await open.navigate(url)) return; } catch (err) { console.warn("[sw] no se pudo navegar", err); }
+    }
     return self.clients.openWindow(url);
   })());
+});
+
+// El navegador puede vencer o rotar la suscripción push (iOS y Chrome lo hacen): sin esto los avisos se cortan en silencio.
+// Se re-suscribe con la clave VAPID del servidor y se manda la suscripción nueva al mismo endpoint que usa notifications.js.
+const keyBytes = (b64) => Uint8Array.from(atob(b64.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.codePointAt(0));
+
+async function leerToken() {
+  const hit = await (await caches.open(DATOS)).match("/__token");
+  return hit ? hit.text() : "";
+}
+
+async function resuscribir(e) {
+  const token = await leerToken();
+  if (!token) return; // sin sesión guardada: la página resincroniza sola la próxima vez que se abra
+  const auth = { Authorization: `Bearer ${token}` };
+  const post = (path, json) => fetch(path, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(json) });
+  let sub = e.newSubscription;
+  if (!sub) {
+    const { key } = await (await fetch("/api/push/key", { headers: auth })).json();
+    if (!key) return;
+    sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+  }
+  const r = await post("/api/push/subscribe", sub.toJSON());
+  if (!r.ok) throw new Error(`push/subscribe respondió ${r.status}`);
+  const viejo = e.oldSubscription?.endpoint;
+  if (viejo && viejo !== sub.endpoint) await post("/api/push/unsubscribe", { endpoint: viejo }).catch(() => {});
+}
+
+self.addEventListener("pushsubscriptionchange", (e) => {
+  e.waitUntil(resuscribir(e).catch((err) => console.warn("[sw] no se pudo re-suscribir", err)));
 });

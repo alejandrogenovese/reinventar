@@ -25,3 +25,21 @@ def test_los_iconos_con_version_de_index_y_manifest_estan_precacheados():
     pedidos |= {i["src"] for i in manifest["icons"]}
 
     assert pedidos and pedidos <= _shell()
+
+
+def test_el_sw_re_suscribe_y_manda_la_suscripcion_al_mismo_endpoint_que_la_pagina():
+    api = (WEB / "js" / "api.js").read_text()
+    assert 'subscribe: (sub) => api("/api/push/subscribe"' in api
+    assert 'addEventListener("pushsubscriptionchange"' in SW
+    assert '"/api/push/subscribe"' in SW and "applicationServerKey" in SW
+    assert "e.oldSubscription" in SW  # da de baja la vieja
+
+
+def test_el_sw_no_borra_la_cache_de_datos_con_el_token_al_activarse():
+    assert 'const DATOS = "sw-datos"' in SW and 'k !== DATOS' in SW
+    assert 'const SW_DATOS = "sw-datos"' in (WEB / "js" / "notifications.js").read_text()
+
+
+def test_notificationclick_solo_navega_ventanas_controladas():
+    assert "includeUncontrolled: false" in SW and "includeUncontrolled: true" not in SW
+    assert "openWindow(url)" in SW
