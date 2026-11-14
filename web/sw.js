@@ -34,7 +34,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts" && k !== "event-images").map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "fonts").map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -63,20 +63,8 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Imágenes de los eventos (Luma): stale-while-revalidate en su propia caché, para verlas sin señal.
-  if (e.request.destination === "image" && url.hostname.endsWith("lumacdn.com")) {
-    e.respondWith((async () => {
-      const hit = await caches.match(e.request, { cacheName: "event-images" });
-      const net = fetch(e.request)
-        .then((r) => {
-          if (r.ok || r.type === "opaque") void cachePut("event-images", e.request, r.clone());
-          return r;
-        })
-        .catch(() => hit);
-      return hit || net;
-    })());
-    return;
-  }
+  // Las imágenes de los eventos (Luma) no pasan por acá: Luma las manda con caché de 31 días, así que el navegador
+  // las guarda y las muestra sin señal solo. Interceptarlas las rompía en algunos navegadores.
 
   if (url.origin !== location.origin) return;
   // App shell: red primero (para tomar cambios), caché si no hay señal.
