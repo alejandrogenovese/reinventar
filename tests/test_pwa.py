@@ -100,3 +100,15 @@ def test_el_backend_sirve_los_woff2_con_su_content_type():
             assert r.status_code == 200, archivo
             assert r.headers["content-type"] == "font/woff2", archivo
             assert r.content[:4] == b"wOF2"
+
+
+def test_robots_txt_prohibe_todo_y_el_index_es_noindex():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        r = c.get("/robots.txt")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    assert r.text.splitlines()[:2] == ["User-agent: *", "Disallow: /"]
+    assert '<meta name="robots" content="noindex">' in (WEB / "index.html").read_text()
