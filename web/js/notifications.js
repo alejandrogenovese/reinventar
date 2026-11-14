@@ -41,9 +41,10 @@ export async function syncSubscription() {
 if (supported()) void syncSubscription().catch(() => {});
 
 async function enable() {
+  // El permiso se pide primero y sin ningún await antes: iOS solo lo muestra si sale directo del toque del usuario.
+  if (await Notification.requestPermission() !== "granted") throw new Error("Sin permiso para notificaciones: activalo en los ajustes del navegador.");
   const { key } = await Push.key();
   if (!key) throw new Error("Las notificaciones todavía no están configuradas en el servidor.");
-  if (await Notification.requestPermission() !== "granted") throw new Error("Sin permiso para notificaciones: activalo en los ajustes del navegador.");
   const { reg, sub } = await currentSubscription();
   const subscription = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
   await Push.subscribe(subscription.toJSON());

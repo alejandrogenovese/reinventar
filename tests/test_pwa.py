@@ -43,3 +43,10 @@ def test_el_sw_no_borra_la_cache_de_datos_con_el_token_al_activarse():
 def test_notificationclick_solo_navega_ventanas_controladas():
     assert "includeUncontrolled: false" in SW and "includeUncontrolled: true" not in SW
     assert "openWindow(url)" in SW
+
+
+def test_enable_pide_el_permiso_antes_de_cualquier_await():
+    js = (WEB / "js" / "notifications.js").read_text()
+    cuerpo = js[js.index("async function enable()"):]
+    assert cuerpo.index("Notification.requestPermission()") < cuerpo.index("await Push.key()")
+    assert "await" not in cuerpo[: cuerpo.index("Notification.requestPermission()")].split("{", 1)[1]
