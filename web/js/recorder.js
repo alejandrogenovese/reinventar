@@ -20,6 +20,19 @@ export function pickDjI(mics) {
   return mics.find((m) => /dji|mic mini|wireless mic/i.test(m.label)) || mics.find((m) => /usb/i.test(m.label));
 }
 
+// Lleva la cuenta de por qué el audio está cortado (el micrófono silenciado por el sistema, el AudioContext
+// interrumpido). "begin" cuando aparece el primer motivo, "end" cuando se van todos.
+export class InterruptionTracker {
+  constructor() { this.reasons = new Set(); }
+  get active() { return this.reasons.size > 0; }
+  add(reason) { const was = this.active; this.reasons.add(reason); return !was ? "begin" : null; }
+  remove(reason) { const was = this.active; this.reasons.delete(reason); return was && !this.active ? "end" : null; }
+  reset() { this.reasons.clear(); }
+}
+
+const RECOVER_DEBOUNCE_MS = 500;  // junta mute/unmute que rebotan para no abrir una parte nueva por cada uno
+const MAX_PARTS_SOFT = 190;       // el servidor acepta hasta 200 partes por grabación (MAX_PARTES_POR_GRABACION)
+
 export class Recorder extends EventTarget {
   constructor(sessionId) {
     super();
@@ -29,10 +42,15 @@ export class Recorder extends EventTarget {
     this.elapsedMs = this.meta.elapsedMs || 0;
     this.level = 0;
     this.inflight = new Set();
+    this.interrupted = false;  // el sistema cortó el audio (llamada, Siri, bloqueo): no se está grabando nada
+    this._tracker = new InterruptionTracker();
+    this._tainted = false;     // hubo un corte mientras estaba en pausa: el MediaRecorder en pausa ya no sirve
   }
 
   async open(deviceId) {
     this.close();
+    this.deviceId = deviceId;
+    this._tracker.reset();
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         deviceId: deviceId ? { exact: deviceId } : undefined,
@@ -45,8 +63,14 @@ export class Recorder extends EventTarget {
     this.deviceLabel = track?.label || "Micrófono";
     if (deviceId) rememberMic(deviceId);
     track.addEventListener("ended", () => this._emit("error", new Error("Se desconectó el micrófono")));
+    // iOS silencia el track (mute) cuando entra una llamada, Siri o se bloquea la pantalla, y lo devuelve (unmute).
+    track.addEventListener("mute", () => this._signal("mute", true));
+    track.addEventListener("unmute", () => this._signal("mute", false));
 
-    this.ctx = new AudioContext();
+    const ctx = this.ctx = new AudioContext();
+    // Safari pasa el AudioContext a "interrupted" en esos mismos casos; Chrome puede dejarlo "suspended".
+    // Se ignora el de un contexto viejo (close() lo cierra y avisa "closed" tarde).
+    ctx.addEventListener("statechange", () => { if (ctx === this.ctx) this._signal("audiocontext", ctx.state !== "running"); });
     const src = this.ctx.createMediaStreamSource(this.stream);
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
@@ -69,8 +93,17 @@ export class Recorder extends EventTarget {
     this.ctx?.resume().catch(() => {});
     if (!this.stream) throw new Error("Primero abrí el micrófono");
     if (!MIME) throw new Error("Este navegador no puede grabar audio comprimido");
-    // Cada MediaRecorder nuevo es una "parte" con su propio header webm.
+    this._startPart();
+    this._startClock();
+    this._setState("recording");
+    void wakeLock.acquire();
+  }
+
+  // Cada MediaRecorder nuevo es una "parte" con su propio header webm: así un corte nunca deja audio
+  // corrupto ni mezclado con el anterior.
+  _startPart() {
     const part = Object.keys(this.meta.parts).length;
+    if (part >= MAX_PARTS_SOFT) throw new Error("La grabación se cortó demasiadas veces: terminala y empezá otra");
     this.part = part;
     this.meta.parts[part] = 0;
     store.saveRecMeta(this.id, this.meta);
@@ -88,21 +121,82 @@ export class Recorder extends EventTarget {
     };
     this.mr.onerror = (e) => this._emit("error", e.error || new Error("Error del grabador"));
     this.mr.start(TIMESLICE_MS);
-    this._startClock();
-    this._setState("recording");
-    void wakeLock.acquire();
   }
 
-  pause() { if (this.mr?.state === "recording") { this.mr.pause(); this._stopClock(); this._setState("paused"); } }
-  resume() { if (this.mr?.state === "paused") { this.mr.resume(); this._startClock(); this._setState("recording"); } }
+  _stopPart() { try { if (this.mr && this.mr.state !== "inactive") this.mr.stop(); } catch { /* ya estaba cortado */ } }
+
+  // Un motivo de corte apareció o se fue. Mientras graba: se cierra la parte actual y se avisa; al volver
+  // el audio, se abre una parte nueva. En pausa: solo se marca para no reanudar un MediaRecorder muerto.
+  _signal(reason, active) {
+    const ev = active ? this._tracker.add(reason) : this._tracker.remove(reason);
+    clearTimeout(this._recoverTimer);
+    if (ev === "begin") {
+      if (this.state === "paused") this._tainted = true;
+      else if (this.state === "recording" && !this.interrupted) this._interrupt(reason);
+    } else if (ev === "end" && this.interrupted) {
+      this._recoverTimer = setTimeout(() => void this._recover(), RECOVER_DEBOUNCE_MS);
+    }
+  }
+
+  _interrupt(reason) {
+    this._stopPart();  // guarda lo último que hubiera: ya es una parte completa y válida
+    this._stopClock();
+    this.interrupted = true;
+    this._emit("interrupted", { reason });
+  }
+
+  // Abre una parte nueva. Si la pista murió (iOS a veces la termina tras una llamada), reabre el micrófono.
+  async _recover() {
+    if (!this.interrupted) return;
+    try {
+      if (this.stream?.getAudioTracks()[0]?.readyState !== "live") {
+        try { await this.open(this.deviceId); } catch { await this.open(undefined); }
+      }
+      await this.ctx?.resume();
+      if (this.interrupted && this.state === "recording") {
+        this._startPart(); this._startClock();
+        this.interrupted = false;
+        this._emit("resumed");
+      }
+    } catch (e) {
+      // Sin gesto del usuario iOS puede negarse a reanudar: queda avisado y se reintenta tocando Grabar.
+      this._emit("error", new Error(`No pude retomar la grabación: ${e.message}. Tocá el botón para seguir.`));
+    }
+  }
+
+  pause() {
+    if (this.state !== "recording") return;
+    clearTimeout(this._recoverTimer);
+    if (this.interrupted) { this.interrupted = false; this._tainted = true; }  // el reloj ya estaba parado
+    else if (this.mr?.state === "recording") { this.mr.pause(); this._stopClock(); }
+    else return;
+    this._setState("paused");
+  }
+
+  // Si hubo un corte durante la pausa, el MediaRecorder pausado ya no sirve: se cierra y arranca una parte nueva.
+  resume() {
+    if (this.state !== "paused") return;
+    if (this._tainted || this._tracker.active || this.mr?.state !== "paused") {
+      this._tainted = false;
+      this._stopPart();
+      this.ctx?.resume().catch(() => {});
+      this._startPart();
+    } else this.mr.resume();
+    this._startClock(); this._setState("recording");
+    if (this._tracker.active) this._interrupt("mute");
+  }
 
   async stop() {
-    if (!this.mr || this.mr.state === "inactive") return;
-    const done = new Promise((res) => this.mr.addEventListener("stop", () => setTimeout(res, 50), { once: true }));
-    this.mr.stop();
-    await done;
+    if (!this.mr || ["idle", "stopped"].includes(this.state)) return;
+    clearTimeout(this._recoverTimer);
+    if (this.mr.state !== "inactive") {
+      const done = new Promise((res) => this.mr.addEventListener("stop", () => setTimeout(res, 50), { once: true }));
+      this.mr.stop();
+      await done;
+    }
     await Promise.allSettled([...this.inflight]);
     this._stopClock();
+    this.interrupted = false;
     this._setState("stopped");
     wakeLock.release();
   }
