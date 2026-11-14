@@ -94,7 +94,7 @@ class SandboxMiddleware:
             return await self.app(scope, receive, send)
         headers = dict(scope.get("headers") or [])
         token = bearer(headers.get(b"authorization", b"").decode("latin-1"))
-        username, sb = await run_in_threadpool(context_for_token, token) if token else (None, None)
+        username, sb = await run_in_threadpool(context_for_token, token, scope) if token else (None, None)
         with sandbox.activar(sb), como_usuario(username):
             return await self.app(scope, receive, send)
 
