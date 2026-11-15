@@ -7,6 +7,7 @@ import { icon } from "./icons.js";
 import { MenuButton } from "./menu.js";
 import * as store from "./store.js";
 import { Button, StatusPill, SummaryPanel, TranscriptBlock, clock, h, mensajeError, toast, toastOnError } from "./ui.js";
+import { intercalarHuecos, textoHueco } from "./huecos.js";
 
 const PROCESSING = ["queued", "transcribing", "translating", "summarizing"];
 const LIVE = ["recording", "uploading"];
@@ -149,7 +150,10 @@ export async function viewDetail(view, id, { at = null, q = "", canGoBack = fals
 
   function paintTranscript(s) {
     if (!s.blocks?.length) return h("div", { class: "empty" }, "Sin transcripción todavía.");
-    const content = h("div", { class: "ra-transcript" }, s.blocks.map(TranscriptBlock));
+    // Los tramos sin audio van entre los bloques, en el lugar que les toca por tiempo.
+    const items = intercalarHuecos(s.blocks, s.huecos).map((i) => i.tipo === "hueco"
+      ? h("div", { class: "ra-hueco", role: "separator" }, textoHueco(i)) : TranscriptBlock(i.bloque));
+    const content = h("div", { class: "ra-transcript" }, items);
     if (hit == null) return content;
     const unmark = () => { hit = null; from.remove(); content.querySelector(".ra-tb.is-hit")?.classList.remove("is-hit"); };
     const from = FromSearch(q, unmark);

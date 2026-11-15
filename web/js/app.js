@@ -31,6 +31,7 @@ import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
+import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
@@ -288,7 +289,6 @@ function fillFromTalk(form, talk) {
 }
 
 // --- grabación ---------------------------------------------------------------
-const SILENCE_WARN_MS = 8000;  // grabando sin sonido este rato → aviso visible
 // getUserMedia falla con un DOMException en inglés: se traduce por tipo de error.
 const MSG_MICROFONO = {
   NotAllowedError: "Necesito permiso para usar el micrófono.",
@@ -352,9 +352,13 @@ async function viewRecord(id) {
   const paused = h("div", { class: "notice warn", role: "alert", hidden: true },
     "Grabación pausada: el sistema cortó el audio (llamada, Siri o pantalla bloqueada). Se retoma sola cuando vuelva; si no, tocá el botón.");
   const resumed = Object.keys(rec.meta.parts).length > 0;
+  // Tip de la primera vez: una llamada o un audio de WhatsApp le saca el micrófono a la app. Descartado, no vuelve.
+  const tip = tipNoMolestarVisto() ? null : h("div", { class: "stack" },
+    Hint(TIP_NO_MOLESTAR), Button("Entendido", { onclick: () => { marcarTipNoMolestarVisto(); tip.remove(); } }));
   view.append(h("div", { class: "stack-lg" },
     h("div", {}, h("span", { class: "ra-kind" }, s.kind + (s.code ? ` · ${s.code}` : "")), h("h1", { class: "title" }, s.title),
       resumed ? h("p", { class: "caption" }, "Retomás una grabación: lo nuevo se agrega a continuación.") : null),
+    tip,
     h("section", { class: "ra-input", "aria-label": "Entrada de audio" },
       h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter, silence, paused),
     h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, sinSenal, upl, msg,
@@ -389,7 +393,7 @@ async function viewRecord(id) {
     meter.update(e.detail, rec.deviceLabel);
     const quiet = rec.state === "recording" && !rec.interrupted && e.detail < METER_SILENT;
     quietSince = quiet ? (quietSince ?? performance.now()) : null;
-    silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
+    silence.hidden = !(quiet && performance.now() - quietSince > SILENCIO_AVISO_S * 1000);  // el mismo umbral que marca un hueco
   });
   rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, mensajeError(e.detail, "Error del grabador."))); });
   const pintarSinSenal = () => sinSenal.replaceChildren(...(store.esLocal(id) && !store.sesionLocal(id)?.realId
@@ -546,6 +550,9 @@ async function viewRecord(id) {
       msg.replaceChildren(h("div", { class: "notice err" }, "Hay pedazos de audio que el servidor rechazó y no se pudieron subir. Tocá Reintentar; siguen guardados en el celular."));
       return;
     }
+    // Los tramos sin audio van antes del finish: sin red se difiere todo junto y no se pierden (un 404 o 403 se descarta).
+    const envio = await mandarHuecos(id, store.recMeta(id).huecos ?? [], (rid, huecos) => Sessions.huecos(rid, huecos));
+    if (envio.resultado === "reintentar") return diferirCierre();
     try {
       await Sessions.finish(id, rec.partsCount());
       store.dropRecMeta(id);

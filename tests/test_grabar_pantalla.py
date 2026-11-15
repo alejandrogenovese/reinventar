@@ -93,6 +93,32 @@ def test_la_pastilla_del_modo_sala_sigue_el_estado_del_grabador():
     assert "sala?.update" in listener
 
 
+def test_el_tip_de_no_molestar_se_muestra_y_se_puede_descartar():
+    cuerpo = _cuerpo_de_view_record()
+    assert "tipNoMolestarVisto()" in cuerpo and "marcarTipNoMolestarVisto()" in cuerpo and "TIP_NO_MOLESTAR" in cuerpo
+
+
+def test_terminar_manda_los_huecos_antes_de_cerrar_y_tolera_que_falten():
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("async function finish(")
+    finish = cuerpo[inicio:cuerpo.index("async function discard(", inicio)]
+    assert "mandarHuecos(" in finish
+    assert finish.index("mandarHuecos(") < finish.index("Sessions.finish(")
+
+
+def test_el_uploader_manda_los_huecos_guardados_de_cada_sesion():
+    recorder = (APP_JS.parent / "recorder.js").read_text(encoding="utf-8")
+    assert recorder.count("store.recMeta(") >= 3  # el Recorder, las sesiones locales y las reales
+    assert recorder.count(").huecos ?? []") >= 2   # el cierre de locales y el de reales mandan los huecos guardados
+    assert "detector.observar(" in recorder
+
+
+def test_la_transcripcion_intercala_los_huecos_y_el_separador_tiene_estilo():
+    detail = (APP_JS.parent / "detail.js").read_text(encoding="utf-8")
+    assert "intercalarHuecos(" in detail and "textoHueco(" in detail
+    assert ".ra-hueco" in (APP_JS.parent.parent / "styles.css").read_text(encoding="utf-8")
+
+
 def test_record_button_acepta_deshabilitado_y_etiqueta():
     ui = (APP_JS.parent / "ui.js").read_text(encoding="utf-8")
     inicio = ui.index("export function RecordButton(")
