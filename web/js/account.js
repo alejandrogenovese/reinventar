@@ -7,7 +7,7 @@ import { currentPosition, walkingMinutes } from "./location.js";
 import { loadGoogleMaps } from "./map.js";
 import { refreshSandbox } from "./sandbox.js";
 import { icon } from "./icons.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, mensajeError, toast } from "./ui.js";
 
 const MIN_LENGTH = 8;
 
@@ -37,7 +37,7 @@ export function viewPassword(view, { forced }) {
       toast("Contraseña actualizada");
       location.hash = "#/";
     } catch (err) {
-      status.append(errorNotice(err.status === 422 ? `La contraseña nueva necesita al menos ${MIN_LENGTH} caracteres.` : err.message));
+      status.append(errorNotice(err.status === 422 ? `La contraseña nueva necesita al menos ${MIN_LENGTH} caracteres.` : mensajeError(err)));
       btn.disabled = false;
     }
   } },
@@ -53,7 +53,7 @@ export function viewPassword(view, { forced }) {
 
 // --- admin -------------------------------------------------------------------
 async function run(action, okMsg, reload) {
-  try { await action(); toast(okMsg); await reload(); } catch (err) { toast(err.message); }
+  try { await action(); toast(okMsg); await reload(); } catch (err) { toast(mensajeError(err)); }
 }
 
 async function askPassword(username) {
@@ -188,7 +188,7 @@ function SandboxData() {
       text: "Se borran las grabaciones e itinerarios creados en modo prueba, de todos los usuarios. Los datos reales no se tocan.",
       confirmLabel: "Borrar", danger: true });
     if (!ok) return;
-    try { const r = await Admin.clearSandboxData(); toast(`Datos de prueba borrados (${r.rows} filas)`); } catch (err) { toast(err.message); }
+    try { const r = await Admin.clearSandboxData(); toast(`Datos de prueba borrados (${r.rows} filas)`); } catch (err) { toast(mensajeError(err)); }
   };
   return h("div", { class: "stack" },
     h("h2", { class: "label" }, "Modo prueba"),
@@ -242,7 +242,7 @@ export async function viewAdmin(view) {
       h("h2", { class: "label" }, "Catálogo"),
       h("p", { class: "caption" }, "Después de subir la base con scripts/sync_to_railway.sh, recargala acá sin reiniciar la app."),
       h("div", { class: "actions" }, Button("Recargar catálogo", { onclick: async () => {
-        try { const r = await Admin.reloadCatalog(); toast(`Catálogo recargado: ${r.sessions} sesiones`); } catch (err) { toast(err.message); }
+        try { const r = await Admin.reloadCatalog(); toast(`Catálogo recargado: ${r.sessions} sesiones`); } catch (err) { toast(mensajeError(err)); }
       } }))),
     EventosPanel(),
     usageBox,

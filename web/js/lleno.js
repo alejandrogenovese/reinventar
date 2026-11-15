@@ -1,7 +1,7 @@
 // «Está llena / hay mucha cola»: lo que avisa la gente en la puerta (app/lleno.py). Va en la ficha de la charla, en las
 // tarjetas de Hoy y en las del itinerario.
 import { Lleno } from "./api.js";
-import { Hint, h, toast } from "./ui.js";
+import { Hint, h, mensajeError, toast } from "./ui.js";
 
 const ESTADOS_LLENO = { lleno: "Está llena", cola: "Hay mucha cola" };
 const TOPE_CODIGOS = 30; // app/lleno.py CODIGOS_POR_PEDIDO
@@ -41,7 +41,7 @@ export function LlenoAvisos(code, a, { conPista = true } = {}) {
         const btn = h("button", { type: "button", class: mio ? "ra-chip ra-chip-on" : "ra-chip", "aria-pressed": String(mio), onclick: async () => {
           btn.disabled = true;
           try { pintar(mio ? await Lleno.retirar(code) : await Lleno.avisar(code, estado)); if (!mio) toast("Gracias: le avisamos al resto."); }
-          catch (e) { toast(e.message); btn.disabled = false; }
+          catch (e) { toast(mensajeError(e)); btn.disabled = false; }
         } }, label);
         return btn;
       })) : null;

@@ -2,7 +2,7 @@
 // (/api/admin/llm, con cache de 5 minutos). Barras y números con h() y los tokens de la app, sin librerías.
 import { api } from "./api.js";
 import { icon } from "./icons.js";
-import { Button, h } from "./ui.js";
+import { Button, h, mensajeError } from "./ui.js";
 
 const SCORE_LABEL = {
   lineas_faltantes: "Líneas faltantes (traducción)", json_valido: "JSON válido",
@@ -104,7 +104,7 @@ export function LlmPanel() {
   const load = async () => {
     body.replaceChildren(h("p", { class: "caption" }, "Cargando métricas de Langfuse…"));
     try { body.replaceChildren(Dashboard(await api("/api/admin/llm"))); }
-    catch (err) { body.replaceChildren(h("div", { class: "notice err" }, `No se pudo cargar el tablero: ${err.message}`)); }
+    catch (err) { body.replaceChildren(h("div", { class: "notice err" }, `No se pudo cargar el tablero: ${mensajeError(err)}`)); }
   };
   void load();
   return h("div", { class: "stack" },

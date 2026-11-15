@@ -3,7 +3,7 @@
 import { Itinerary, Knowledge } from "./api.js";
 import { icon } from "./icons.js";
 import { SessionMiniCard } from "./itinerary.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, mensajeError, toast } from "./ui.js";
 
 const PAGE = 50;
 const VALUES_SHOWN = 8;
@@ -59,7 +59,7 @@ const activeCount = (state) => Object.values(state.filters).reduce((n, values) =
 
 // --- piezas ------------------------------------------------------------------
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); return false; }
+  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(mensajeError(e)); return false; }
 };
 const Cards = (rows) => rows.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) }));
 
@@ -198,7 +198,7 @@ export async function ExplorePanel() {
             const page = await fetchPage({ ...state, offset: last.results.length });
             last = { ...last, results: [...last.results, ...page.results] };
             paint();
-          } catch (err) { toast(err.message); e.target.disabled = false; }
+          } catch (err) { toast(mensajeError(err)); e.target.disabled = false; }
         } })
       : "";
     results.replaceChildren(h("div", { class: "daylist" }, Cards(last.results)), more);
@@ -214,7 +214,7 @@ export async function ExplorePanel() {
         const page = await fetchPage(state);
         if (seq !== requestSeq) return; // llegó tarde: ya hay un pedido más nuevo (ej. búsqueda en vivo vs. filtros)
         last = page;
-      } catch (e) { toast(e.message); return; }
+      } catch (e) { toast(mensajeError(e)); return; }
     }
     paint();
   }
@@ -240,7 +240,7 @@ export async function ExplorePanel() {
       await update({ ...state, filters, q: parsed.q, offset: 0 });
       const ignored = parsed.ignored.length ? ` No encontré: ${parsed.ignored.join(", ")}.` : "";
       toast(`Filtros aplicados.${ignored}`, { action: { label: "Deshacer", onClick: () => { qInput.value = before.q; paintSuggestion(); void update(before); } } });
-    } catch (err) { toast(err.message); } finally { nlButton.disabled = false; }
+    } catch (err) { toast(mensajeError(err)); } finally { nlButton.disabled = false; }
   }
 
   const search = debounce(() => update({ ...state, q: qInput.value.trim(), offset: 0 }), SEARCH_DEBOUNCE_MS);

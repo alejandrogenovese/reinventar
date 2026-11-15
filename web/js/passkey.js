@@ -1,6 +1,6 @@
 // Passkeys (Face ID / huella) con la API WebAuthn del navegador. El servidor arma las opciones y verifica la firma.
 import { Passkeys } from "./api.js";
-import { Button, h, toast, toastOnError } from "./ui.js";
+import { Button, h, mensajeError, toast, toastOnError } from "./ui.js";
 
 const OFFER_DISMISSED = "reinventar.passkeyOfferDismissed";
 const REGISTERED_HERE = "reinventar.passkeyRegistered";
@@ -59,7 +59,7 @@ export async function login() {
 
 async function activate(onDone) {
   try { await register(); toast("Listo: la próxima entrás con Face ID / huella"); onDone?.(); }
-  catch (e) { toast(cancelled(e) ? "Cancelado" : e.message || "No se pudo activar"); }
+  catch (e) { toast(cancelled(e) ? "Cancelado" : mensajeError(e, "No se pudo activar. Probá de nuevo.")); }
 }
 
 // --- UI ----------------------------------------------------------------------
@@ -69,7 +69,7 @@ export function PasskeyLoginButton(onLogin, onError) {
   void isSupported().then((ok) => {
     if (!ok) return;
     slot.append(Button("Entrar con Face ID / huella", { onclick: async () => {
-      try { const r = await login(); if (r) onLogin(r); } catch (e) { onError(e.status === 401 ? "Esa passkey no está registrada. Entrá con contraseña y activala en Ajustes." : e.message); }
+      try { const r = await login(); if (r) onLogin(r); } catch (e) { onError(e.status === 401 ? "Esa passkey no está registrada. Entrá con contraseña y activala en Ajustes." : mensajeError(e)); }
     } }));
   });
   return slot;
@@ -107,6 +107,6 @@ export function PasskeySettings() {
       ok ? h("div", { class: "actions" }, Button("Activar en este dispositivo", { onclick: () => activate(load) }))
          : h("p", { class: "caption" }, "Este navegador no permite Face ID / huella."));
   }
-  load().catch((e) => box.replaceChildren(h("div", { class: "notice err" }, e.message)));
+  load().catch((e) => box.replaceChildren(h("div", { class: "notice err" }, mensajeError(e))));
   return box;
 }

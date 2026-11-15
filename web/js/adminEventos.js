@@ -2,7 +2,7 @@
 // oficial de charlas), «Revisar ahora», «Agregar evento por link» (vista previa con el LLM, corregible, y guardar) y las
 // «Charlas nuevas» que encontró la revisión. Ver app/eventos_auto.py y app/charlas_auto.py.
 import { Admin } from "./api.js";
-import { Button, Hint, h, toast } from "./ui.js";
+import { Button, Hint, h, mensajeError, toast } from "./ui.js";
 
 const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)" };
 const ESPERA_MS = 5000;
@@ -51,7 +51,7 @@ function Preview(p, onSaved) {
       await Admin.eventosGuardarLink(datos);
       toast(`Guardado: ${datos.nombre}`);
       onSaved();
-    } catch (err) { toast(err.message); guardar.disabled = false; }
+    } catch (err) { toast(mensajeError(err)); guardar.disabled = false; }
   } },
     p.ya_cargado ? Hint(`Ya está cargado: ${p.ya_cargado}`, { tone: "error" }) : null,
     nombre.row, fecha.row, h("div", { class: "actions" }, inicio.row, fin.row), lugar.row, direccion.row,
@@ -72,7 +72,7 @@ function AddLink(onSaved) {
     try {
       const p = await Admin.eventosVistaPrevia(url.el.value.trim());
       preview.replaceChildren(Preview(p, () => { form.reset(); preview.replaceChildren(); onSaved(); }));
-    } catch (err) { preview.replaceChildren(); toast(err.message); }
+    } catch (err) { preview.replaceChildren(); toast(mensajeError(err)); }
     mirar.disabled = false;
   } },
     h("h3", { class: "label" }, "Agregar evento por link"),
@@ -98,11 +98,11 @@ export function EventosPanel() {
   const box = h("div", { class: "stack" });
   async function paint() {
     let d;
-    try { d = await Admin.eventos(); } catch (err) { box.replaceChildren(h("p", { class: "caption" }, err.message)); return; }
+    try { d = await Admin.eventos(); } catch (err) { box.replaceChildren(h("p", { class: "caption" }, mensajeError(err))); return; }
     const revisar = Button(d.ocupado ? "Revisando…" : "Revisar ahora", { onclick: async () => {
       revisar.disabled = true;
       try { await Admin.eventosRevisar(); toast("Revisando las fuentes: tarda un par de minutos."); setTimeout(paint, ESPERA_MS); }
-      catch (err) { toast(err.message); revisar.disabled = false; }
+      catch (err) { toast(mensajeError(err)); revisar.disabled = false; }
     } });
     revisar.disabled = d.ocupado || !d.activo || d.migracion_pendiente;
     if (d.ocupado) setTimeout(paint, ESPERA_MS);

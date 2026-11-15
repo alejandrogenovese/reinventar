@@ -113,11 +113,27 @@ export function toast(msg, { action } = {}) {
   toastTimer = setTimeout(() => el.remove(), action ? UNDO_MS : TOAST_MS);
 }
 
-const GENERIC_ERROR = "Algo falló. Probá de nuevo.";
+export const GENERIC_ERROR = "Algo falló. Probá de nuevo.";
+
+// Errores que tira el navegador o un bug (texto en inglés: «Load failed», «Cannot read properties of null»…).
+const ERRORES_TECNICOS = [TypeError, SyntaxError, RangeError, ReferenceError, EvalError, URIError];
+
+/**
+ * Texto para mostrarle al usuario cuando algo falló. Los mensajes de ApiError (vienen en castellano del servidor) y los
+ * Error que tira la propia app con su texto pasan tal cual. Lo que viene del navegador (TypeError, DOMException como
+ * NotAllowedError, SyntaxError) sale en inglés: se cambia por `fallback` y el detalle queda en console.
+ */
+export function mensajeError(err, fallback = GENERIC_ERROR) {
+  const esDelNavegador = typeof DOMException !== "undefined" && err instanceof DOMException;
+  const esPropio = err instanceof Error && !esDelNavegador && !ERRORES_TECNICOS.some((tipo) => err instanceof tipo);
+  if (esPropio && err.message) return err.message;
+  console.error(err);
+  return fallback;
+}
 
 /** Para una promesa que no se espera (ej. en un onclick): si falla, avisa con un toast en vez de perder el error. */
 export function toastOnError(promise) {
-  promise.catch((err) => toast(err?.message || GENERIC_ERROR));
+  promise.catch((err) => toast(mensajeError(err)));
 }
 
 /**

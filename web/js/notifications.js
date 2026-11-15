@@ -2,7 +2,7 @@
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 import { getToken, Push, Ubicacion } from "./api.js";
 import { locationEnabled, reportVenue, setVenueReportEnabled } from "./location.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, mensajeError, toast } from "./ui.js";
 
 const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
@@ -84,7 +84,7 @@ function ReminderSettings() {
   const save = () => Push.savePrefs({ grabar: grabar.input.checked, ubicacion: sede.input.checked, eventos_nuevos: nuevos.input.checked });
   const toggleSimple = (sw) => async () => {
     sw.input.disabled = true;
-    try { await save(); } catch (err) { sw.input.checked = !sw.input.checked; toast(err.message); }
+    try { await save(); } catch (err) { sw.input.checked = !sw.input.checked; toast(mensajeError(err)); }
     sw.input.disabled = false;
   };
 
@@ -107,7 +107,7 @@ function ReminderSettings() {
       toast(on ? "Listo: los avisos van a tener en cuenta en qué sede estás." : "Listo: borramos la sede guardada.");
     } catch (err) {
       if (on) sede.input.checked = false;
-      toast(err.message);
+      toast(mensajeError(err));
     }
     sede.input.disabled = false;
   };
@@ -139,13 +139,13 @@ export function PushSettings() {
   const toggle = h("input", { type: "checkbox", id: "push-on", disabled: true });
   const status = h("p", { class: "caption" }, "Te avisamos cuándo salir y cuándo empieza lo que fijaste, y si AWS cambia algo de tu itinerario, aunque la app esté cerrada.");
   const testBtn = Button("Probar una notificación", { onclick: async () => {
-    try { const r = await Push.test(); toast(`Enviada a ${r.devices} dispositivo${r.devices === 1 ? "" : "s"}.`); } catch (err) { toast(err.message); }
+    try { const r = await Push.test(); toast(`Enviada a ${r.devices} dispositivo${r.devices === 1 ? "" : "s"}.`); } catch (err) { toast(mensajeError(err)); }
   } });
   toggle.onchange = async () => {
     toggle.disabled = true;
     try {
       if (toggle.checked) { await enable(); toast("Notificaciones activadas."); } else { await disable(); toast("Notificaciones apagadas."); }
-    } catch (err) { toggle.checked = !toggle.checked; toast(err.message); }
+    } catch (err) { toggle.checked = !toggle.checked; toast(mensajeError(err, "No se pudieron activar las notificaciones. Probá de nuevo.")); }
     toggle.disabled = false;
     testBtn.hidden = !toggle.checked;
   };

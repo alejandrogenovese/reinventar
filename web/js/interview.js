@@ -1,7 +1,7 @@
 // Itinerario guiado, paso 1: la entrevista ("Te conocemos"), una pregunta por pantalla, y la ficha que arma la IA.
 import { Interview } from "./api.js";
 import { icon } from "./icons.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, mensajeError, toast } from "./ui.js";
 
 const MIN_DIA_A_DIA = 80;   // mismos mínimos que app/interview.py
 const MIN_DESAFIO = 60;
@@ -112,7 +112,7 @@ function VoiceButton(textarea) {
         const { texto } = await Interview.voice(new Blob(parts, { type: VOICE_MIME.split(";")[0] }));
         textarea.value = [textarea.value.trim(), texto].filter(Boolean).join(" ");
         textarea.dispatchEvent(new Event("input"));
-      } catch (err) { toast(err.message); }
+      } catch (err) { toast(mensajeError(err)); }
       idle();
     };
     stopLevel = listenLevel(stream, recording());
@@ -250,7 +250,7 @@ export async function viewEntrevista(view) {
         const pendiente = STEPS.findIndex((s) => faltan.includes(s.key));
         if (pendiente >= 0) { i = pendiente; paint(); toast("Te falta completar esta."); return; }
         await viewRepreguntas(view);
-      } catch (err) { error.textContent = err.message; error.hidden = false; next.disabled = false; }
+      } catch (err) { error.textContent = mensajeError(err); error.hidden = false; next.disabled = false; }
     } });
     view.replaceChildren(h("div", { class: "stack-lg ra-interview" },
       h("header", { class: "stack" }, h("p", { class: "label" }, "Te conocemos"), Progress(i)),
@@ -268,7 +268,7 @@ export async function viewEntrevista(view) {
 async function viewRepreguntas(view) {
   view.replaceChildren(h("p", { class: "caption" }, "Pensando si hace falta preguntarte algo más…"));
   let repreguntas = [];
-  try { ({ repreguntas } = await Interview.followups()); } catch (err) { toast(err.message); }
+  try { ({ repreguntas } = await Interview.followups()); } catch (err) { toast(mensajeError(err)); }
   if (!repreguntas.length) { await armarFicha(view); return; }
   const campos = repreguntas.map((r) => ({ pregunta: r.pregunta, control: LongText(r.respuesta) }));
   view.replaceChildren(h("div", { class: "stack-lg ra-interview" },
@@ -280,7 +280,7 @@ async function viewRepreguntas(view) {
       e.target.disabled = true;
       const respondidas = campos.map((c) => ({ pregunta: c.pregunta, respuesta: c.control.get() }));
       try { await Interview.save({ repreguntas: respondidas }); await armarFicha(view); }
-      catch (err) { toast(err.message); e.target.disabled = false; }
+      catch (err) { toast(mensajeError(err)); e.target.disabled = false; }
     } }))));
 }
 
@@ -290,7 +290,7 @@ async function armarFicha(view) {
     const { ficha } = await Interview.createFicha();
     paintFicha(view, ficha);
   } catch (err) {
-    view.replaceChildren(h("div", { class: "stack" }, h("p", { class: "notice err" }, err.message),
+    view.replaceChildren(h("div", { class: "stack" }, h("p", { class: "notice err" }, mensajeError(err)),
       Button("Probar de nuevo", { variant: "primary", onclick: () => armarFicha(view) })));
   }
 }
@@ -328,7 +328,7 @@ function paintFicha(view, ficha) {
         try {
           if (dirty) await Interview.editFicha({ ...draft, resumen: resumen.value.trim() || draft.resumen });
           location.hash = "#/itinerario/armar";
-        } catch (err) { toast(err.message); e.target.disabled = false; }
+        } catch (err) { toast(mensajeError(err)); e.target.disabled = false; }
       } }))));
 }
 

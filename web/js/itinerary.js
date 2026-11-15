@@ -9,7 +9,7 @@ import { MyEventCard } from "./myEvents.js";
 import { ShowFunctionCard } from "./shows.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
-import { Button, Hint, IconText, Tag, h, toast, toastOnError, withUndo } from "./ui.js";
+import { Button, Hint, IconText, Tag, h, mensajeError, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
 const EXPERIENCE_OPTIONS = ["", "Junior", "Mid", "Senior", "Lead / Staff"];
@@ -118,7 +118,7 @@ export function AddButton(code, onAdd) {
       }
       forgetItineraryCodes();
       paint();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(mensajeError(e)); }
     finally { btn.disabled = false; }
   }
   if (code) void itineraryCodes().then((codes) => { if (codes.has(code)) { added = true; paint(); } });
@@ -181,7 +181,7 @@ export async function viewCuestionario(view) {
         promptInput.value.trim(),
       );
       location.hash = "#/itinerario";
-    } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = "Generar itinerario"; }
+    } catch (err) { toast(mensajeError(err)); btn.disabled = false; btn.textContent = "Generar itinerario"; }
   } },
     h("h1", { class: "title" }, "Armá tu itinerario"),
     h("p", { class: "caption" }, "Contanos quién sos y qué te interesa: la IA te recomienda sesiones y te arma una agenda por día."),
@@ -229,7 +229,7 @@ function importReservations(onDone) {
         r.sin_encontrar.length ? `${r.sin_encontrar.length} no son charlas del catálogo` : null];
       toast(partes.filter(Boolean).join(" · ") + ".");
       await onDone();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
   });
   document.body.append(input);
   input.click();
@@ -246,7 +246,7 @@ function ItineraryItem(s, onChanged, lleno) {
     || "Sesión quitada del itinerario.";
   const onRemove = () => withUndo(removed, {
     apply: () => show(false),
-    commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(err.message); }),
+    commit: () => Itinerary.remove(s.code).then(refresh).catch((err) => { show(true); toast(mensajeError(err)); }),
     undo: () => show(true),
   });
   const quitar = Button("Quitar", { variant: "danger", onclick: onRemove });
@@ -302,7 +302,7 @@ export async function viewItinerario(view) {
 
     renderMap(mapEl, { days: data.days })
       .then((api) => { mapEl._api = api; api.update(dayIndex); })
-      .catch((err) => mapEl.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar el mapa: ${err.message}. El itinerario sigue funcionando igual.`)));
+      .catch((err) => mapEl.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar el mapa: ${mensajeError(err).replace(/\.$/, "")}. El itinerario sigue funcionando igual.`)));
 
     function paintTabs() {
       tabs.replaceChildren(...data.days.map((d, i) =>

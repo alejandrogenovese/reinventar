@@ -1,6 +1,6 @@
 // Elegir la charla que vas a grabar: "ahora en tu itinerario" o búsqueda por código/título en el catálogo.
 import { Itinerary, Knowledge } from "./api.js";
-import { h, toast } from "./ui.js";
+import { h, mensajeError, toast } from "./ui.js";
 
 const SEARCH_DELAY_MS = 250;
 const NOW_BEFORE_MIN = 30; // charlas que empezaron hace hasta 30 min…
@@ -40,7 +40,7 @@ export function TalkPicker({ onPick }) {
       chosen.replaceChildren(h("button", { type: "button", class: "ra-chip ra-chip-on", "aria-label": `Desvincular ${talk.code}`,
         onclick: () => { chosen.replaceChildren(); onPick(null); } }, `Vinculada a ${talk.code}`));
       onPick(talk);
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(mensajeError(e)); }
   };
   const option = (s) => h("button", { type: "button", class: "ra-chip", onclick: () => choose(s.code) }, label(s));
 
@@ -53,7 +53,7 @@ export function TalkPicker({ onPick }) {
         const rows = await Knowledge.pickTalk(q);
         if (input.value.trim() !== q) return; // llegó tarde: ya escribiste otra cosa
         results.replaceChildren(...(rows.length ? rows.map(option) : [h("span", { class: "caption" }, "Sin resultados en el catálogo.")]));
-      } catch (e) { toast(e.message); }
+      } catch (e) { toast(mensajeError(e)); }
     }, SEARCH_DELAY_MS);
   });
 

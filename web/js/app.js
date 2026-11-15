@@ -29,7 +29,7 @@ import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
 import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
+import { Button, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -182,7 +182,7 @@ window.addEventListener("beforeunload", (e) => { if (activeRecorder?.state === "
 function renderError(e) {
   console.error(e);
   if (e instanceof ApiError && e.status === 401) { setToken(""); location.hash = "#/login"; return; }
-  view.replaceChildren(h("div", { class: "notice err" }, e.message || String(e)));
+  view.replaceChildren(h("div", { class: "notice err" }, mensajeError(e)));
 }
 
 // --- lista -------------------------------------------------------------------
@@ -219,10 +219,10 @@ async function viewList() {
   if (sessions.some((s) => s.status === "ready")) searchSlot.replaceChildren(search = RecordingSearch());
   TodayPanel(sessions)
     .then(({ el }) => todaySlot.replaceChildren(el))
-    .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${err.message}`)));
+    .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${mensajeError(err)}`)));
   AnunciosRail(sessions)
     .then((el) => anunciosSlot.replaceChildren(el || ""))
-    .catch((err) => anunciosSlot.replaceChildren(h("p", { class: "caption" }, `No se pudieron cargar los anuncios: ${err.message}`)));
+    .catch((err) => anunciosSlot.replaceChildren(h("p", { class: "caption" }, `No se pudieron cargar los anuncios: ${mensajeError(err)}`)));
   list.replaceChildren();
   if (!sessions.length) {
     list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva.")));
@@ -447,7 +447,7 @@ function viewLogin() {
     try {
       finishLogin(await Auth.login(userInput.value.trim(), passInput.value));
     } catch (err) {
-      status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Usuario o contraseña inválidos." : err.message));
+      status.replaceChildren(h("div", { class: "notice err" }, err.status === 401 ? "Usuario o contraseña inválidos." : mensajeError(err)));
       btn.disabled = false;
     }
   } },

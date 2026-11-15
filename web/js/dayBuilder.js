@@ -5,7 +5,7 @@ import { EventCard } from "./events.js";
 import { shortDay } from "./itinerary.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
-import { Button, Hint, IconText, Skeleton, Tag, h, toast } from "./ui.js";
+import { Button, Hint, IconText, Skeleton, Tag, h, mensajeError, toast } from "./ui.js";
 
 const PAUSA_MIN = 60;                                    // "Hacer una pausa": la próxima, una hora después
 const OBJETIVO_POR_DIA = { "3-4": 4, "5-6": 6, todas: 12 }; // "Completá por mí" llena hasta esto
@@ -79,7 +79,7 @@ function ChosenRow(s, onChanged) {
   const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Marcar reservada", {
     variant: "ghost", "aria-pressed": String(Boolean(s.reservada)),
     title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 30 min antes",
-    onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(err.message)) });
+    onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(mensajeError(err))) });
   return h("li", { class: "ra-chosen" },
     h("span", { class: "ra-chosen-time" }, `${s.start}–${fin || "?"}`),
     h("span", { class: "ra-chosen-body" },
@@ -87,7 +87,7 @@ function ChosenRow(s, onChanged) {
       h("span", { class: "caption" }, [s.venue?.hotel, s.salir_antes ? `salís ${fin} (antes de que termine)` : null].filter(Boolean).join(" · "))),
     h("span", { class: "ra-chosen-actions" },
       s.kind === "talk" ? booked : null,
-      Button("Quitar", { variant: "ghost", onclick: () => Itinerary.remove(s.code).then(onChanged).catch((err) => toast(err.message)) })));
+      Button("Quitar", { variant: "ghost", onclick: () => Itinerary.remove(s.code).then(onChanged).catch((err) => toast(mensajeError(err))) })));
 }
 
 function PendingList(pendientes, onChanged) {
@@ -99,7 +99,7 @@ function PendingList(pendientes, onChanged) {
       h("span", { class: "caption" }, ` · la marcaste el ${shortDay(p.dia_marcada)} · `,
         p.horarios.filter((x) => x.day > p.dia_marcada).map((x) => `${shortDay(x.day)} ${x.start}`).join(", ") || "no se repite"),
       " ", Button(icon("cerrar", 18), { variant: "ghost", "aria-label": `Sacar ${p.title} de pendientes`,
-        onclick: () => Guided.removePending(p.base).then(onChanged).catch((err) => toast(err.message)) })))));
+        onclick: () => Guided.removePending(p.base).then(onChanged).catch((err) => toast(mensajeError(err))) })))));
 }
 
 // La última charla elegida marca desde dónde seguir. Los eventos (de la sección o propios) no: si alguien cargó primero
@@ -142,7 +142,7 @@ export async function viewArmar(view) {
     let r;
     try { r = await Guided.next({ day: state.day, after: previa?.code, desde: state.desde }); }
     catch (err) {
-      next.replaceChildren(h("p", { class: "notice err" }, err.message));
+      next.replaceChildren(h("p", { class: "notice err" }, mensajeError(err)));
       if (err.status === 409) next.append(Button("Ir a la entrevista", { variant: "primary", onclick: () => (location.hash = "#/itinerario/entrevista") }));
       return;
     }
@@ -170,7 +170,7 @@ export async function viewArmar(view) {
       state.desde = null;
       void refreshCountdown({ force: true });
       await paint();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
   }
 
   async function paraOtroDia(o) {
@@ -178,7 +178,7 @@ export async function viewArmar(view) {
       await Guided.addPending(o.card.base, state.day);
       toast(`☆ «${o.card.title}» queda en pendientes: vuelve primera si se repite otro día.`);
       await paint();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
   }
 
   function seguirConElOtroDia() {
@@ -209,7 +209,7 @@ export async function viewArmar(view) {
         h("div", { class: "actions" },
           Button(i < days.length - 1 ? `Seguir con el ${shortDay(days[i + 1])} →` : "Ver mi itinerario", { variant: "primary", onclick: seguirConElOtroDia }),
           Button("Volver a este día", { onclick: () => void paint() }))));
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
   }
 
   /** Elige la mejor opción a la que se llega (verde o amarilla), una tras otra, hasta el ritmo que pidió. */
@@ -229,7 +229,7 @@ export async function viewArmar(view) {
       }
       state.desde = null;
       toast(`Listo: ${cuenta} charlas el ${shortDay(state.day)}. Revisalas y cambiá lo que quieras.`);
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
     void refreshCountdown({ force: true });
     await paint();
   }

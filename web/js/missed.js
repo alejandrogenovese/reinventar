@@ -3,7 +3,7 @@ import { Itinerary } from "./api.js";
 import { refreshCountdown } from "./countdown.js";
 import { SessionMiniCard, shortDay } from "./itinerary.js";
 import { GoThere } from "./location.js";
-import { Button, IconText, h, toast } from "./ui.js";
+import { Button, IconText, h, mensajeError, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
 const where = (c) => [c.venue?.hotel, c.venue?.detail].filter(Boolean).join(" · ");
@@ -29,10 +29,10 @@ export async function viewPerdida(view, code) {
     try {
       if (inItinerary) await Itinerary.swap(code, to); else await Itinerary.add(to);
       await done("Listo: quedó el nuevo horario en tu itinerario.");
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(mensajeError(err)); }
   };
   const add = (to) => async () => {
-    try { await Itinerary.add(to); toast("Agregada y fijada en tu itinerario."); await refreshCountdown({ force: true }); } catch (err) { toast(err.message); }
+    try { await Itinerary.add(to); toast("Agregada y fijada en tu itinerario."); await refreshCountdown({ force: true }); } catch (err) { toast(mensajeError(err)); }
   };
 
   view.append(h("div", { class: "stack-lg" },
@@ -50,6 +50,6 @@ export async function viewPerdida(view, code) {
     section("Más tarde",
       h("p", { class: "caption" }, "AWS suele publicar muchas charlas en YouTube después del evento; no todas."),
       inItinerary ? Button("Quitarla del itinerario", { variant: "danger", onclick: async () => {
-        try { await Itinerary.remove(code); await done("Quitada del itinerario."); } catch (err) { toast(err.message); }
+        try { await Itinerary.remove(code); await done("Quitada del itinerario."); } catch (err) { toast(mensajeError(err)); }
       } }) : null)));
 }
