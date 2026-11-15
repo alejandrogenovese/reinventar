@@ -97,6 +97,7 @@ catálogo) y `pytest -q` no la levanta (vive en `tests_e2e/`, sin archivos `test
 
 ```bash
 docker start reinvent-pg                   # el mismo Postgres local de arriba
+export E2E_DATABASE_URL=postgresql://reinvent:<clave del docker>@localhost:5433/reinvent   # o DATABASE_URL
 .venv/bin/python -m tests_e2e              # ~50 s; sale con código 1 si algo falla
 ```
 
@@ -115,7 +116,7 @@ micrófono falso y la red se corta con la emulación *offline* de CDP (también 
 Si un escenario falla, deja capturas, el log de consola y el del servidor en `e2e-fallas/<fecha>/` (ignorada por git).
 Variables: `E2E_CHROME` (ejecutable de Chrome/Chromium; por defecto el del caché de Playwright o el Chrome de la Mac; si no
 hay ninguno la prueba se saltea con un aviso), `E2E_PYTHON` (intérprete con las dependencias de la app; por defecto `.venv`)
-y `E2E_DATABASE_URL` (por defecto el docker `reinvent-pg`).
+y `E2E_DATABASE_URL` (obligatoria si no exportás `DATABASE_URL`: el código no trae ninguna clave).
 
 ## Deploy en Railway
 

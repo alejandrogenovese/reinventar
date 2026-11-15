@@ -45,7 +45,7 @@ class Cdp:
             else:
                 futuro.set_result(msg.get("result", {}))
             return
-        for evento, sesion, callback in list(self._oyentes):
+        for evento, sesion, callback in self._oyentes:
             if msg.get("method") == evento and (sesion is None or msg.get("sessionId") == sesion):
                 callback(msg.get("params", {}))
 
@@ -56,17 +56,19 @@ class Cdp:
         self._pendientes[id_] = futuro
         msg = {"id": id_, "method": metodo, "params": params or {}, **({"sessionId": sesion} if sesion else {})}
         await self._ws.send(json.dumps(msg))
-        return await asyncio.wait_for(futuro, TIMEOUT_COMANDO_S)
+        async with asyncio.timeout(TIMEOUT_COMANDO_S):
+            return await futuro
 
     def en(self, evento: str, callback: Callable[[dict], None], sesion: str | None = None) -> None:
         """Llama a callback(params) cada vez que llega el evento (de esa sesión, o de cualquiera si es None)."""
         self._oyentes.append((evento, sesion, callback))
 
-    async def esperar(self, evento: str, sesion: str | None = None, timeout: float = 15) -> dict:
+    async def esperar(self, evento: str, sesion: str | None = None, plazo_s: float = 15) -> dict:
         """El próximo evento de ese tipo."""
         futuro = asyncio.get_running_loop().create_future()
         self.en(evento, lambda p: futuro.done() or futuro.set_result(p), sesion)
-        return await asyncio.wait_for(futuro, timeout)
+        async with asyncio.timeout(plazo_s):
+            return await futuro
 
     async def cerrar(self) -> None:
         self._lector.cancel()

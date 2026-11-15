@@ -55,7 +55,7 @@ def main() -> int:
     if codigo:
         print(f"Capturas y logs en {carpeta}")
     else:
-        shutil.rmtree(carpeta, ignore_errors=True)  # todo bien: no queda nada para mirar
+        shutil.rmtree(carpeta, ignore_errors=True)  # sin fallas: no queda nada para mirar
     return codigo
 
 

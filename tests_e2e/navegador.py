@@ -5,7 +5,6 @@ import base64
 import glob
 import os
 import shutil
-import subprocess
 import tempfile
 import time
 from contextlib import asynccontextmanager
@@ -77,9 +76,9 @@ class Pagina:
             raise RuntimeError("Falló el JS de la página: " + str(r["exceptionDetails"].get("exception", {}).get("description")))
         return r["result"].get("value")
 
-    async def esperar(self, js_condicion: str, que: str, timeout: float = 20):
+    async def esperar(self, js_condicion: str, que: str, plazo_s: float = 20):
         """Reintenta la condición hasta que dé algo verdadero; si no, falla diciendo qué se esperaba."""
-        limite, ultimo = time.monotonic() + timeout, None
+        limite, ultimo = time.monotonic() + plazo_s, None
         while time.monotonic() < limite:
             try:
                 ultimo = await self.evaluar(js_condicion)
@@ -133,17 +132,17 @@ async def navegador(origen: str, perfil_base: Path | None = None):
     """Lanza Chromium sin cabeza, con micrófono falso, y entrega una Pagina vacía con el permiso de micrófono ya dado."""
     ejecutable = buscar_navegador()
     perfil = tempfile.mkdtemp(prefix="reinventar-e2e-chrome-", dir=perfil_base)
-    proceso = subprocess.Popen(
-        [ejecutable, "--headless=new", "--remote-debugging-port=0", f"--user-data-dir={perfil}", "--no-first-run",
-         "--no-default-browser-check", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream",
-         "--autoplay-policy=no-user-gesture-required", "--disable-gpu", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proceso = await asyncio.create_subprocess_exec(
+        ejecutable, "--headless=new", "--remote-debugging-port=0", f"--user-data-dir={perfil}", "--no-first-run",
+        "--no-default-browser-check", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream",
+        "--autoplay-policy=no-user-gesture-required", "--disable-gpu", "about:blank",
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
     cdp = None
     try:
         archivo = Path(perfil) / "DevToolsActivePort"
         limite = time.monotonic() + ESPERA_ARRANQUE_S
         while not archivo.exists() or len(archivo.read_text().splitlines()) < 2:
-            if proceso.poll() is not None or time.monotonic() > limite:
+            if proceso.returncode is not None or time.monotonic() > limite:
                 raise RuntimeError("Chromium no abrió el puerto de depuración.")
             await asyncio.sleep(0.2)
         puerto, ruta_ws = archivo.read_text().splitlines()[:2]
@@ -158,9 +157,12 @@ async def navegador(origen: str, perfil_base: Path | None = None):
     finally:
         if cdp:
             await cdp.cerrar()
-        proceso.terminate()
-        try:
-            proceso.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proceso.kill()
+        if proceso.returncode is None:
+            proceso.terminate()
+            try:
+                async with asyncio.timeout(10):
+                    await proceso.wait()
+            except TimeoutError:
+                proceso.kill()
+                await proceso.wait()
         shutil.rmtree(perfil, ignore_errors=True)

@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-DATABASE_URL = os.environ.get("E2E_DATABASE_URL", "postgresql://reinvent:reinvent2026@localhost:5433/reinvent")
 USUARIO = "e2e"
 CLAVE_INICIAL = "e2e-clave-inicial-1"  # BOOTSTRAP_USERS la crea como temporal; el script la cambia por CLAVE
 CLAVE = "e2e-clave-de-prueba-2"
@@ -36,6 +35,14 @@ class Servidor:
             "Authorization": f"Bearer {self.token}", "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=10) as r:
             return json.loads(r.read() or "null")
+
+
+def _url_de_la_base() -> str:
+    """La base de Postgres sale del entorno (E2E_DATABASE_URL o, si no, DATABASE_URL): en el código no va ninguna clave."""
+    url = os.environ.get("E2E_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("Falta la base: exportá E2E_DATABASE_URL (o DATABASE_URL) con la URL del Postgres local. Ver README.")
+    return url
 
 
 def _puerto_libre() -> int:
@@ -99,7 +106,7 @@ def servidor_local(carpeta_log: Path):
     schema = f"app_e2e_{secrets.token_hex(4)}"
     datos = tempfile.mkdtemp(prefix="reinventar-e2e-")
     python = _python_del_servidor()
-    entorno = {**os.environ, "DATABASE_URL": DATABASE_URL, "DB_SCHEMA": schema, "DATA_DIR": datos,
+    entorno = {**os.environ, "DATABASE_URL": _url_de_la_base(),"DB_SCHEMA": schema, "DATA_DIR": datos,
                "BOOTSTRAP_USERS": f"{USUARIO}:{CLAVE_INICIAL}", "ADMIN_USERS": "", "STT_PROVIDER": "fake",
                "LLM_PROVIDER": "fake", "EMBED_PROVIDER": "off", "EVENTOS_AUTO": "0",
                "LANGFUSE_PUBLIC_KEY": "", "LANGFUSE_SECRET_KEY": "", "TICKETMASTER_API_KEY": ""}
