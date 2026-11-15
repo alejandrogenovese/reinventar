@@ -382,6 +382,51 @@ test("intentarCierre: un 404 deja el error visible y el audio sigue guardado", a
   assert.equal(r.error.status, 404);
 });
 
+// Huecos sin audio: se mandan a la sesión real antes del finish, también en el cierre diferido de una sesión local.
+const HUECOS = [{ desde: 126, hasta: 160.5 }];
+
+test("intentarCierre manda los huecos a la sesión real y después cierra", async () => {
+  const orden = [];
+  const r = await rec.intentarCierre({ ...FIN, huecos: HUECOS },
+    async () => { orden.push("finish"); },
+    async (id, hs) => { orden.push(["huecos", id, hs]); });
+  assert.equal(r.resultado, "cerrada");
+  assert.deepEqual(orden, [["huecos", "r1", HUECOS], "finish"]);
+});
+
+test("intentarCierre sin huecos no llama al endpoint", async () => {
+  const r = await rec.intentarCierre(FIN, async () => {}, async () => assert.fail("no debe enviar"));
+  assert.equal(r.resultado, "cerrada");
+});
+
+test("intentarCierre: si el endpoint de huecos no existe (404) o es de otro dueño (403) igual cierra", async () => {
+  for (const status of [404, 403]) {
+    const r = await rec.intentarCierre({ ...FIN, huecos: HUECOS }, async () => {}, async () => { throw Object.assign(new Error("x"), { status }); });
+    assert.equal(r.resultado, "cerrada", `status ${status}`);
+  }
+});
+
+test("intentarCierre: sin red al mandar los huecos no cierra y se reintenta (los huecos no se pierden)", async () => {
+  const r = await rec.intentarCierre({ ...FIN, huecos: HUECOS },
+    async () => assert.fail("no debe cerrar antes de mandar los huecos"),
+    async () => { throw Object.assign(new Error("Sin conexión"), { status: 0 }); });
+  assert.equal(r.resultado, "reintentar");
+});
+
+test("intentarCierre no manda huecos mientras esperan pedazos", async () => {
+  const r = await rec.intentarCierre({ ...FIN, pendientes: 2, huecos: HUECOS }, async () => assert.fail("x"), async () => assert.fail("no debe enviar"));
+  assert.equal(r.resultado, "esperar");
+});
+
+test("los huecos de una sesión local se guardan con su grabación (recMeta) hasta que se cierra", () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  store.saveRecMeta(s.id, { parts: { 0: 2 }, huecos: HUECOS });
+  assert.deepEqual(store.recMeta(s.id).huecos, HUECOS);
+  store.quitarSesionLocal(s.id);
+  assert.equal(store.recMeta(s.id).huecos, undefined);
+});
+
 test("intentarCierre no hace nada si ya hay un error marcado", async () => {
   const r = await rec.intentarCierre({ ...FIN, error: "algo" }, async () => assert.fail("no debe cerrar"));
   assert.equal(r.resultado, "esperar");

@@ -104,6 +104,8 @@
 /* Castellano grande y sin etiqueta; el inglés original abajo, chico y marcado EN. Minuto en mono, sin pastilla. */
 .ra-tb { display: grid; grid-template-columns: 64px 1fr; gap: var(--space-3); padding: var(--space-4) 0; border-top: 1px solid var(--line); }
 .ra-transcript > .ra-tb:first-child { border-top: 0; }
+/* Tramo sin audio entre dos bloques: una línea discreta, centrada, con los colores del tema */
+.ra-hueco { padding: var(--space-3) 0; border-top: 1px solid var(--line); text-align: center; font: var(--t-small); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .ra-tc { font: var(--t-data); color: var(--ink-muted); padding-top: 3px; font-variant-numeric: tabular-nums; }
 .ra-tb-body { display: flex; flex-direction: column; gap: var(--space-2); }
 .ra-tb-lang { font: var(--t-micro); letter-spacing: var(--track-micro); margin-right: 6px; color: var(--ink-muted); }

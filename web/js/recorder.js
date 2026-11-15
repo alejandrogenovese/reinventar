@@ -1,7 +1,8 @@
 // Captura de audio + subida en segundo plano.
 import { Sessions } from "./api.js";
 import * as store from "./store.js";
-import { mensajeError } from "./ui.js";
+import { crearDetectorDeHuecos, mandarHuecos } from "./huecos.js";
+import { METER_SILENT, mensajeError } from "./ui.js";
 
 const TIMESLICE_MS = 10_000;
 const MIME = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(
@@ -45,6 +46,7 @@ export class Recorder extends EventTarget {
     this.inflight = new Set();
     this.interrupted = false;  // el sistema cortó el audio (llamada, Siri, bloqueo): no se está grabando nada
     this._tracker = new InterruptionTracker();
+    this.detector = crearDetectorDeHuecos(this.meta.huecos);  // tramos sin sonido, en segundos del contador (retoma los ya guardados)
     this._tainted = false;     // hubo un corte mientras estaba en pausa: el MediaRecorder en pausa ya no sirve
   }
 
@@ -86,6 +88,9 @@ export class Recorder extends EventTarget {
       const now = Math.max(0, Math.min(1, (db + 60) / 60)); // -60 dBFS → 0, 0 dBFS → 1
       this.level = Math.max(now, this.level * 0.8); // caída suave para que se lea
       this._emit("level", this.level);
+      // En pausa o con el audio cortado por el sistema el contador está quieto: ese tiempo no cuenta (null).
+      const silencioso = this.state === "recording" && !this.interrupted ? this.level < METER_SILENT : null;
+      if (this.detector.observar(this.elapsed() / 1000, silencioso)) this._guardarHuecos();
     };
     this.meterTimer = setInterval(tick, 100);
     // Chrome crea el AudioContext suspendido si no hubo un toque del usuario: se reanuda en start().
@@ -198,6 +203,8 @@ export class Recorder extends EventTarget {
       await done;
     }
     await Promise.allSettled([...this.inflight]);
+    this.detector.finalizar();
+    this.meta.huecos = this.detector.huecos();  // _stopClock guarda la meta con los huecos
     this._stopClock();
     this.interrupted = false;
     store.registrarActividad(this.id, false);
@@ -213,6 +220,8 @@ export class Recorder extends EventTarget {
   }
 
   partsCount() { return { ...this.meta.parts }; }
+
+  _guardarHuecos() { this.meta.huecos = this.detector.huecos(); store.saveRecMeta(this.id, this.meta); }
 
   _startClock() {
     this._t0 = performance.now();
@@ -375,10 +384,13 @@ export function resultadoDeFinishFallido(e, intentos) {
  * para que el uploader lo guarde. `finish` se inyecta. Nunca se borra audio sin un finish confirmado por el servidor.
  * resultado: "esperar" | "fallidos" | "cerrada" | "reintentar" (sin red o 5xx) | "contar" (409: faltan pedazos) | "error".
  */
-export async function intentarCierre({ terminar, realId, pendientes, fallidos, error = null }, finish) {
+export async function intentarCierre({ terminar, realId, pendientes, fallidos, error = null, huecos = [] }, finish, enviarHuecos = (rid, hs) => Sessions.huecos(rid, hs)) {
   const decision = decidirCierre({ terminar, realId, pendientes, fallidos, error });
   if (decision === "fallidos") return { resultado: "fallidos" };
   if (decision !== "cerrar") return { resultado: "esperar" };
+  // Los huecos van antes del finish: si no hay red se reintenta todo junto y no se pierden (un 404/403 se descarta sin error).
+  const envio = await mandarHuecos(realId, huecos, enviarHuecos);
+  if (envio.resultado === "reintentar") return { resultado: "reintentar", error: envio.error };
   try {
     await finish(realId, terminar.parts);
     return { resultado: "cerrada" };
@@ -416,12 +428,14 @@ export const uploader = new (class extends EventTarget {
   async _cerrar(id, s) {
     const [pendientes, fallidos] = await Promise.all([store.countFor(id), store.failedFor(id)]);
     if (!s.realId && !pendientes && !fallidos && sinAudio(s.terminar.parts)) { store.quitarSesionLocal(id); return; }  // no llegó a grabar nada
-    const r = await intentarCierre({ terminar: s.terminar, realId: s.realId, pendientes, fallidos, error: s.error }, (rid, parts) => Sessions.finish(rid, parts));
+    const huecos = store.recMeta(id).huecos ?? [];
+    const r = await intentarCierre({ terminar: s.terminar, realId: s.realId, pendientes, fallidos, error: s.error, huecos }, (rid, parts) => Sessions.finish(rid, parts));
     this._aplicarCierre(r, { marcarError: (m) => store.marcarErrorLocal(id, m), contarIntento: () => store.contarIntentoDeCierre(id), quitar: () => store.quitarSesionLocal(id) });
   }
   async _cerrarReal(s) {
     const [pendientes, fallidos] = await Promise.all([store.countFor(s.id), store.failedFor(s.id)]);
-    const r = await intentarCierre({ terminar: s.terminar, realId: s.id, pendientes, fallidos, error: s.error }, (rid, parts) => Sessions.finish(rid, parts));
+    const huecos = store.recMeta(s.id).huecos ?? [];
+    const r = await intentarCierre({ terminar: s.terminar, realId: s.id, pendientes, fallidos, error: s.error, huecos }, (rid, parts) => Sessions.finish(rid, parts));
     this._aplicarCierre(r, { marcarError: (m) => store.marcarErrorReal(s.id, m), contarIntento: () => store.contarIntentoDeCierreReal(s.id), quitar: () => store.quitarTerminarReal(s.id) });
   }
   _aplicarCierre({ resultado, error }, { marcarError, contarIntento, quitar }) {
