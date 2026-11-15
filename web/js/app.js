@@ -1,12 +1,12 @@
 // ReinventAR — router y pantallas.
-import { ApiError, Auth, Sessions, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
+import { ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewAdmin, viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
 import { LocalesPendientes, cargarLocales } from "./locales.js";
-import { SinSenal } from "./sinSenal.js";
+import { SinSenal, textoDeCuenta, textosSinGrabaciones } from "./sinSenal.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewShow } from "./shows.js";
 import { viewPerdida } from "./missed.js";
@@ -233,7 +233,8 @@ async function viewList() {
     .catch((err) => anunciosSlot.replaceChildren(h("p", { class: "caption" }, `No se pudieron cargar los anuncios: ${mensajeError(err)}`)));
   list.replaceChildren();
   if (!sessions.length) {
-    list.append(h("div", { class: "empty" }, h("p", {}, "Todavía no grabaste ninguna sesión."), h("p", { class: "caption" }, "Conectá el receptor del DJI al celular y tocá Nueva.")));
+    const vacio = textosSinGrabaciones(sessions);  // si la lista vacía es una copia sin señal, no se dice «todavía no grabaste»
+    list.append(h("div", { class: "empty" }, h("p", {}, vacio.titulo), vacio.detalle ? h("p", { class: "caption" }, vacio.detalle) : null));
     return;
   }
   for (const s of sessions) {
@@ -641,9 +642,8 @@ async function viewSettings() {
     .then((c) => (pending.textContent = c.length ? `${c.length} pedazos de audio esperando subir.` : "No hay audio pendiente de subir."))
     .catch(() => (pending.textContent = "No se pudo leer el audio pendiente."));
 
-  let me = {};
-  try { me = await Auth.me(); } catch {}
-  const username = me.username || "";
+  // Sin señal no es sesión inválida: con la copia de quién es sigue «Conectado como X» (y Administración); sin copia, el aviso.
+  const cuenta = await cuentaConCopia();
 
   async function logout() {
     try { await disablePush(); } catch {}  // antes de borrar el token: la baja necesita la sesión
@@ -654,10 +654,10 @@ async function viewSettings() {
 
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "title" }, "Ajustes"),
-    h("p", {}, username ? `Conectado como ${username}.` : "Sesión no válida."),
+    h("p", {}, textoDeCuenta(cuenta)),
     h("div", { class: "actions" },
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
-      me.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
+      cuenta.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
     LocationSetting(),
     AlertSettings(),

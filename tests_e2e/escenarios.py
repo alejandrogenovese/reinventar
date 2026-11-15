@@ -59,7 +59,14 @@ async def escenario_1_franja_sin_senal(c: Contexto) -> None:
     await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» en Inicio tras recargar sin red")
     # «Anuncios sin reserva» se pide aparte de Hoy y sin franja: sin señal tiene que usar la última copia, no el error.
     await asyncio.sleep(ESPERA_SECCIONES_S)
-    assert "No se pudieron cargar los anuncios" not in await p.texto(), "los anuncios sin reserva no usaron la última copia sin señal"
+    texto = await p.texto()
+    assert "No se pudieron cargar los anuncios" not in texto, "los anuncios sin reserva no usaron la última copia sin señal"
+    # Una lista de grabaciones vacía que es copia puede estar vieja: no se dice «todavía no grabaste».
+    assert "Todavía no grabaste" not in texto and "Sin señal: tus grabaciones se muestran cuando vuelva la red" in texto, "el vacío de «Tus grabaciones» sin señal"
+    # Ajustes sin señal sigue diciendo quién es (la copia la dejó la consulta de /api/me), no «Sesión no válida».
+    await _ir_a(p, "#/ajustes")
+    await p.esperar("document.body.innerText.includes('Conectado como e2e.')", "«Conectado como e2e.» en Ajustes sin señal")
+    assert "Sesión no válida" not in await p.texto(), "Ajustes sin señal dijo «Sesión no válida»"
     await _ir_a(p, "#/itinerario")
     await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» en Itinerario sin red")
 
