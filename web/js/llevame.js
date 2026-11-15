@@ -27,9 +27,11 @@ async function dibujarRuta(el, here, dest) {
     linea.setOptions({ strokeColor: COLOR_RUTA, strokeOpacity: 0.9, strokeWeight: 5 });
     linea.setMap(map);
   }
-  new maps.Marker({ position: { lat: here.lat, lng: here.lng }, map, title: here.simulated ? "Vos (simulado)" : "Vos", zIndex: 999,
+  const vos = new maps.Marker({ position: { lat: here.lat, lng: here.lng }, title: here.simulated ? "Vos (simulado)" : "Vos", zIndex: 999,
     icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: COLOR_RUTA, fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 } });
-  new maps.Marker({ position: { lat: dest.lat, lng: dest.lng }, map, title: dest.name || "Sede" });
+  const sede = new maps.Marker({ position: { lat: dest.lat, lng: dest.lng }, title: dest.name || "Sede" });
+  vos.setMap(map);
+  sede.setMap(map);
   if (ruta.viewport) map.fitBounds(ruta.viewport, PADDING_MAPA_PX);
   return resumen;
 }
