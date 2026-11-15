@@ -4,7 +4,7 @@
 import { Numeros } from "./api.js";
 import { Bars, Columns, Heatmap, Kpi, Legend, Section, StackBar, dayLong, dayShort, dec, int, pct, searchHref } from "./charts.js";
 import { icon } from "./icons.js";
-import { Button, Hint, h } from "./ui.js";
+import { Button, Hint, h, mensajeError } from "./ui.js";
 
 const MODES = [["mia", "Mi semana"], ["catalogo", "Catálogo"]];
 const TL_FROM = 8 * 60;   // la franja de la semana va de 8 a 22 h
@@ -210,7 +210,7 @@ export async function viewNumeros(view) {
     h("div", { id: "numeros-panel", role: "tabpanel" }, body)));
 
   const [catalogo, mio] = await Promise.allSettled([Numeros.catalogo(), Numeros.mio()]);
-  const failed = (r) => h("div", { class: "notice err" }, `No se pudieron cargar los números: ${r.reason?.message || r.reason}`);
+  const failed = (r) => h("div", { class: "notice err" }, `No se pudieron cargar los números: ${mensajeError(r.reason)}`);
 
   function show(next) {
     mode = next;

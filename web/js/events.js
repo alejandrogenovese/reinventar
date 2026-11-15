@@ -8,7 +8,7 @@ import { MyEventsSection } from "./myEvents.js";
 import { ShowsPanel } from "./shows.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
-import { Button, Hint, IconText, Tag, h, toast } from "./ui.js";
+import { Button, Hint, IconText, Tag, h, mensajeError, toast } from "./ui.js";
 
 const ALL = "todos";
 const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "numeric" }).replaceAll(".", "");
@@ -48,7 +48,7 @@ function AddButton(e, onAdded) {
       toast(mine?.overlaps?.length ? `Agregado. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregado y fijado en tu itinerario.");
       void refreshCountdown({ force: true });
       onAdded?.();
-    } catch (err) { toast(err.message); btn.disabled = false; }
+    } catch (err) { toast(mensajeError(err)); btn.disabled = false; }
   } });
   return btn;
 }

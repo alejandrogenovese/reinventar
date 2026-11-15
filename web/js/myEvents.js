@@ -1,7 +1,7 @@
 // Mis eventos: los que dan los proveedores y no están en la sección Eventos. Cada uno carga los suyos.
 import { ApiError, Catalog, MyEvents } from "./api.js";
 import { shortDay } from "./itinerary.js";
-import { Button, IconText, h, toast } from "./ui.js";
+import { Button, IconText, h, mensajeError, toast } from "./ui.js";
 
 const AUTOCOMPLETE_MIN = 3;
 const AUTOCOMPLETE_DEBOUNCE_MS = 350;
@@ -54,7 +54,7 @@ function Autocomplete(inicial) {
         } }, h("strong", {}, l.nombre), h("span", { class: "caption" }, ` ${l.direccion}`)))));
       } catch (err) {
         results.replaceChildren(h("li", { class: "caption" }, err instanceof ApiError && err.status === 503
-          ? "El buscador de lugares no está disponible: elegí una sede o escribí la dirección." : err.message));
+          ? "El buscador de lugares no está disponible: elegí una sede o escribí la dirección." : mensajeError(err)));
       }
     }, AUTOCOMPLETE_DEBOUNCE_MS);
   });
@@ -107,7 +107,7 @@ export async function viewMiEvento(view, id = null) {
       await (ev ? MyEvents.edit(ev.id, body) : MyEvents.create(body));
       toast(ev ? "Evento actualizado." : "Evento agregado a tu itinerario.");
       location.hash = "#/itinerario";
-    } catch (err) { toast(err.message); btn.disabled = false; }
+    } catch (err) { toast(mensajeError(err)); btn.disabled = false; }
   } },
     h("h1", { class: "title" }, ev ? "Editar tu evento" : "Nuevo evento"),
     h("p", { class: "caption" }, "Queda fijado en tu itinerario: ocupa su horario, aparece en Hoy y te avisa cuándo salir. Solo lo ves vos."),
@@ -122,7 +122,7 @@ export async function viewMiEvento(view, id = null) {
       h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, ev ? "Guardar" : "Agregar"),
       ev ? Button("Borrar", { variant: "danger", onclick: async () => {
         try { await MyEvents.remove(ev.id); toast("Evento borrado."); location.hash = "#/itinerario"; }
-        catch (err) { toast(err.message); }
+        catch (err) { toast(mensajeError(err)); }
       } }) : null,
       Button("Cancelar", { variant: "ghost", onclick: () => history.back() })));
   view.replaceChildren(form);

@@ -2,7 +2,7 @@
 // Cada resultado abre la transcripción de esa grabación en el minuto donde se dijo.
 import { Sessions } from "./api.js";
 import { icon } from "./icons.js";
-import { clock, h } from "./ui.js";
+import { clock, h, mensajeError } from "./ui.js";
 
 const DEBOUNCE_MS = 350;
 const MIN_CHARS = 2;
@@ -46,7 +46,7 @@ export function RecordingSearch() {
       results.replaceChildren(...r.resultados.map((m) => MomentCard(m, q)));
     } catch (err) {
       if (err?.name === "AbortError") return;
-      status.textContent = err?.message || "No se pudo buscar. Probá de nuevo.";
+      status.textContent = mensajeError(err, "No se pudo buscar. Probá de nuevo.");
     }
   }
 

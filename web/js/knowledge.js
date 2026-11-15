@@ -6,7 +6,7 @@ import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } fro
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
 import { recordTalk } from "./today.js";
-import { Button, IconText, StatusPill, Tag, h, toast } from "./ui.js";
+import { Button, IconText, StatusPill, Tag, h, mensajeError, toast } from "./ui.js";
 
 const section = (title, ...children) => h("section", { class: "stack" }, h("h2", { class: "label" }, title), ...children);
 const chips = (items) => (items?.length ? h("div", { class: "ra-chips" }, items.map(Tag)) : null);
@@ -20,7 +20,7 @@ const addToItinerary = (code) => async () => {
     const mine = r.days.flatMap((d) => d.sessions).find((s) => s.code === code);
     toast(mine?.overlaps?.length ? `Agregada y fijada. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregada y fijada en tu itinerario.");
     void refreshCountdown({ force: true });
-  } catch (e) { toast(e.message); return false; }
+  } catch (e) { toast(mensajeError(e)); return false; }
 };
 const cardList = (talks) => h("div", { class: "daylist" }, talks.map((s) => SessionMiniCard(s, { onAdd: addToItinerary(s.code) })));
 
@@ -58,11 +58,11 @@ function Slot(i, mine, onChange, aviso) {
   const clashes = clashesWith(i, mine);
   const swap = async () => {
     try { await Itinerary.swap(other.code, i.code); toast("Listo: cambiaste al nuevo horario."); void refreshCountdown({ force: true }); onChange(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(mensajeError(err)); }
   };
   const remove = async () => {
     try { await Itinerary.remove(i.code); toast("Quitada del itinerario."); forgetItineraryCodes(); void refreshCountdown({ force: true }); onChange(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(mensajeError(err)); }
   };
   let action;
   if (own) action = h("div", { class: "actions" },

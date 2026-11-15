@@ -6,7 +6,7 @@ import { scrollToMoment } from "./grabado.js";
 import { icon } from "./icons.js";
 import { MenuButton } from "./menu.js";
 import * as store from "./store.js";
-import { Button, StatusPill, SummaryPanel, TranscriptBlock, clock, h, toast, toastOnError } from "./ui.js";
+import { Button, StatusPill, SummaryPanel, TranscriptBlock, clock, h, mensajeError, toast, toastOnError } from "./ui.js";
 
 const PROCESSING = ["queued", "transcribing", "translating", "summarizing"];
 const LIVE = ["recording", "uploading"];
@@ -29,7 +29,7 @@ function VotoResumen(id, voto) {
           try {
             pintar(mio ? await Sessions.retirarVoto(id) : await Sessions.votar(id, util));
             if (!mio) toast(util ? "¡Gracias!" : "Gracias: nos ayuda a mejorar los resúmenes.");
-          } catch (e) { toast(e.message); btn.disabled = false; }
+          } catch (e) { toast(mensajeError(e)); btn.disabled = false; }
         } }, label);
       return btn;
     });

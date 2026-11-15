@@ -7,7 +7,7 @@ import { AddButton } from "./itinerary.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { TalkAction, destination, place } from "./today.js";
-import { Button, IconText, h, toast } from "./ui.js";
+import { Button, IconText, h, mensajeError, toast } from "./ui.js";
 
 const NIVEL = { 1: "Keynote", 2: "Mainstage", 3: "Lanzamiento", 4: "Novedades" };
 const NIVELES_HERO = new Set([1, 2]);   // Keynote y Mainstage van en la tarjeta oscura (el «banner»)
@@ -44,7 +44,7 @@ const addToItinerary = (code) => async () => {
     await Itinerary.add(code);
     toast("Agregada al itinerario.");
     void refreshCountdown({ force: true });
-  } catch (e) { toast(e.message); return false; }
+  } catch (e) { toast(mensajeError(e)); return false; }
 };
 
 function AnnCard(s, { isToday, recorded }) {

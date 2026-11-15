@@ -1,6 +1,6 @@
 // "Preparar conversación": ficha generada por el LLM para hablar con un speaker o con gente de una empresa.
 import { Knowledge } from "./api.js";
-import { Button, h, toast, withCodeLinks } from "./ui.js";
+import { Button, h, mensajeError, toast, withCodeLinks } from "./ui.js";
 
 const BriefingSkeleton = () => h("div", { class: "ra-skeleton", "aria-busy": "true", "aria-label": "Preparando la ficha" },
   h("p", { class: "caption" }, "Preparando la ficha… tarda unos segundos la primera vez."),
@@ -41,7 +41,7 @@ export function BriefingPanel(kind, id, talkCodes) {
           Button("Regenerar", { onclick: () => load(true) })));
     } catch (e) {
       slot.replaceChildren(start);
-      toast(e.message);
+      toast(mensajeError(e));
     }
   }
 

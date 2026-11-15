@@ -6,7 +6,7 @@ import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, formatDistance, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
-import { Button, Hint, IconText, h, toast } from "./ui.js";
+import { Button, Hint, IconText, h, mensajeError, toast } from "./ui.js";
 
 const ALL = "todos";
 const TIPOS = [["musica", "música"], ["teatro", "teatro y shows"], ["comedia", "comedia"], ["deportes", "deportes"], ["actividades", "actividades"]];
@@ -49,7 +49,7 @@ export function AddFunctionButton(f, onAdded) {
       toast(mine?.overlaps?.length ? `Agregado. Ojo: se superpone con ${mine.overlaps.join(", ")}.` : "Agregado y fijado en tu itinerario.");
       void refreshCountdown({ force: true });
       onAdded?.();
-    } catch (err) { toast(err.message); btn.disabled = false; }
+    } catch (err) { toast(mensajeError(err)); btn.disabled = false; }
   } });
   return btn;
 }

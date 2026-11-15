@@ -4,7 +4,7 @@ import { Itinerary, Knowledge } from "./api.js";
 import { MomentCard, momentHash } from "./grabado.js";
 import { SessionMiniCard } from "./itinerary.js";
 import { icon } from "./icons.js";
-import { clock, h, toast, withCodeLinks } from "./ui.js";
+import { clock, h, mensajeError, toast, withCodeLinks } from "./ui.js";
 
 const MAX_QUESTION = 500;
 const HISTORY_LIMIT = 10;
@@ -19,7 +19,7 @@ const EXAMPLES = [
 let history = [];
 
 const addToItinerary = (code) => async () => {
-  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(e.message); return false; }
+  try { await Itinerary.add(code); toast("Agregada al itinerario."); } catch (e) { toast(mensajeError(e)); return false; }
 };
 
 const MOMENT_REF = /\[(G\d{1,2})\]/g;
@@ -121,7 +121,7 @@ export function AskPanel() {
       turns.lastElementChild?.scrollIntoView({ block: "start" }); // la pregunta nueva arriba, con su respuesta abajo
     } catch (e) {
       pending.remove();
-      toast(e.message);
+      toast(mensajeError(e));
     } finally {
       submit.disabled = false;
     }

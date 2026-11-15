@@ -2,7 +2,7 @@
 // un evento se llenó). Se muestran en una franja arriba hasta que tocás "Entendido".
 import { Itinerary, getToken } from "./api.js";
 import { icon } from "./icons.js";
-import { Button, h, toast } from "./ui.js";
+import { Button, h, mensajeError, toast } from "./ui.js";
 
 const REFRESH_MS = 60_000;
 let fetchedAt = 0;
@@ -19,7 +19,7 @@ function paint() {
     icon("alerta", 20),
     h("p", {}, `${first.messages.join(" ")}${more}`),
     Button("Entendido", { onclick: async () => {
-      try { ({ changes: pending } = await Itinerary.ackChanges([first.code])); paint(); } catch (err) { toast(err.message); }
+      try { ({ changes: pending } = await Itinerary.ackChanges([first.code])); paint(); } catch (err) { toast(mensajeError(err)); }
     } }));
 }
 
