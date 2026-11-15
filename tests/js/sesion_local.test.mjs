@@ -396,6 +396,13 @@ test("terminar con señal: sin aviso de sin señal y sin «Listo para grabar»",
   }
 });
 
+// Pastilla del modo sala: sigue el estado del grabador.
+test("estadoSala: grabando, en pausa y cualquier otro estado «Sin grabar»", () => {
+  assert.deepEqual(rec.estadoSala("recording"), { status: "recording", texto: "Grabando" });
+  assert.deepEqual(rec.estadoSala("paused"), { status: "queued", texto: "En pausa" });
+  for (const s of ["idle", "stopped", undefined]) assert.deepEqual(rec.estadoSala(s), { status: "queued", texto: "Sin grabar" });
+});
+
 test("fallo al crear: sin señal y errores del servidor se reintentan; un 4xx es definitivo", () => {
   for (const s of [0, undefined, 401, 500, 502, 503]) assert.equal(rec.clasificarFalloAlCrear(s).accion, "reintentar");
   assert.equal(rec.clasificarFalloAlCrear(422).accion, "fallido");

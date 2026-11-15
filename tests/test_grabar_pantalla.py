@@ -81,6 +81,17 @@ def test_reabrir_una_grabacion_con_cierre_pendiente_lleva_al_inicio():
     assert "terminarReal(" in codigo[inicio:codigo.index("async function viewRecord(", inicio)]
 
 
+def test_la_pastilla_del_modo_sala_sigue_el_estado_del_grabador():
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("function salaOn(")
+    sala = cuerpo[inicio:cuerpo.index("async function finishLocal(", inicio)]
+    assert "estadoSala(" in sala
+    assert "replaceWith(" in sala  # la pastilla se rehace al cambiar el estado
+    assert "wakeLock.acquire()" in sala
+    listener = cuerpo[cuerpo.index('rec.addEventListener("state"'):cuerpo.index('rec.addEventListener("tick"')]
+    assert "sala?.update" in listener
+
+
 def test_record_button_acepta_deshabilitado_y_etiqueta():
     ui = (APP_JS.parent / "ui.js").read_text(encoding="utf-8")
     inicio = ui.index("export function RecordButton(")
