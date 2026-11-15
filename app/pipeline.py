@@ -27,19 +27,31 @@ def enqueue(sid: str):
     _q.put((sid, sandbox.actual(), llm_router.usuario_actual()))
 
 
+def _dueno(sid: str) -> str:
+    """Quién grabó la sesión (created_by); las de antes de ese campo, y las que ya no están, quedan del sistema."""
+    creada_por = (db.get_session(sid) or {}).get("created_by")
+    return creada_por or f"{llm_router.PREFIJO_SISTEMA}pipeline"
+
+
+def reencolar_pendientes():
+    """Al arrancar, retoma lo que quedó a medias, a nombre de quien lo grabó (sin eso las trazas y el gasto del
+    reintento quedarían sin usuario)."""
+    with sandbox.real():
+        for sid in db.sessions_in(db.PROCESSING):
+            _q.put((sid, None, _dueno(sid)))
+    # Las de prueba que quedaron a medias se terminan con proveedores fake.
+    prueba = sandbox.Sandbox(username="pipeline")
+    with sandbox.activar(prueba):
+        for sid in db.sessions_in(db.PROCESSING):
+            _q.put((sid, prueba, _dueno(sid)))
+
+
 def start_worker():
     global _started
     if _started:
         return
     _started = True
-    with sandbox.real():
-        for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, None, None))
-    # Las de prueba que quedaron a medias se terminan con proveedores fake (no se sabe quién las encoló).
-    prueba = sandbox.Sandbox(username="pipeline")
-    with sandbox.activar(prueba):
-        for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, prueba, None))
+    reencolar_pendientes()
     threading.Thread(target=_loop, name="pipeline", daemon=True).start()
 
 

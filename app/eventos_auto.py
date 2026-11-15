@@ -29,7 +29,7 @@ from psycopg import sql
 from psycopg.errors import UndefinedColumn, UndefinedTable
 from psycopg.rows import tuple_row
 
-from . import config, eventos_link, events, pg, sandbox, shows, ticketmaster
+from . import config, eventos_link, events, llm_router, pg, sandbox, shows, ticketmaster
 from .eventos_carga import fila, resumir_con_llm, sedes_con_coordenadas, upsert
 from .eventos_fuentes import (
     Evento,
@@ -416,7 +416,7 @@ def revisar_ahora(**kw) -> dict:
     if not _en_curso.acquire(blocking=False):
         return {"estado": "ocupado"}
     try:
-        with sandbox.real():
+        with sandbox.real(), llm_router.como_sistema("eventos-auto"):
             resultado = revisar(**kw)
             events.load()
             shows.load()

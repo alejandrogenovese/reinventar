@@ -4,6 +4,7 @@ Cada lote se guarda apenas vuelve; un lote fallido no frena al resto y queda pen
 """
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 
 
 def en_lotes[T](items: Sequence[T], tamano: int) -> list[list[T]]:
@@ -16,7 +17,8 @@ def procesar[T, R](lotes: list[list[T]], llamar: Callable[[list[T]], R], al_volv
     Devuelve los errores de los lotes que fallaron."""
     fallidos = []
     with ThreadPoolExecutor(max_workers=hilos) as pool:
-        futuros = {pool.submit(llamar, lote): lote for lote in lotes}
+        # Cada hilo corre en una copia del contexto: así conserva el usuario y la traza (ContextVar) de quien llama.
+        futuros = {pool.submit(copy_context().run, llamar, lote): lote for lote in lotes}
         for futuro in as_completed(futuros):
             lote = futuros[futuro]
             try:
