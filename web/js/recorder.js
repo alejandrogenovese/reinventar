@@ -266,14 +266,16 @@ const ESTADO_TERMINADA_SIN_SENAL = "Terminada · esperando señal";
 
 /**
  * Qué se le dice al usuario después de «Terminar y procesar». Con señal: el flujo de siempre (aviso y botón null).
- * Sin señal: una sesión local se cierra sola aunque se cierre la app (pedirTerminar), así que deja volver al inicio;
- * una ya creada en el servidor solo se cierra con la pantalla abierta, y el aviso lo dice.
+ * Sin señal el cierre queda pedido (pedirTerminar en una sesión local, pedirTerminarReal en una ya creada en el
+ * servidor) y lo termina el uploader: se puede cerrar la app, y el botón deja volver al inicio.
  */
-export function textosTerminar({ local, conRed }) {
+export function textosTerminar({ conRed }) {
   if (conRed) return { aviso: null, estado: "Terminando…", boton: null };
-  return local
-    ? { aviso: `${AVISO_SIN_SENAL} Se sube y se procesa sola cuando vuelva la señal; podés cerrar la app.`, estado: ESTADO_TERMINADA_SIN_SENAL, boton: "Volver al inicio" }
-    : { aviso: `${AVISO_SIN_SENAL} Se termina de subir y se procesa cuando vuelva la señal; dejá la app abierta.`, estado: ESTADO_TERMINADA_SIN_SENAL, boton: "Se procesa sola con señal" };
+  return {
+    aviso: `${AVISO_SIN_SENAL} Se sube y se procesa sola cuando vuelva la señal; podés cerrar la app.`,
+    estado: ESTADO_TERMINADA_SIN_SENAL,
+    boton: "Volver al inicio",
+  };
 }
 const creando = new Map();   // un solo POST por sesión local aunque dos loops lo pidan a la vez
 const cerrando = new Set();
@@ -350,6 +352,24 @@ export function resultadoDeFinishFallido(e, intentos) {
   return "error";
 }
 
+/**
+ * Un intento de cerrar (finish) una grabación terminada, local o ya creada en el servidor. No toca nada: devuelve qué pasó
+ * para que el uploader lo guarde. `finish` se inyecta. Nunca se borra audio sin un finish confirmado por el servidor.
+ * resultado: "esperar" | "fallidos" | "cerrada" | "reintentar" (sin red o 5xx) | "contar" (409: faltan pedazos) | "error".
+ */
+export async function intentarCierre({ terminar, realId, pendientes, fallidos, error = null }, finish) {
+  const decision = decidirCierre({ terminar, realId, pendientes, fallidos, error });
+  if (decision === "fallidos") return { resultado: "fallidos" };
+  if (decision !== "cerrar") return { resultado: "esperar" };
+  try {
+    await finish(realId, terminar.parts);
+    return { resultado: "cerrada" };
+  } catch (e) {
+    if (resultadoDeFinishFallido(e, terminar.intentos) === "error") return { resultado: "error", error: e };
+    return { resultado: e.status === 409 ? "contar" : "reintentar", error: e };
+  }
+}
+
 const sinAudio = (parts) => Object.values(parts).every((n) => !n);
 
 // Sube la cola de IndexedDB: de a un pedazo por vuelta, el más viejo primero, con backoff.
@@ -369,22 +389,29 @@ export const uploader = new (class extends EventTarget {
       cerrando.add(id);
       try { await this._cerrar(id, s); } finally { cerrando.delete(id); }
     }
+    for (const s of store.terminaresReales()) {  // sesiones que ya existían en el servidor cuando se tocó Terminar
+      if (cerrando.has(s.id)) continue;
+      cerrando.add(s.id);
+      try { await this._cerrarReal(s); } finally { cerrando.delete(s.id); }
+    }
   }
   async _cerrar(id, s) {
     const [pendientes, fallidos] = await Promise.all([store.countFor(id), store.failedFor(id)]);
     if (!s.realId && !pendientes && !fallidos && sinAudio(s.terminar.parts)) { store.quitarSesionLocal(id); return; }  // no llegó a grabar nada
-    const decision = decidirCierre({ terminar: s.terminar, realId: s.realId, pendientes, fallidos, error: s.error });
-    if (decision === "fallidos") { store.marcarErrorLocal(id, MSG_CIERRE_CON_FALLIDOS); return; }
-    if (decision !== "cerrar") return;
-    try {
-      await Sessions.finish(s.realId, s.terminar.parts);
-      store.quitarSesionLocal(id);
-    } catch (e) {
-      if (resultadoDeFinishFallido(e, s.terminar.intentos) === "error") store.marcarErrorLocal(id, mensajeError(e, MSG_CIERRE_FALLIDO));
-      else if (e.status === 409) store.contarIntentoDeCierre(id);
-      else this.lastError = e.status === 401 ? "Token inválido" : "Sin conexión";
-      this._emit();
-    }
+    const r = await intentarCierre({ terminar: s.terminar, realId: s.realId, pendientes, fallidos, error: s.error }, (rid, parts) => Sessions.finish(rid, parts));
+    this._aplicarCierre(r, { marcarError: (m) => store.marcarErrorLocal(id, m), contarIntento: () => store.contarIntentoDeCierre(id), quitar: () => store.quitarSesionLocal(id) });
+  }
+  async _cerrarReal(s) {
+    const [pendientes, fallidos] = await Promise.all([store.countFor(s.id), store.failedFor(s.id)]);
+    const r = await intentarCierre({ terminar: s.terminar, realId: s.id, pendientes, fallidos, error: s.error }, (rid, parts) => Sessions.finish(rid, parts));
+    this._aplicarCierre(r, { marcarError: (m) => store.marcarErrorReal(s.id, m), contarIntento: () => store.contarIntentoDeCierreReal(s.id), quitar: () => store.quitarTerminarReal(s.id) });
+  }
+  _aplicarCierre({ resultado, error }, { marcarError, contarIntento, quitar }) {
+    if (resultado === "fallidos") marcarError(MSG_CIERRE_CON_FALLIDOS);
+    else if (resultado === "cerrada") quitar();
+    else if (resultado === "error") { marcarError(mensajeError(error, MSG_CIERRE_FALLIDO)); this._emit(); }
+    else if (resultado === "contar") { contarIntento(); this._emit(); }
+    else if (resultado === "reintentar") { this.lastError = error.status === 401 ? "Token inválido" : "Sin conexión"; this._emit(); }
   }
   async _count() { ({ pending: this.pending, failed: this.failed, failedError: this.failedError } = await store.queueStatus()); }
   async _run() {

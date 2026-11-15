@@ -293,13 +293,98 @@ test("terminar sin señal en una sesión local: aviso claro, estado «Terminada�
   assert.equal(t.boton, "Volver al inicio");
 });
 
-test("terminar sin señal en una sesión ya creada en el servidor: pide dejar la app abierta (no promete cerrarla)", () => {
+test("terminar sin señal es igual para una sesión local y para una ya creada en el servidor: se puede cerrar la app", () => {
   const t = rec.textosTerminar({ local: false, conRed: false });
+  assert.deepEqual(t, rec.textosTerminar({ local: true, conRed: false }));
   assert.match(t.aviso, /Sin señal: la grabación quedó guardada en el celular/);
-  assert.match(t.aviso, /dejá la app abierta/);
-  assert.doesNotMatch(t.aviso, /podés cerrar la app/);
-  assert.equal(t.estado, "Terminada · esperando señal");
-  assert.doesNotMatch(t.boton, /Esperando que termine de subir/);
+  assert.match(t.aviso, /podés cerrar la app/);
+  assert.doesNotMatch(t.aviso, /dejá la app abierta/);
+  assert.equal(t.boton, "Volver al inicio");
+});
+
+// Terminar sin poder completarlo en una sesión que ya existe en el servidor: queda pedido y lo cierra el uploader.
+test("pedirTerminarReal guarda las partes, el título y los intentos por id real", () => {
+  limpiar();
+  store.pedirTerminarReal("real00000010", { 0: 3 }, "Charla real");
+  const t = store.terminarReal("real00000010");
+  assert.deepEqual(t.terminar, { parts: { 0: 3 }, intentos: 0 });
+  assert.equal(t.title, "Charla real");
+  assert.equal(store.terminarReal("otro"), null);
+  assert.deepEqual(store.terminaresReales().map((x) => x.id), ["real00000010"]);
+});
+
+test("el cierre diferido de una sesión real se cuenta, falla y se quita sin tocar las locales", () => {
+  limpiar();
+  const loc = store.crearSesionLocal(META);
+  store.pedirTerminarReal("real00000011", { 0: 1 }, "Otra");
+  store.contarIntentoDeCierreReal("real00000011");
+  assert.equal(store.terminarReal("real00000011").terminar.intentos, 1);
+  store.marcarErrorReal("real00000011", "Faltan pedazos");
+  assert.equal(store.terminarReal("real00000011").error, "Faltan pedazos");
+  store.reabrirCierres();
+  assert.equal(store.terminarReal("real00000011").error, null);
+  assert.equal(store.terminarReal("real00000011").terminar.intentos, 0);
+  store.quitarTerminarReal("real00000011");
+  assert.equal(store.terminarReal("real00000011"), null);
+  assert.deepEqual(store.terminaresReales(), []);
+  assert.equal(store.sesionLocal(loc.id).realId, null);
+});
+
+test("un cierre diferido de sesión real aparece en «Grabadas en este celular» como esperando_senal", async () => {
+  limpiar();
+  store.pedirTerminarReal("real00000012", { 0: 1 }, "Charla del pasillo");
+  const [p] = await store.sesionesLocalesPendientes();
+  assert.equal(p.id, "real00000012");
+  assert.equal(p.title, "Charla del pasillo");
+  assert.equal(p.estado, "esperando_senal");
+  assert.equal(p.realId, "real00000012");
+  assert.ok(Number.isFinite(p.at));
+});
+
+test("quitar el cierre diferido lo saca de la lista de Inicio", async () => {
+  limpiar();
+  store.pedirTerminarReal("real00000013", { 0: 1 }, "X");
+  store.quitarTerminarReal("real00000013");
+  assert.deepEqual(await store.sesionesLocalesPendientes(), []);
+});
+
+const FIN = { terminar: { parts: { 0: 2 }, intentos: 0 }, realId: "r1", pendientes: 0, fallidos: 0, error: null };
+
+test("intentarCierre espera si quedan pedazos y no llama a finish", async () => {
+  const r = await rec.intentarCierre({ ...FIN, pendientes: 1 }, async () => assert.fail("no debe cerrar"));
+  assert.equal(r.resultado, "esperar");
+});
+
+test("intentarCierre cierra con las partes guardadas cuando la cola quedó en cero", async () => {
+  let llamada = null;
+  const r = await rec.intentarCierre(FIN, async (id, parts) => { llamada = [id, parts]; });
+  assert.equal(r.resultado, "cerrada");
+  assert.deepEqual(llamada, ["r1", { 0: 2 }]);
+});
+
+test("intentarCierre informa los pedazos fallidos sin cerrar", async () => {
+  const r = await rec.intentarCierre({ ...FIN, fallidos: 1 }, async () => assert.fail("no debe cerrar"));
+  assert.equal(r.resultado, "fallidos");
+});
+
+test("intentarCierre: sin red se reintenta; con 409 se cuenta el intento y al tope queda el error", async () => {
+  const sinRed = await rec.intentarCierre(FIN, async () => { throw Object.assign(new Error("x"), { status: 0 }); });
+  assert.equal(sinRed.resultado, "reintentar");
+  const faltan = Object.assign(new Error("Faltan"), { status: 409, detail: { missing: { 0: [1] } } });
+  assert.equal((await rec.intentarCierre(FIN, async () => { throw faltan; })).resultado, "contar");
+  const alTope = { ...FIN, terminar: { parts: { 0: 2 }, intentos: rec.MAX_INTENTOS_CIERRE - 1 } };
+  assert.equal((await rec.intentarCierre(alTope, async () => { throw faltan; })).resultado, "error");
+});
+
+test("intentarCierre: un 404 deja el error visible y el audio sigue guardado", async () => {
+  const r = await rec.intentarCierre(FIN, async () => { throw Object.assign(new Error("no existe"), { status: 404 }); });
+  assert.equal(r.resultado, "error");
+  assert.equal(r.error.status, 404);
+});
+
+test("intentarCierre no hace nada si ya hay un error marcado", async () => {
+  const r = await rec.intentarCierre({ ...FIN, error: "algo" }, async () => assert.fail("no debe cerrar"));
+  assert.equal(r.resultado, "esperar");
 });
 
 test("terminar con señal: sin aviso de sin señal y sin «Listo para grabar»", () => {
