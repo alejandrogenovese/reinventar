@@ -24,9 +24,11 @@ const nuevoCampo = (id = "password", attrs = {}) => {
   return { ...campo, ojo: campo.el.hijos("button")[0] };
 };
 
-test("cada estado del ojo dice qué va a hacer el botón", () => {
-  assert.deepEqual(estadoOjo(false), { tipo: "password", etiqueta: "Mostrar contraseña", pulsado: "false", icono: "ojo" });
-  assert.deepEqual(estadoOjo(true), { tipo: "text", etiqueta: "Ocultar contraseña", pulsado: "true", icono: "ojoTachado" });
+// Como el campo de contraseña de Android (Material): el ícono muestra el estado (oculta → ojo tachado, visible → ojo
+// abierto) y el lector de pantalla anuncia lo que hace el botón, con aria-pressed para el estado.
+test("el ícono del ojo muestra el estado y la etiqueta dice qué va a hacer el botón", () => {
+  assert.deepEqual(estadoOjo(false), { tipo: "password", etiqueta: "Mostrar contraseña", pulsado: "false", icono: "ojoTachado" });
+  assert.deepEqual(estadoOjo(true), { tipo: "text", etiqueta: "Ocultar contraseña", pulsado: "true", icono: "ojo" });
 });
 
 test("arranca oculta y el botón no envía el formulario ni tapa el id, el name y el autocomplete del input", () => {
