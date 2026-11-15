@@ -12,8 +12,27 @@ test("cada estado se ve con su pastilla y su texto", () => {
       const { status, texto } = fichaLocal({ id: "loc_1", title: "x", estado, at: 1 });
       return [status, texto];
     }),
-    [["recording", "Grabando"], ["uploading", "Pendiente de subir"], ["queued", "Esperando señal"]],
+    [["recording", "Grabando"], ["uploading", "Pendiente de subir"], ["queued", "Esperando señal para procesar"]],
   );
+});
+
+test("también entiende los nombres cortos de estado (pendiente, terminada)", () => {
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "pendiente", at: 1 }).texto, "Pendiente de subir");
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "terminada", at: 1 }).texto, "Esperando señal para procesar");
+});
+
+test("una grabación ya terminada no es un link: #/grabar/<id> la mandaría al inicio", () => {
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "esperando_senal", at: 1 }).href, null);
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "terminada", at: 1 }).href, null);
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "pendiente_de_subir", at: 1 }).href, "#/grabar/loc_1");
+});
+
+test("si la sesión quedó trabada con un error, va con la pastilla de error y el motivo", () => {
+  const f = fichaLocal({ id: "loc_1", title: "x", estado: "pendiente_de_subir", at: 1, error: "El servidor rechazó la sesión" });
+  assert.equal(f.status, "error");
+  assert.equal(f.texto, "Error");
+  assert.equal(f.detalle, "El servidor rechazó la sesión");
+  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "grabando", at: 1 }).detalle, null);
 });
 
 test("tocar la tarjeta lleva a grabar con el id local", () => {
@@ -52,5 +71,5 @@ test("las más nuevas van primero", async () => {
     { id: "loc_b", title: "B", estado: "grabando", at: 300 },
     { id: "loc_c", title: "C", estado: "esperando_senal", at: 200 },
   ] };
-  assert.deepEqual((await cargarLocales(store)).map((f) => f.href), ["#/grabar/loc_b", "#/grabar/loc_c", "#/grabar/loc_a"]);
+  assert.deepEqual((await cargarLocales(store)).map((f) => f.id), ["loc_b", "loc_c", "loc_a"]);
 });
