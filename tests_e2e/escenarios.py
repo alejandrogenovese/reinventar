@@ -66,9 +66,8 @@ async def escenario_2_grabar_sin_red(c: Contexto) -> None:
     await p.evaluar(f"document.querySelector('#title').value = {json.dumps(TITULO)}")
     await _click(p, "button[type=submit]", "el botón «Preparar grabación»")
     await p.esperar("/^#\\/grabar\\/loc_[0-9a-f]{12}$/.test(location.hash)", "pantalla de grabar con una sesión local (loc_…)")
-    # «Listo para grabar» se ve antes de que el micrófono abra: tocar ahí da «Primero abrí el micrófono». Se espera a que
-    # el selector tenga micrófonos (los pone openMic cuando el stream ya está).
-    await p.esperar("!!document.querySelector('#mic option')", "el micrófono abierto (selector con opciones)")
+    # Desde #81 el botón queda deshabilitado («Abriendo el micrófono…») hasta que hay stream: «Listo para grabar» ya es seguro.
+    await p.esperar("document.body.innerText.includes('Listo para grabar')", "micrófono listo")
     await _click(p, "button.ra-rec", "el botón de grabar")
     await p.esperar("document.body.innerText.includes('Grabando')", "estado «Grabando»")
     await asyncio.sleep(GRABAR_SEGUNDOS)
