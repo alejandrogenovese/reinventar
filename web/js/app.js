@@ -357,11 +357,16 @@ async function viewRecord(id) {
       h("div", { class: "actions" }, Button("Descartar", { variant: "danger", onclick: discard })))));
 
   const REC_STATUS = { idle: "Listo para grabar", stopped: "Listo para grabar", recording: "Grabando", paused: "En pausa" };
+  // Hasta que no haya rec.stream no se puede grabar: el botón queda deshabilitado (abriendo el micrófono o, si falló, con el error).
+  const MSG_ABRIENDO_MIC = "Abriendo el micrófono…";
+  let micError = null;
   const paint = () => {
-    recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle));
+    const sinMic = (rec.state === "idle" || rec.state === "stopped") && !rec.stream;
+    recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle,
+      { disabled: sinMic, label: sinMic ? (micError ? "Sin micrófono" : MSG_ABRIENDO_MIC) : null }));
     counter.dataset.state = rec.state;
     recStatus.dataset.state = rec.state;
-    recStatus.textContent = REC_STATUS[rec.state] || "";
+    recStatus.textContent = sinMic ? (micError || MSG_ABRIENDO_MIC) : (REC_STATUS[rec.state] || "");
   };
   rec.addEventListener("state", () => { if (rec.state !== "recording") paused.hidden = true; paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
@@ -395,12 +400,16 @@ async function viewRecord(id) {
     try {
       await rec.open(deviceId);
       msg.replaceChildren();
+      micError = null;
+      paint();
       const mics = await listMics();
       const chosen = deviceId || mics.find((m) => m.label === rec.deviceLabel)?.deviceId;
       micSelect.replaceChildren(...mics.map((m, i) => h("option", { value: m.deviceId, selected: m.deviceId === chosen }, m.label || `Micrófono ${i + 1}`)));
       return mics;
     } catch (e) {
-      msg.replaceChildren(h("div", { class: "notice err" }, MSG_MICROFONO[e.name] ?? mensajeError(e, "No pude abrir el micrófono.")));
+      micError = MSG_MICROFONO[e.name] ?? mensajeError(e, "No pude abrir el micrófono.");
+      msg.replaceChildren(h("div", { class: "notice err" }, micError));
+      paint();
       return [];
     }
   }
@@ -414,6 +423,7 @@ async function viewRecord(id) {
   if (!pref) { const dji = pickDjI(mics); if (dji) await openMic(dji.deviceId); }
 
   function toggle() {
+    if (!rec.stream && (rec.state === "idle" || rec.state === "stopped")) { toast("Esperá a que se abra el micrófono."); return; }
     try {
       if (rec.state === "idle" || rec.state === "stopped") rec.start();
       else if (rec.state === "recording") rec.pause();

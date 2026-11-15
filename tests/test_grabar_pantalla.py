@@ -24,3 +24,33 @@ def test_el_estado_de_subida_no_le_pasa_null_al_dom():
     inicio = cuerpo.index("upl.replaceChildren(")
     llamada = cuerpo[inicio:cuerpo.index(";", inicio)]
     assert "null" not in llamada
+
+
+def test_el_boton_de_grabar_espera_al_microfono():
+    # «Listo para grabar» y el botón no pueden aparecer antes de que termine openMic: tocar en esa ventana
+    # daba «Primero abrí el micrófono». Mientras no haya rec.stream queda deshabilitado.
+    cuerpo = _cuerpo_de_view_record()
+    assert "Abriendo el micrófono…" in cuerpo
+    assert "!rec.stream" in cuerpo
+    assert "disabled" in cuerpo[cuerpo.index("const paint ="):cuerpo.index("rec.addEventListener(\"state\"")]
+    assert cuerpo.index("const paint =") < cuerpo.index("await openMic(pref")
+
+
+def test_si_falla_el_microfono_el_boton_queda_deshabilitado_con_el_error():
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("async function openMic(")
+    openmic = cuerpo[inicio:cuerpo.index("micSelect.addEventListener", inicio)]
+    assert "micError" in openmic and "paint()" in openmic
+
+
+def test_toggle_no_arranca_sin_microfono():
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("function toggle(")
+    assert "rec.stream" in cuerpo[inicio:cuerpo.index("rec.start()", inicio)]
+
+
+def test_record_button_acepta_deshabilitado_y_etiqueta():
+    ui = (APP_JS.parent / "ui.js").read_text(encoding="utf-8")
+    inicio = ui.index("export function RecordButton(")
+    firma = ui[inicio:ui.index("\n", inicio)]
+    assert "disabled" in firma and "label" in firma
