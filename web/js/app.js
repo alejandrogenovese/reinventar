@@ -29,7 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
-import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
+import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
@@ -360,15 +360,21 @@ async function viewRecord(id) {
   // Hasta que no haya rec.stream no se puede grabar: el botón queda deshabilitado (abriendo el micrófono o, si falló, con el error).
   const MSG_ABRIENDO_MIC = "Abriendo el micrófono…";
   let micError = null;
+  // Después de «Terminar» el micrófono se cierra y la pantalla ya no es de grabar: textosFin trae el estado a mostrar.
+  let terminando = false, textosFin = null, salio = false;
   const paint = () => {
-    const sinMic = (rec.state === "idle" || rec.state === "stopped") && !rec.stream;
-    recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle,
-      { disabled: sinMic, label: sinMic ? (micError ? "Sin micrófono" : MSG_ABRIENDO_MIC) : null }));
+    const sinMic = !terminando && (rec.state === "idle" || rec.state === "stopped") && !rec.stream;
+    const etiqueta = terminando ? textosFin.estado : sinMic ? (micError ? "Sin micrófono" : MSG_ABRIENDO_MIC) : null;
+    recSlot.replaceChildren(RecordButton(rec.state === "stopped" ? "idle" : rec.state, toggle, { disabled: sinMic || terminando, label: etiqueta }));
     counter.dataset.state = rec.state;
     recStatus.dataset.state = rec.state;
-    recStatus.textContent = sinMic ? (micError || MSG_ABRIENDO_MIC) : (REC_STATUS[rec.state] || "");
+    recStatus.textContent = terminando ? textosFin.estado : sinMic ? (micError || MSG_ABRIENDO_MIC) : (REC_STATUS[rec.state] || "");
   };
-  rec.addEventListener("state", () => { if (rec.state !== "recording") paused.hidden = true; paint(); finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed); });
+  rec.addEventListener("state", () => {
+    if (rec.state !== "recording") paused.hidden = true;
+    paint();
+    if (!terminando) finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed);
+  });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
   rec.addEventListener("interrupted", () => { paused.hidden = false; silence.hidden = true; });
   rec.addEventListener("resumed", () => { paused.hidden = true; msg.replaceChildren(); });
@@ -446,36 +452,60 @@ async function viewRecord(id) {
   // cierre la app). Si hay señal se espera un rato y se abre la grabación; si no, se vuelve al inicio.
   async function finishLocal() {
     store.pedirTerminar(id, rec.partsCount());
-    msg.replaceChildren(h("div", { class: "notice" }, "Terminando: se sube y se procesa en cuanto haya señal…"));
     uploader.kick();
     let realId = null;
     for (let t = 0; t < FINISH_LOCAL_ESPERA_MS; t += 500) {
+      pintarTerminando("Terminando: se sube y se procesa en cuanto haya señal…");
       await new Promise((r) => setTimeout(r, 500));
+      if (salio) return;
       const local = store.sesionLocal(id);
       realId = local?.realId || realId;
       if (!local) { activeRecorder = null; location.hash = realId ? `#/s/${realId}` : "#/"; return; }
-      if (local.error) { msg.replaceChildren(h("div", { class: "notice err" }, local.error)); return; }
+      if (local.error) { reabrirTerminar(); msg.replaceChildren(h("div", { class: "notice err" }, local.error)); return; }
     }
     activeRecorder = null;
     toast("Grabación terminada: se sube y se procesa cuando vuelva la señal.");
     location.hash = "#/";
   }
 
+  // Texto, estado y botón mientras termina. Con señal, el texto de siempre (`textoConRed`); sin señal, el aviso de que quedó guardada.
+  function pintarTerminando(textoConRed) {
+    textosFin = textosTerminar({ local: store.esLocal(id), conRed: navigator.onLine });
+    paint();
+    msg.replaceChildren(h("div", { class: textosFin.aviso ? "notice warn" : "notice" }, textosFin.aviso ?? textoConRed));
+    finishBtn.textContent = textosFin.boton ?? "Terminar y procesar";
+    // Una sesión local sin señal se cierra sola: el botón deja volver al inicio. Las demás esperan con la pantalla abierta.
+    finishBtn.disabled = !(textosFin.boton && store.esLocal(id));
+  }
+
+  // Si terminar falló, la pantalla vuelve a ser de grabar y el botón a «Terminar y procesar».
+  function reabrirTerminar() {
+    terminando = false;
+    textosFin = null;
+    finishBtn.textContent = "Terminar y procesar";
+    finishBtn.disabled = false;
+    paint();
+  }
+
   async function finish() {
+    if (terminando && store.esLocal(id)) { salio = true; activeRecorder = null; location.hash = "#/"; return; } // «Volver al inicio»
     finishBtn.disabled = true;
+    terminando = true;
+    pintarTerminando("Terminando…");
     await rec.stop();
     rec.close();
     if (store.esLocal(id)) return finishLocal();
-    msg.replaceChildren(h("div", { class: "notice" }, "Esperando que termine de subir…"));
+    pintarTerminando("Esperando que termine de subir…");
     uploader.kick();
     for (let i = 0; (await store.countFor(id)) > 0; i++) {
       if (i > 0 && i % 15 === 0) uploader.kick();
       await new Promise((r) => setTimeout(r, 1000));
-      if (i > 600) { msg.replaceChildren(h("div", { class: "notice err" }, "La subida no termina. Revisá la conexión; lo pendiente queda guardado en el celular.")); finishBtn.disabled = false; return; }
+      pintarTerminando("Esperando que termine de subir…");
+      if (i > 600) { reabrirTerminar(); msg.replaceChildren(h("div", { class: "notice err" }, "La subida no termina. Revisá la conexión; lo pendiente queda guardado en el celular.")); return; }
     }
     if (await store.failedFor(id)) {
+      reabrirTerminar();
       msg.replaceChildren(h("div", { class: "notice err" }, "Hay pedazos de audio que el servidor rechazó y no se pudieron subir. Tocá Reintentar; siguen guardados en el celular."));
-      finishBtn.disabled = false;
       return;
     }
     try {
@@ -485,8 +515,8 @@ async function viewRecord(id) {
       location.hash = `#/s/${id}`;
     } catch (e) {
       const missing = e.detail?.missing;
+      reabrirTerminar();
       msg.replaceChildren(h("div", { class: "notice err" }, missing ? `Faltan pedazos en el servidor (${Object.values(missing).flat().length}). Si el celular los tiene, se suben solos: probá Terminar de nuevo en un rato.` : mensajeError(e, "No pude terminar la grabación. Probá de nuevo.")));
-      finishBtn.disabled = false;
     }
   }
 

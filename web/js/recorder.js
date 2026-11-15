@@ -261,6 +261,20 @@ export const MSG_SESION_RECHAZADA = "El servidor no aceptó crear la grabación,
 export const MSG_LOCAL_SIN_DATOS = "Grabación local sin datos: no sé a qué charla pertenece, no se pudo subir";
 export const MSG_CIERRE_FALLIDO = "No se pudo cerrar la grabación: se vuelve a intentar con señal";
 export const MSG_CIERRE_CON_FALLIDOS ="Hay pedazos que el servidor rechazó: no se pudo cerrar la grabación";
+const AVISO_SIN_SENAL = "Sin señal: la grabación quedó guardada en el celular.";
+const ESTADO_TERMINADA_SIN_SENAL = "Terminada · esperando señal";
+
+/**
+ * Qué se le dice al usuario después de «Terminar y procesar». Con señal: el flujo de siempre (aviso y botón null).
+ * Sin señal: una sesión local se cierra sola aunque se cierre la app (pedirTerminar), así que deja volver al inicio;
+ * una ya creada en el servidor solo se cierra con la pantalla abierta, y el aviso lo dice.
+ */
+export function textosTerminar({ local, conRed }) {
+  if (conRed) return { aviso: null, estado: "Terminando…", boton: null };
+  return local
+    ? { aviso: `${AVISO_SIN_SENAL} Se sube y se procesa sola cuando vuelva la señal; podés cerrar la app.`, estado: ESTADO_TERMINADA_SIN_SENAL, boton: "Volver al inicio" }
+    : { aviso: `${AVISO_SIN_SENAL} Se termina de subir y se procesa cuando vuelva la señal; dejá la app abierta.`, estado: ESTADO_TERMINADA_SIN_SENAL, boton: "Se procesa sola con señal" };
+}
 const creando = new Map();   // un solo POST por sesión local aunque dos loops lo pidan a la vez
 const cerrando = new Set();
 
