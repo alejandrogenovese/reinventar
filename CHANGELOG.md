@@ -25,6 +25,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Al prender «Usar en qué sede estoy para los avisos» se prende también «Usar mi ubicación»: antes había que buscarla
   más arriba y la casilla parecía no tildarse.
 - Las revisiones automáticas de eventos y de charlas de staging y de producción ya no se saltean entre sí.
+- Una grabación hecha sin señal queda con la hora en que se grabó (no la de cuando volvió la señal) y no se duplica
+  si la app se cierra justo mientras se sube.
+- Langfuse y el panel de LiteLLM muestran quién hizo cada pedido al LLM en todos los caminos (también las grabaciones
+  retomadas al reiniciar y la traducción por lotes). Los trabajos automáticos van como «sistema:eventos-auto»,
+  «sistema:healthcheck», «sistema:temas» o «sistema:pipeline».
 
 ### Corregido
 - Los errores se muestran en castellano en toda la app (antes salían textos del navegador como «Failed to fetch» o
