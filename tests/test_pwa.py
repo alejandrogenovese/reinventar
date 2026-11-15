@@ -124,7 +124,7 @@ def test_el_timer_del_shell_se_cancela_y_el_resuscribir_tiene_timeout():
 def test_el_token_del_sw_se_borra_al_desactivar_y_al_cerrar_sesion():
     js = (WEB / "js" / "notifications.js").read_text()
     app_js = (WEB / "js" / "app.js").read_text()
-    disable = js[js.index("export async function disable()"):]
+    disable = js[js.index("export async function disable("):]
     # disable() borra la caché de datos antes de cualquier return (también sin suscripción)...
     assert disable.index("caches.delete(SW_DATOS)") < disable.index("if (!sub) return")
     # ...y el logout la llama antes de borrar el token.

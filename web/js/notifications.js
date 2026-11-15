@@ -1,17 +1,37 @@
 // Ajustes › Notificaciones en el celular (Web Push): avisos de lo fijado y de cambios aunque la app esté cerrada.
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 import { getToken, Push, Ubicacion } from "./api.js";
-import { locationEnabled, reportVenue, setVenueReportEnabled } from "./location.js";
+import { locationEnabled, reportVenue, setLocationEnabled, setVenueReportEnabled } from "./location.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
-const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const esIOS = ({ navigator: n }) => /iPhone|iPad|iPod/.test(n.userAgent ?? "") || (n.platform === "MacIntel" && n.maxTouchPoints > 1); // el iPad se presenta como Mac
+const estaInstalada = (env) => env.navigator.standalone === true || env.matchMedia?.("(display-mode: standalone)")?.matches === true;
+
+/** "ok" | "ios_sin_instalar" (iPhone/iPad en una pestaña de Safari: ahí iOS no deja activar push) | "no_soportado". */
+export function estadoPush(env = globalThis) {
+  if (!("serviceWorker" in (env.navigator ?? {})) || !("PushManager" in env) || !("Notification" in env)) return "no_soportado";
+  return esIOS(env) && !estaInstalada(env) ? "ios_sin_instalar" : "ok";
+}
+const supported = () => estadoPush() === "ok";
+
+// Con el service worker que no contesta (iOS sin instalar, Safari trabado) `.ready` o getSubscription no resuelven nunca:
+// sin tope el interruptor quedaba deshabilitado para siempre y nadie se enteraba.
+export const READY_TIMEOUT_MS = 5000;
+const MSG_SW_NO_RESPONDE = "El servicio de notificaciones del celular no responde. Cerrá y abrí la app y probá de nuevo.";
+
+function conTope(promesa, ms) {
+  let timer;
+  const tope = new Promise((_, rechazar) => { timer = setTimeout(() => rechazar(new Error(MSG_SW_NO_RESPONDE)), ms); });
+  return Promise.race([promesa, tope]).finally(() => clearTimeout(timer));
+}
 
 // La clave VAPID viene en base64url; pushManager.subscribe la quiere en bytes.
 const keyBytes = (b64) => Uint8Array.from(atob(b64.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.codePointAt(0));
 
-async function currentSubscription() {
-  const reg = await navigator.serviceWorker.ready;
-  return { reg, sub: await reg.pushManager.getSubscription() };
+/** El registro del service worker y la suscripción actual (o null), con tope: si no contesta, falla en castellano. */
+export async function currentSubscription(sw = navigator.serviceWorker, timeoutMs = READY_TIMEOUT_MS) {
+  const reg = await conTope(sw.ready, timeoutMs);
+  return { reg, sub: await conTope(reg.pushManager.getSubscription(), timeoutMs) };
 }
 
 // El SW no ve localStorage: le dejamos el token en la Cache API para que, si el navegador rota la suscripción con la app
@@ -61,12 +81,16 @@ async function enable() {
 }
 
 /** Da de baja las notificaciones de este dispositivo (también al cerrar sesión: que no le lleguen al próximo). */
-export async function disable() {
-  // getRegistration y no .ready: .ready no resuelve nunca si no hay service worker (y el logout quedaría colgado).
-  const reg = await navigator.serviceWorker?.getRegistration();
-  const sub = await reg?.pushManager?.getSubscription();
+export async function disable({ timeoutMs = READY_TIMEOUT_MS } = {}) {
   rememberEndpoint(null);
   await caches.delete(SW_DATOS).catch(() => {});
+  // getRegistration y no .ready: .ready no resuelve nunca si no hay service worker. Con tope: si el service worker no
+  // contesta, no se cuelga el cierre de sesión (ya borramos lo nuestro; la baja del push la limpia el servidor al fallar).
+  let sub = null;
+  try {
+    const reg = await conTope(Promise.resolve(navigator.serviceWorker?.getRegistration()), timeoutMs);
+    sub = await conTope(Promise.resolve(reg?.pushManager?.getSubscription()), timeoutMs);
+  } catch { return; }
   if (!sub) return;
   await Push.unsubscribe(sub.endpoint).catch(() => {});
   await sub.unsubscribe();
@@ -76,6 +100,23 @@ const Switch = (id, label) => {
   const input = h("input", { type: "checkbox", id, disabled: true });
   return { input, row: h("label", { class: "actions is-center", for: id }, input, label) };
 };
+
+/**
+ * Prende «Usar en qué sede estoy»: sin la ubicación no sirve, así que si «Usar mi ubicación» está apagada se prende
+ * también (antes saltaba un aviso y la casilla se destildaba sola: parecía que no se podía tildar). Si después no se
+ * puede leer la ubicación, todo vuelve a como estaba.
+ */
+export async function prenderSede(d) {
+  const ubicacionYaPrendida = d.ubicacionPrendida();
+  if (!ubicacionYaPrendida) d.prenderUbicacion();
+  d.marcarSede(true);
+  await d.guardar();
+  if (await d.leerSede()) return;
+  d.marcarSede(false);
+  if (!ubicacionYaPrendida) d.apagarUbicacion();
+  await d.guardar();
+  throw new Error("No pudimos leer tu ubicación: revisá el permiso del navegador.");
+}
 
 /** "Recordarme grabar" y "Avisarme de eventos nuevos" (prendidos) y "Usar en qué sede estoy para los avisos" (apagado;
  *  pide el permiso al prenderlo). */
@@ -92,20 +133,22 @@ function ReminderSettings() {
 
   grabar.input.onchange = toggleSimple(grabar);
   nuevos.input.onchange = toggleSimple(nuevos);
+  // «Usar mi ubicación» está en otra parte de la pantalla (app.js): se prende y se apaga desde acá también, con su casilla.
+  const casillaUbicacion = (on) => { const c = document.getElementById("use-location"); if (c) c.checked = on; };
+  const sedeConUbicacion = {
+    ubicacionPrendida: locationEnabled,
+    prenderUbicacion: () => { setLocationEnabled(true); casillaUbicacion(true); },
+    apagarUbicacion: () => { setLocationEnabled(false); casillaUbicacion(false); },
+    guardar: save,
+    marcarSede: (on) => { sede.input.checked = on; setVenueReportEnabled(on); },
+    leerSede: () => reportVenue({ force: true, ask: true }),
+  };
   sede.input.onchange = async () => {
     sede.input.disabled = true;
     const on = sede.input.checked;
     try {
-      if (on && !locationEnabled()) throw new Error("Primero prendé «Usar mi ubicación».");
-      await save();
-      setVenueReportEnabled(on);
-      if (on && !(await reportVenue({ force: true, ask: true }))) {
-        sede.input.checked = false;
-        setVenueReportEnabled(false);
-        await save();
-        throw new Error("No pudimos leer tu ubicación: revisá el permiso del navegador.");
-      }
-      if (!on) await Ubicacion.clear();
+      if (on) await prenderSede(sedeConUbicacion);
+      else { await save(); setVenueReportEnabled(false); await Ubicacion.clear(); }
       toast(on ? "Listo: los avisos van a tener en cuenta en qué sede estás." : "Listo: borramos la sede guardada.");
     } catch (err) {
       if (on) sede.input.checked = false;
@@ -134,8 +177,11 @@ function ReminderSettings() {
 export function PushSettings() {
   void syncSubscription().catch(() => {});
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
-  if (!supported()) {
-    box.append(h("p", { class: "caption" }, "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí."));
+  const estado = estadoPush();
+  if (estado !== "ok") {
+    box.append(h("p", { class: "caption" }, estado === "ios_sin_instalar"
+      ? "En iPhone y iPad las notificaciones solo funcionan con la app instalada: tocá Compartir › «Agregar a pantalla de inicio» y abrila desde ahí."
+      : "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí."));
     return box;
   }
   const toggle = h("input", { type: "checkbox", id: "push-on", disabled: true });
@@ -143,6 +189,7 @@ export function PushSettings() {
   const testBtn = Button("Probar una notificación", { onclick: async () => {
     try { const r = await Push.test(); toast(`Enviada a ${r.devices} dispositivo${r.devices === 1 ? "" : "s"}.`); } catch (err) { toast(mensajeError(err)); }
   } });
+  testBtn.hidden = true; // solo con una suscripción confirmada: antes de saberlo no se ofrece una prueba que no puede andar
   toggle.onchange = async () => {
     toggle.disabled = true;
     try {
@@ -155,6 +202,12 @@ export function PushSettings() {
     toggle.checked = Boolean(sub) && Notification.permission === "granted";
     toggle.disabled = false;
     testBtn.hidden = !toggle.checked;
+  }).catch((err) => {
+    // El service worker no contestó: el interruptor queda disponible (apagado, sin prueba) y se explica por qué.
+    toggle.checked = false;
+    toggle.disabled = false;
+    testBtn.hidden = true;
+    status.textContent = mensajeError(err);
   });
   box.append(h("label", { class: "actions is-center", for: "push-on" }, toggle, "Activar notificaciones"), status, h("div", { class: "actions" }, testBtn),
     ReminderSettings());
