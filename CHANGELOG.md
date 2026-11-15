@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+- Lo elegido se ve mejor en modo claro y oscuro: los filtros (días, tipos), las pestañas (Networking / Shows,
+  Filtrar / Preguntar) y «Agrupar» se marcan en naranja suave con borde, en vez de blanco que encandilaba en oscuro o
+  gris apenas distinto del fondo.
+
 ### Corregido
 - En la pantalla de grabar ya no aparece un «null» suelto al lado de «Todo subido».
 - Sin señal, la app dice «Sin conexión: revisá la señal y probá de nuevo.» en vez de «Failed to fetch».

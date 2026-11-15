@@ -117,7 +117,31 @@ PARES_USADOS = [
     (".ra-check-list .is-ok strong", "--surface-1"), (".ra-check-list .is-fail strong", "--surface-1"),
     (".ra-ann.is-hero", ".ra-ann.is-hero"), (".ra-ann.is-hero .ra-card-meta, .ra-ann.is-hero .ra-ann-es", "--hero"),
     (".ra-ann.is-hero .ra-tag.is-new", ".ra-ann.is-hero .ra-tag.is-new"), (".ra-ann-cta", "--surface-2"),
+    ('.ra-segtab[aria-selected="true"]', '.ra-segtab[aria-selected="true"]'),
+    (".ra-pillselect-wrap:has(.is-on)", ".ra-pillselect.is-on"),  # el texto lo hereda del envoltorio
 ]
+
+# Lo elegido (chip, pestaña, «Agrupar») tiene que verse elegido en los dos temas: naranja suave con borde, no tinta
+# llena (en oscuro la tinta es casi blanca y encandila) ni una superficie apenas distinta del fondo.
+ACTIVOS = [  # (regla del estado activo, superficie que lo rodea)
+    (".ra-chip-on, .chipgroup input:checked + label", "--surface-1"),
+    ('.ra-segtab[aria-selected="true"]', "--surface-3"),
+    (".ra-pillselect.is-on", "--surface-1"),
+]
+
+
+@pytest.mark.parametrize("regla,_alrededor", ACTIVOS, ids=[r for r, _ in ACTIVOS])
+def test_lo_elegido_usa_el_naranja_suave(regla, _alrededor):
+    assert _token(regla, "background") == "--brand-soft"
+
+
+@pytest.mark.parametrize("tema", [CLARO, OSCURO], ids=["claro", "oscuro"])
+@pytest.mark.parametrize("regla,alrededor", ACTIVOS, ids=[r for r, _ in ACTIVOS])
+def test_el_borde_de_lo_elegido_se_distingue_del_fondo(tema, regla, alrededor):
+    borde = re.findall(r"(?:border(?:-color)?:[^;]*?|box-shadow:[^;]*?)var\((--[\w-]+)\)", _regla(regla))
+    assert borde, f"{regla} no tiene borde de un token"
+    ratio = contraste(_color(tema, borde[-1]), _color(tema, alrededor))
+    assert ratio >= 3, f"{borde[-1]} sobre {alrededor}: {ratio:.2f}:1 (WCAG 1.4.11 pide 3:1)"
 
 
 @pytest.mark.parametrize("tema", [CLARO, OSCURO], ids=["claro", "oscuro"])
