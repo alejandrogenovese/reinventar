@@ -41,17 +41,39 @@ def buscar_navegador() -> str:
     raise SinNavegador("No encontré Chromium ni Chrome. Instalá Chrome o apuntá E2E_CHROME al ejecutable.")
 
 
+async def abrir_pestana(cdp: Cdp) -> tuple[str, str]:
+    """Una pestaña nueva con los dominios que se usan y el tamaño de un celular: (id del objetivo, id de la sesión CDP)."""
+    objetivo = (await cdp.enviar("Target.createTarget", {"url": "about:blank"}))["targetId"]
+    sesion = (await cdp.enviar("Target.attachToTarget", {"targetId": objetivo, "flatten": True}))["sessionId"]
+    for dominio in ("Page", "Runtime", "Network"):
+        await cdp.enviar(f"{dominio}.enable", {}, sesion)
+    await cdp.enviar("Emulation.setDeviceMetricsOverride", {**PANTALLA, "screenWidth": 390, "screenHeight": 844}, sesion)
+    return objetivo, sesion
+
+
 class Pagina:
     """Una pestaña: un Cdp, la sesión de esa pestaña y lo que el navegador contó en consola."""
 
-    def __init__(self, cdp: Cdp, sesion: str, origen: str) -> None:
-        self.cdp, self.sesion, self.origen = cdp, sesion, origen
+    def __init__(self, cdp: Cdp, objetivo: str, sesion: str, origen: str) -> None:
+        self.cdp, self.objetivo, self.sesion, self.origen = cdp, objetivo, sesion, origen
         self.consola: list[str] = []
         self._sw_emulados: list[str] = []
-        cdp.en("Runtime.consoleAPICalled", lambda p: self._anotar(p), sesion)
-        cdp.en("Runtime.exceptionThrown", lambda p: self.consola.append("EXCEPCIÓN " + p["exceptionDetails"].get("text", "")
-                                                                         + " " + str(p["exceptionDetails"].get("exception", {}).get("description", ""))), sesion)
-        cdp.en("Fetch.requestPaused", lambda p: asyncio.ensure_future(self._servir_portal(p)), sesion)
+        self._escuchar()
+
+    def _escuchar(self) -> None:
+        sesion = self.sesion
+        self.cdp.en("Runtime.consoleAPICalled", lambda p: self._anotar(p), sesion)
+        self.cdp.en("Runtime.exceptionThrown", lambda p: self.consola.append("EXCEPCIÓN " + p["exceptionDetails"].get("text", "")
+                                                                              + " " + str(p["exceptionDetails"].get("exception", {}).get("description", ""))), sesion)
+        self.cdp.en("Fetch.requestPaused", lambda p: asyncio.ensure_future(self._servir_portal(p)), sesion)
+
+    async def reabrir(self) -> None:
+        """Cierra la pestaña de verdad (la app deja de correr: ni timers ni uploader) y abre otra, sin emulación de red.
+        Navegar a about:blank no sirve para esto: la emulación se pierde y el uploader de la página vieja alcanza a salir."""
+        await self.cdp.enviar("Target.closeTarget", {"targetId": self.objetivo})
+        self.objetivo, self.sesion = await abrir_pestana(self.cdp)
+        self._sw_emulados = []
+        self._escuchar()
 
     def _anotar(self, p: dict) -> None:
         if p["type"] in ("error", "warning"):
@@ -148,12 +170,8 @@ async def navegador(origen: str, perfil_base: Path | None = None):
         puerto, ruta_ws = archivo.read_text().splitlines()[:2]
         cdp = await Cdp.conectar(f"ws://127.0.0.1:{puerto}{ruta_ws}")
         await cdp.enviar("Browser.grantPermissions", {"origin": origen, "permissions": ["audioCapture"]})
-        objetivo = (await cdp.enviar("Target.createTarget", {"url": "about:blank"}))["targetId"]
-        sesion = (await cdp.enviar("Target.attachToTarget", {"targetId": objetivo, "flatten": True}))["sessionId"]
-        for dominio in ("Page", "Runtime", "Network"):
-            await cdp.enviar(f"{dominio}.enable", {}, sesion)
-        await cdp.enviar("Emulation.setDeviceMetricsOverride", {**PANTALLA, "screenWidth": 390, "screenHeight": 844}, sesion)
-        yield Pagina(cdp, sesion, origen)
+        objetivo, sesion = await abrir_pestana(cdp)
+        yield Pagina(cdp, objetivo, sesion, origen)
     finally:
         if cdp:
             await cdp.cerrar()
