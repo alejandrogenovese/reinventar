@@ -35,10 +35,11 @@ export const StatusPill = (status, text) =>
 export const Button = (label, { variant = "secondary", ...attrs } = {}) =>
   h("button", { type: "button", class: `ra-btn ra-btn-${variant}`, ...attrs }, label);
 
-/** Cómo queda el campo y su botón según se vea o no la contraseña (el botón dice lo que va a hacer al tocarlo). */
+/** Cómo queda el campo y su botón según se vea o no la contraseña. Como en Android (Material), el ícono muestra el
+ * estado (oculta → ojo tachado, visible → ojo abierto); la etiqueta dice lo que hace el botón y aria-pressed, el estado. */
 export const estadoOjo = (visible) => visible
-  ? { tipo: "text", etiqueta: "Ocultar contraseña", pulsado: "true", icono: "ojoTachado" }
-  : { tipo: "password", etiqueta: "Mostrar contraseña", pulsado: "false", icono: "ojo" };
+  ? { tipo: "text", etiqueta: "Ocultar contraseña", pulsado: "true", icono: "ojo" }
+  : { tipo: "password", etiqueta: "Mostrar contraseña", pulsado: "false", icono: "ojoTachado" };
 
 /**
  * Campo de contraseña con un ojo para mostrarla u ocultarla. Devuelve { input, el }: `el` es el .field completo
@@ -58,7 +59,7 @@ export function PasswordField(id, label, attrs = {}) {
     input.type = e.tipo;
     ojo.setAttribute("aria-label", e.etiqueta);
     ojo.setAttribute("aria-pressed", e.pulsado);
-    ojo.replaceChildren(ver ? icon("ojoTachado", 22) : icon("ojo", 22));
+    ojo.replaceChildren(ver ? icon("ojo", 22) : icon("ojoTachado", 22)); // el mismo de estadoOjo, con nombre fijo para test_diseno
   }
   function mostrar() {
     aplicar(true);
