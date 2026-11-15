@@ -19,15 +19,19 @@ def setup_module(_module):
 def test_carga_todas_las_sesiones_y_horarios_de_la_base():
     sessions = catalog.search(limit=10_000)
 
-    assert len({s["base"] for s in sessions}) == _count("SELECT count(*) n FROM reinvent.speech")
+    # search() recorre horarios: una charla sin horario (p. ej. alguna sponsoreada sin sesión programada) se carga en
+    # catalog.load() pero no aparece acá. Por eso se compara contra las charlas que tienen horario, no contra todas.
+    assert len({s["base"] for s in sessions}) == _count("SELECT count(DISTINCT id_speech) n FROM reinvent.speech_horario")
     assert len(sessions) == _count("SELECT count(*) n FROM reinvent.speech_horario")
+    assert len(catalog.all_sessions()) == _count("SELECT count(*) n FROM reinvent.speech")
 
 
 def test_instancia_conserva_el_formato_del_json():
     session, instance = catalog.get_instance("ARC407")
 
     assert instance == {"c": "ARC407", "d": "2026-12-03", "st": "14:30", "en": "15:30",
-                        "v": "MGM Grand|Level 3|Chairman's 363|Content Hub|Red Theater", "seats": 116, "walk": True}
+                        "v": "MGM Grand|Level 3|Chairman's 363|Content Hub|Red Theater", "seats": 116, "walk": True,
+                        "falta": None, "cancelada": False}  # bajas del catálogo (migración 008)
     assert session["level"] == "400" and session["topic"] == "Architecture"
 
 
