@@ -500,7 +500,8 @@ def test_una_revision_en_otro_schema_de_la_misma_base_no_la_bloquea(base):
     with _candado_tomado_por_otra_conexion(eventos_auto.CANDADO):
         r = _revisar(base, Fuentes(), ResumidorFalso())
 
-    assert r.get("estado") != "ocupado" and len(_eventos(base)) == 4
+    assert r.get("estado") != "ocupado"
+    assert len(_eventos(base)) == 4
 
 
 def test_dos_revisiones_del_mismo_schema_no_corren_a_la_vez(base):
@@ -510,7 +511,8 @@ def test_dos_revisiones_del_mismo_schema_no_corren_a_la_vez(base):
     with _candado_tomado_por_otra_conexion(eventos_auto.CANDADO, clave_schema):
         r = _revisar(base, Fuentes(), ResumidorFalso())
 
-    assert r == {"estado": "ocupado"} and _eventos(base) == {}
+    assert r == {"estado": "ocupado"}
+    assert _eventos(base) == {}
 
 
 # ---------- push ----------

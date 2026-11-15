@@ -53,8 +53,7 @@ SEGUNDOS_ENTRE_PEDIDOS = 1.0
 MIN_PROPORCION = 0.5                        # una fuente que trae menos que esto de lo que traía no cancela nada
 MIN_ENTRE_FALTAS = dt.timedelta(hours=1)    # dos faltas tienen que estar al menos así de separadas
 ESPERA_INICIAL_S = 120                      # la primera revisión, 2 min después de arrancar
-CANDADO = 20261129                          # pg_try_advisory_xact_lock(CANDADO, hash del schema): una revisión a la vez
-                                            # por schema entre réplicas (el candado no es de toda la base)
+CANDADO = 20261129                          # advisory lock (CANDADO, hash del schema): una revisión a la vez por schema
 TIMEOUT_S = 30
 USER_AGENT = "ReinventAR/1.0 (agenda personal de re:Invent)"
 _CAMPOS_FIRMA = {LUMA: ("nombre", "inicio", "fin", "imagen_url"),

@@ -44,8 +44,7 @@ from .eventos_auto import (
 log = logging.getLogger("reinventar.charlas_auto")
 
 FUENTE = "catalogo"
-CANDADO = 20261130                          # pg_try_advisory_xact_lock(CANDADO, hash del schema), propio por schema: corre
-                                            # en paralelo con la de eventos
+CANDADO = 20261130                          # advisory lock (CANDADO, hash del schema), propio: corre junto a eventos
 SEGUNDOS_ENTRE_PEDIDOS = 1.0
 ESPERA_INICIAL_S = 300                      # la primera, 5 min después de arrancar (después de la de eventos)
 CADA_EN_NOVIEMBRE = dt.timedelta(hours=3)
