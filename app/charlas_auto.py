@@ -44,7 +44,8 @@ from .eventos_auto import (
 log = logging.getLogger("reinventar.charlas_auto")
 
 FUENTE = "catalogo"
-CANDADO = 20261130                          # pg_try_advisory_xact_lock propio: corre en paralelo con la de eventos
+CANDADO = 20261130                          # pg_try_advisory_xact_lock(CANDADO, hash del schema), propio por schema: corre
+                                            # en paralelo con la de eventos
 SEGUNDOS_ENTRE_PEDIDOS = 1.0
 ESPERA_INICIAL_S = 300                      # la primera, 5 min después de arrancar (después de la de eventos)
 CADA_EN_NOVIEMBRE = dt.timedelta(hours=3)
@@ -313,7 +314,7 @@ def _guardar(conectar, schema, estado: Estado, oficiales, charlas, error, ahora)
     with conectar() as conn, conn.transaction():
         cur = conn.cursor(row_factory=tuple_row)
         _usar_schema(cur, schema)
-        if not cur.execute("SELECT pg_try_advisory_xact_lock(%s)", (CANDADO,)).fetchone()[0]:
+        if not cur.execute("SELECT pg_try_advisory_xact_lock(%s, hashtext(%s))", (CANDADO, schema)).fetchone()[0]:
             return {"estado": "ocupado"}
         if error:
             _guardar_revision(cur, FUENTE, ahora, False, {}, error)
