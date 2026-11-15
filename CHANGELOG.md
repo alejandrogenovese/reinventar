@@ -10,6 +10,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   Filtrar / Preguntar) y «Agrupar» se marcan en naranja suave con borde, en vez de blanco que encandilaba en oscuro o
   gris apenas distinto del fondo.
 
+### Corregido
+- En la pantalla de grabar ya no aparece un «null» suelto al lado de «Todo subido».
+- Sin señal, la app dice «Sin conexión: revisá la señal y probá de nuevo.» en vez de «Failed to fetch».
+- El aviso para instalar la app ya no promete que «funciona sin señal»: abre sin señal, pero lo que viene del
+  servidor (empezar una grabación, el itinerario) necesita conexión.
+
 ## [0.22.0] - 2026-11-14
 
 ### Agregado

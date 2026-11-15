@@ -16,3 +16,11 @@ def test_silence_se_declara_una_vez_y_antes_de_usarse_en_la_pantalla_de_grabar()
     declaracion = cuerpo.index("const silence =") + len("const ")  # posición del nombre en su declaración
     assert declaracion == cuerpo.index("silence"), "silence se usa antes de su const (TDZ)"
     assert cuerpo.index("const silence =") < cuerpo.index("view.append(")
+
+
+def test_el_estado_de_subida_no_le_pasa_null_al_dom():
+    # replaceChildren(null) escribe el texto «null» en pantalla (se veía al lado de «Todo subido»).
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("upl.replaceChildren(")
+    llamada = cuerpo[inicio:cuerpo.index(";", inicio)]
+    assert "null" not in llamada

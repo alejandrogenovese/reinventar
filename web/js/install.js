@@ -34,7 +34,7 @@ export function InstallPrompt({ dismissible = false } = {}) {
   const status = h("p", { class: "caption" }, isIOS() || isInAppBrowser() ? steps() : "");
   const el = h("div", { class: "notice stack" },
     h("strong", {}, "Instalá ReinventAR en el celular"),
-    h("span", { class: "caption" }, "Queda como app en la pantalla de inicio, abre a pantalla completa y funciona sin señal."),
+    h("span", { class: "caption" }, "Queda como app en la pantalla de inicio y abre a pantalla completa, aunque no haya señal."),
     status,
     h("div", { class: "actions" },
       isIOS() || isInAppBrowser() ? null : Button("Instalar app", { onclick: () => install(status) }),

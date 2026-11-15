@@ -339,7 +339,7 @@ async function viewRecord(id) {
     const pill = pending ? StatusPill("uploading", `Subiendo ${pending}`)
       : failed ? StatusPill("error", `${failed} sin subir`) : StatusPill("ready", "Todo subido");
     upl.replaceChildren(pill, h("span", { class: "caption" }, error || ""),
-      failed ? Button("Reintentar", { onclick: () => toastOnError(uploader.retryFailed()) }) : null);
+      failed ? Button("Reintentar", { onclick: () => toastOnError(uploader.retryFailed()) }) : ""); // null se vería como «null»
   };
   uploader.addEventListener("change", onUp);
   toastOnError(uploader.refresh());

@@ -13,10 +13,20 @@ export class ApiError extends Error {
   constructor(status, detail) { super(typeof detail === "string" ? detail : detail?.message || `HTTP ${status}`); this.status = status; this.detail = detail; }
 }
 
+// Sin red, fetch tira un TypeError con texto del navegador en inglés («Failed to fetch», «Load failed»).
+export const MSG_SIN_CONEXION = "Sin conexión: revisá la señal y probá de nuevo.";
+
+async function pedir(path, init) {
+  try { return await fetch(path, init); } catch (e) {
+    if (e?.name === "AbortError") throw e; // cancelado a propósito: quien llama lo ignora
+    throw new ApiError(0, MSG_SIN_CONEXION); // status 0: la subida de pedazos lo sigue tomando como reintentable
+  }
+}
+
 export async function api(path, { method = "GET", json, body, headers = {}, raw = false, signal } = {}) {
   const h = { Authorization: `Bearer ${getToken()}`, ...headers };
   if (json !== undefined) { h["Content-Type"] = "application/json"; body = JSON.stringify(json); }
-  const r = await fetch(path, { method, headers: h, body, signal });
+  const r = await pedir(path, { method, headers: h, body, signal });
   if (!r.ok) {
     let detail; try { detail = (await r.json()).detail; } catch { detail = r.statusText; }
     // El servidor exige cambiar la contraseña temporal antes de usar el resto de la API.
