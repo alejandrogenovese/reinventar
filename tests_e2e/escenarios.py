@@ -11,7 +11,8 @@ from tests_e2e.servidor import Servidor
 FRANJA = "Sin señal · datos de las"
 GRABAR_SEGUNDOS = 12  # más que el TIMESLICE_MS (10 s) de recorder.js: sale al menos un pedazo antes de terminar
 TITULO = "Grabación E2E sin señal"
-ESPERA_SUBIDA_S = 60  # el uploader reintenta con backoff y se despierta solo cada 30 s
+ESPERA_SECCIONES_S = 2  # que las secciones de Inicio que se piden aparte (anuncios) terminen de resolverse antes de leer el texto
+ESPERA_SUBIDA_S = 60 # el uploader reintenta con backoff y se despierta solo cada 30 s
 INICIO_CARGADO = "document.body.innerText.includes('Tus grabaciones')"  # condición JS: Inicio ya dibujó la lista
 
 
@@ -54,6 +55,9 @@ async def escenario_1_franja_sin_senal(c: Contexto) -> None:
     await p.offline(True)
     await p.recargar()
     await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» en Inicio tras recargar sin red")
+    # «Anuncios sin reserva» se pide aparte de Hoy y sin franja: sin señal tiene que usar la última copia, no el error.
+    await asyncio.sleep(ESPERA_SECCIONES_S)
+    assert "No se pudieron cargar los anuncios" not in await p.texto(), "los anuncios sin reserva no usaron la última copia sin señal"
     await _ir_a(p, "#/itinerario")
     await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» en Itinerario sin red")
 
