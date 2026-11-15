@@ -1,10 +1,17 @@
 // Cliente de la API. El token de sesión (lo da /api/login) vive en localStorage de este celular.
+import { clearLast, loadLast, markStale, saveLast } from "./lastgood.js";
+
 const KEY = "reinventar.token";
 
 const MUST_CHANGE = "reinventar.mustChangePassword";
 
 export function getToken() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } }
-export function setToken(t) { try { localStorage.setItem(KEY, t); } catch {} }
+export function setToken(t) {
+  try { localStorage.setItem(KEY, t); } catch {}
+  if (!t) clearLast(); // cerrar sesión: las copias sin señal son de esa persona y no se quedan en el celular
+  // Avisa que hay un token nuevo: notifications.js se lo deja al service worker (pushsubscriptionchange con la app cerrada).
+  try { globalThis.window?.dispatchEvent(new Event("reinventar:token")); } catch {}
+}
 // Lo informa el login: mientras esté en true, el router manda a #/password.
 export function mustChangePassword() { try { return localStorage.getItem(MUST_CHANGE) === "1"; } catch { return false; } }
 export function setMustChangePassword(v) { try { localStorage.setItem(MUST_CHANGE, v ? "1" : "0"); } catch {} }
@@ -36,8 +43,27 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
   return raw ? r : r.json();
 }
 
+// Sin señal en los salones: Hoy, Itinerario y grabaciones muestran la última respuesta buena en vez de quedar vacías.
+// Con copia guardada, la red tiene un tope: un Wi-Fi que conecta pero no responde no deja la pantalla esperando.
+const SIN_SENAL_TIMEOUT_MS = 8000;
+const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
+const duenoDeCopias = () => getToken().slice(-12);
+
+/** GET que guarda la respuesta buena y, si no hay señal, devuelve la última (marcada con staleAt). */
+export async function apiConUltimaCopia(path) {
+  const copia = loadLast(duenoDeCopias(), path);
+  try {
+    const data = await api(path, copia ? { signal: AbortSignal.timeout?.(SIN_SENAL_TIMEOUT_MS) } : {});
+    saveLast(duenoDeCopias(), path, data);
+    return data;
+  } catch (e) {
+    if (!copia || !sinServicio(e)) throw e;
+    return markStale(copia.data, copia.at);
+  }
+}
+
 export const Sessions = {
-  list: () => api("/api/sessions"),
+  list: () => apiConUltimaCopia("/api/sessions"),
   get: (id) => api(`/api/sessions/${id}`),
   create: (data) => api("/api/sessions", { method: "POST", json: data }),
   putChunk: (id, part, seq, blob, signal) => api(`/api/sessions/${id}/chunks/${part}/${seq}`, { method: "PUT", body: blob, headers: { "Content-Type": "application/octet-stream" }, signal }),
@@ -62,7 +88,7 @@ export const Numeros = {
 };
 
 export const Today = {
-  get: () => api("/api/today"),
+  get: () => apiConUltimaCopia("/api/today"),
 };
 
 // Anuncios sin reserva para Inicio (app/anuncios.py).
@@ -73,7 +99,7 @@ export const Anuncios = {
 export const Itinerary = {
   profile: () => api("/api/itinerary/profile"),
   generate: (profile, prompt) => api("/api/itinerary/generate", { method: "POST", json: { profile, prompt } }),
-  get: () => api("/api/itinerary"),
+  get: () => apiConUltimaCopia("/api/itinerary"),
   add: (code, reason) => api("/api/itinerary/items", { method: "POST", json: { code, reason } }),
   lock: (code, locked = true) => api(`/api/itinerary/items/${code}/lock?locked=${locked}`, { method: "POST" }),
   remove: (code) => api(`/api/itinerary/items/${code}`, { method: "DELETE" }),

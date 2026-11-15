@@ -5,6 +5,7 @@ import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
+import { SinSenal } from "./sinSenal.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewShow } from "./shows.js";
 import { viewPerdida } from "./missed.js";
@@ -198,9 +199,10 @@ async function viewList() {
   // "Nueva" es la acción de la sección (botón chico en su encabezado), no un botón grande suelto.
   const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
     icon("agregar", 16), h("span", {}, "Nueva"));
+  const sinSenalSlot = h("div", { class: "ra-optional" }); // «Sin señal · datos de las HH:MM» si se muestra la última copia
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
-    todaySlot, anunciosSlot,
+    sinSenalSlot, todaySlot, anunciosSlot,
     InstallPrompt({ dismissible: true }), PasskeyOffer(),
     h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
       h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "grabaciones-title" }, "Tus grabaciones"), newBtn),
@@ -215,6 +217,7 @@ async function viewList() {
   toastOnError(uploader.refresh()); uploader.kick();
 
   const sessions = await Sessions.list();
+  sinSenalSlot.replaceChildren(SinSenal(sessions) ?? "");
   // Buscar en lo grabado: solo tiene sentido cuando hay alguna grabación procesada.
   if (sessions.some((s) => s.status === "ready")) searchSlot.replaceChildren(search = RecordingSearch());
   TodayPanel(sessions)
