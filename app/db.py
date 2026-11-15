@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 -- Quién grabó (username): para «Tu re:Invent en números». Las grabaciones de antes quedan en NULL (no son de nadie).
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
+-- Tramos sin audio (Android le sacó el micrófono a la app): JSON [{"desde": s, "hasta": s}], ver app/huecos.py.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS huecos TEXT;
 -- Id que genera el cliente al grabar sin señal (sesión local «loc_…»): con él, reintentar el alta no duplica la sesión.
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_by, client_id) WHERE client_id IS NOT NULL;
@@ -291,6 +293,7 @@ def _row(r):
     d = dict(r)
     d["summary"] = json.loads(d["summary"]) if d.get("summary") else None
     d["expected_parts"] = json.loads(d["expected_parts"]) if d.get("expected_parts") else None
+    d["huecos"] = json.loads(d["huecos"]) if d.get("huecos") else []
     return d
 
 
@@ -333,7 +336,7 @@ def update_session(sid, **fields):
     if not fields:
         return
     fields["updated_at"] = time.time()
-    for k in ("summary", "expected_parts"):
+    for k in ("summary", "expected_parts", "huecos"):
         if k in fields and fields[k] is not None and not isinstance(fields[k], str):
             fields[k] = json.dumps(fields[k], ensure_ascii=False)
     cols = ", ".join(f"{k}=%s" for k in fields)  # las claves vienen del código, nunca del request
