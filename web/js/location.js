@@ -1,7 +1,8 @@
-// Ubicación del celular, distancias y "Llevame". Las coordenadas no salen del celular: se usan acá y en el link a
-// Google Maps. Con "Usar en qué sede estoy para los avisos" prendido, al servidor va solo el número de sede (reportVenue).
+// Ubicación del celular, distancias y "Llevame" (con el recorrido adentro de la app: web/js/llevame.js). Las coordenadas
+// no salen del celular: se usan acá, en el pedido de ruta a Google y en el link a Google Maps. Con "Usar en qué sede estoy para los avisos" prendido, al servidor va solo el número de sede (reportVenue).
 // En modo prueba se usa la sede simulada en lugar del GPS (web/js/sandbox.js).
 import { MyEvents, Ubicacion } from "./api.js";
+import { abrirLlevame, sePuedeEmbeber } from "./llevame.js";
 import { loadGoogleMaps } from "./map.js";
 import { sandboxLocation, sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
@@ -128,9 +129,19 @@ export function GoThereParts(dest, { start = null, eta = false, iconOnly = false
   const link = h("a", { class: `ra-btn ra-btn-secondary ra-go-btn${iconOnly ? " ra-btn-icon" : ""}`, href: directionsUrl(dest), target: "_blank",
     rel: "noopener", "aria-label": label, title: iconOnly ? "Llevame" : null }, icon("llevar", 20), iconOnly ? null : "Llevame");
   info.hidden = true; // sin ubicación no hay nada que decir: queda solo el botón
+  let aqui = null; // la ubicación ya resuelta: el click es síncrono para que el link externo no pierda el gesto del toque
+  // Con ubicación y señal, «Llevame» abre el recorrido adentro de la app. Sin eso (o con ctrl/cmd/clic medio) sigue
+  // siendo el link a Google Maps de siempre.
+  link.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!aqui || !sePuedeEmbeber(dest, aqui)) return;
+    e.preventDefault();
+    abrirLlevame({ dest, here: aqui, urlExterna: link.href, opener: link });
+  });
   void (async () => {
     const here = await currentPosition();
     if (!here) return;
+    aqui = here;
     link.href = directionsUrl(dest, here);
     const parts = [formatDistance(distanceMeters(here, dest))];
     if (eta) {
