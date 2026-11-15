@@ -79,7 +79,7 @@ test("quitarSesionLocal borra la sesión, el índice y los datos de grabación",
   store.saveRecMeta(s.id, { parts: { 0: 1 } });
   store.quitarSesionLocal(s.id);
   assert.equal(store.sesionLocal(s.id), null);
-  assert.deepEqual(store.sesionesLocalesPendientes(), []);
+  assert.deepEqual(store.sesionesLocales(), []);
   assert.deepEqual(store.recMeta(s.id), { parts: {} });
 });
 
@@ -87,7 +87,7 @@ test("el estado es 'grabando' mientras hay actividad reciente", () => {
   limpiar();
   const s = store.crearSesionLocal(META);
   store.registrarActividad(s.id, true);
-  const [p] = store.sesionesLocalesPendientes();
+  const [p] = store.sesionesLocales();
   assert.deepEqual({ id: p.id, title: p.title, estado: p.estado }, { id: s.id, title: "Charla de prueba", estado: "grabando" });
 });
 
@@ -97,28 +97,70 @@ test("sin actividad reciente (app cerrada a mitad) queda 'pendiente' de subir", 
   store.registrarActividad(s.id, true);
   const viejo = store.sesionLocal(s.id);
   datos.set(`reinventar.sesion-local.${s.id}`, JSON.stringify({ ...viejo, latido: Date.now() - 10 * 60_000 }));
-  assert.equal(store.sesionesLocalesPendientes()[0].estado, "pendiente");
+  assert.equal(store.sesionesLocales()[0].estado, "pendiente");
 });
 
 test("terminada esperando señal se distingue de pendiente", () => {
   limpiar();
   const s = store.crearSesionLocal(META);
   store.pedirTerminar(s.id, { 0: 1 });
-  assert.equal(store.sesionesLocalesPendientes()[0].estado, "terminada");
+  assert.equal(store.sesionesLocales()[0].estado, "terminada");
 });
 
 test("el error de una sesión local se ve en la lista", () => {
   limpiar();
   const s = store.crearSesionLocal(META);
   store.marcarErrorLocal(s.id, "No se pudo cerrar la grabación");
-  assert.equal(store.sesionesLocalesPendientes()[0].error, "No se pudo cerrar la grabación");
+  assert.equal(store.sesionesLocales()[0].error, "No se pudo cerrar la grabación");
+});
+
+// Forma pública para la lista de Inicio: async, siempre un array, estados y `at` acordados con la pantalla.
+test("sesionesLocalesPendientes es async y devuelve un array vacío si no hay nada", async () => {
+  limpiar();
+  const r = store.sesionesLocalesPendientes();
+  assert.ok(r instanceof Promise);
+  assert.deepEqual(await r, []);
+});
+
+test("sesionesLocalesPendientes devuelve id, title, estado y at (ms de creación)", async () => {
+  limpiar();
+  const antes = Date.now();
+  const s = store.crearSesionLocal(META);
+  store.registrarActividad(s.id, true);
+  const [p] = await store.sesionesLocalesPendientes();
+  assert.equal(p.id, s.id);
+  assert.equal(p.title, "Charla de prueba");
+  assert.equal(p.estado, "grabando");
+  assert.ok(p.at >= antes && p.at <= Date.now());
+});
+
+test("sesionesLocalesPendientes usa los estados pendiente_de_subir y esperando_senal", async () => {
+  limpiar();
+  const a = store.crearSesionLocal(META), b = store.crearSesionLocal({ ...META, title: "Otra" });
+  store.pedirTerminar(b.id, { 0: 1 });
+  const estados = Object.fromEntries((await store.sesionesLocalesPendientes()).map((p) => [p.id, p.estado]));
+  assert.deepEqual(estados, { [a.id]: "pendiente_de_subir", [b.id]: "esperando_senal" });
+});
+
+test("sesionesLocalesPendientes pone un título por defecto si la sesión no tiene", async () => {
+  limpiar();
+  store.crearSesionLocal({ ...META, title: "" });
+  assert.equal((await store.sesionesLocalesPendientes())[0].title, "Grabación sin conexión");
+});
+
+test("sesionesLocalesPendientes viene ordenada de la más reciente a la más vieja", async () => {
+  limpiar();
+  const vieja = store.crearSesionLocal(META);
+  datos.set(`reinventar.sesion-local.${vieja.id}`, JSON.stringify({ ...store.sesionLocal(vieja.id), creadaEn: Date.now() - 5_000 }));
+  const nueva = store.crearSesionLocal({ ...META, title: "Nueva" });
+  assert.deepEqual((await store.sesionesLocalesPendientes()).map((p) => p.id), [nueva.id, vieja.id]);
 });
 
 test("empezarSesion usa la sesión del servidor cuando hay señal", async () => {
   limpiar();
   const r = await rec.empezarSesion(META, async () => ({ id: "real00000009" }));
   assert.deepEqual(r, { id: "real00000009", local: false });
-  assert.deepEqual(store.sesionesLocalesPendientes(), []);
+  assert.deepEqual(store.sesionesLocales(), []);
 });
 
 test("empezarSesion arma una sesión local si falla por falta de señal (status 0)", async () => {
@@ -132,7 +174,7 @@ test("empezarSesion arma una sesión local si falla por falta de señal (status 
 test("empezarSesion deja pasar los demás errores (por ejemplo un 422)", async () => {
   limpiar();
   await assert.rejects(rec.empezarSesion(META, async () => { throw Object.assign(new Error("kind inválido"), { status: 422 }); }), /kind inválido/);
-  assert.deepEqual(store.sesionesLocalesPendientes(), []);
+  assert.deepEqual(store.sesionesLocales(), []);
 });
 
 test("reabrirCierres borra el error y devuelve los intentos de cierre", () => {

@@ -225,11 +225,25 @@ export function quitarSesionLocal(id) {
   ultimoLatido.delete(id);
 }
 
-/** Sesiones que todavía no terminaron de pasar al servidor, para mostrarlas en la lista: grabando | pendiente | terminada. */
-export function sesionesLocalesPendientes() {
+/** Sesiones locales que todavía no terminaron de pasar al servidor (síncrono; lo usa el uploader). */
+export function sesionesLocales() {
   const ahora = Date.now();
   return idsLocales().map(sesionLocal).filter(Boolean).map((s) => ({
-    id: s.id, title: s.meta.title, realId: s.realId, error: s.error,
+    id: s.id, title: s.meta.title, realId: s.realId, error: s.error, creadaEn: s.creadaEn,
     estado: s.terminar ? "terminada" : s.activa && ahora - s.latido < ACTIVIDAD_RECIENTE_MS ? "grabando" : "pendiente",
   }));
+}
+
+const TITULO_POR_DEFECTO = "Grabación sin conexión";
+const ESTADO_PUBLICO = { grabando: "grabando", pendiente: "pendiente_de_subir", terminada: "esperando_senal" };
+
+/**
+ * Para la lista de Inicio: las grabaciones que nacieron sin señal y todavía no terminaron de pasar al servidor.
+ * Siempre un array (vacío si no hay), de la más reciente a la más vieja. `at` = ms de cuando se creó.
+ * estado: "grabando" | "pendiente_de_subir" | "esperando_senal" (terminada, falta subir y cerrar).
+ */
+export async function sesionesLocalesPendientes() {
+  return sesionesLocales()
+    .map((s) => ({ id: s.id, title: s.title?.trim() || TITULO_POR_DEFECTO, estado: ESTADO_PUBLICO[s.estado], at: s.creadaEn, realId: s.realId, error: s.error }))
+    .sort((a, b) => b.at - a.at);
 }

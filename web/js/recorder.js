@@ -289,6 +289,19 @@ export function sesionRemota(id, crear = (meta) => Sessions.create(meta)) {
   return tarea;
 }
 
+/**
+ * Crea la sesión en el servidor para empezar a grabar. Sin señal (status 0, ver api.js) no se frena al usuario: se
+ * arranca una sesión local y la grabación se sube cuando vuelva la red. Cualquier otro error se informa como siempre.
+ */
+export async function empezarSesion(meta, crear = (m) => Sessions.create(m)) {
+  try {
+    return { id: (await crear(meta)).id, local: false };
+  } catch (e) {
+    if (e.status !== 0) throw e;
+    return { id: store.crearSesionLocal(meta).id, local: true };
+  }
+}
+
 /** ¿Ya se puede cerrar (finish) una sesión local que el usuario terminó? */
 export function decidirCierre({ terminar, realId, pendientes, fallidos, error = null }) {
   if (!terminar || error) return "esperar";
@@ -317,7 +330,7 @@ export const uploader = new (class extends EventTarget {
   // Cierra (finish) las grabaciones locales que el usuario terminó, cuando ya subieron todo. Nunca borra audio local
   // sin un finish confirmado por el servidor.
   async _cerrarTerminadas() {
-    for (const { id } of store.sesionesLocalesPendientes()) {
+    for (const { id } of store.sesionesLocales()) {
       const s = store.sesionLocal(id);
       if (!s?.terminar || cerrando.has(id)) continue;
       cerrando.add(id);
