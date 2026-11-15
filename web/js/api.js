@@ -76,7 +76,7 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
 // Sin señal en los salones: Hoy, Itinerario y grabaciones muestran la última respuesta buena en vez de quedar vacías.
 // Con copia guardada, la red tiene un tope: un Wi-Fi que conecta pero no responde no deja la pantalla esperando.
 const SIN_SENAL_TIMEOUT_MS = 8000;
-const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
+export const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
 
 // De quién es la copia: los primeros 12 hex del SHA-256 del token. El nombre de la clave queda a la vista (DevTools,
 // backups), así que nunca lleva un pedazo del token en sí. Sin token (o sin crypto.subtle) no hay dueño ni copia.

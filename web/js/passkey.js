@@ -27,6 +27,29 @@ function credentialJSON(cred) {
     clientExtensionResults: cred.getClientExtensionResults?.() || {}, authenticatorAttachment: cred.authenticatorAttachment };
 }
 
+/**
+ * Cómo se llama el desbloqueo en este celular: «Face ID» solo en iPhone/iPad (incluido un iPad que se presenta como Mac,
+ * con pantalla táctil); en el resto, «huella o rostro». Recibe el navigator para poder probarla.
+ */
+export function etiquetaBiometria(nav = globalThis.navigator) {
+  const esIOS = /iPhone|iPad|iPod/.test(nav?.userAgent ?? "") || /^(iPhone|iPad|iPod)/.test(nav?.platform ?? "")
+    || (nav?.platform === "MacIntel" && (nav?.maxTouchPoints ?? 0) > 1);  // iPadOS con userAgent de escritorio
+  return esIOS ? "Face ID" : "huella o rostro";
+}
+
+/** Los textos de la pantalla con el nombre del desbloqueo de este celular. */
+export function textosBiometria(nav = globalThis.navigator) {
+  const bio = etiquetaBiometria(nav);
+  return {
+    boton: `Entrar con ${bio}`,
+    oferta: `Entrá con ${bio}`,
+    ajustes: bio[0].toUpperCase() + bio.slice(1),
+    activado: `Listo: la próxima entrás con ${bio}`,
+    sinActivar: `Todavía no activaste el ingreso con ${bio}.`,
+    noPermite: `Este navegador no permite ${bio}.`,
+  };
+}
+
 /** true si este celular tiene Face ID / huella disponible para la web. */
 export async function isSupported() {
   try { return !!window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch { return false; }
@@ -58,7 +81,7 @@ export async function login() {
 }
 
 async function activate(onDone) {
-  try { await register(); toast("Listo: la próxima entrás con Face ID / huella"); onDone?.(); }
+  try { await register(); toast(textosBiometria().activado); onDone?.(); }
   catch (e) { toast(cancelled(e) ? "Cancelado" : mensajeError(e, "No se pudo activar. Probá de nuevo.")); }
 }
 
@@ -68,7 +91,7 @@ export function PasskeyLoginButton(onLogin, onError) {
   const slot = h("div", { class: "actions" });
   void isSupported().then((ok) => {
     if (!ok) return;
-    slot.append(Button("Entrar con Face ID / huella", { onclick: async () => {
+    slot.append(Button(textosBiometria().boton, { onclick: async () => {
       try { const r = await login(); if (r) onLogin(r); } catch (e) { onError(e.status === 401 ? "Esa passkey no está registrada. Entrá con contraseña y activala en Ajustes." : mensajeError(e)); }
     } }));
   });
@@ -83,7 +106,7 @@ export function PasskeyOffer() {
     if (!ok) return;
     const dismiss = () => { try { localStorage.setItem(OFFER_DISMISSED, "1"); } catch {} slot.replaceChildren(); };
     slot.append(h("div", { class: "notice stack" },
-      h("strong", {}, "Entrá con Face ID / huella"),
+      h("strong", {}, textosBiometria().oferta),
       h("span", { class: "caption" }, "Así no tenés que tipear la contraseña en el evento. No se guarda ningún dato biométrico."),
       h("div", { class: "actions" },
         Button("Activar", { onclick: () => activate(dismiss) }),
@@ -99,13 +122,13 @@ export function PasskeySettings() {
   async function load() {
     const [{ passkeys }, ok] = await Promise.all([Passkeys.list(), isSupported()]);
     box.replaceChildren(
-      h("h2", { class: "label" }, "Face ID / huella"),
-      passkeys.length ? "" : h("p", { class: "caption" }, "Todavía no activaste el ingreso con Face ID / huella."),
+      h("h2", { class: "label" }, textosBiometria().ajustes),
+      passkeys.length ? "" : h("p", { class: "caption" }, textosBiometria().sinActivar),
       ...passkeys.map((p) => h("div", { class: "notice actions is-center is-between" },
         h("span", {}, `${p.device || "Dispositivo"} · último uso: ${when(p.last_used_at)}`),
         Button("Quitar", { variant: "danger", onclick: () => toastOnError(Passkeys.remove(p.id).then(() => { try { localStorage.removeItem(REGISTERED_HERE); } catch {} return load(); })) }))),
       ok ? h("div", { class: "actions" }, Button("Activar en este dispositivo", { onclick: () => activate(load) }))
-         : h("p", { class: "caption" }, "Este navegador no permite Face ID / huella."));
+         : h("p", { class: "caption" }, textosBiometria().noPermite));
   }
   load().catch((e) => box.replaceChildren(h("div", { class: "notice err" }, mensajeError(e))));
   return box;

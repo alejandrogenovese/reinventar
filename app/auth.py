@@ -56,7 +56,7 @@ def auth(request: Request, authorization: str | None = Header(None)) -> str:
 def login_reciente(request: Request, username: str = Depends(auth), authorization: str | None = Header(None)) -> str:
     """auth, y además que la sesión se haya abierto hace menos de LOGIN_RECIENTE_SEGUNDOS."""
     if _sesion(request, authorization)["created_at"] < time.time() - LOGIN_RECIENTE_SEGUNDOS:
-        raise HTTPException(403, "Para agregar Face ID / huella, cerrá sesión y volvé a entrar con tu contraseña.")
+        raise HTTPException(403, "Para agregar el ingreso con huella o rostro, cerrá sesión y volvé a entrar con tu contraseña.")
     return username
 
 

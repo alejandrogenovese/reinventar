@@ -86,7 +86,7 @@ def register_verify(body: RegisterVerify, request: Request, username: str = Depe
         )
     except WebAuthnException as e:
         log.warning("Registro de passkey rechazado para %s: %s", username, type(e).__name__)  # el mensaje trae datos del navegador
-        raise HTTPException(400, "No se pudo verificar el Face ID / huella") from e
+        raise HTTPException(400, "No se pudo verificar la huella o el rostro.") from e
     store.add_passkey(
         bytes_to_base64url(verified.credential_id), username, verified.credential_public_key,
         verified.sign_count, body.device,
@@ -130,7 +130,7 @@ def login_verify(body: LoginVerify, request: Request):
     except WebAuthnException as e:
         log.warning("Login con passkey rechazado para %s: %s", passkey["username"], type(e).__name__)
         limites.fallos_ip.sumar(ip)
-        raise HTTPException(401, "No se pudo verificar el Face ID / huella") from e
+        raise HTTPException(401, "No se pudo verificar la huella o el rostro.") from e
     store.touch_passkey(passkey["id"], verified.new_sign_count)
     return issue_session(user)
 
