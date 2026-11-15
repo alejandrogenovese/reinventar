@@ -15,7 +15,7 @@ globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); return true;
 globalThis.location = { hash: "" };
 
 const { Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
-const { clearLast, loadLast, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
+const { clearLast, hoyNecesitaFranja, loadLast, markStale, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
 
 const DUENO = "0123456789ab"; // forma que tiene el dueño real: 12 hex
 const copiasGuardadas = () => [...memoria.keys()].filter((k) => k.startsWith("reinventar.last."));
@@ -184,6 +184,15 @@ test("al leer se valida la forma: una copia con otra forma se ignora", () => {
 test("el texto de la franja lleva la hora de los datos", () => {
   const at = new Date(2026, 11, 2, 14, 5).getTime();
   assert.match(sinSenalTexto(at), /^Sin señal · datos de las 14:05$/);
+});
+
+test("Hoy lleva su franja si es copia, salvo que Inicio ya muestre la suya (no se repite)", () => {
+  const fresco = () => ({ a: 1 });
+  const copia = (at) => markStale({ a: 1 }, at);
+  assert.equal(hoyNecesitaFranja(copia(1), fresco()), true, "Hoy es copia y la lista vino fresca: Hoy avisa");
+  assert.equal(hoyNecesitaFranja(copia(1), copia(2)), false, "las dos son copia: alcanza con la franja de Inicio");
+  assert.equal(hoyNecesitaFranja(fresco(), fresco()), false, "con señal no hay franja");
+  assert.equal(hoyNecesitaFranja(fresco(), copia(2)), false);
 });
 
 test("al guardar el token, la app avisa para que el service worker se entere", () => {

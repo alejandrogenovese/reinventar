@@ -66,9 +66,8 @@ async def escenario_2_grabar_sin_red(c: Contexto) -> None:
     await p.evaluar(f"document.querySelector('#title').value = {json.dumps(TITULO)}")
     await _click(p, "button[type=submit]", "el botón «Preparar grabación»")
     await p.esperar("/^#\\/grabar\\/loc_[0-9a-f]{12}$/.test(location.hash)", "pantalla de grabar con una sesión local (loc_…)")
-    # «Listo para grabar» se ve antes de que el micrófono abra: tocar ahí da «Primero abrí el micrófono». Se espera a que
-    # el selector tenga micrófonos (los pone openMic cuando el stream ya está).
-    await p.esperar("!!document.querySelector('#mic option')", "el micrófono abierto (selector con opciones)")
+    # Desde #81 el botón queda deshabilitado («Abriendo el micrófono…») hasta que hay stream: «Listo para grabar» ya es seguro.
+    await p.esperar("document.body.innerText.includes('Listo para grabar')", "micrófono listo")
     await _click(p, "button.ra-rec", "el botón de grabar")
     await p.esperar("document.body.innerText.includes('Grabando')", "estado «Grabando»")
     await asyncio.sleep(GRABAR_SEGUNDOS)
@@ -109,12 +108,18 @@ async def escenario_4_portal_cautivo(c: Contexto) -> None:
     await p.portal("*/api/today*")
     await p.recargar()
     await p.esperar(INICIO_CARGADO, "Inicio con /api/today devolviendo el portal")
+    # Hoy es la copia y la lista de grabaciones vino fresca: la franja tiene que estar en Hoy, una sola vez.
+    await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» en Hoy (copia de /api/today)")
     texto = await p.texto()
+    assert texto.count(FRANJA) == 1, f"la franja debía verse una vez y se ve {texto.count(FRANJA)}"
     assert "No se pudo cargar Hoy" not in texto, "Hoy debía mostrar la última copia y mostró un error"
     assert "Unexpected token" not in texto and "SyntaxError" not in texto, "se coló el error crudo del navegador"
     await p.portal("*/api/*")
     await p.recargar()
     await p.esperar(f"document.body.innerText.includes({json.dumps(FRANJA)})", "la franja «Sin señal» con todo el /api/ devolviendo el portal")
+    await p.esperar("!document.querySelector('.ra-skel')", "Hoy terminó de cargar")
+    texto = await p.texto()
+    assert texto.count(FRANJA) == 1, f"con Hoy y la lista en copia la franja no se repite: se ve {texto.count(FRANJA)} veces"
     await p.portal(None)
 
 

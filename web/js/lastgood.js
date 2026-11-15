@@ -52,5 +52,11 @@ export function markStale(data, at) {
 /** Hora (ms) en que se guardaron estos datos si son una copia sin señal; null si vienen frescos del servidor. */
 export const staleAt = (data) => (data && typeof data === "object" ? copias.get(data) ?? null : null);
 
-export const sinSenalTexto = (at) =>
+/**
+ * ¿Hoy lleva su propia franja «Sin señal»? Sí si Hoy es una copia, salvo que la lista de grabaciones (sessions) también
+ * lo sea: Inicio ya muestra esa franja arriba de todo y no se repite.
+ */
+export const hoyNecesitaFranja = (data, sessions) => staleAt(data) !== null && staleAt(sessions) === null;
+
+export const sinSenalTexto =(at) =>
   `Sin señal · datos de las ${new Date(at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}`;

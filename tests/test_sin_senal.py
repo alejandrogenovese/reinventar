@@ -20,6 +20,13 @@ def test_las_pantallas_muestran_la_franja_sin_senal():
     assert _js("itinerary.js").count("SinSenal(data)") == 2  # con y sin días armados
 
 
+def test_hoy_muestra_su_franja_cuando_es_una_copia():
+    hoy = _js("today.js")
+    assert "hoyNecesitaFranja(data, sessions)" in hoy
+    # la franja va arriba de todo en la sección Hoy, antes de las tarjetas de charlas
+    assert hoy.index("SinSenal(data)") < hoy.index("TalkCard(data.now")
+
+
 def test_los_modulos_nuevos_estan_en_el_cache_offline():
     sw = (WEB / "sw.js").read_text()
     for modulo in ("lastgood", "sinSenal", "locales"):
