@@ -3,18 +3,32 @@
 // Cada copia es de quien tenía la sesión abierta (owner) y se borra al cerrar sesión (clearLast).
 const PREFIX = "reinventar.last.";
 
-const claveDe = (owner, path) => `${PREFIX}${owner}.${path}`;
+// Lo único que se guarda: las tres pantallas previstas (lista cerrada, no una ruta cualquiera), de un dueño con forma de
+// hash y con datos que sean un objeto o una lista y no pasen del tope. Todo lo demás se ignora, al guardar y al leer.
+const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions"]);
+const DUENO_VALIDO = /^[0-9a-f]{12}$/;
+const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope es para que no llene el almacenamiento
 
-/** Guarda la respuesta buena con la hora. Si no hay lugar o el almacenamiento está bloqueado, se sigue sin copia. */
+const claveDe = (owner, path) => (DUENO_VALIDO.test(owner) && RUTAS_PERMITIDAS.has(path) ? `${PREFIX}${owner}.${path}` : null);
+const esDatoValido = (data) => data !== null && typeof data === "object"; // objeto o lista (un texto o un número no entra)
+
+/** Guarda la respuesta buena con la hora. Si no es válida, no hay lugar o el almacenamiento está bloqueado, se sigue sin copia. */
 export function saveLast(owner, path, data, now = Date.now()) {
-  try { localStorage.setItem(claveDe(owner, path), JSON.stringify({ at: now, data })); } catch { /* sin copia: no pasa nada */ }
+  const clave = claveDe(owner, path);
+  if (!clave || !esDatoValido(data) || !Number.isFinite(now)) return;
+  try {
+    const texto = JSON.stringify({ at: Math.trunc(now), data });
+    if (texto.length <= MAX_BYTES) localStorage.setItem(clave, texto);
+  } catch { /* sin copia: no pasa nada */ }
 }
 
-/** La copia guardada ({ at, data }) o null si no hay o está rota. */
+/** La copia guardada ({ at, data }) o null si no hay, está rota o no tiene la forma esperada. */
 export function loadLast(owner, path) {
+  const clave = claveDe(owner, path);
+  if (!clave) return null;
   try {
-    const copia = JSON.parse(localStorage.getItem(claveDe(owner, path)) ?? "null");
-    return copia && Number.isFinite(copia.at) && copia.data != null ? copia : null;
+    const copia = JSON.parse(localStorage.getItem(clave) ?? "null");
+    return esDatoValido(copia) && Number.isFinite(copia.at) && esDatoValido(copia.data) ? { at: copia.at, data: copia.data } : null;
   } catch { return null; }
 }
 

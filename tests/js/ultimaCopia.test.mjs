@@ -17,6 +17,8 @@ globalThis.location = { hash: "" };
 const { Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
 const { clearLast, loadLast, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
 
+const DUENO = "0123456789ab"; // forma que tiene el dueño real: 12 hex
+const copiasGuardadas = () => [...memoria.keys()].filter((k) => k.startsWith("reinventar.last."));
 const respuesta = (data) => ({ ok: true, status: 200, json: async () => data });
 const falla = (status, detail = "x") => ({ ok: false, status, statusText: "x", json: async () => ({ detail }) });
 const sinRed = async () => { throw new TypeError("Failed to fetch"); };
@@ -103,22 +105,58 @@ test("al cerrar sesión (token vacío) se borran las copias", async () => {
 
 test("clearLast no toca el resto de lo guardado en el celular", () => {
   memoria.set("reinventar.theme", "dark");
-  saveLast("yo", "/api/today", { a: 1 });
+  saveLast(DUENO, "/api/today", { a: 1 });
   clearLast();
   assert.equal(memoria.get("reinventar.theme"), "dark");
-  assert.equal(loadLast("yo", "/api/today"), null);
+  assert.equal(loadLast(DUENO, "/api/today"), null);
 });
 
 test("si el almacenamiento está lleno o roto, guardar no rompe la pantalla", () => {
   const original = globalThis.localStorage.setItem;
   globalThis.localStorage.setItem = () => { throw new DOMException("lleno", "QuotaExceededError"); };
-  assert.doesNotThrow(() => saveLast("yo", "/api/today", { a: 1 }));
+  assert.doesNotThrow(() => saveLast(DUENO, "/api/today", { a: 1 }));
   globalThis.localStorage.setItem = original;
 });
 
 test("una copia ilegible se ignora", () => {
-  memoria.set("reinventar.last.yo./api/today", "{no es json");
-  assert.equal(loadLast("yo", "/api/today"), null);
+  memoria.set(`reinventar.last.${DUENO}./api/today`, "{no es json");
+  assert.equal(loadLast(DUENO, "/api/today"), null);
+});
+
+test("solo se guardan las tres pantallas previstas: cualquier otra ruta se ignora", () => {
+  for (const ruta of ["/api/me", "/api/today/../me", "__proto__", "/api/today?x=1", ""]) {
+    saveLast(DUENO, ruta, { a: 1 });
+    assert.equal(loadLast(DUENO, ruta), null, ruta);
+  }
+  assert.deepEqual(copiasGuardadas(), []);
+});
+
+test("solo se guardan objetos o listas: un texto o un número del servidor no entra", () => {
+  for (const dato of ["<script>", 42, true, null, undefined]) saveLast(DUENO, "/api/today", dato);
+  assert.deepEqual(copiasGuardadas(), []);
+  saveLast(DUENO, "/api/sessions", [{ id: "s1" }]);
+  assert.deepEqual(loadLast(DUENO, "/api/sessions").data, [{ id: "s1" }]);
+});
+
+test("el dueño tiene que tener forma de hash: nada raro en el nombre de la clave", () => {
+  for (const dueno of ["yo", "../x", "0123456789AB", "0123456789abc", "", null]) {
+    saveLast(dueno, "/api/today", { a: 1 });
+    assert.equal(loadLast(dueno, "/api/today"), null, String(dueno));
+  }
+  assert.deepEqual(copiasGuardadas(), []);
+});
+
+test("una respuesta enorme no se guarda (no llena el almacenamiento del celular)", () => {
+  saveLast(DUENO, "/api/sessions", [{ texto: "x".repeat(3_000_000) }]);
+  assert.deepEqual(copiasGuardadas(), []);
+});
+
+test("al leer se valida la forma: una copia con otra forma se ignora", () => {
+  const clave = `reinventar.last.${DUENO}./api/today`;
+  for (const rota of [{ at: "ayer", data: { a: 1 } }, { at: 1, data: "<script>" }, { at: 1 }, [1, 2], "texto", 7]) {
+    memoria.set(clave, JSON.stringify(rota));
+    assert.equal(loadLast(DUENO, "/api/today"), null, JSON.stringify(rota));
+  }
 });
 
 test("el texto de la franja lleva la hora de los datos", () => {
