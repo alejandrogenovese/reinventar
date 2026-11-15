@@ -28,7 +28,9 @@ def test_sin_filtros_devuelve_todo_y_todas_las_facetas():
     with TestClient(app) as c:
         body = _explore(c, login_headers(c))
 
-        assert body["total"] == len(catalog.all_sessions())
+        # explorar lista charlas con horario: las que el catálogo carga sin ninguno (p. ej. una sponsoreada sin sesión
+        # programada) quedan afuera del total.
+        assert body["total"] == sum(1 for s in catalog.all_sessions() if s["instances"])
         assert set(body["facets"]) == FACETS
         assert sum(_values(body["facets"]["tipo"]).values()) == body["total"]
 

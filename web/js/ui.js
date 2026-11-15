@@ -35,11 +35,11 @@ export const StatusPill = (status, text) =>
 export const Button = (label, { variant = "secondary", ...attrs } = {}) =>
   h("button", { type: "button", class: `ra-btn ra-btn-${variant}`, ...attrs }, label);
 
-export function RecordButton(state, onClick) {
+export function RecordButton(state, onClick, { disabled = false, label: etiqueta = null } = {}) {
   const aria = state === "recording" ? "Pausar grabación" : state === "paused" ? "Seguir grabando" : "Empezar a grabar";
-  const label = { idle: "Grabar", recording: "Grabando", paused: "En pausa" }[state] || "Grabar";
+  const label = etiqueta ?? ({ idle: "Grabar", recording: "Grabando", paused: "En pausa" }[state] || "Grabar");
   return h("div", { class: "ra-recwrap" },
-    h("button", { type: "button", class: `ra-rec is-${state}`, "aria-label": aria, "aria-pressed": String(state === "recording"), onclick: onClick },
+    h("button", { type: "button", class: `ra-rec is-${state}`, "aria-label": aria, "aria-pressed": String(state === "recording"), disabled, onclick: onClick },
       h("span", { class: "ra-rec-glyph", "aria-hidden": "true" })),
     h("span", { class: "ra-rec-label" }, label));
 }

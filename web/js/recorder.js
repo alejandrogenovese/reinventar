@@ -271,6 +271,23 @@ export function clasificarFalloAlCrear(status) {
 }
 
 /**
+ * POST de la sesión con `client_id` (el id local) y `recorded_at` (cuándo se empezó a grabar). Con el mismo client_id
+ * el servidor devuelve la sesión que ya creó, así una caída antes de guardar el realId no deja una sesión huérfana.
+ * Un servidor viejo ignora los dos campos. Si rechaza `recorded_at` (422, por ejemplo fuera de rango) se reintenta
+ * una vez sin él: la sesión se crea igual, con la hora de sincronización.
+ */
+async function crearIdempotente(crear, local, id) {
+  const meta = { ...local.meta, client_id: id, recorded_at: new Date(local.creadaEn).toISOString() };
+  try {
+    return await crear(meta);
+  } catch (e) {
+    if (e.status !== 422) throw e;
+    const { recorded_at: _omitido, ...sinHora } = meta;
+    return crear(sinHora);
+  }
+}
+
+/**
  * El id con el que hay que hablarle al servidor. Una sesión local se crea la primera vez que se la necesita y el
  * realId se guarda ANTES de subir nada, así una caída a mitad no crea otra sesión. `crear` se inyecta para los tests.
  */
@@ -282,7 +299,7 @@ export function sesionRemota(id, crear = (meta) => Sessions.create(meta)) {
     if (!local) throw Object.assign(new Error(`La sesión local ${id} no existe`), { origen: "crear", huerfana: true });
     if (local.realId) return local.realId;
     try {
-      const s = await crear(local.meta);
+      const s = await crearIdempotente(crear, local, id);
       store.marcarCreada(id, s.id);
       return s.id;
     } catch (e) { throw Object.assign(e, { origen: "crear" }); }
