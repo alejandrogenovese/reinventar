@@ -1,5 +1,7 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
 import { Today } from "./api.js";
+import { hoyNecesitaFranja } from "./lastgood.js";
+import { SinSenal } from "./sinSenal.js";
 import { CountdownBadge } from "./countdown.js";
 import { empezarSesion } from "./recorder.js";
 import { GoThereParts, startsAt } from "./location.js";
@@ -96,6 +98,8 @@ export async function TodayPanel(sessions) {
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
   const body = [];
 
+  // Una copia sin señal avisa de la hora de los datos (Hoy es lo que más se mira en el pasillo).
+  if (hoyNecesitaFranja(data, sessions)) body.push(SinSenal(data));
   if (data.now) body.push(TalkCard(data.now, { label: "Ahora", recorded, variant: "primary", highlight: true, aviso: avisos[data.now.code] }));
   if (data.next) body.push(TalkCard(data.next, { label: data.now ? "Después" : "Próxima", recorded, variant: data.now ? "secondary" : "primary", aviso: avisos[data.next.code] }));
   body.push(LaterList(data.later));

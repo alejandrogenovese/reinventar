@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Corregido
+- **Hoy sin señal avisa.** Cuando Hoy muestra la última copia guardada (sin red o con un Wi-Fi con portal), ahora lleva
+  la franja «Sin señal · datos de las HH:MM», igual que el Itinerario, y no se confunde con datos al día.
+
 ## [0.23.0] - 2026-11-15
 
 ### Agregado
