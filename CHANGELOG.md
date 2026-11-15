@@ -20,6 +20,8 @@ Itinerario) y sube todo sola cuando vuelve la red.
   cerrar sesión se borra.
 - **«Grabadas en este celular»** en Inicio: las grabaciones que todavía esperan señal, con su estado (Grabando,
   Pendiente de subir, Esperando señal) o el error si algo falló.
+- **Ver la contraseña:** un ojo en cada campo de contraseña (al entrar y al cambiarla) la muestra u oculta. No tapa
+  el ícono del gestor de contraseñas y al enviar vuelve a ocultarse.
 
 ### Cambiado
 - Lo elegido se ve mejor en modo claro y oscuro: los filtros (días, tipos), las pestañas (Networking / Shows,
