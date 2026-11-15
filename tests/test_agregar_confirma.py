@@ -31,7 +31,7 @@ def test_agregada_queda_en_naranja_y_el_segundo_toque_la_quita():
 def test_si_falla_el_agregado_no_queda_marcada():
     assert "await onAdd() !== false" in _funcion("itinerary.js", "AddButton")
     for archivo in ("explore.js", "ask.js", "knowledge.js"):
-        assert "toast(e.message); return false;" in JS[archivo], archivo
+        assert "toast(mensajeError(e)); return false;" in JS[archivo], archivo
 
 
 def test_en_la_ficha_un_horario_agregado_se_puede_quitar():
