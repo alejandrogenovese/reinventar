@@ -9,7 +9,21 @@ import re
 import threading
 import traceback
 
-from . import audio, config, db, fragmentos, langfuse_scores, llm, llm_router, prompts, sandbox, stt, talks, trazas
+from . import (
+    audio,
+    config,
+    db,
+    fragmentos,
+    huecos,
+    langfuse_scores,
+    llm,
+    llm_router,
+    prompts,
+    sandbox,
+    stt,
+    talks,
+    trazas,
+)
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.pipeline")
@@ -180,6 +194,10 @@ def to_markdown(s: dict, blocks: list[dict]) -> str:
         if sm.get("takeaways"):
             out += ["## Para llevar a Galicia", ""] + [f"- {p}" for p in sm["takeaways"]] + [""]
     out += ["## Transcripción", ""]
+    pendientes = sorted(s.get("huecos") or [], key=lambda h: h["desde"])
     for b in blocks:
+        while pendientes and pendientes[0]["desde"] <= b["start_s"]:  # el hueco va antes del primer bloque que lo sigue
+            out += [huecos.marca(pendientes.pop(0)), ""]
         out += [f"**{hms(b['start_s'])}** {b['es'] or ''}", "", f"> {b['en']}", ""]
+    out += [x for h in pendientes for x in (huecos.marca(h), "")]
     return "\n".join(out)

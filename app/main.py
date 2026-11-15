@@ -13,6 +13,7 @@ from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +36,7 @@ from . import (
     events_api,
     fragmentos,
     guided_api,
+    huecos,
     interview_api,
     itinerary_api,
     knowledge_api,
@@ -152,6 +154,15 @@ app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
+app.include_router(huecos.router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validacion(_request: Request, exc: RequestValidationError):
+    """El 422 estándar, sin devolver lo que mandó el cliente (input) ni el contexto: un NaN o un Infinity en el body
+    no se puede escribir como JSON y el pedido terminaba en un 500 en vez de un 422."""
+    errores = [{k: v for k, v in e.items() if k not in ("input", "ctx")} for e in exc.errors()]
+    return JSONResponse({"detail": errores}, status_code=422)
 
 
 @app.exception_handler(catalog.CatalogUnavailable)
