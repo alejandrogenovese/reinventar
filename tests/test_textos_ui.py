@@ -6,8 +6,8 @@ from pathlib import Path
 
 WEB_JS = Path(__file__).resolve().parent.parent / "web" / "js"
 
-# El cliente de la API lo tiene otro frente: no se toca en este barrido.
-DE_OTROS = {"api.js"}
+# Archivos que se excluyen del barrido: ninguno. La grabación ya pasa por mensajeError y api.js lanza ApiError en castellano.
+DE_OTROS = set()
 # Funciones de app.js que se excluyen del barrido (ninguna: la grabación ya pasa por mensajeError).
 FUNCIONES_DE_GRABACION = ()
 # Detalle técnico a propósito: el diagnóstico del admin muestra el error crudo para poder arreglarlo.

@@ -23,6 +23,36 @@ export class ApiError extends Error {
 // Sin red, fetch tira un TypeError con texto del navegador en inglés («Failed to fetch», «Load failed»).
 export const MSG_SIN_CONEXION = "Sin conexión: revisá la señal y probá de nuevo.";
 
+// Un 200 que no es JSON: casi siempre el portal cautivo del Wi-Fi (hotel, salón) o un proxy que contesta con su HTML.
+// Se trata como falta de señal (status 0): la última copia guardada se muestra igual. Sin esto salía el SyntaxError del
+// navegador, en inglés y sin explicación.
+export const MSG_PORTAL_CAUTIVO = "La red del lugar parece pedir que inicies sesión (Wi-Fi con portal) y no deja pasar la app. Probá con datos del celular.";
+export const MSG_RESPUESTA_INVALIDA = "El servidor contestó algo que no pudimos leer. Probá de nuevo en un rato.";
+
+// ¿Lo que llegó parece la página de un portal? Por el tipo de contenido, por venir redirigido de otro sitio o porque el
+// cuerpo empieza con «<».
+async function parecePortal(r, texto) {
+  if (/html/i.test(r.headers?.get?.("content-type") ?? "")) return true;
+  if (r.redirected) {
+    try { if (new URL(r.url).origin !== location.origin) return true; } catch { return true; }
+  }
+  try { return /^\s*</.test(texto ?? (await r.clone?.().text()) ?? ""); } catch { return false; }
+}
+
+/** El cuerpo como JSON; si no lo es, un ApiError en castellano (nunca el SyntaxError del navegador). */
+async function leerJson(r) {
+  let texto = null;
+  try {
+    if (typeof r.text !== "function") return await r.json();
+    texto = await r.text();
+    return JSON.parse(texto);
+  } catch (e) {
+    if (e?.name === "AbortError") throw e; // cancelado a propósito: quien llama lo ignora
+    if (e instanceof TypeError || e?.name === "TimeoutError") throw new ApiError(0, MSG_SIN_CONEXION); // se cortó leyendo el cuerpo
+    throw (await parecePortal(r, texto)) ? new ApiError(0, MSG_PORTAL_CAUTIVO) : new ApiError(502, MSG_RESPUESTA_INVALIDA);
+  }
+}
+
 async function pedir(path, init) {
   try { return await fetch(path, init); } catch (e) {
     if (e?.name === "AbortError") throw e; // cancelado a propósito: quien llama lo ignora
@@ -40,7 +70,7 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
     if (r.status === 403 && detail === "must_change_password") { setMustChangePassword(true); location.hash = "#/password"; }
     throw new ApiError(r.status, detail);
   }
-  return raw ? r : r.json();
+  return raw ? r : leerJson(r);
 }
 
 // Sin señal en los salones: Hoy, Itinerario y grabaciones muestran la última respuesta buena en vez de quedar vacías.
