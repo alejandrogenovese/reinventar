@@ -65,6 +65,22 @@ def test_terminar_sin_red_se_vuelve_a_pintar_mientras_espera():
     assert "Esperando que termine de subir…" in cuerpo  # con señal, el texto de siempre
 
 
+def test_terminar_sin_red_deja_el_cierre_pedido_para_el_uploader():
+    # Una sesión ya creada en el servidor se cierra sola aunque se cierre la app: queda un «terminar pendiente».
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("async function finish(")
+    finish = cuerpo[inicio:cuerpo.index("async function discard(", inicio)]
+    assert "pedirTerminarReal(" in cuerpo
+    assert finish.count("diferirCierre()") >= 2  # sin red antes de subir, y si se corta justo al cerrar
+    assert "dejá la app abierta" not in APP_JS.read_text(encoding="utf-8")
+
+
+def test_reabrir_una_grabacion_con_cierre_pendiente_lleva_al_inicio():
+    codigo = APP_JS.read_text(encoding="utf-8")
+    inicio = codigo.index("async function sesionParaGrabar(")
+    assert "terminarReal(" in codigo[inicio:codigo.index("async function viewRecord(", inicio)]
+
+
 def test_record_button_acepta_deshabilitado_y_etiqueta():
     ui = (APP_JS.parent / "ui.js").read_text(encoding="utf-8")
     inicio = ui.index("export function RecordButton(")

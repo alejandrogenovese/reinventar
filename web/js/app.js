@@ -29,7 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
-import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, textosTerminar, uploader, wakeLock } from "./recorder.js";
+import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
@@ -303,6 +303,11 @@ async function sesionParaGrabar(id) {
   if (!store.esLocal(id)) {
     const local = store.idLocalDe(id);
     if (local) { location.replace(`#/grabar/${local}`); return null; }
+    if (store.terminarReal(id)) {  // se tocó Terminar sin poder completarlo: lo cierra el uploader, no hay nada que grabar
+      toast("Esa grabación ya se terminó: se procesa cuando termine de subir.");
+      location.hash = "#/";
+      return null;
+    }
     const s = await Sessions.get(id);
     if (!["recording", "uploading", "error"].includes(s.status) || s.blocks?.length) { location.hash = `#/s/${id}`; return null; }
     return s;
@@ -470,12 +475,28 @@ async function viewRecord(id) {
 
   // Texto, estado y botón mientras termina. Con señal, el texto de siempre (`textoConRed`); sin señal, el aviso de que quedó guardada.
   function pintarTerminando(textoConRed) {
-    textosFin = textosTerminar({ local: store.esLocal(id), conRed: navigator.onLine });
+    textosFin = textosTerminar({ conRed: navigator.onLine });
     paint();
     msg.replaceChildren(h("div", { class: textosFin.aviso ? "notice warn" : "notice" }, textosFin.aviso ?? textoConRed));
     finishBtn.textContent = textosFin.boton ?? "Terminar y procesar";
-    // Una sesión local sin señal se cierra sola: el botón deja volver al inicio. Las demás esperan con la pantalla abierta.
-    finishBtn.disabled = !(textosFin.boton && store.esLocal(id));
+    // Con el cierre ya pedido al uploader (sesión local, o real diferida) el botón deja volver al inicio.
+    finishBtn.disabled = !(textosFin.boton && cierrePedido());
+  }
+  const cierrePedido = () => store.esLocal(id) || Boolean(store.terminarReal(id));
+
+  // Sesión ya creada en el servidor que no se puede cerrar ahora (sin red): se deja pedido el finish para el uploader, que lo
+  // hace aunque se cierre la app. Si la pantalla sigue abierta, se pasa a la grabación apenas quede procesada.
+  async function diferirCierre() {
+    store.pedirTerminarReal(id, rec.partsCount(), s.title);
+    activeRecorder = null;
+    for (;;) {
+      pintarTerminando("Terminando: se sube y se procesa en cuanto haya señal…");
+      await new Promise((r) => setTimeout(r, 1000));
+      if (salio) return;
+      const pedido = store.terminarReal(id);
+      if (!pedido) { location.hash = `#/s/${id}`; return; }
+      if (pedido.error) { msg.replaceChildren(h("div", { class: "notice err" }, pedido.error)); return; }
+    }
   }
 
   // Si terminar falló, la pantalla vuelve a ser de grabar y el botón a «Terminar y procesar».
@@ -488,16 +509,18 @@ async function viewRecord(id) {
   }
 
   async function finish() {
-    if (terminando && store.esLocal(id)) { salio = true; activeRecorder = null; location.hash = "#/"; return; } // «Volver al inicio»
+    if (terminando && cierrePedido()) { salio = true; activeRecorder = null; location.hash = "#/"; return; } // «Volver al inicio»
     finishBtn.disabled = true;
     terminando = true;
     pintarTerminando("Terminando…");
     await rec.stop();
     rec.close();
     if (store.esLocal(id)) return finishLocal();
+    if (!navigator.onLine) return diferirCierre();
     pintarTerminando("Esperando que termine de subir…");
     uploader.kick();
     for (let i = 0; (await store.countFor(id)) > 0; i++) {
+      if (!navigator.onLine) return diferirCierre();
       if (i > 0 && i % 15 === 0) uploader.kick();
       await new Promise((r) => setTimeout(r, 1000));
       pintarTerminando("Esperando que termine de subir…");
@@ -514,6 +537,7 @@ async function viewRecord(id) {
       activeRecorder = null;
       location.hash = `#/s/${id}`;
     } catch (e) {
+      if (e.status !== 409 && resultadoDeFinishFallido(e, 0) === "reintentar") return diferirCierre();  // se cortó la red justo al cerrar
       const missing = e.detail?.missing;
       reabrirTerminar();
       msg.replaceChildren(h("div", { class: "notice err" }, missing ? `Faltan pedazos en el servidor (${Object.values(missing).flat().length}). Si el celular los tiene, se suben solos: probá Terminar de nuevo en un rato.` : mensajeError(e, "No pude terminar la grabación. Probá de nuevo.")));

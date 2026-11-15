@@ -205,6 +205,38 @@ export function reabrirCierres() {
     const s = sesionLocal(id);
     if (s?.error || s?.terminar?.intentos) actualizarLocal(id, { error: null, terminar: s.terminar && { ...s.terminar, intentos: 0 } });
   }
+  for (const id of idsReales()) {
+    const s = terminarReal(id);
+    if (s?.error || s?.terminar.intentos) actualizarReal(id, { error: null, terminar: { ...s.terminar, intentos: 0 } });
+  }
+}
+
+// --- Cierre diferido de una sesión que ya existe en el servidor --------------------------------------------------------
+// Si el usuario toca Terminar sin poder completarlo (sin red o con pedazos por subir), queda pedido el finish por id real
+// (partes e intentos, como pedirTerminar) y lo cierra el uploader cuando la cola de esa sesión queda en cero.
+const REAL = "reinventar.terminar-real.";
+const REAL_INDICE = "reinventar.terminares-reales";
+const idsReales = () => leer(REAL_INDICE, []);
+export const terminarReal = (id) => leer(REAL + id, null);
+export const terminaresReales = () => idsReales().map(terminarReal).filter(Boolean);
+function guardarReal(s) {
+  if (!escribir(REAL + s.id, s)) throw new Error("No pude guardar la grabación en el celular: revisá el espacio disponible");
+  const indice = idsReales();
+  if (!indice.includes(s.id)) escribir(REAL_INDICE, [...indice, s.id]);
+  return s;
+}
+const actualizarReal = (id, cambios) => { const actual = terminarReal(id); return actual ? guardarReal({ ...actual, ...cambios }) : null; };
+export const pedirTerminarReal = (id, parts, title) =>
+  guardarReal({ id, title: title ?? "", creadaEn: Date.now(), terminar: { parts: { ...parts }, intentos: 0 }, error: null });
+export function contarIntentoDeCierreReal(id) {
+  const t = terminarReal(id)?.terminar;
+  return t ? actualizarReal(id, { terminar: { ...t, intentos: t.intentos + 1 } }) : null;
+}
+export const marcarErrorReal = (id, error) => actualizarReal(id, { error });
+export function quitarTerminarReal(id) {
+  try { localStorage.removeItem(REAL + id); } catch {}
+  escribir(REAL_INDICE, idsReales().filter((x) => x !== id));
+  dropRecMeta(id);
 }
 export function idLocalDe(realId) { return idsLocales().find((id) => sesionLocal(id)?.realId === realId) || null; }
 
@@ -243,7 +275,9 @@ const ESTADO_PUBLICO = { grabando: "grabando", pendiente: "pendiente_de_subir", 
  * estado: "grabando" | "pendiente_de_subir" | "esperando_senal" (terminada, falta subir y cerrar).
  */
 export async function sesionesLocalesPendientes() {
-  return sesionesLocales()
-    .map((s) => ({ id: s.id, title: s.title?.trim() || TITULO_POR_DEFECTO, estado: ESTADO_PUBLICO[s.estado], at: s.creadaEn, realId: s.realId, error: s.error }))
-    .sort((a, b) => b.at - a.at);
+  const locales = sesionesLocales()
+    .map((s) => ({ id: s.id, title: s.title?.trim() || TITULO_POR_DEFECTO, estado: ESTADO_PUBLICO[s.estado], at: s.creadaEn, realId: s.realId, error: s.error }));
+  const reales = terminaresReales()
+    .map((s) => ({ id: s.id, title: s.title?.trim() || TITULO_POR_DEFECTO, estado: ESTADO_PUBLICO.terminada, at: s.creadaEn, realId: s.id, error: s.error }));
+  return [...locales, ...reales].sort((a, b) => b.at - a.at);
 }
