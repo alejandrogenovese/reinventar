@@ -5,7 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
-## [0.23.0] - 2026-11-15
+## [1.0.0] - 2026-11-15
+
+La versión que va a re:Invent 2026: la app se puede usar entera sin señal en los salones (grabar, ver Hoy y el
+Itinerario) y sube todo sola cuando vuelve la red.
 
 ### Agregado
 - **Grabar sin señal.** Si no hay red al tocar «Nueva» o «Grabar», la grabación arranca igual y se guarda en el
@@ -25,6 +28,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Al prender «Usar en qué sede estoy para los avisos» se prende también «Usar mi ubicación»: antes había que buscarla
   más arriba y la casilla parecía no tildarse.
 - Las revisiones automáticas de eventos y de charlas de staging y de producción ya no se saltean entre sí.
+- Una grabación hecha sin señal queda con la hora en que se grabó (no la de cuando volvió la señal) y no se duplica
+  si la app se cierra justo mientras se sube.
+- Langfuse y el panel de LiteLLM muestran quién hizo cada pedido al LLM en todos los caminos (también las grabaciones
+  retomadas al reiniciar y la traducción por lotes). Los trabajos automáticos van como «sistema:eventos-auto»,
+  «sistema:healthcheck», «sistema:temas» o «sistema:pipeline».
 
 ### Corregido
 - Los errores se muestran en castellano en toda la app (antes salían textos del navegador como «Failed to fetch» o
@@ -35,6 +43,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   dice qué. «Probar una notificación» solo aparece con las notificaciones activadas.
 - El Wi-Fi de un hotel que contesta con su página de login ya no da un error raro: se toma como sin señal y se
   muestra la última copia.
+- Al abrir la pantalla de grabar, el botón espera a que el micrófono esté listo («Abriendo el micrófono…»): antes,
+  tocarlo enseguida daba «Primero abrí el micrófono».
+- Hoy sin señal avisa: cuando muestra la última copia guardada (sin red o con un Wi-Fi con portal), lleva la franja
+  «Sin señal · datos de las HH:MM», igual que el Itinerario.
+- Títulos y resúmenes del catálogo oficial que AWS manda con caracteres rotos («fleetÂ», «â€”») se reparan al
+  cargarlos. Las 8 charlas ya cargadas se corrigen con la próxima carga manual del catálogo.
 - En la pantalla de grabar ya no aparece un «null» suelto al lado de «Todo subido».
 - El aviso para instalar la app ya no promete que «funciona sin señal»: dice que abre aunque no haya señal.
 
@@ -378,8 +392,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.23.0...HEAD
-[0.23.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v0.23.0
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v1.0.0
 [0.22.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...v0.20.0
