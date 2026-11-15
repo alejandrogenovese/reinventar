@@ -28,6 +28,7 @@
   transition: transform var(--ease), box-shadow var(--ease), background var(--ease);
 }
 .ra-rec:active { transform: scale(.96); }
+.ra-rec:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .ra-rec-glyph { width: 36px; height: 36px; border-radius: var(--radius-pill); background: var(--rec); transition: all var(--ease); }
 .ra-rec.is-recording { background: var(--rec); border-color: var(--rec); box-shadow: var(--glow-rec), var(--shadow-2); }
 .ra-rec.is-recording .ra-rec-glyph { width: 28px; height: 28px; border-radius: var(--radius-s); background: var(--on-rec); }
