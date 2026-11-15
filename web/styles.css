@@ -554,11 +554,21 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 :root[data-theme="dark"] .ra-avatar { background: var(--surface-3); }
 .ra-prose { font: var(--t-body); max-width: 68ch; }
 .ra-slots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+/* Horario de la ficha. Mobile primero: una columna (hora y día en una línea, la sede a todo el ancho debajo y las acciones
+   en otra fila que envuelve). Con la grilla de tres columnas en un celular de ~400 px, las acciones («En tu itinerario» +
+   «Quitar») se llevaban el ancho y la sede quedaba de una palabra por renglón. Desde 768 px: hora | sede | acciones. */
 .ra-slot {
-  display: grid; grid-template-columns: 56px 1fr auto; gap: var(--space-3); align-items: center;
+  display: grid; grid-template-columns: 1fr; gap: var(--space-2) var(--space-3); align-items: start;
   padding: var(--space-3) var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge);
 }
+.ra-slot > .ra-rail { flex-direction: row; align-items: baseline; gap: var(--space-2); padding-right: 0; border-right: 0; }
+.ra-slot > :nth-child(n+4) { grid-column: 1 / -1; }
+.ra-slot-actions { justify-content: flex-start; }
 .ra-slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font: var(--t-small); min-width: 0; }
+@media (min-width: 768px) {
+  .ra-slot { grid-template-columns: 56px 1fr auto; align-items: center; }
+  .ra-slot > .ra-rail { flex-direction: column; align-items: flex-start; gap: 2px; padding-right: var(--space-3); border-right: 2px solid var(--line); }
+}
 .ra-converse { padding: var(--space-4); border-radius: var(--radius-m); background: var(--brand-soft); box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 40%, transparent); }
 .ra-converse h2.label { color: var(--ink); }
 .ra-converse .caption { color: var(--ink); }
