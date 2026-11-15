@@ -160,6 +160,37 @@ def test_si_el_catalogo_falla_no_se_cancela_nada_y_queda_registrado(base):
     assert (ok, total) == (False, 6)  # se conserva el total de la última revisión que anduvo
 
 
+@contextmanager
+def _candado_tomado_por_otra_conexion(*claves):
+    """Otro proceso (otra réplica, otra corrida de la suite contra la misma base) con un candado advisory tomado."""
+    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as otra, otra.transaction():
+        otra.execute(f"SELECT pg_advisory_xact_lock({', '.join(['%s'] * len(claves))})", claves)
+        yield
+
+
+def test_una_revision_en_otro_schema_de_la_misma_base_no_la_bloquea(base):
+    # El candado de "una revisión a la vez" es por schema, no de toda la base (otra corrida de la suite, staging).
+    buscador = _carga_manual(base, _items(catalogo_v1()))
+    buscador.caido = True
+
+    with _candado_tomado_por_otra_conexion(charlas_auto.CANDADO):
+        r = _revisar(base, buscador, AHORA + dt.timedelta(hours=3))
+
+    assert r.get("estado") != "ocupado"
+    assert r["error"].startswith("HTTPStatusError")
+
+
+def test_dos_revisiones_del_mismo_schema_no_corren_a_la_vez(base):
+    _conectar, schema, conn = base
+    clave_schema = conn.execute("SELECT hashtext(%s)", (schema,)).fetchone()[0]
+    buscador = _carga_manual(base, _items(catalogo_v1()))
+
+    with _candado_tomado_por_otra_conexion(charlas_auto.CANDADO, clave_schema):
+        r = _revisar(base, buscador, AHORA + dt.timedelta(hours=3))
+
+    assert r == {"estado": "ocupado"}
+
+
 def test_si_el_catalogo_trae_menos_de_la_mitad_no_se_cancela_nada_ni_se_vuelve_referencia(base):
     items = _items(catalogo_v1())
     buscador = _carga_manual(base, items)

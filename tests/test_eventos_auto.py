@@ -485,6 +485,36 @@ def test_una_revision_a_la_vez(monkeypatch):
     assert eventos_auto.revisar_ahora() == {"estado": "ok"} and len(llamadas) == 1
 
 
+@contextmanager
+def _candado_tomado_por_otra_conexion(*claves):
+    """Otro proceso (otra réplica, otra corrida de la suite contra la misma base) con un candado advisory tomado."""
+    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as otra, otra.transaction():
+        placeholders = ", ".join(["%s"] * len(claves))
+        otra.execute(f"SELECT pg_advisory_xact_lock({placeholders})", claves)
+        yield
+
+
+def test_una_revision_en_otro_schema_de_la_misma_base_no_la_bloquea(base):
+    # Una base aloja varios schemas (staging y producción, o dos corridas de la suite a la vez): el candado de
+    # "una revisión a la vez" es por schema, no de toda la base.
+    with _candado_tomado_por_otra_conexion(eventos_auto.CANDADO):
+        r = _revisar(base, Fuentes(), ResumidorFalso())
+
+    assert r.get("estado") != "ocupado"
+    assert len(_eventos(base)) == 4
+
+
+def test_dos_revisiones_del_mismo_schema_no_corren_a_la_vez(base):
+    _conectar, schema, conn = base
+    clave_schema = conn.execute("SELECT hashtext(%s)", (schema,)).fetchone()[0]
+
+    with _candado_tomado_por_otra_conexion(eventos_auto.CANDADO, clave_schema):
+        r = _revisar(base, Fuentes(), ResumidorFalso())
+
+    assert r == {"estado": "ocupado"}
+    assert _eventos(base) == {}
+
+
 # ---------- push ----------
 
 def _ahora_vegas(hora):
