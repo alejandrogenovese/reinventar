@@ -29,7 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
-import { Recorder, empezarSesion, estadoSala, listMics, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
+import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
@@ -446,18 +446,23 @@ async function viewRecord(id) {
   let sala = null;
   function salaOn() {
     const c = h("div", { class: "counter" }, counter.textContent);
-    const pintarPastilla = () => { const { status, texto } = estadoSala(rec.state); return StatusPill(status, texto); };
-    let pastilla = pintarPastilla();
+    const pintarPastilla = ({ status, texto }) => StatusPill(status, texto);
+    let ultimo = estadoSala(rec.state);
+    let pastilla = pintarPastilla(ultimo);
     sala = h("div", { class: "sala", role: "dialog", "aria-label": "Modo sala. Tocá para salir.", onclick: () => { sala.remove(); sala = null; } },
       pastilla, c,
       h("span", { class: "caption" }, "Tocá para salir"));
-    // Se llama con el contador (tick) y con cada cambio de estado del grabador (pausa, reanudar, terminar).
+    // Se llama con el contador (cada segundo) y con cada cambio de estado del grabador. La pastilla (role="status") y el
+    // wake lock solo se tocan si cambió el estado, para que el lector de pantalla no anuncie «Grabando» cada segundo.
     sala.update = () => {
       c.textContent = counter.textContent;
-      const nueva = pintarPastilla();
+      const paso = pasoDeSala(ultimo, rec.state);
+      if (!paso.cambio) return;
+      const nueva = pintarPastilla(paso.estado);
       pastilla.replaceWith(nueva);
       pastilla = nueva;
-      if (rec.state === "recording" && !wakeLock.lock) void wakeLock.acquire();
+      ultimo = paso.estado;
+      if (paso.tomarWakeLock) void wakeLock.acquire();
     };
     document.body.append(sala);
     if (rec.state === "recording") void wakeLock.acquire();

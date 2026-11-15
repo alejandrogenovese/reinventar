@@ -268,7 +268,18 @@ export function estadoSala(state) {
   return { status: "queued", texto: "Sin grabar" };
 }
 
-const AVISO_SIN_SENAL ="Sin señal: la grabación quedó guardada en el celular.";
+/**
+ * sala.update corre en cada tick (una vez por segundo): la pastilla tiene role="status", así que rehacerla siempre haría que
+ * un lector de pantalla anuncie el estado cada segundo. Solo hay `cambio` si cambió el estado respecto de `anterior`, y el
+ * wake lock se pide solo en la transición a «recording».
+ */
+export function pasoDeSala(anterior, state) {
+  const estado = estadoSala(state);
+  const cambio = estado.texto !== anterior?.texto;
+  return { estado, cambio, tomarWakeLock: cambio && state === "recording" };
+}
+
+const AVISO_SIN_SENAL = "Sin señal: la grabación quedó guardada en el celular.";
 const ESTADO_TERMINADA_SIN_SENAL = "Terminada · esperando señal";
 
 /**

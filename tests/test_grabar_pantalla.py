@@ -88,6 +88,7 @@ def test_la_pastilla_del_modo_sala_sigue_el_estado_del_grabador():
     assert "estadoSala(" in sala
     assert "replaceWith(" in sala  # la pastilla se rehace al cambiar el estado
     assert "wakeLock.acquire()" in sala
+    assert "pasoDeSala(" in sala and "!wakeLock.lock" not in sala  # el wake lock se pide solo al pasar a «recording»
     listener = cuerpo[cuerpo.index('rec.addEventListener("state"'):cuerpo.index('rec.addEventListener("tick"')]
     assert "sala?.update" in listener
 

@@ -403,6 +403,37 @@ test("estadoSala: grabando, en pausa y cualquier otro estado «Sin grabar»", ()
   for (const s of ["idle", "stopped", undefined]) assert.deepEqual(rec.estadoSala(s), { status: "queued", texto: "Sin grabar" });
 });
 
+// sala.update corre en cada tick (1 vez por segundo): la pastilla (role=status) solo se rehace si cambia el estado,
+// y el wake lock solo se pide al pasar a «recording».
+test("pasoDeSala: con el mismo estado no rehace la pastilla ni pide el wake lock", () => {
+  for (const state of ["recording", "paused", "stopped"]) {
+    const p = rec.pasoDeSala(rec.estadoSala(state), state);
+    assert.equal(p.cambio, false);
+    assert.equal(p.tomarWakeLock, false);
+  }
+});
+
+test("pasoDeSala: pausar cambia la pastilla y no pide el wake lock", () => {
+  const p = rec.pasoDeSala(rec.estadoSala("recording"), "paused");
+  assert.equal(p.cambio, true);
+  assert.deepEqual(p.estado, { status: "queued", texto: "En pausa" });
+  assert.equal(p.tomarWakeLock, false);
+});
+
+test("pasoDeSala: reanudar cambia la pastilla y pide el wake lock una sola vez", () => {
+  const p = rec.pasoDeSala(rec.estadoSala("paused"), "recording");
+  assert.equal(p.cambio, true);
+  assert.equal(p.estado.texto, "Grabando");
+  assert.equal(p.tomarWakeLock, true);
+  assert.equal(rec.pasoDeSala(p.estado, "recording").tomarWakeLock, false);
+});
+
+test("pasoDeSala: terminar vuelve a «Sin grabar»", () => {
+  const p = rec.pasoDeSala(rec.estadoSala("recording"), "stopped");
+  assert.equal(p.cambio, true);
+  assert.equal(p.estado.texto, "Sin grabar");
+});
+
 test("fallo al crear: sin señal y errores del servidor se reintentan; un 4xx es definitivo", () => {
   for (const s of [0, undefined, 401, 500, 502, 503]) assert.equal(rec.clasificarFalloAlCrear(s).accion, "reintentar");
   assert.equal(rec.clasificarFalloAlCrear(422).accion, "fallido");
