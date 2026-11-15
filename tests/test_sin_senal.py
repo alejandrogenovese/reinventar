@@ -13,6 +13,8 @@ def test_hoy_itinerario_y_grabaciones_usan_la_ultima_copia():
     assert 'list: () => apiConUltimaCopia("/api/sessions")' in api
     assert 'get: () => apiConUltimaCopia("/api/today")' in api
     assert 'get: () => apiConUltimaCopia("/api/itinerary")' in api
+    assert 'get: () => apiConUltimaCopia("/api/anuncios")' in api  # «Anuncios sin reserva» de Inicio sin señal
+    assert '"/api/anuncios"' in _js("lastgood.js")  # y está en la lista cerrada de rutas que se guardan
 
 
 def test_las_pantallas_muestran_la_franja_sin_senal():

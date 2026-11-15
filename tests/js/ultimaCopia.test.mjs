@@ -14,7 +14,7 @@ const eventos = [];
 globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); return true; } };
 globalThis.location = { hash: "" };
 
-const { Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
+const { Anuncios, Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
 const { clearLast, hoyNecesitaFranja, loadLast, markStale, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
 
 const DUENO = "0123456789ab"; // forma que tiene el dueño real: 12 hex
@@ -66,6 +66,23 @@ test("sin red muestra la última copia y la marca con la hora en que se guardó"
   const data = await Sessions.list();
   assert.deepEqual(data, [{ id: "s1" }]);
   assert.ok(staleAt(data) > 0);
+});
+
+test("los anuncios sin reserva también muestran la última copia sin señal", async () => {
+  const anuncios = { items: [{ code: "KEY001" }], total: 1, is_today: true };
+  globalThis.fetch = async () => respuesta(anuncios);
+  await Anuncios.get();
+  assert.deepEqual(loadLast(await duenoDeCopias(), "/api/anuncios").data, anuncios, "la respuesta buena se guarda");
+  globalThis.fetch = sinRed;
+  const data = await Anuncios.get();
+  assert.deepEqual(data, anuncios);
+  assert.ok(staleAt(data) > 0, "la copia va marcada con su hora");
+});
+
+test("anuncios con la misma validación de forma y tamaño que el resto", () => {
+  for (const dato of ["<script>", 42, null]) saveLast(DUENO, "/api/anuncios", dato);
+  saveLast(DUENO, "/api/anuncios", { relleno: "x".repeat(2_000_001) });
+  assert.equal(loadLast(DUENO, "/api/anuncios"), null);
 });
 
 test("sin red y sin copia sigue fallando con «Sin conexión»", async () => {
