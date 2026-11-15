@@ -114,6 +114,27 @@ test("el error de una sesión local se ve en la lista", () => {
   assert.equal(store.sesionesLocalesPendientes()[0].error, "No se pudo cerrar la grabación");
 });
 
+test("empezarSesion usa la sesión del servidor cuando hay señal", async () => {
+  limpiar();
+  const r = await rec.empezarSesion(META, async () => ({ id: "real00000009" }));
+  assert.deepEqual(r, { id: "real00000009", local: false });
+  assert.deepEqual(store.sesionesLocalesPendientes(), []);
+});
+
+test("empezarSesion arma una sesión local si falla por falta de señal (status 0)", async () => {
+  limpiar();
+  const r = await rec.empezarSesion(META, async () => { throw Object.assign(new Error("Sin conexión"), { status: 0 }); });
+  assert.equal(r.local, true);
+  assert.equal(store.esLocal(r.id), true);
+  assert.deepEqual(store.sesionLocal(r.id).meta, META);
+});
+
+test("empezarSesion deja pasar los demás errores (por ejemplo un 422)", async () => {
+  limpiar();
+  await assert.rejects(rec.empezarSesion(META, async () => { throw Object.assign(new Error("kind inválido"), { status: 422 }); }), /kind inválido/);
+  assert.deepEqual(store.sesionesLocalesPendientes(), []);
+});
+
 test("reabrirCierres borra el error y devuelve los intentos de cierre", () => {
   limpiar();
   const s = store.crearSesionLocal(META);

@@ -1,6 +1,7 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
-import { Sessions, Today } from "./api.js";
+import { Today } from "./api.js";
 import { CountdownBadge } from "./countdown.js";
+import { empezarSesion } from "./recorder.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
@@ -17,7 +18,8 @@ export const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).jo
 export async function recordTalk(s, btn) {
   btn.disabled = true;
   try {
-    const rec = await Sessions.create({
+    // Sin señal también se puede grabar: empezarSesion arma una sesión local que se sube cuando vuelva la red.
+    const rec = await empezarSesion({
       title: s.title.slice(0, 200), kind: s.recording_kind, code: s.code,
       venue: place(s).slice(0, 120) || null,
       speaker: ((s.people || []).map((p) => p.name).join(", ") || s.speakers || "").slice(0, 200) || null,
