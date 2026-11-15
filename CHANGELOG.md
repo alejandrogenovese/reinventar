@@ -5,7 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
-## [0.23.0] - 2026-11-15
+## [1.0.0] - 2026-11-15
+
+La versión que va a re:Invent 2026: la app se puede usar entera sin señal en los salones (grabar, ver Hoy y el
+Itinerario) y sube todo sola cuando vuelve la red.
 
 ### Agregado
 - **Grabar sin señal.** Si no hay red al tocar «Nueva» o «Grabar», la grabación arranca igual y se guarda en el
@@ -383,8 +386,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.23.0...HEAD
-[0.23.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v0.23.0
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v1.0.0
 [0.22.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...v0.20.0
