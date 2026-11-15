@@ -58,7 +58,15 @@ export function distanceMeters(a, b) {
   return 2 * 6371000 * Math.asin(Math.sqrt(x));
 }
 
-export const formatDistance = (m) => (m < 1000 ? `a ${Math.round(m / 10) * 10} m` : `a ${(m / 1000).toFixed(1).replace(".", ",")} km`);
+/** Más lejos que esto (m) no se camina: se muestra solo la distancia, sin minutos ni «salí». */
+export const LEJOS_M = 20_000;
+/** Más cerca que esto (m) ya se está en la sede: no hay nada que caminar. */
+export const EN_LA_SEDE_M = 50;
+
+/** «en_sede» | «caminable» | «lejos» según la distancia en metros a la sede. */
+export const cercania = (m) => (m < EN_LA_SEDE_M ? "en_sede" : m > LEJOS_M ? "lejos" : "caminable");
+
+export const formatDistance = (m) =>(m < 1000 ? `a ${Math.round(m / 10) * 10} m` : `a ${(m / 1000).toFixed(1).replace(".", ",")} km`);
 
 /**
  * Minutos caminando con la Routes API de Google (misma clave que el mapa), con caché de 5 min.
@@ -132,8 +140,11 @@ export function GoThereParts(dest, { start = null, eta = false, iconOnly = false
     const here = await currentPosition();
     if (!here) return;
     link.href = directionsUrl(dest, here);
-    const parts = [formatDistance(distanceMeters(here, dest))];
-    if (eta) {
+    const metros = distanceMeters(here, dest);
+    const cerca = cercania(metros);
+    if (cerca === "en_sede") { text.textContent = "Estás en la sede"; info.hidden = false; return; }
+    const parts = [formatDistance(metros)];
+    if (eta && cerca === "caminable") {  // lejos (otro país): ni minutos ni «salí», y ni se le pregunta a la Routes API
       const { minutes, estimated } = await walkingMinutes(here, dest);
       parts.push(`${estimated ? "~" : ""}${minutes} min caminando`);
       if (start) {
