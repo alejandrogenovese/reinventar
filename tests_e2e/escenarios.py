@@ -79,6 +79,10 @@ async def escenario_2_grabar_sin_red(c: Contexto) -> None:
     await asyncio.sleep(GRABAR_SEGUNDOS)
     await p.esperar("[...document.querySelectorAll('button')].some(b => b.textContent.includes('Terminar') && !b.disabled)", "«Terminar» habilitado")
     await p.tocar("[...document.querySelectorAll('button')].find(b => b.textContent.includes('Terminar'))")
+    # Mientras termina sin señal, la pantalla dice que quedó guardada y deja volver al inicio (cierra sola con señal).
+    await p.esperar("document.body.innerText.includes('Terminada · esperando señal')", "el estado «Terminada · esperando señal»", 10)
+    await p.esperar("document.body.innerText.includes('Sin señal: la grabación quedó guardada en el celular')", "el aviso de que quedó guardada en el celular", 10)
+    await p.esperar("[...document.querySelectorAll('button')].some(b => b.textContent.includes('Volver al inicio') && !b.disabled)", "el botón «Volver al inicio»", 10)
     await p.esperar("location.hash === '#/'", "vuelta a Inicio tras Terminar sin señal", 40)
     await p.esperar("document.body.innerText.includes('Grabadas en este celular') && document.body.innerText.includes('Esperando señal')",
                     "«Grabadas en este celular» con «Esperando señal»")
