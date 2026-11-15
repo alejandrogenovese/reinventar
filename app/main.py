@@ -1,6 +1,7 @@
 """API de ReinventAR + hosting de la PWA."""
 import asyncio
 import itertools
+import json
 import logging
 import os
 import shutil
@@ -353,6 +354,40 @@ def delete(sid: str):
 def sw():
     # El service worker se sirve desde la raíz para controlar todo el sitio, sin caché HTTP.
     return FileResponse(config.WEB_DIR / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+# Staging se instala con otro ícono (colores invertidos) y otro nombre, así no se confunde con producción en el celular.
+ICONOS_STAGING = config.WEB_DIR / "icons" / "stg"
+NOMBRE_STAGING = "ReinventAR STG"
+
+
+def _es_staging() -> bool:
+    return (config.ENTORNO or "").lower() == "staging"
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    datos = json.loads((config.WEB_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))
+    if _es_staging():
+        datos = {
+            **datos,
+            "name": NOMBRE_STAGING,
+            "short_name": NOMBRE_STAGING,
+            "icons": [{**i, "src": i["src"].replace("/icons/", "/icons/stg/", 1)} for i in datos["icons"]],
+        }
+    return JSONResponse(datos, media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/icons/{nombre}")
+def icono(nombre: str):
+    # index.html y el SW piden los íconos de siempre: en staging se sirven los de icons/stg si existen (iOS toma el
+    # apple-touch-icon de acá). Solo nombres de archivo de esas carpetas: nada de rutas.
+    carpetas = ([ICONOS_STAGING] if _es_staging() else []) + [config.WEB_DIR / "icons"]
+    for carpeta in carpetas:
+        archivos = {p.name: p for p in carpeta.iterdir() if p.is_file()}
+        if nombre in archivos:
+            return FileResponse(archivos[nombre], headers={"Cache-Control": "no-cache"})
+    raise HTTPException(404)
 
 
 class RevalidatedStaticFiles(StaticFiles):
