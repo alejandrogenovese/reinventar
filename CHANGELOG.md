@@ -43,6 +43,12 @@ Itinerario) y sube todo sola cuando vuelve la red.
   dice qué. «Probar una notificación» solo aparece con las notificaciones activadas.
 - El Wi-Fi de un hotel que contesta con su página de login ya no da un error raro: se toma como sin señal y se
   muestra la última copia.
+- Al abrir la pantalla de grabar, el botón espera a que el micrófono esté listo («Abriendo el micrófono…»): antes,
+  tocarlo enseguida daba «Primero abrí el micrófono».
+- Hoy sin señal avisa: cuando muestra la última copia guardada (sin red o con un Wi-Fi con portal), lleva la franja
+  «Sin señal · datos de las HH:MM», igual que el Itinerario.
+- Títulos y resúmenes del catálogo oficial que AWS manda con caracteres rotos («fleetÂ», «â€”») se reparan al
+  cargarlos. Las 8 charlas ya cargadas se corrigen con la próxima carga manual del catálogo.
 - En la pantalla de grabar ya no aparece un «null» suelto al lado de «Todo subido».
 - El aviso para instalar la app ya no promete que «funciona sin señal»: dice que abre aunque no haya señal.
 
