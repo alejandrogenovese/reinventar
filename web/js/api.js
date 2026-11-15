@@ -119,6 +119,7 @@ export const Sessions = {
   create: (data) => api("/api/sessions", { method: "POST", json: data }).then(refrescarLista),
   putChunk: (id, part, seq, blob, signal) => api(`/api/sessions/${id}/chunks/${part}/${seq}`, { method: "PUT", body: blob, headers: { "Content-Type": "application/octet-stream" }, signal }),
   finish: (id, parts) => api(`/api/sessions/${id}/finish`, { method: "POST", json: { parts } }).then(refrescarLista),
+  huecos: (id, huecos) => api(`/api/sessions/${id}/huecos`, { method: "POST", json: { huecos } }),  // tramos sin audio: reemplaza la lista
   retry: (id, fromScratch = false) => api(`/api/sessions/${id}/retry?from_scratch=${fromScratch}`, { method: "POST" }),
   remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }).then(refrescarLista),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
