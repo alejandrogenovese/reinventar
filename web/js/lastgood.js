@@ -11,6 +11,9 @@ const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope
 
 const claveDe = (owner, path) => (DUENO_VALIDO.test(owner) && RUTAS_PERMITIDAS.has(path) ? `${PREFIX}${owner}.${path}` : null);
 const esDatoValido = (data) => data !== null && typeof data === "object"; // objeto o lista (un texto o un número no entra)
+// JSON.parse deja «__proto__» como clave propia; si después alguien mezcla el objeto con otro (spread, merge) contamina
+// el prototipo. Se descarta al leer, a cualquier profundidad.
+const sinProto = (clave, valor) => (clave === "__proto__" ? undefined : valor);
 
 /** Guarda la respuesta buena con la hora. Si no es válida, no hay lugar o el almacenamiento está bloqueado, se sigue sin copia. */
 export function saveLast(owner, path, data, now = Date.now()) {
@@ -27,7 +30,7 @@ export function loadLast(owner, path) {
   const clave = claveDe(owner, path);
   if (!clave) return null;
   try {
-    const copia = JSON.parse(localStorage.getItem(clave) ?? "null");
+    const copia = JSON.parse(localStorage.getItem(clave) ?? "null", sinProto);
     return esDatoValido(copia) && Number.isFinite(copia.at) && esDatoValido(copia.data) ? { at: copia.at, data: copia.data } : null;
   } catch { return null; }
 }
@@ -42,7 +45,10 @@ export function clearLast() {
 
 // Qué respuestas son una copia y de cuándo: se anota en un WeakMap para no cambiar la forma de los datos.
 const copias = new WeakMap();
-export const markStale = (data, at) => { if (data && typeof data === "object") copias.set(data, at); return data; };
+export function markStale(data, at) {
+  if (esDatoValido(data)) copias.set(data, at);
+  return data;
+}
 /** Hora (ms) en que se guardaron estos datos si son una copia sin señal; null si vienen frescos del servidor. */
 export const staleAt = (data) => (data && typeof data === "object" ? copias.get(data) ?? null : null);
 

@@ -22,12 +22,14 @@ def test_las_pantallas_muestran_la_franja_sin_senal():
 
 def test_los_modulos_nuevos_estan_en_el_cache_offline():
     sw = (WEB / "sw.js").read_text()
-    assert '"/js/lastgood.js"' in sw and '"/js/sinSenal.js"' in sw and '"/js/locales.js"' in sw
+    for modulo in ("lastgood", "sinSenal", "locales"):
+        assert f'"/js/{modulo}.js"' in sw, modulo
 
 
 def test_inicio_muestra_las_grabaciones_locales_arriba_de_tus_grabaciones():
     app = _js("app.js")
-    assert "cargarLocales(store)" in app and "LocalesPendientes(fichas)" in app
+    assert "cargarLocales(store)" in app
+    assert "LocalesPendientes(fichas)" in app
     assert app.index("localesSlot,") < app.index('id: "grabaciones-title"')  # arriba de «Tus grabaciones»
     # se cargan antes de pedir la lista al servidor: sin señal ni copia esa falla y las locales igual se ven
     assert app.index("void refreshLocales();") < app.index("const sessions = await Sessions.list();")

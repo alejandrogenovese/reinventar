@@ -151,6 +151,14 @@ test("una respuesta enorme no se guarda (no llena el almacenamiento del celular)
   assert.deepEqual(copiasGuardadas(), []);
 });
 
+test("al leer se descartan las claves que contaminan prototipos", () => {
+  memoria.set(`reinventar.last.${DUENO}./api/today`, '{"at":1,"data":{"ok":1,"__proto__":{"admin":true},"anidado":{"__proto__":{"x":1},"y":2}}}');
+  const { data } = loadLast(DUENO, "/api/today");
+  assert.deepEqual(data, { ok: 1, anidado: { y: 2 } });
+  assert.equal({}.admin, undefined);
+  assert.equal(Object.getPrototypeOf(data), Object.prototype);
+});
+
 test("al leer se valida la forma: una copia con otra forma se ignora", () => {
   const clave = `reinventar.last.${DUENO}./api/today`;
   for (const rota of [{ at: "ayer", data: { a: 1 } }, { at: 1, data: "<script>" }, { at: 1 }, [1, 2], "texto", 7]) {
