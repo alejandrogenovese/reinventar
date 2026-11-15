@@ -123,9 +123,35 @@ async def escenario_4_portal_cautivo(c: Contexto) -> None:
     await p.portal(None)
 
 
+async def escenario_5_ver_contrasena_en_el_login(c: Contexto) -> None:
+    p = c.pagina
+    await p.offline(False)
+    await p.evaluar("localStorage.removeItem('reinventar.token'); location.hash = '#/login'")  # último escenario: no hace falta volver
+    await p.esperar("!!document.querySelector('#password')", "el login")
+    tipo = "document.querySelector('#password').type"
+    assert await p.evaluar(tipo) == "password", "el campo debía arrancar oculto"
+    await p.tocar("document.querySelector('.ra-pass-eye')")
+    assert await p.evaluar(tipo) == "text", "tocar el ojo debía mostrar la contraseña"
+    assert await p.evaluar("document.querySelector('.ra-pass-eye').getAttribute('aria-pressed')") == "true"
+    # Táctil (44 px) y sin tapar el lugar del ícono del gestor de contraseñas, que va pegado al borde derecho del campo.
+    m = await p.evaluar("(() => { const i = document.querySelector('#password').getBoundingClientRect(), b = document.querySelector('.ra-pass-eye').getBoundingClientRect();"
+                        " return { ancho: b.width, alto: b.height, libre: i.right - b.right }; })()")
+    assert m["ancho"] >= 44 and m["alto"] >= 44, f"el ojo debía tener 44 px de toque y tiene {m}"
+    assert m["libre"] >= 40, f"el ojo tapa el borde derecho del campo (el ícono del gestor): libre={m['libre']}"
+    await p.tocar("document.querySelector('.ra-pass-eye')")
+    assert await p.evaluar(tipo) == "password", "tocar de nuevo debía ocultarla"
+    # Al enviar el formulario vuelve a password aunque el login falle (credenciales de prueba inválidas).
+    await p.tocar("document.querySelector('.ra-pass-eye')")
+    await p.evaluar("document.querySelector('#username').value = 'nadie'; document.querySelector('#password').value = 'clave-que-no-existe'")
+    await p.tocar("document.querySelector('button[type=submit]')")
+    await p.esperar("document.body.innerText.includes('Usuario o contraseña inválidos')", "el aviso de login inválido")
+    assert await p.evaluar(tipo) == "password", "al enviar el formulario la contraseña debía volver a ocultarse"
+
+
 ESCENARIOS = (
     ("1 · franja «Sin señal» al recargar sin red", escenario_1_franja_sin_senal),
     ("2 · grabar sin red y terminar", escenario_2_grabar_sin_red),
     ("3 · al volver la red se sube y se cierra", escenario_3_subida_al_volver),
     ("4 · portal cautivo en /api/", escenario_4_portal_cautivo),
+    ("5 · ver y ocultar la contraseña en el login", escenario_5_ver_contrasena_en_el_login),
 )

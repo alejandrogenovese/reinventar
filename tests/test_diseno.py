@@ -119,6 +119,7 @@ PARES_USADOS = [
     (".ra-ann.is-hero .ra-tag.is-new", ".ra-ann.is-hero .ra-tag.is-new"), (".ra-ann-cta", "--surface-2"),
     ('.ra-segtab[aria-selected="true"]', '.ra-segtab[aria-selected="true"]'),
     (".ra-pillselect-wrap:has(.is-on)", ".ra-pillselect.is-on"),  # el texto lo hereda del envoltorio
+    (".ra-pass-eye", "--surface-1"),  # el ojo de las contraseñas, sobre el fondo del campo
 ]
 
 # Lo elegido (chip, pestaña, «Agrupar») tiene que verse elegido en los dos temas: naranja suave con borde, no tinta
@@ -192,6 +193,28 @@ def test_barra_inferior_solida_sin_blur():
 def test_momentos_del_chat_en_naranja_y_no_en_rojo_de_error():
     assert "var(--rec)" not in _regla(".ra-hit-time")
     assert "var(--brand-ink)" in _regla(".ra-cite.ra-moment-ref")
+
+
+def test_el_ojo_de_la_contrasena_es_tactil_visible_y_deja_lugar_al_gestor():
+    ojo = _regla(".ra-pass-eye")
+    assert "var(--touch)" in ojo  # área táctil de 44 px
+    assert "position: absolute" in ojo
+    assert "outline" in _regla(".ra-pass-eye:focus-visible")  # foco visible
+    # El gestor de contraseñas (NordPass, etc.) pone su ícono pegado al borde derecho del campo: el ojo se corre ese
+    # hueco hacia adentro y el texto del input reserva lugar para los dos.
+    hueco = int(re.search(r"--hueco-gestor:\s*(\d+)px", _regla(".ra-pass")).group(1))
+    assert hueco >= 40
+    assert "var(--hueco-gestor)" in ojo
+    relleno = _regla(".ra-pass input")
+    assert "padding-inline-end" in relleno and "var(--hueco-gestor)" in relleno and "var(--touch)" in relleno
+
+
+def test_login_y_cambio_de_contrasena_usan_el_campo_con_ojo():
+    app, cuenta = JS["app.js"], JS["account.js"]
+    assert app.count("PasswordField(") == 1  # login
+    assert cuenta.count("PasswordField(") == 3  # actual, nueva y repetir
+    for nombre, codigo in (("app.js", app), ("account.js", cuenta)):
+        assert 'type: "password"' not in codigo, f"{nombre} arma un campo de contraseña sin el ojo"
 
 
 def test_pildora_de_filtro_de_44px():

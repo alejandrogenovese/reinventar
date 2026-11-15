@@ -31,7 +31,7 @@ import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
 import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, Hint, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
+import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -521,7 +521,8 @@ function finishLogin(r) {
 
 function viewLogin() {
   const userInput = h("input", { id: "username", name: "username", required: true, autocomplete: "username", autocapitalize: "none" });
-  const passInput = h("input", { id: "password", name: "password", type: "password", required: true, autocomplete: "current-password" });
+  const pass = PasswordField("password", "Contraseña", { autocomplete: "current-password" });
+  const passInput = pass.input;
   const status = h("div");
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
     e.preventDefault();
@@ -537,7 +538,7 @@ function viewLogin() {
   } },
     h("h1", { class: "title" }, "Ingresá a ReinventAR"),
     h("div", { class: "field" }, h("label", { class: "label", for: "username" }, "Usuario"), userInput),
-    h("div", { class: "field" }, h("label", { class: "label", for: "password" }, "Contraseña"), passInput),
+    pass.el,
     h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Entrar")),
     status);
   const passkey = PasskeyLoginButton(finishLogin, (msg) => status.replaceChildren(h("div", { class: "notice err" }, msg)));
