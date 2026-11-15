@@ -65,10 +65,10 @@ function Slot(i, mine, onChange, aviso) {
     catch (err) { toast(mensajeError(err)); }
   };
   let action;
-  if (own) action = [
+  if (own) action = h("div", { class: "actions" },
     own.locked ? IconText("fijar", "En tu itinerario", { className: "ra-tag is-new ra-icotext", size: 14 })
       : h("span", { class: "ra-tag is-new" }, "En tu itinerario"),
-    Button("Quitar", { onclick: remove, "aria-label": `Quitar el horario ${shortDay(i.day)} ${i.start} del itinerario` })];
+    Button("Quitar", { onclick: remove, "aria-label": `Quitar el horario ${shortDay(i.day)} ${i.start} del itinerario` }));
   else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
   else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
   return h("li", { class: `ra-slot${i.cancelled ? " is-cancelled" : ""}` },
@@ -79,7 +79,7 @@ function Slot(i, mine, onChange, aviso) {
       AvisoBaja(i),
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
-    h("div", { class: "actions ra-slot-actions" }, action),  // una fila que envuelve: ninguna pastilla tapa a otra
+    action,
     LlenoAvisos(i.code, aviso));
 }
 

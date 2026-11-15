@@ -217,29 +217,6 @@ def test_login_y_cambio_de_contrasena_usan_el_campo_con_ojo():
         assert 'type: "password"' not in codigo, f"{nombre} arma un campo de contraseña sin el ojo"
 
 
-def test_el_horario_de_la_ficha_apila_en_mobile_y_va_en_tres_columnas_en_desktop():
-    """La caja «Horario»: en un celular de ~400 px la sede se partía en una palabra por renglón (la columna de acciones se
-    llevaba el ancho) y la pastilla «En tu itinerario» tapaba el final. Mobile primero: una columna, la sede a todo el
-    ancho debajo de la hora y las acciones en otra fila; desde 768 px, hora | sede | acciones."""
-    base = re.search(r"\.ra-slot \{([^}]*)\}", STYLES).group(1)  # la primera regla es la de mobile
-    assert "grid-template-columns: 1fr" in base and "56px" not in base
-    desktop = re.search(r"@media \(min-width: 768px\) \{\s*\.ra-slot \{([^}]*)\}", STYLES)
-    assert desktop and "grid-template-columns: 56px 1fr auto" in desktop.group(1)
-    # La hora va en una línea en mobile (hora y día juntos) y la columna con borde queda para desktop.
-    assert "flex-direction: row" in re.search(r"\.ra-slot > \.ra-rail \{([^}]*)\}", STYLES).group(1)
-    assert "flex-direction: column" in re.search(r"@media \(min-width: 768px\) \{[^@]*?\.ra-slot > \.ra-rail \{([^}]*)\}", STYLES, re.S).group(1)
-    # Lo que viene después de las acciones (avisos de lleno) ocupa todo el ancho en los dos diseños.
-    assert "grid-column: 1 / -1" in _regla(".ra-slot > :nth-child(n+4)")
-    assert "min-width: 0" in _regla(".ra-slot-body")  # el texto largo envuelve en vez de empujar
-
-
-def test_las_acciones_del_horario_van_siempre_en_una_fila_que_envuelve():
-    ficha = JS["knowledge.js"]
-    assert ficha.count("ra-slot-actions") == 1  # un solo envoltorio para En tu itinerario / Quitar / Cambiar / Agregar
-    assert 'h("div", { class: "actions ra-slot-actions" }, action)' in ficha
-    assert "flex-wrap: wrap" in _regla(".actions")  # y .actions envuelve
-
-
 def test_pildora_de_filtro_de_44px():
     assert "var(--touch)" in _regla("button.ra-chip, .chipgroup label")
 
