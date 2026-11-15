@@ -17,21 +17,35 @@ const supported = () => estadoPush() === "ok";
 // Con el service worker que no contesta (iOS sin instalar, Safari trabado) `.ready` o getSubscription no resuelven nunca:
 // sin tope el interruptor quedaba deshabilitado para siempre y nadie se enteraba.
 export const READY_TIMEOUT_MS = 5000;
+const MSG_SW_INSTALANDO = "La app todavía se está instalando: cerrala y abrila de nuevo.";
+const MSG_SIN_PUSH = "Este dispositivo no deja suscribirse a notificaciones.";
 const MSG_SW_NO_RESPONDE = "El servicio de notificaciones del celular no responde. Cerrá y abrí la app y probá de nuevo.";
 
-function conTope(promesa, ms) {
+function conTope(promesa, ms, mensaje = MSG_SW_NO_RESPONDE) {
   let timer;
-  const tope = new Promise((_, rechazar) => { timer = setTimeout(() => rechazar(new Error(MSG_SW_NO_RESPONDE)), ms); });
+  const tope = new Promise((_, rechazar) => { timer = setTimeout(() => rechazar(new Error(mensaje)), ms); });
   return Promise.race([promesa, tope]).finally(() => clearTimeout(timer));
 }
 
 // La clave VAPID viene en base64url; pushManager.subscribe la quiere en bytes.
 const keyBytes = (b64) => Uint8Array.from(atob(b64.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(b64.length / 4) * 4, "=")), (c) => c.codePointAt(0));
 
-/** El registro del service worker y la suscripción actual (o null), con tope: si no contesta, falla en castellano. */
+/**
+ * El registro del service worker y la suscripción actual (o null), con tope. Si falla, el mensaje dice cuál de los dos:
+ * el service worker todavía no está activo (la app se está instalando) o el navegador no deja suscribirse (pushManager).
+ */
 export async function currentSubscription(sw = navigator.serviceWorker, timeoutMs = READY_TIMEOUT_MS) {
-  const reg = await conTope(sw.ready, timeoutMs);
-  return { reg, sub: await conTope(reg.pushManager.getSubscription(), timeoutMs) };
+  const reg = await conTope(Promise.resolve(sw.ready), timeoutMs, MSG_SW_INSTALANDO).catch(() => { throw new Error(MSG_SW_INSTALANDO); });
+  const sub = await conTope(Promise.resolve().then(() => reg.pushManager.getSubscription()), timeoutMs, MSG_SIN_PUSH)
+    .catch(() => { throw new Error(MSG_SIN_PUSH); }); // un rechazo del navegador o que no conteste: el detalle técnico no le sirve a nadie
+  return { reg, sub };
+}
+
+/** El texto que reemplaza al interruptor cuando las notificaciones no se pueden activar desde acá. */
+export function textoNoSoportado(estado) {
+  return estado === "ios_sin_instalar"
+    ? "Para recibir avisos en iPhone, agregá la app a la pantalla de inicio con «Abrir como app web» prendido y abrila desde el ícono."
+    : "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí.";
 }
 
 // El SW no ve localStorage: le dejamos el token en la Cache API para que, si el navegador rota la suscripción con la app
@@ -179,9 +193,7 @@ export function PushSettings() {
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
   const estado = estadoPush();
   if (estado !== "ok") {
-    box.append(h("p", { class: "caption" }, estado === "ios_sin_instalar"
-      ? "En iPhone y iPad las notificaciones solo funcionan con la app instalada: tocá Compartir › «Agregar a pantalla de inicio» y abrila desde ahí."
-      : "Este navegador no las soporta. En iPhone, instalá la app en la pantalla de inicio y abrila desde ahí."));
+    box.append(h("p", { class: "caption" }, textoNoSoportado(estado)));
     return box;
   }
   const toggle = h("input", { type: "checkbox", id: "push-on", disabled: true });

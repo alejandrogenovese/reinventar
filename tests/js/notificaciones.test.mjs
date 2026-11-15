@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 const ponerNavigator = (valor) => Object.defineProperty(globalThis, "navigator", { value: valor, configurable: true, writable: true });
 
-const { currentSubscription, disable, estadoPush, prenderSede } = await import("../../web/js/notifications.js");
+const { currentSubscription, disable, estadoPush, prenderSede, textoNoSoportado } = await import("../../web/js/notifications.js");
 
 const UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 const UA_ESCRITORIO = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.4 Safari/605.1.15";
@@ -42,8 +42,12 @@ test("sin service worker, PushManager o Notification no está soportado", () => 
 
 // ---------- service worker que no responde ----------
 
-test("si el service worker nunca queda listo, currentSubscription falla con un mensaje en castellano", async () => {
-  await assert.rejects(currentSubscription({ ready: nunca() }, 20), (e) => /service worker|servicio/i.test(e.message) && !/[Tt]imed? out|undefined/.test(e.message));
+test("si el service worker nunca queda listo, dice que la app todavía se está instalando", async () => {
+  await assert.rejects(currentSubscription({ ready: nunca() }, 20), (e) => /se está instalando.*cerrala y abrila de nuevo/.test(e.message) && !/[Tt]imed? out|undefined/.test(e.message));
+});
+
+test("si el registro ni llega a existir (ready rechaza) también es «se está instalando»", async () => {
+  await assert.rejects(currentSubscription({ ready: Promise.reject(new Error("boom")) }, 20), /se está instalando/);
 });
 
 test("con el service worker listo devuelve el registro y la suscripción", async () => {
@@ -52,13 +56,24 @@ test("con el service worker listo devuelve el registro y la suscripción", async
   assert.deepEqual(await currentSubscription({ ready: Promise.resolve(reg) }, 20), { reg, sub });
 });
 
-test("si pushManager no existe, rechaza en vez de quedarse esperando", async () => {
-  await assert.rejects(currentSubscription({ ready: Promise.resolve({}) }, 20));
+test("si pushManager no existe, dice que este dispositivo no deja suscribirse", async () => {
+  await assert.rejects(currentSubscription({ ready: Promise.resolve({}) }, 20), /no deja suscribirse a notificaciones/);
+});
+
+test("si getSubscription rechaza, es el mismo aviso y no el error técnico del navegador", async () => {
+  const reg = { pushManager: { getSubscription: async () => { throw new DOMException("sin permiso", "NotAllowedError"); } } };
+  await assert.rejects(currentSubscription({ ready: Promise.resolve(reg) }, 20), (e) => /no deja suscribirse/.test(e.message) && !/NotAllowed/.test(e.message));
 });
 
 test("si getSubscription se cuelga también hay tope", async () => {
   const reg = { pushManager: { getSubscription: nunca } };
-  await assert.rejects(currentSubscription({ ready: Promise.resolve(reg) }, 20), /service worker|servicio/i);
+  await assert.rejects(currentSubscription({ ready: Promise.resolve(reg) }, 20), /no deja suscribirse a notificaciones/);
+});
+
+test("el texto de iPhone sin instalar explica «Abrir como app web» y abrir desde el ícono", () => {
+  assert.match(textoNoSoportado("ios_sin_instalar"), /Abrir como app web/);
+  assert.match(textoNoSoportado("ios_sin_instalar"), /ícono/);
+  assert.match(textoNoSoportado("no_soportado"), /no las soporta/);
 });
 
 test("disable() no cuelga el cierre de sesión aunque el service worker no conteste", async () => {
@@ -72,7 +87,7 @@ test("disable() no cuelga el cierre de sesión aunque el service worker no conte
 test("disable() sin service worker termina igual", async () => {
   globalThis.caches = { delete: async () => true };
   ponerNavigator({});
-  await disable({ timeoutMs: 20 });
+  await assert.doesNotReject(disable({ timeoutMs: 20 }));
 });
 
 // ---------- «sede» sin «Usar mi ubicación» ----------
