@@ -89,5 +89,14 @@ def como_usuario(username: str | None) -> Iterator[None]:
         _usuario.reset(token)
 
 
+PREFIJO_SISTEMA = "sistema:"
+
+
+def como_sistema(trabajo: str):
+    """Para los trabajos sin persona detrás (revisiones automáticas, healthcheck): el userId queda «sistema:<trabajo>»,
+    así se filtran en Langfuse y en el gasto del gateway."""
+    return como_usuario(f"{PREFIJO_SISTEMA}{trabajo}")
+
+
 def usuario_actual() -> str | None:
     return _usuario.get()

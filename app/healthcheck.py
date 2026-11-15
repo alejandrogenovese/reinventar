@@ -10,7 +10,22 @@ from collections.abc import Callable
 
 import httpx
 
-from . import catalog, config, db, events, explore, itinerary, llm, push, sandbox, search, today, trazas, venues
+from . import (
+    catalog,
+    config,
+    db,
+    events,
+    explore,
+    itinerary,
+    llm,
+    llm_router,
+    push,
+    sandbox,
+    search,
+    today,
+    trazas,
+    venues,
+)
 from .llm_router import Tarea
 
 CHECK_USER = "__chequeo__"
@@ -87,7 +102,8 @@ def _traza() -> trazas.Traza:
 
 def _llm() -> str:
     # Traza y sesión propias (y el tag "prueba" del sandbox): si algún día pasa por el gateway, no se mezcla con el chat.
-    with sandbox.activar(sandbox.Sandbox(CHECK_USER, llm="fake")), trazas.abrir(_traza()):
+    with (sandbox.activar(sandbox.Sandbox(CHECK_USER, llm="fake")), llm_router.como_sistema("healthcheck"),
+          trazas.abrir(_traza())):
         llm.complete(Tarea.CHAT, "Sos un test.", "Pregunta: hola", 50)
     real = config.LLM_PROVIDER
     configurado = (real == "fake" or (real == "anthropic" and config.ANTHROPIC_API_KEY)

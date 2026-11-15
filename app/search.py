@@ -18,7 +18,7 @@ from collections import Counter
 
 import numpy as np
 
-from . import catalog, embeddings, pg, sandbox
+from . import catalog, embeddings, llm_router, pg, sandbox
 
 log = logging.getLogger("reinventar.search")
 
@@ -186,7 +186,8 @@ def _warm() -> None:
     from . import clusters  # import diferido: clusters depende de este módulo
 
     try:
-        clusters.ensure()
+        with llm_router.como_sistema("temas"):  # nombra los temas con el LLM: nadie lo pidió
+            clusters.ensure()
     except Exception:
         log.exception("No se pudieron armar los temas emergentes; el explorador sigue sin esa faceta")
     finally:
