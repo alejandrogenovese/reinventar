@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import PurePosixPath
@@ -14,7 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from . import (
@@ -171,6 +172,27 @@ class NewSession(BaseModel):
     code: str | None = Field(None, max_length=40)
     venue: str | None = Field(None, max_length=120)
     speaker: str | None = Field(None, max_length=200)
+    # Grabar sin señal: el cliente manda el id de su sesión local y la hora real; con el mismo client_id, reintentar el
+    # alta devuelve la misma sesión.
+    client_id: str | None = Field(None, pattern=r"^[A-Za-z0-9_-]{6,64}$")
+    recorded_at: AwareDatetime | None = None  # ISO 8601 con zona horaria (por ejemplo, 2026-12-01T14:05:00Z)
+
+
+RECORDED_AT_FUTURO_MAX_S = 5 * 60  # tolerancia por desfase entre el reloj del celular y el del servidor
+RECORDED_AT_PASADO_MAX_S = 2 * 24 * 3600
+
+
+def _hora_de_grabacion(recorded_at: AwareDatetime | None) -> float | None:
+    """La hora real de la grabación como epoch, o 422 si es del futuro o de hace más de dos días."""
+    if recorded_at is None:
+        return None
+    hora = recorded_at.timestamp()
+    desfase = time.time() - hora
+    if desfase < -RECORDED_AT_FUTURO_MAX_S:
+        raise HTTPException(422, "recorded_at no puede ser del futuro")
+    if desfase > RECORDED_AT_PASADO_MAX_S:
+        raise HTTPException(422, "recorded_at es de hace más de 2 días")
+    return hora
 
 
 # Topes de una grabación: parte = tramo entre pausas o cambios de micrófono; pedazo = 10 s de audio
@@ -235,7 +257,7 @@ def create_session(body: NewSession, username: str = Depends(auth)):
     if body.kind not in db.KINDS:
         raise HTTPException(422, f"kind debe ser uno de {db.KINDS}")
     return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker,
-                             created_by=username)
+                             created_by=username, client_id=body.client_id, recorded_at=_hora_de_grabacion(body.recorded_at))
 
 
 @app.get("/api/sessions", dependencies=[Depends(auth)])

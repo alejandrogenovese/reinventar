@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 -- Quién grabó (username): para «Tu re:Invent en números». Las grabaciones de antes quedan en NULL (no son de nadie).
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
+-- Id que genera el cliente al grabar sin señal (sesión local «loc_…»): con él, reintentar el alta no duplica la sesión.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_by, client_id) WHERE client_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS chunks (
   session_id TEXT NOT NULL,
   part INTEGER NOT NULL,
@@ -291,15 +294,21 @@ def _row(r):
     return d
 
 
-def create_session(title, kind, code=None, venue=None, speaker=None, created_by=None):
+def create_session(title, kind, code=None, venue=None, speaker=None, created_by=None, client_id=None, recorded_at=None):
+    """Crea la sesión. Con client_id es idempotente por usuario: si ya existe una con ese client_id, devuelve esa
+    (y no toca nada). recorded_at (epoch) es la hora real de la grabación: es el created_at, con el que se ordena la lista."""
     sid = uuid.uuid4().hex[:12]
     now = time.time()
     with conn() as c:
-        c.execute(
-            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_by,created_at,updated_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (sid, title, kind, code, venue, speaker, "recording", created_by, now, now),
-        )
+        creada = c.execute(
+            "INSERT INTO sessions (id,title,kind,code,venue,speaker,status,created_by,client_id,created_at,updated_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (created_by, client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id",
+            (sid, title, kind, code, venue, speaker, "recording", created_by, client_id,
+             recorded_at if recorded_at is not None else now, now),
+        ).fetchone()
+        if creada is None:  # el client_id ya estaba: es un reintento
+            sid = c.execute("SELECT id FROM sessions WHERE created_by=%s AND client_id=%s", (created_by, client_id)).fetchone()["id"]
     return get_session(sid)
 
 
