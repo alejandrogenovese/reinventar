@@ -1,6 +1,7 @@
 // Captura de audio + subida en segundo plano.
 import { Sessions } from "./api.js";
 import * as store from "./store.js";
+import { mensajeError } from "./ui.js";
 
 const TIMESLICE_MS = 10_000;
 const MIME = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(
@@ -162,7 +163,7 @@ export class Recorder extends EventTarget {
       }
     } catch (e) {
       // Sin gesto del usuario iOS puede negarse a reanudar: queda avisado y se reintenta tocando Grabar.
-      this._emit("error", new Error(`No pude retomar la grabación: ${e.message}. Tocá el botón para seguir.`));
+      this._emit("error", new Error(`${mensajeError(e, "No pude retomar la grabación.")} Tocá el botón para seguir.`));
     }
   }
 
@@ -258,7 +259,8 @@ export function clasificarFalloDeSubida(status) {
 export const MAX_INTENTOS_CIERRE = 5;
 export const MSG_SESION_RECHAZADA = "El servidor no aceptó crear la grabación, no se pudo subir";
 export const MSG_LOCAL_SIN_DATOS = "Grabación local sin datos: no sé a qué charla pertenece, no se pudo subir";
-export const MSG_CIERRE_CON_FALLIDOS = "Hay pedazos que el servidor rechazó: no se pudo cerrar la grabación";
+export const MSG_CIERRE_FALLIDO = "No se pudo cerrar la grabación: se vuelve a intentar con señal";
+export const MSG_CIERRE_CON_FALLIDOS ="Hay pedazos que el servidor rechazó: no se pudo cerrar la grabación";
 const creando = new Map();   // un solo POST por sesión local aunque dos loops lo pidan a la vez
 const cerrando = new Set();
 
@@ -323,7 +325,7 @@ const sinAudio = (parts) => Object.values(parts).every((n) => !n);
 // Un solo loop para toda la app.
 export const uploader = new (class extends EventTarget {
   constructor() { super(); this.running = false; this.pending = 0; this.failed = 0; this.failedError = null; this.lastError = null; this.backoff = 1000; }
-  kick() { if (!this.running) this._run().catch((e) => { this.lastError = e.message; this._emit(); }); }
+  kick() { if (!this.running) this._run().catch((e) => { this.lastError = mensajeError(e, "No pude subir el audio. Se reintenta solo."); this._emit(); }); }
   async refresh() { await this._count(); this._emit(); }
   async retryFailed() { await store.retryFailed(); store.reabrirCierres(); await this.refresh(); this.kick(); }
 
@@ -347,7 +349,7 @@ export const uploader = new (class extends EventTarget {
       await Sessions.finish(s.realId, s.terminar.parts);
       store.quitarSesionLocal(id);
     } catch (e) {
-      if (resultadoDeFinishFallido(e, s.terminar.intentos) === "error") store.marcarErrorLocal(id, e.message);
+      if (resultadoDeFinishFallido(e, s.terminar.intentos) === "error") store.marcarErrorLocal(id, mensajeError(e, MSG_CIERRE_FALLIDO));
       else if (e.status === 409) store.contarIntentoDeCierre(id);
       else this.lastError = e.status === 401 ? "Token inválido" : "Sin conexión";
       this._emit();
