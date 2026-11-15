@@ -6,8 +6,8 @@ from pathlib import Path
 
 WEB_JS = Path(__file__).resolve().parent.parent / "web" / "js"
 
-# Los tienen otros frentes (grabación y cliente de la API): no se tocan en este barrido.
-DE_OTROS = {"api.js", "recorder.js", "store.js", "today.js"}
+# Los tienen otros frentes (grabación): no se tocan en este barrido. api.js ya entra: sus errores salen en castellano.
+DE_OTROS = {"recorder.js", "store.js", "today.js"}
 # Funciones de app.js que son de la grabación.
 FUNCIONES_DE_GRABACION = ("function viewNew(", "async function viewRecord(")
 # Detalle técnico a propósito: el diagnóstico del admin muestra el error crudo para poder arreglarlo.

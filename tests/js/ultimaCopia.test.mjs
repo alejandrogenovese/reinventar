@@ -80,6 +80,20 @@ test("un 5xx del servidor también cae a la copia", async () => {
   assert.deepEqual(await Today.get(), { items: [1] });
 });
 
+test("un portal cautivo (200 con HTML) también cae a la copia en vez de mostrar un error", async () => {
+  globalThis.fetch = async () => respuesta({ items: [1] });
+  await Today.get();
+  globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => "<html>portal</html>" });
+  const data = await Today.get();
+  assert.deepEqual(data, { items: [1] });
+  assert.ok(staleAt(data) > 0);
+});
+
+test("un portal cautivo sin copia guardada da el mensaje del portal, no un SyntaxError", async () => {
+  globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => "<html>portal</html>" });
+  await assert.rejects(Today.get(), (e) => e.status === 0 && /Wi-Fi|red/i.test(e.message) && !(e instanceof SyntaxError));
+});
+
 test("una sesión vencida (401) no se tapa con la copia", async () => {
   globalThis.fetch = async () => respuesta({ items: [1] });
   await Today.get();
