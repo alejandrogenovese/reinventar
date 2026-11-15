@@ -29,7 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
-import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
+import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
@@ -378,6 +378,7 @@ async function viewRecord(id) {
   rec.addEventListener("state", () => {
     if (rec.state !== "recording") paused.hidden = true;
     paint();
+    sala?.update?.();
     if (!terminando) finishBtn.disabled = !(rec.state === "recording" || rec.state === "paused" || resumed);
   });
   rec.addEventListener("tick", (e) => { counter.textContent = hms(e.detail / 1000); sala?.update?.(); });
@@ -445,10 +446,24 @@ async function viewRecord(id) {
   let sala = null;
   function salaOn() {
     const c = h("div", { class: "counter" }, counter.textContent);
+    const pintarPastilla = ({ status, texto }) => StatusPill(status, texto);
+    let ultimo = estadoSala(rec.state);
+    let pastilla = pintarPastilla(ultimo);
     sala = h("div", { class: "sala", role: "dialog", "aria-label": "Modo sala. Tocá para salir.", onclick: () => { sala.remove(); sala = null; } },
-      StatusPill(rec.state === "recording" ? "recording" : "queued", rec.state === "recording" ? "Grabando" : "Sin grabar"), c,
+      pastilla, c,
       h("span", { class: "caption" }, "Tocá para salir"));
-    sala.update = () => { c.textContent = counter.textContent; };
+    // Se llama con el contador (cada segundo) y con cada cambio de estado del grabador. La pastilla (role="status") y el
+    // wake lock solo se tocan si cambió el estado, para que el lector de pantalla no anuncie «Grabando» cada segundo.
+    sala.update = () => {
+      c.textContent = counter.textContent;
+      const paso = pasoDeSala(ultimo, rec.state);
+      if (!paso.cambio) return;
+      const nueva = pintarPastilla(paso.estado);
+      pastilla.replaceWith(nueva);
+      pastilla = nueva;
+      ultimo = paso.estado;
+      if (paso.tomarWakeLock) void wakeLock.acquire();
+    };
     document.body.append(sala);
     if (rec.state === "recording") void wakeLock.acquire();
   }

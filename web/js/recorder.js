@@ -261,6 +261,24 @@ export const MSG_SESION_RECHAZADA = "El servidor no aceptó crear la grabación,
 export const MSG_LOCAL_SIN_DATOS = "Grabación local sin datos: no sé a qué charla pertenece, no se pudo subir";
 export const MSG_CIERRE_FALLIDO = "No se pudo cerrar la grabación: se vuelve a intentar con señal";
 export const MSG_CIERRE_CON_FALLIDOS ="Hay pedazos que el servidor rechazó: no se pudo cerrar la grabación";
+/** La pastilla del modo sala según el estado del grabador: pastilla (clase ra-pill-*) y texto. */
+export function estadoSala(state) {
+  if (state === "recording") return { status: "recording", texto: "Grabando" };
+  if (state === "paused") return { status: "queued", texto: "En pausa" };
+  return { status: "queued", texto: "Sin grabar" };
+}
+
+/**
+ * sala.update corre en cada tick (una vez por segundo): la pastilla tiene role="status", así que rehacerla siempre haría que
+ * un lector de pantalla anuncie el estado cada segundo. Solo hay `cambio` si cambió el estado respecto de `anterior`, y el
+ * wake lock se pide solo en la transición a «recording».
+ */
+export function pasoDeSala(anterior, state) {
+  const estado = estadoSala(state);
+  const cambio = estado.texto !== anterior?.texto;
+  return { estado, cambio, tomarWakeLock: cambio && state === "recording" };
+}
+
 const AVISO_SIN_SENAL = "Sin señal: la grabación quedó guardada en el celular.";
 const ESTADO_TERMINADA_SIN_SENAL = "Terminada · esperando señal";
 
