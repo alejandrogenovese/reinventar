@@ -5,16 +5,11 @@ import { StatusPill, h } from "./ui.js";
 const TITULO_GENERICO = "Grabación sin conexión";
 
 // estado de la sesión local → pastilla ya existente (clases ra-pill-*) y texto.
-// store.js exporta grabando | pendiente_de_subir | esperando_senal; pendiente y terminada son los nombres cortos
-// con que se habló del mismo estado.
-const PENDIENTE = { status: "uploading", texto: "Pendiente de subir" };
-const TERMINADA = { status: "queued", texto: "Esperando señal para procesar", terminada: true };
+// Los estados que exporta store.sesionesLocalesPendientes(): grabando | pendiente_de_subir | esperando_senal.
 const ESTADOS = {
   grabando: { status: "recording", texto: "Grabando" },
-  pendiente_de_subir: PENDIENTE,
-  pendiente: PENDIENTE,
-  esperando_senal: TERMINADA,
-  terminada: TERMINADA,
+  pendiente_de_subir: { status: "uploading", texto: "Pendiente de subir" },
+  esperando_senal: { status: "queued", texto: "Esperando señal para procesar", terminada: true },
 };
 const ESTADO_DESCONOCIDO = { status: "queued", texto: "Pendiente" };
 

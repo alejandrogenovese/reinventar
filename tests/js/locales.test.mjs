@@ -16,14 +16,8 @@ test("cada estado se ve con su pastilla y su texto", () => {
   );
 });
 
-test("también entiende los nombres cortos de estado (pendiente, terminada)", () => {
-  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "pendiente", at: 1 }).texto, "Pendiente de subir");
-  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "terminada", at: 1 }).texto, "Esperando señal para procesar");
-});
-
 test("una grabación ya terminada no es un link: #/grabar/<id> la mandaría al inicio", () => {
   assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "esperando_senal", at: 1 }).href, null);
-  assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "terminada", at: 1 }).href, null);
   assert.equal(fichaLocal({ id: "loc_1", title: "x", estado: "pendiente_de_subir", at: 1 }).href, "#/grabar/loc_1");
 });
 
