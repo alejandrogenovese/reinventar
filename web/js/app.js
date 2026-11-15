@@ -260,7 +260,7 @@ function viewNew() {
         code: fd.get("code").trim() || null, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,
       });
       location.hash = `#/grabar/${s.id}`;
-    } catch (err) { toast(err.message); btn.disabled = false; }
+    } catch (err) { toast(mensajeError(err, "No pude crear la sesión. Probá de nuevo.")); btn.disabled = false; }
   } },
     h("h1", { class: "title" }, "Nueva sesión"),
     TalkPicker({ onPick: (talk) => fillFromTalk(form, talk) }),
@@ -289,6 +289,12 @@ function fillFromTalk(form, talk) {
 
 // --- grabación ---------------------------------------------------------------
 const SILENCE_WARN_MS = 8000;  // grabando sin sonido este rato → aviso visible
+// getUserMedia falla con un DOMException en inglés: se traduce por tipo de error.
+const MSG_MICROFONO = {
+  NotAllowedError: "Necesito permiso para usar el micrófono.",
+  NotFoundError: "No encuentro ningún micrófono.",
+  NotReadableError: "El micrófono está ocupado por otra app (¿una llamada?). Cerrala y probá de nuevo.",
+};
 
 const FINISH_LOCAL_ESPERA_MS = 20_000;  // cuánto espera "Terminar" a que se cierre una grabación que empezó sin señal
 
@@ -368,7 +374,7 @@ async function viewRecord(id) {
     quietSince = quiet ? (quietSince ?? performance.now()) : null;
     silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
   });
-  rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, e.detail.message)); });
+  rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, mensajeError(e.detail, "Error del grabador."))); });
   const pintarSinSenal = () => sinSenal.replaceChildren(...(store.esLocal(id) && !store.sesionLocal(id)?.realId
     ? [Hint("Sin señal: se graba en el celular y se sube cuando vuelva.", { tone: "warn", iconName: "alerta" })] : []));
   const onUp = (e) => {
@@ -394,7 +400,7 @@ async function viewRecord(id) {
       micSelect.replaceChildren(...mics.map((m, i) => h("option", { value: m.deviceId, selected: m.deviceId === chosen }, m.label || `Micrófono ${i + 1}`)));
       return mics;
     } catch (e) {
-      msg.replaceChildren(h("div", { class: "notice err" }, e.name === "NotAllowedError" ? "Necesito permiso para usar el micrófono." : `No pude abrir el micrófono: ${e.message}`));
+      msg.replaceChildren(h("div", { class: "notice err" }, MSG_MICROFONO[e.name] ?? mensajeError(e, "No pude abrir el micrófono.")));
       return [];
     }
   }
@@ -412,7 +418,7 @@ async function viewRecord(id) {
       if (rec.state === "idle" || rec.state === "stopped") rec.start();
       else if (rec.state === "recording") rec.pause();
       else if (rec.state === "paused") rec.resume();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(mensajeError(e, "No pude grabar. Probá de nuevo.")); }
   }
 
   let sala = null;
@@ -469,7 +475,7 @@ async function viewRecord(id) {
       location.hash = `#/s/${id}`;
     } catch (e) {
       const missing = e.detail?.missing;
-      msg.replaceChildren(h("div", { class: "notice err" }, missing ? `Faltan pedazos en el servidor (${Object.values(missing).flat().length}). Si el celular los tiene, se suben solos: probá Terminar de nuevo en un rato.` : e.message));
+      msg.replaceChildren(h("div", { class: "notice err" }, missing ? `Faltan pedazos en el servidor (${Object.values(missing).flat().length}). Si el celular los tiene, se suben solos: probá Terminar de nuevo en un rato.` : mensajeError(e, "No pude terminar la grabación. Probá de nuevo.")));
       finishBtn.disabled = false;
     }
   }

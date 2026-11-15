@@ -5,7 +5,7 @@ import { empezarSesion } from "./recorder.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
-import { Button, Hint, IconText, h, toast } from "./ui.js";
+import { Button, Hint, IconText, h, mensajeError, toast } from "./ui.js";
 
 const LATER_LIMIT = 4;
 
@@ -25,7 +25,7 @@ export async function recordTalk(s, btn) {
       speaker: ((s.people || []).map((p) => p.name).join(", ") || s.speakers || "").slice(0, 200) || null,
     });
     location.hash = `#/grabar/${rec.id}`;
-  } catch (err) { toast(err.message); btn.disabled = false; }
+  } catch (err) { toast(mensajeError(err, "No pude empezar la grabación. Probá de nuevo.")); btn.disabled = false; }
 }
 
 // A dónde lleva tocar un ítem: la charla, el evento, el show, o el itinerario (los eventos propios no tienen ficha).
