@@ -285,6 +285,32 @@ test("otros errores al crear no disparan el reintento sin recorded_at", async ()
   assert.equal(llamadas, 1);
 });
 
+// Textos de la pantalla de grabar después de tocar «Terminar y procesar».
+test("terminar sin señal en una sesión local: aviso claro, estado «Terminada» y botón para volver al inicio", () => {
+  const t = rec.textosTerminar({ local: true, conRed: false });
+  assert.match(t.aviso, /Sin señal: la grabación quedó guardada en el celular\. Se sube y se procesa sola cuando vuelva la señal; podés cerrar la app\./);
+  assert.equal(t.estado, "Terminada · esperando señal");
+  assert.equal(t.boton, "Volver al inicio");
+});
+
+test("terminar sin señal en una sesión ya creada en el servidor: pide dejar la app abierta (no promete cerrarla)", () => {
+  const t = rec.textosTerminar({ local: false, conRed: false });
+  assert.match(t.aviso, /Sin señal: la grabación quedó guardada en el celular/);
+  assert.match(t.aviso, /dejá la app abierta/);
+  assert.doesNotMatch(t.aviso, /podés cerrar la app/);
+  assert.equal(t.estado, "Terminada · esperando señal");
+  assert.doesNotMatch(t.boton, /Esperando que termine de subir/);
+});
+
+test("terminar con señal: sin aviso de sin señal y sin «Listo para grabar»", () => {
+  for (const local of [true, false]) {
+    const t = rec.textosTerminar({ local, conRed: true });
+    assert.equal(t.aviso, null);
+    assert.equal(t.boton, null);
+    assert.doesNotMatch(t.estado, /Listo para grabar/);
+  }
+});
+
 test("fallo al crear: sin señal y errores del servidor se reintentan; un 4xx es definitivo", () => {
   for (const s of [0, undefined, 401, 500, 502, 503]) assert.equal(rec.clasificarFalloAlCrear(s).accion, "reintentar");
   assert.equal(rec.clasificarFalloAlCrear(422).accion, "fallido");

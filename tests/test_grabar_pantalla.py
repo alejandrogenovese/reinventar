@@ -49,6 +49,22 @@ def test_toggle_no_arranca_sin_microfono():
     assert "rec.stream" in cuerpo[inicio:cuerpo.index("rec.start()", inicio)]
 
 
+def test_al_terminar_el_estado_no_vuelve_a_decir_listo_para_grabar_ni_abriendo_el_microfono():
+    # Tras «Terminar» se cierra el micrófono (rec.stream = null): sin una marca propia, paint() diría «Abriendo el micrófono…».
+    cuerpo = _cuerpo_de_view_record()
+    paint = cuerpo[cuerpo.index("const paint ="):cuerpo.index("rec.addEventListener(\"state\"")]
+    assert "terminando" in paint
+    assert "textosTerminar(" in cuerpo
+
+
+def test_terminar_sin_red_se_vuelve_a_pintar_mientras_espera():
+    cuerpo = _cuerpo_de_view_record()
+    inicio = cuerpo.index("async function finish(")
+    finish = cuerpo[inicio:cuerpo.index("async function discard(", inicio)]
+    assert "navigator.onLine" in cuerpo and "pintarTerminando" in finish
+    assert "Esperando que termine de subir…" in cuerpo  # con señal, el texto de siempre
+
+
 def test_record_button_acepta_deshabilitado_y_etiqueta():
     ui = (APP_JS.parent / "ui.js").read_text(encoding="utf-8")
     inicio = ui.index("export function RecordButton(")
