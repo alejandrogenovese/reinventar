@@ -6,10 +6,10 @@ from pathlib import Path
 
 WEB_JS = Path(__file__).resolve().parent.parent / "web" / "js"
 
-# Los tienen otros frentes (grabación): no se tocan en este barrido. api.js ya entra: sus errores salen en castellano.
-DE_OTROS = {"recorder.js", "store.js", "today.js"}
-# Funciones de app.js que son de la grabación.
-FUNCIONES_DE_GRABACION = ("function viewNew(", "async function viewRecord(")
+# Archivos que se excluyen del barrido: ninguno. La grabación ya pasa por mensajeError y api.js lanza ApiError en castellano.
+DE_OTROS = set()
+# Funciones de app.js que se excluyen del barrido (ninguna: la grabación ya pasa por mensajeError).
+FUNCIONES_DE_GRABACION = ()
 # Detalle técnico a propósito: el diagnóstico del admin muestra el error crudo para poder arreglarlo.
 TECNICO_A_PROPOSITO = {("account.js", "detail:"), ("ui.js", "esPropio")}  # ui.js: la definición de mensajeError
 
@@ -67,3 +67,12 @@ def test_mensajeerror_existe_y_toastonerror_lo_usa():
 
     assert "export function mensajeError(" in ui
     assert "toast(mensajeError(err))" in ui
+
+
+def test_el_microfono_tiene_textos_propios_en_castellano_por_tipo_de_error():
+    # getUserMedia falla con DOMException en inglés: la pantalla de grabar los traduce por e.name.
+    app = (WEB_JS / "app.js").read_text(encoding="utf-8")
+
+    assert 'NotAllowedError: "Necesito permiso para usar el micrófono."' in app
+    assert 'NotFoundError: "No encuentro ningún micrófono."' in app
+    assert "MSG_MICROFONO[e.name]" in app
