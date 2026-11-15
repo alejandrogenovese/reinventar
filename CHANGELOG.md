@@ -15,9 +15,12 @@ Itinerario) y sube todo sola cuando vuelve la red.
   celular («Sin señal: se graba en el celular y se sube cuando vuelva»). Cuando vuelve la señal se crea en el servidor,
   se sube y, si ya habías tocado Terminar, se procesa sola, aunque hayas cerrado la app. El audio del celular no se
   borra hasta que el servidor confirma el cierre. «Descartar» también anda sin señal.
-- **Inicio e Itinerario sin señal.** Hoy, el Itinerario y la lista de grabaciones muestran lo último que cargaron, con
-  la franja «Sin señal · datos de las HH:MM». Si el Wi-Fi conecta pero no responde, a los 8 s muestra la copia. Al
-  cerrar sesión se borra.
+- **Terminar sin señal.** Si se corta la señal en medio de una grabación (empezaste en el pasillo con señal y en el
+  salón no hay), «Terminar y procesar» la deja guardada en el celular: la pantalla dice «Terminada · esperando señal»
+  y que podés cerrar la app. Cuando vuelve la red se sube y se procesa sola.
+- **Inicio e Itinerario sin señal.** Hoy, el Itinerario, los anuncios sin reserva y la lista de grabaciones muestran lo
+  último que cargaron, con la franja «Sin señal · datos de las HH:MM». Si el Wi-Fi conecta pero no responde, a los
+  8 s muestra la copia. Al cerrar sesión se borra.
 - **«Grabadas en este celular»** en Inicio: las grabaciones que todavía esperan señal, con su estado (Grabando,
   Pendiente de subir, Esperando señal) o el error si algo falló.
 - **Ver la contraseña:** un ojo en cada campo de contraseña (al entrar y al cambiarla) la muestra u oculta. No tapa
