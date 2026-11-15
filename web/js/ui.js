@@ -35,6 +35,47 @@ export const StatusPill = (status, text) =>
 export const Button = (label, { variant = "secondary", ...attrs } = {}) =>
   h("button", { type: "button", class: `ra-btn ra-btn-${variant}`, ...attrs }, label);
 
+/** Cómo queda el campo y su botón según se vea o no la contraseña (el botón dice lo que va a hacer al tocarlo). */
+export const estadoOjo = (visible) => visible
+  ? { tipo: "text", etiqueta: "Ocultar contraseña", pulsado: "true", icono: "ojoTachado" }
+  : { tipo: "password", etiqueta: "Mostrar contraseña", pulsado: "false", icono: "ojo" };
+
+/**
+ * Campo de contraseña con un ojo para mostrarla u ocultarla. Devuelve { input, el }: `el` es el .field completo
+ * (etiqueta + input + ojo). El input conserva id, name y autocomplete (el gestor de contraseñas lo sigue reconociendo).
+ * Vuelve a type="password" al enviar el formulario y al salir de la pantalla o cerrar la página: así el navegador no
+ * guarda la contraseña como texto en el historial de autocompletar.
+ */
+export function PasswordField(id, label, attrs = {}) {
+  const input = h("input", { id, name: id, required: true, ...attrs, type: "password" });
+  const ojo = h("button", { type: "button", class: "ra-pass-eye", onclick: () => (visible ? ocultar() : mostrar()) });
+  let visible = false;
+  const salidas = ["hashchange", "pagehide"];
+
+  function aplicar(ver) {
+    visible = ver;
+    const e = estadoOjo(ver);
+    input.type = e.tipo;
+    ojo.setAttribute("aria-label", e.etiqueta);
+    ojo.setAttribute("aria-pressed", e.pulsado);
+    ojo.replaceChildren(ver ? icon("ojoTachado", 22) : icon("ojo", 22));
+  }
+  function mostrar() {
+    aplicar(true);
+    for (const t of salidas) window.addEventListener(t, ocultar);
+    input.form?.addEventListener("submit", ocultar);
+  }
+  function ocultar() {
+    if (!visible) return;
+    aplicar(false);
+    for (const t of salidas) window.removeEventListener(t, ocultar);
+    input.form?.removeEventListener("submit", ocultar);
+  }
+  aplicar(false);
+
+  return { input, el: h("div", { class: "field" }, h("label", { class: "label", for: id }, label), h("div", { class: "ra-pass" }, input, ojo)) };
+}
+
 export function RecordButton(state, onClick, { disabled = false, label: etiqueta = null } = {}) {
   const aria = state === "recording" ? "Pausar grabación" : state === "paused" ? "Seguir grabando" : "Empezar a grabar";
   const label = etiqueta ?? ({ idle: "Grabar", recording: "Grabando", paused: "En pausa" }[state] || "Grabar");

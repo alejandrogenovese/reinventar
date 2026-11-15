@@ -112,6 +112,7 @@ micrófono falso y la red se corta con la emulación *offline* de CDP (también 
 | 2 | Sin red: Nueva → grabar ~12 s → Terminar → queda en «Grabadas en este celular» como «Esperando señal» (y el servidor no ve nada) |
 | 3 | Vuelve la red: la sesión se crea una sola vez, se suben los pedazos, se cierra y desaparece del bloque local |
 | 4 | Portal cautivo: `/api/today` y después todo `/api/` contestan un 200 con HTML → se muestra la última copia |
+| 5 | Login: el ojo muestra y oculta la contraseña (44 px, sin tapar el lugar del gestor) y al enviar el formulario vuelve a `password` |
 
 Si un escenario falla, deja capturas, el log de consola y el del servidor en `e2e-fallas/<fecha>/` (ignorada por git).
 Variables: `E2E_CHROME` (ejecutable de Chrome/Chromium; por defecto el del caché de Playwright o el Chrome de la Mac; si no

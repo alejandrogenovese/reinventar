@@ -7,7 +7,7 @@ import { currentPosition, walkingMinutes } from "./location.js";
 import { loadGoogleMaps } from "./map.js";
 import { refreshSandbox } from "./sandbox.js";
 import { icon } from "./icons.js";
-import { Button, h, mensajeError, toast } from "./ui.js";
+import { Button, PasswordField, h, mensajeError, toast } from "./ui.js";
 
 const MIN_LENGTH = 8;
 
@@ -20,9 +20,10 @@ const when = (ts) => (ts ? new Date(ts * 1000).toLocaleString("es-AR", { dateSty
 
 // --- contraseña --------------------------------------------------------------
 export function viewPassword(view, { forced }) {
-  const current = field("current", forced ? "Contraseña que te pasaron" : "Contraseña actual", { type: "password", autocomplete: "current-password" });
-  const next = field("next", "Contraseña nueva", { type: "password", autocomplete: "new-password", minlength: MIN_LENGTH });
-  const repeat = field("repeat", "Repetila", { type: "password", autocomplete: "new-password", minlength: MIN_LENGTH });
+  // Cada campo tiene su propio ojo (PasswordField): mostrar uno no muestra los otros.
+  const current = PasswordField("current", forced ? "Contraseña que te pasaron" : "Contraseña actual", { autocomplete: "current-password" });
+  const next = PasswordField("next", "Contraseña nueva", { autocomplete: "new-password", minlength: MIN_LENGTH });
+  const repeat = PasswordField("repeat", "Repetila", { autocomplete: "new-password", minlength: MIN_LENGTH });
   const status = h("div");
 
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {

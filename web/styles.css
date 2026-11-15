@@ -280,6 +280,16 @@ h2.caption { font: var(--t-small); text-transform: none; }
 .field input::placeholder, .field textarea::placeholder { color: var(--ink-muted); }
 .field input:hover, .field select:hover, .field textarea:hover { border-color: var(--ink-muted); }
 .field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
+/* Ojo para ver la contraseña. El gestor de contraseñas (NordPass, etc.) pone su ícono pegado al borde derecho del campo:
+   el ojo se corre --hueco-gestor hacia adentro y el texto del input reserva lugar para los dos. */
+.ra-pass { --hueco-gestor: 40px; position: relative; display: flex; }
+.ra-pass input { padding-inline-end: calc(var(--hueco-gestor) + var(--touch) + var(--space-1)); }
+.ra-pass-eye {
+  position: absolute; inset-block: 0; inset-inline-end: var(--hueco-gestor); margin-block: auto; width: var(--touch); height: var(--touch);
+  display: grid; place-items: center; background: none; border: 0; border-radius: var(--radius-m); color: var(--ink-muted); cursor: pointer;
+}
+.ra-pass-eye:hover { color: var(--ink); }
+.ra-pass-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .segmented { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
 .segmented label {
   display: flex; align-items: center; justify-content: center; min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius-m);
