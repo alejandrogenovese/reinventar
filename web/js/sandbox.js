@@ -1,6 +1,6 @@
 // Modo prueba: franja arriba de toda la app y la hora/ubicación simuladas para el resto de la PWA (countdown, Llevame).
 // Lo prende un admin por usuario (Admin › Usuarios); el usuario no lo puede apagar.
-import { Auth, duenoDeCopias, getToken, sinServicio } from "./api.js";
+import { Auth, duenoDeCopias, getToken, guardarCuenta, sinServicio } from "./api.js";
 import { loadLast, saveLast } from "./lastgood.js";
 
 // La última respuesta de /api/me (solo el modo prueba) se guarda en este celular por usuario, junto a las otras copias sin
@@ -69,6 +69,7 @@ export async function refreshSandbox({ force = false } = {}) {
     aplicar(me.sandbox || null, ahora);
     fetchedAt = ahora;
     await guardarCopia(me.sandbox || null, ahora);
+    await guardarCuenta(me);  // de paso, quién es: Ajustes sin señal sigue diciendo «Conectado como X»
   } catch (e) {
     // Sesión vencida u otro error del servidor: se queda con lo último que sabía. Sin red (o servidor caído) y sin nada
     // sabido todavía (app recién abierta), se usa la última copia. fetchedAt queda en 0: la próxima navegación reintenta.

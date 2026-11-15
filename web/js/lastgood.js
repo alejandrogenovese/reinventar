@@ -5,8 +5,9 @@ const PREFIX = "reinventar.last.";
 
 // Lo único que se guarda: las tres pantallas previstas (lista cerrada, no una ruta cualquiera), de un dueño con forma de
 // hash y con datos que sean un objeto o una lista y no pasen del tope. Todo lo demás se ignora, al guardar y al leer.
-// «/api/me/sandbox» no es una ruta del servidor: es la clave de la copia del estado del modo prueba que trae /api/me.
-const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox"]);
+// «/api/me/sandbox» y «/api/me/cuenta» no son rutas del servidor: son las claves de las copias del modo prueba y de quién es
+// la persona (usuario e is_admin) que trae /api/me.
+const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox", "/api/me/cuenta"]);
 const DUENO_VALIDO = /^[0-9a-f]{12}$/;
 const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope es para que no llene el almacenamiento
 

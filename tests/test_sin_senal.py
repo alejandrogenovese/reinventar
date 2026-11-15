@@ -29,6 +29,20 @@ def test_hoy_muestra_su_franja_cuando_es_una_copia():
     assert hoy.index("SinSenal(data)") < hoy.index("TalkCard(data.now")
 
 
+def test_ajustes_no_dice_sesion_no_valida_por_falta_de_red():
+    app = _js("app.js")
+    assert "cuentaConCopia()" in app
+    assert "textoDeCuenta(cuenta)" in app
+    assert "try { me = await Auth.me(); } catch {}" not in app  # el catch vacío dejaba {} y salía «Sesión no válida.» sin red
+    assert "cuenta.is_admin" in app  # el botón Administración sale también con la copia
+
+
+def test_tus_grabaciones_sin_datos_sin_senal_no_dice_que_no_grabaste():
+    app = _js("app.js")
+    assert "textosSinGrabaciones(sessions)" in app
+    assert '"Todavía no grabaste ninguna sesión."' not in app  # el texto vive en sinSenal.js
+
+
 def test_los_modulos_nuevos_estan_en_el_cache_offline():
     sw = (WEB / "sw.js").read_text()
     for modulo in ("lastgood", "sinSenal", "locales"):

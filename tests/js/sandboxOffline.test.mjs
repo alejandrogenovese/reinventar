@@ -69,6 +69,14 @@ test("el reloj de la copia avanza con el tiempo transcurrido desde que se guard�
   } finally { Date.now = dateNow; }
 });
 
+test("la misma consulta a /api/me deja la copia de la cuenta: Ajustes sin señal sigue «Conectado como X»", async () => {
+  globalThis.fetch = async () => respuesta(me(null));
+  await (await cargarSandbox()).refreshSandbox({ force: true });
+  globalThis.fetch = sinRed;
+  const { cuentaConCopia } = await import("../../web/js/api.js");
+  assert.deepEqual(await cuentaConCopia(), { estado: "copia", username: "ale", is_admin: false });
+});
+
 test("sin copia y sin red no hay modo prueba (como antes)", async () => {
   globalThis.fetch = sinRed;
   const sb = await cargarSandbox();

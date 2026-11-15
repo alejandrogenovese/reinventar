@@ -108,15 +108,20 @@ export async function apiConUltimaCopia(path) {
   }
 }
 
+// La copia de la lista de grabaciones solo se renovaba al abrir Inicio con red: lo grabado entre una visita y otra no estaba y
+// sin señal Inicio mostraba una lista vieja (o vacía, con «Todavía no grabaste…»). Tras crear, cerrar o borrar una grabación
+// se vuelve a pedir la lista en segundo plano; si falla (sin red), no pasa nada y se sigue con lo que había.
+const refrescarLista = (r) => { void Sessions.list().catch(() => {}); return r; };
+
 export const Sessions = {
   list: () => apiConUltimaCopia("/api/sessions"),
   get: (id) => api(`/api/sessions/${id}`),
-  create: (data) => api("/api/sessions", { method: "POST", json: data }),
+  create: (data) => api("/api/sessions", { method: "POST", json: data }).then(refrescarLista),
   putChunk: (id, part, seq, blob, signal) => api(`/api/sessions/${id}/chunks/${part}/${seq}`, { method: "PUT", body: blob, headers: { "Content-Type": "application/octet-stream" }, signal }),
-  finish: (id, parts) => api(`/api/sessions/${id}/finish`, { method: "POST", json: { parts } }),
+  finish: (id, parts) => api(`/api/sessions/${id}/finish`, { method: "POST", json: { parts } }).then(refrescarLista),
   huecos: (id, huecos) => api(`/api/sessions/${id}/huecos`, { method: "POST", json: { huecos } }),  // tramos sin audio: reemplaza la lista
   retry: (id, fromScratch = false) => api(`/api/sessions/${id}/retry?from_scratch=${fromScratch}`, { method: "POST" }),
-  remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }),
+  remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }).then(refrescarLista),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
   search: (q, signal) => api(`/api/grabaciones/buscar?q=${encodeURIComponent(q)}`, { signal }),
   votar: (id, util) => api(`/api/sessions/${id}/voto`, { method: "PUT", json: { util } }),
@@ -165,6 +170,36 @@ export const Auth = {
   changePassword: (currentPassword, newPassword) =>
     api("/api/password", { method: "POST", json: { current_password: currentPassword, new_password: newPassword } }),
 };
+
+// Ajustes sin señal: quién es y si es admin se guarda por usuario junto a las otras copias (lastgood.js, se borra al cerrar
+// sesión). «/api/me/cuenta» no es una ruta del servidor: es la clave de esa copia.
+const RUTA_CUENTA = "/api/me/cuenta";
+
+/** Guarda quién es (usuario e is_admin) de una respuesta de /api/me: la usa Ajustes sin señal, y sandbox.js al refrescar. */
+export async function guardarCuenta(me) {
+  const de = await duenoDeCopias();
+  if (de) saveLast(de, RUTA_CUENTA, { username: me.username, is_admin: Boolean(me.is_admin) });
+}
+
+/**
+ * Quién está conectado para la pantalla Ajustes. estado: «ok» (del servidor), «copia» (sin señal, con lo último que se
+ * supo), «sin_senal» (sin señal y sin copia), «sin_sesion» (solo con 401/403 reales) o «error» (cualquier otro fallo).
+ */
+export async function cuentaConCopia() {
+  const de = await duenoDeCopias();
+  try {
+    const me = await Auth.me();
+    await guardarCuenta(me);
+    return { estado: "ok", username: me.username, is_admin: Boolean(me.is_admin) };
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return { estado: "sin_sesion" };
+    if (!sinServicio(e)) return { estado: "error" };
+    const guardada = de ? loadLast(de, RUTA_CUENTA)?.data : null;
+    return typeof guardada?.username === "string" && guardada.username
+      ? { estado: "copia", username: guardada.username, is_admin: guardada.is_admin === true }
+      : { estado: "sin_senal" };
+  }
+}
 
 export const Passkeys = {
   registerOptions: () => api("/api/passkey/register/options", { method: "POST" }),
