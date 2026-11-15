@@ -31,7 +31,7 @@ import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
+import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
 import { Button, Hint, LevelMeter, METER_SILENT, PasswordField, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, mensajeError, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
@@ -289,7 +289,6 @@ function fillFromTalk(form, talk) {
 }
 
 // --- grabación ---------------------------------------------------------------
-const SILENCE_WARN_MS = 8000;  // grabando sin sonido este rato → aviso visible
 // getUserMedia falla con un DOMException en inglés: se traduce por tipo de error.
 const MSG_MICROFONO = {
   NotAllowedError: "Necesito permiso para usar el micrófono.",
@@ -394,7 +393,7 @@ async function viewRecord(id) {
     meter.update(e.detail, rec.deviceLabel);
     const quiet = rec.state === "recording" && !rec.interrupted && e.detail < METER_SILENT;
     quietSince = quiet ? (quietSince ?? performance.now()) : null;
-    silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
+    silence.hidden = !(quiet && performance.now() - quietSince > SILENCIO_AVISO_S * 1000);  // el mismo umbral que marca un hueco
   });
   rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, mensajeError(e.detail, "Error del grabador."))); });
   const pintarSinSenal = () => sinSenal.replaceChildren(...(store.esLocal(id) && !store.sesionLocal(id)?.realId

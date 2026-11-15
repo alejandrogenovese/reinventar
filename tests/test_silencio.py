@@ -1,6 +1,5 @@
 """Audio sin voz: Whisper no devuelve vacío, inventa "Thank you.". Se descarta lo inventado, la grabación avisa que no
 se escuchó voz y la pantalla de grabación avisa si no llega sonido al micrófono. No llama a ninguna API."""
-import re
 from pathlib import Path
 
 import httpx
@@ -98,7 +97,7 @@ def test_la_voz_de_la_entrevista_en_silencio_pide_repetir(monkeypatch):
 # ---------- la pantalla de grabación ----------
 
 def test_grabando_sin_sonido_aparece_un_aviso_visible():
-    assert re.search(r"const SILENCE_WARN_MS = \d+", JS_APP)
+    assert "SILENCIO_AVISO_S * 1000" in JS_APP  # el umbral viene de huecos.js: el mismo que marca un hueco sin audio
     assert "METER_SILENT" in JS_APP and "No llega sonido al micrófono" in JS_APP
     assert 'class: "notice warn"' in JS_APP
     assert ".notice.warn" in STYLES and ".notice[hidden]" in STYLES

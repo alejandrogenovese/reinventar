@@ -1,6 +1,7 @@
 // Tramos sin audio: detección, intercalado en la transcripción, envío tolerante al servidor y tip de No molestar.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const datos = new Map();
 globalThis.localStorage = {
@@ -22,25 +23,42 @@ const cada = (desde, hasta, silencioso, paso = 0.5) => {
   return out;
 };
 
-test("el umbral mínimo es una constante con nombre de ~3 segundos", () => {
-  assert.equal(hu.HUECO_MIN_S, 3);
+test("el umbral es el mismo del aviso «No llega sonido al micrófono»: 8 segundos, una sola constante compartida", () => {
+  assert.equal(hu.SILENCIO_AVISO_S, 8);
+  assert.equal(hu.HUECO_MIN_S, hu.SILENCIO_AVISO_S);
+  const app = readFileSync(new URL("../../web/js/app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(app, /SILENCE_WARN_MS\s*=\s*\d/);  // app.js ya no define su propio umbral
+  assert.match(app, /SILENCIO_AVISO_S/);
 });
 
-test("un silencio corto del orador (menos que el umbral) no cuenta", () => {
-  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 10, false), ...cada(10.5, 12, true), ...cada(12.5, 20, false)]);
+test("un silencio del orador menor que el umbral (hasta 8 s) no cuenta", () => {
+  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 10, false), ...cada(10.5, 17, true), ...cada(17.5, 30, false)]);
   d.finalizar();
   assert.deepEqual(d.huecos(), []);
 });
 
-test("un tramo sin sonido de más de 3 segundos queda registrado en segundos del contador", () => {
+test("un tramo sin sonido de 8 segundos o más queda registrado en segundos del contador", () => {
   const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 125.5, false), ...cada(126, 160, true), ...cada(160.5, 170, false)]);
   assert.deepEqual(d.huecos(), [{ desde: 126, hasta: 160.5 }]);
 });
 
-test("durante una pausa o un corte del sistema el contador está quieto: no suma y el tramo sigue abierto", () => {
-  // 4 s sin sonido, pausa (muestras null con el contador en 14), y sigue sin sonido 1 s más al reanudar
-  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 9.5, false), ...cada(10, 14, true), ...cada(14, 14, null), ...cada(14.5, 15, true), [15.5, false]]);
-  assert.deepEqual(d.huecos(), [{ desde: 10, hasta: 15.5 }]);
+test("exactamente en el umbral cuenta, un poco menos no", () => {
+  const justo = correr(hu.crearDetectorDeHuecos(), [...cada(0, 7.5, true), [8, false]]);
+  assert.deepEqual(justo.huecos(), [{ desde: 0, hasta: 8 }]);
+  const poco = correr(hu.crearDetectorDeHuecos(), [...cada(0, 7, true), [7.5, false]]);
+  assert.deepEqual(poco.huecos(), []);
+});
+
+test("una pausa o un corte del sistema corta el tramo, como en el aviso: ese tiempo no suma", () => {
+  // 12 s sin sonido, pausa (muestras null con el contador quieto), y 5 s más al reanudar: el segundo tramo no llega a 8 s
+  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 9.5, false), ...cada(10, 22, true), ...cada(22, 22, null), ...cada(22.5, 27, true), [27.5, false]]);
+  assert.deepEqual(d.huecos(), [{ desde: 10, hasta: 22 }]);
+});
+
+test("dos silencios cortos separados por una pausa no se suman", () => {
+  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 4.5, true), [5, null], ...cada(5.5, 9, true), [9.5, false]]);
+  d.finalizar();
+  assert.deepEqual(d.huecos(), []);
 });
 
 test("una pausa larga no inventa un hueco si no había silencio", () => {
@@ -50,21 +68,21 @@ test("una pausa larga no inventa un hueco si no había silencio", () => {
 });
 
 test("si el sonido vuelve, el tramo se corta ahí; después puede haber otro", () => {
-  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 4, true), ...cada(4.5, 8, false), ...cada(8.5, 13, true), [13.5, false]]);
-  assert.deepEqual(d.huecos(), [{ desde: 0, hasta: 4.5 }, { desde: 8.5, hasta: 13.5 }]);
+  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 9, true), ...cada(9.5, 13, false), ...cada(13.5, 23, true), [23.5, false]]);
+  assert.deepEqual(d.huecos(), [{ desde: 0, hasta: 9.5 }, { desde: 13.5, hasta: 23.5 }]);
 });
 
 test("al terminar con el tramo abierto, finalizar lo cierra con la última muestra sin sonido", () => {
-  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 5, false), ...cada(5.5, 12, true)]);
+  const d = correr(hu.crearDetectorDeHuecos(), [...cada(0, 5, false), ...cada(5.5, 20, true)]);
   assert.deepEqual(d.huecos(), []);
   assert.equal(d.finalizar(), true);
-  assert.deepEqual(d.huecos(), [{ desde: 5.5, hasta: 12 }]);
+  assert.deepEqual(d.huecos(), [{ desde: 5.5, hasta: 20 }]);
   assert.equal(d.finalizar(), false);
 });
 
 test("observar avisa solo cuando se cierra un tramo nuevo (para guardarlo)", () => {
   const d = hu.crearDetectorDeHuecos();
-  const avisos = [...cada(0, 4, true), [4.5, false]].map(([t, s]) => d.observar(t, s));
+  const avisos = [...cada(0, 9, true), [9.5, false]].map(([t, s]) => d.observar(t, s));
   assert.deepEqual(avisos.filter(Boolean).length, 1);
   assert.equal(avisos.at(-1), true);
 });

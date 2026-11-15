@@ -1,7 +1,10 @@
 // Tramos sin audio de una grabación (una llamada o un audio de WhatsApp le saca el micrófono a la app): se detectan al
 // grabar, se mandan al servidor al terminar y se muestran en la transcripción. Sin DOM: lo prueba node --test.
 
-export const HUECO_MIN_S = 3;  // un silencio más corto es el orador tomando aire, no un corte de audio
+// Cuánto sin sonido hace falta para avisar «No llega sonido al micrófono». Es también el mínimo de un hueco: así un hueco
+// marcado es exactamente un tramo en el que la app ya avisó, y las pausas del orador en una sala silenciosa no cuentan.
+export const SILENCIO_AVISO_S = 8;
+export const HUECO_MIN_S = SILENCIO_AVISO_S;
 export const CLAVE_TIP = "reinventar.tip-no-molestar";
 export const TIP_NO_MOLESTAR = "Tip: poné No molestar. Una llamada o grabar un audio de WhatsApp le saca el micrófono a la app y ese tramo queda sin sonido.";
 
@@ -10,8 +13,8 @@ const decimal = (s) => Math.round(s * 10) / 10;  // los tiempos se guardan con u
 /**
  * Detector de tramos sin sonido en segundos del contador de la grabación. `observar(t, silencioso)` se llama con cada
  * muestra del medidor: true = no llega sonido, false = llega, null = no se está grabando (pausa o corte del sistema; el
- * contador está quieto, así que el tramo no suma tiempo y sigue abierto). Devuelve true cuando cierra un hueco nuevo
- * (para guardarlo). `inicial` son los huecos de una grabación que se retoma.
+ * contador está quieto, no suma tiempo). Igual que el aviso de silencio, el sonido o una pausa cortan el tramo. Devuelve
+ * true cuando cierra un hueco nuevo (para guardarlo). `inicial` son los huecos de una grabación que se retoma.
  */
 export function crearDetectorDeHuecos(inicial = [], minS = HUECO_MIN_S) {
   const cerrados = inicial.map((x) => ({ ...x }));
@@ -25,9 +28,8 @@ export function crearDetectorDeHuecos(inicial = [], minS = HUECO_MIN_S) {
   };
   return {
     observar(t, silencioso) {
-      if (silencioso === null) return false;
       if (silencioso) { desde ??= t; ultimo = t; return false; }
-      return cerrar(t);
+      return silencioso === null && desde !== null ? cerrar(ultimo) : cerrar(t);
     },
     finalizar: () => (desde === null ? false : cerrar(ultimo)),
     huecos: () => cerrados.map((x) => ({ ...x })),
