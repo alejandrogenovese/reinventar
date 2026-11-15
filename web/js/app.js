@@ -5,6 +5,7 @@ import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
+import { LocalesPendientes, cargarLocales } from "./locales.js";
 import { SinSenal } from "./sinSenal.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewShow } from "./shows.js";
@@ -200,21 +201,25 @@ async function viewList() {
   const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
     icon("agregar", 16), h("span", {}, "Nueva"));
   const sinSenalSlot = h("div", { class: "ra-optional" }); // «Sin señal · datos de las HH:MM» si se muestra la última copia
+  const localesSlot = h("div", { class: "ra-optional" });  // grabaciones hechas sin señal que todavía no subieron
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
     sinSenalSlot, todaySlot, anunciosSlot,
     InstallPrompt({ dismissible: true }), PasskeyOffer(),
+    localesSlot,
     h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
       h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "grabaciones-title" }, "Tus grabaciones"), newBtn),
       banner, searchSlot, list)));
 
   const showPending = ({ pending, error }) => banner.replaceChildren(
     pending ? h("div", { class: "notice upl" }, StatusPill("uploading", `Subiendo ${pending}`), h("span", { class: "caption" }, error || "En segundo plano")) : "");
-  const onUp = (e) => showPending(e.detail);
+  const refreshLocales = () => cargarLocales(store).then((fichas) => localesSlot.replaceChildren(LocalesPendientes(fichas) ?? ""));
+  const onUp = (e) => { showPending(e.detail); void refreshLocales(); }; // cada cambio de la cola puede cambiar el estado
   uploader.addEventListener("change", onUp);
   let search = null;
   cleanup = () => { uploader.removeEventListener("change", onUp); search?.dispose(); };
   toastOnError(uploader.refresh()); uploader.kick();
+  void refreshLocales(); // antes de la lista del servidor: sin señal ni copia esa falla y las locales igual se ven
 
   const sessions = await Sessions.list();
   sinSenalSlot.replaceChildren(SinSenal(sessions) ?? "");
