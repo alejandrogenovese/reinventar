@@ -5,16 +5,38 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [0.23.0] - 2026-11-15
+
+### Agregado
+- **Grabar sin señal.** Si no hay red al tocar «Nueva» o «Grabar», la grabación arranca igual y se guarda en el
+  celular («Sin señal: se graba en el celular y se sube cuando vuelva»). Cuando vuelve la señal se crea en el servidor,
+  se sube y, si ya habías tocado Terminar, se procesa sola, aunque hayas cerrado la app. El audio del celular no se
+  borra hasta que el servidor confirma el cierre. «Descartar» también anda sin señal.
+- **Inicio e Itinerario sin señal.** Hoy, el Itinerario y la lista de grabaciones muestran lo último que cargaron, con
+  la franja «Sin señal · datos de las HH:MM». Si el Wi-Fi conecta pero no responde, a los 8 s muestra la copia. Al
+  cerrar sesión se borra.
+- **«Grabadas en este celular»** en Inicio: las grabaciones que todavía esperan señal, con su estado (Grabando,
+  Pendiente de subir, Esperando señal) o el error si algo falló.
+
 ### Cambiado
 - Lo elegido se ve mejor en modo claro y oscuro: los filtros (días, tipos), las pestañas (Networking / Shows,
-  Filtrar / Preguntar) y «Agrupar» se marcan en naranja suave con borde, en vez de blanco que encandilaba en oscuro o
-  gris apenas distinto del fondo.
+  Filtrar / Preguntar, Números) y «Agrupar» se marcan en naranja suave con borde, en vez de blanco que encandilaba en
+  oscuro o gris apenas distinto del fondo.
+- Al prender «Usar en qué sede estoy para los avisos» se prende también «Usar mi ubicación»: antes había que buscarla
+  más arriba y la casilla parecía no tildarse.
+- Las revisiones automáticas de eventos y de charlas de staging y de producción ya no se saltean entre sí.
 
 ### Corregido
+- Los errores se muestran en castellano en toda la app (antes salían textos del navegador como «Failed to fetch» o
+  «NotAllowedError»). Sin red: «Sin conexión: revisá la señal y probá de nuevo.». Micrófono: «Necesito permiso para
+  usar el micrófono.», «No encuentro ningún micrófono.» o «El micrófono está ocupado por otra app».
+- **Notificaciones en iPhone:** «Activar notificaciones» podía quedar trabado sin explicación. Ahora, si la app está
+  abierta en Safari, explica que hay que agregarla a la pantalla de inicio con «Abrir como app web»; si algo falla,
+  dice qué. «Probar una notificación» solo aparece con las notificaciones activadas.
+- El Wi-Fi de un hotel que contesta con su página de login ya no da un error raro: se toma como sin señal y se
+  muestra la última copia.
 - En la pantalla de grabar ya no aparece un «null» suelto al lado de «Todo subido».
-- Sin señal, la app dice «Sin conexión: revisá la señal y probá de nuevo.» en vez de «Failed to fetch».
-- El aviso para instalar la app ya no promete que «funciona sin señal»: abre sin señal, pero lo que viene del
-  servidor (empezar una grabación, el itinerario) necesita conexión.
+- El aviso para instalar la app ya no promete que «funciona sin señal»: dice que abre aunque no haya señal.
 
 ## [0.22.0] - 2026-11-14
 
@@ -356,7 +378,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.19.0...v0.20.0
