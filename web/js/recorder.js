@@ -199,6 +199,7 @@ export class Recorder extends EventTarget {
     await Promise.allSettled([...this.inflight]);
     this._stopClock();
     this.interrupted = false;
+    store.registrarActividad(this.id, false);
     this._setState("stopped");
     wakeLock.release();
   }
@@ -212,7 +213,11 @@ export class Recorder extends EventTarget {
 
   partsCount() { return { ...this.meta.parts }; }
 
-  _startClock() { this._t0 = performance.now(); this._clock = setInterval(() => this._emit("tick", this.elapsed()), 500); }
+  _startClock() {
+    this._t0 = performance.now();
+    store.registrarActividad(this.id, true);
+    this._clock = setInterval(() => { store.registrarActividad(this.id, true); this._emit("tick", this.elapsed()); }, 500);
+  }
   _stopClock() {
     if (this._t0) this.elapsedMs += performance.now() - this._t0;
     this._t0 = null; clearInterval(this._clock);
@@ -249,13 +254,92 @@ export function clasificarFalloDeSubida(status) {
   return { accion: "reintentar" };
 }
 
+// --- Grabaciones que empezaron sin señal (sesión local "loc_…") ------------------------------------------------------
+export const MAX_INTENTOS_CIERRE = 5;
+export const MSG_SESION_RECHAZADA = "El servidor no aceptó crear la grabación, no se pudo subir";
+export const MSG_LOCAL_SIN_DATOS = "Grabación local sin datos: no sé a qué charla pertenece, no se pudo subir";
+export const MSG_CIERRE_CON_FALLIDOS = "Hay pedazos que el servidor rechazó: no se pudo cerrar la grabación";
+const creando = new Map();   // un solo POST por sesión local aunque dos loops lo pidan a la vez
+const cerrando = new Set();
+
+// Al crear la sesión: sin señal o un error pasajero del servidor se reintenta; un 4xx es definitivo.
+export function clasificarFalloAlCrear(status) {
+  if (status >= 400 && status < 500 && ![401, 408, 429].includes(status)) return { accion: "fallido", mensaje: MSG_SESION_RECHAZADA };
+  return { accion: "reintentar" };
+}
+
+/**
+ * El id con el que hay que hablarle al servidor. Una sesión local se crea la primera vez que se la necesita y el
+ * realId se guarda ANTES de subir nada, así una caída a mitad no crea otra sesión. `crear` se inyecta para los tests.
+ */
+export function sesionRemota(id, crear = (meta) => Sessions.create(meta)) {
+  if (!store.esLocal(id)) return Promise.resolve(id);
+  if (creando.has(id)) return creando.get(id);
+  const tarea = (async () => {
+    const local = store.sesionLocal(id);
+    if (!local) throw Object.assign(new Error(`La sesión local ${id} no existe`), { origen: "crear", huerfana: true });
+    if (local.realId) return local.realId;
+    try {
+      const s = await crear(local.meta);
+      store.marcarCreada(id, s.id);
+      return s.id;
+    } catch (e) { throw Object.assign(e, { origen: "crear" }); }
+  })().finally(() => creando.delete(id));
+  creando.set(id, tarea);
+  return tarea;
+}
+
+/** ¿Ya se puede cerrar (finish) una sesión local que el usuario terminó? */
+export function decidirCierre({ terminar, realId, pendientes, fallidos, error = null }) {
+  if (!terminar || error) return "esperar";
+  if (fallidos > 0) return "fallidos";
+  return realId && pendientes === 0 ? "cerrar" : "esperar";
+}
+
+/** Qué hacer con un finish que falló: reintentar en la próxima vuelta o dejar el error visible. */
+export function resultadoDeFinishFallido(e, intentos) {
+  const sinRed = !e.status || e.status === 401 || e.status >= 500;
+  if (sinRed) return "reintentar";
+  if (e.status === 409 && e.detail?.missing) return intentos + 1 >= MAX_INTENTOS_CIERRE ? "error" : "reintentar";
+  return "error";
+}
+
+const sinAudio = (parts) => Object.values(parts).every((n) => !n);
+
 // Sube la cola de IndexedDB: de a un pedazo por vuelta, el más viejo primero, con backoff.
 // Un solo loop para toda la app.
 export const uploader = new (class extends EventTarget {
   constructor() { super(); this.running = false; this.pending = 0; this.failed = 0; this.failedError = null; this.lastError = null; this.backoff = 1000; }
   kick() { if (!this.running) this._run().catch((e) => { this.lastError = e.message; this._emit(); }); }
   async refresh() { await this._count(); this._emit(); }
-  async retryFailed() { await store.retryFailed(); await this.refresh(); this.kick(); }
+  async retryFailed() { await store.retryFailed(); store.reabrirCierres(); await this.refresh(); this.kick(); }
+
+  // Cierra (finish) las grabaciones locales que el usuario terminó, cuando ya subieron todo. Nunca borra audio local
+  // sin un finish confirmado por el servidor.
+  async _cerrarTerminadas() {
+    for (const { id } of store.sesionesLocalesPendientes()) {
+      const s = store.sesionLocal(id);
+      if (!s?.terminar || cerrando.has(id)) continue;
+      cerrando.add(id);
+      try { await this._cerrar(id, s); } finally { cerrando.delete(id); }
+    }
+  }
+  async _cerrar(id, s) {
+    const [pendientes, fallidos] = await Promise.all([store.countFor(id), store.failedFor(id)]);
+    if (!s.realId && !pendientes && !fallidos && sinAudio(s.terminar.parts)) { store.quitarSesionLocal(id); return; }  // no llegó a grabar nada
+    const decision = decidirCierre({ terminar: s.terminar, realId: s.realId, pendientes, fallidos, error: s.error });
+    if (decision === "fallidos") { store.marcarErrorLocal(id, MSG_CIERRE_CON_FALLIDOS); return; }
+    if (decision !== "cerrar") return;
+    try {
+      await Sessions.finish(s.realId, s.terminar.parts);
+      store.quitarSesionLocal(id);
+    } catch (e) {
+      if (resultadoDeFinishFallido(e, s.terminar.intentos) === "error") store.marcarErrorLocal(id, e.message);
+      else if (e.status === 409) store.contarIntentoDeCierre(id);
+      else this.lastError = e.status === 401 ? "Token inválido" : "Sin conexión";
+      this._emit();
+    }
+  }
   async _count() { ({ pending: this.pending, failed: this.failed, failedError: this.failedError } = await store.queueStatus()); }
   async _run() {
     this.running = true;
@@ -263,16 +347,25 @@ export const uploader = new (class extends EventTarget {
       for (;;) {
         const c = await store.nextChunk();
         await this._count(); this._emit();
-        if (!c) break;
+        if (!c) { await this._cerrarTerminadas(); break; }
         if (!navigator.onLine) { this.lastError = "Sin conexión"; this._emit(); break; }
         try {
-          await Sessions.putChunk(c.session, c.part, c.seq, c.blob, AbortSignal.timeout?.(60_000));
+          // Una sesión local se crea en el servidor la primera vez; el pedazo se sube a la sesión real y recién
+          // después se borra su copia local (con su id provisorio).
+          const destino = await sesionRemota(c.session);
+          await Sessions.putChunk(destino, c.part, c.seq, c.blob, AbortSignal.timeout?.(60_000));
           await store.deleteChunk(c.session, c.part, c.seq);
           this.lastError = null; this.backoff = 1000;
         } catch (e) {
-          const { accion, mensaje } = clasificarFalloDeSubida(e.status);
+          const alCrear = e.origen === "crear";
+          const { accion, mensaje } = alCrear ? clasificarFalloAlCrear(e.huerfana ? 422 : e.status) : clasificarFalloDeSubida(e.status);
           if (accion === "descartar") { await store.deleteChunk(c.session, c.part, c.seq); continue; }
-          if (accion === "fallido") { await store.markFailed(c.session, c.part, c.seq, mensaje); continue; }
+          if (accion === "fallido") {
+            const motivo = e.huerfana ? MSG_LOCAL_SIN_DATOS : mensaje;
+            if (alCrear) store.marcarErrorLocal(c.session, motivo);
+            await store.markFailed(c.session, c.part, c.seq, motivo);
+            continue;
+          }
           this.lastError = e.status === 401 ? "Token inválido" : "Reintentando subida";
           this._emit();
           await new Promise((r) => setTimeout(r, this.backoff));
