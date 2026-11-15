@@ -114,13 +114,13 @@ def test_las_coordenadas_de_la_sede_vienen_del_maestro():
 
 
 def test_anuncios_sin_reserva_del_catalogo_real():
-    # Alarma si el sync cambia los atributos walk-up o «New launch»: el criterio daba 98 horarios.
+    # Alarma si el sync cambia los atributos walk-up o «New launch»: el criterio daba 108 horarios.
     todos = anuncios.todos()
     por_nivel = {n: sum(1 for *_, nivel in todos if nivel == n) for n in (1, 2, 3, 4)}
     por_dia = {}
     for _s, instancia, _n in todos:
         por_dia[instancia["d"]] = por_dia.get(instancia["d"], 0) + 1
 
-    assert len(todos) == 98
-    assert por_nivel == {1: 5, 2: 24, 3: 57, 4: 12}
-    assert por_dia == {"2026-11-30": 15, "2026-12-01": 21, "2026-12-02": 28, "2026-12-03": 32, "2026-12-04": 2}
+    assert len(todos) == 108
+    assert por_nivel == {1: 5, 2: 33, 3: 58, 4: 12}
+    assert por_dia == {"2026-11-30": 18, "2026-12-01": 23, "2026-12-02": 32, "2026-12-03": 33, "2026-12-04": 2}
