@@ -42,15 +42,18 @@ def test_lo_que_crea_en_modo_prueba_va_al_schema_de_prueba(cli):
 
 
 def test_al_apagarlo_vuelve_a_ver_sus_datos_reales_intactos(cli):
+    # /api/sessions lista todo el schema real, que comparten los tests del run: el título de prueba tiene que ser
+    # único, si no otros tests que crean sesiones "Prueba" en lo real lo harían fallar.
+    titulo_prueba = f"Prueba {uuid.uuid4().hex}"
     real_sid = cli.post("/api/sessions", headers=cli.user, json={"title": "Real", "kind": "Breakout"}).json()["id"]
     _sandbox(cli)
-    cli.post("/api/sessions", headers=cli.user, json={"title": "Prueba", "kind": "Breakout"})
+    cli.post("/api/sessions", headers=cli.user, json={"title": titulo_prueba, "kind": "Breakout"})
 
     cli.put(f"/api/admin/users/{cli.username}/sandbox", headers=cli.admin, json={"active": False})
 
     titles = {s["id"]: s["title"] for s in cli.get("/api/sessions", headers=cli.user).json()}
     assert titles.get(real_sid) == "Real"
-    assert "Prueba" not in titles.values()
+    assert titulo_prueba not in titles.values()
 
 
 def test_me_informa_el_modo_prueba_con_reloj_y_ubicacion_simulados(cli, monkeypatch):
