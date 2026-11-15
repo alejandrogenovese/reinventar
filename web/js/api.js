@@ -47,14 +47,30 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
 // Con copia guardada, la red tiene un tope: un Wi-Fi que conecta pero no responde no deja la pantalla esperando.
 const SIN_SENAL_TIMEOUT_MS = 8000;
 const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
-const duenoDeCopias = () => getToken().slice(-12);
+
+// De quién es la copia: los primeros 12 hex del SHA-256 del token. El nombre de la clave queda a la vista (DevTools,
+// backups), así que nunca lleva un pedazo del token en sí. Sin token (o sin crypto.subtle) no hay dueño ni copia.
+let dueno = { token: "", valor: null };
+export async function duenoDeCopias() {
+  const token = getToken();
+  if (!token) return null;
+  if (dueno.token === token) return dueno.valor;
+  let valor = null;
+  try {
+    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+    valor = Array.from(hash.slice(0, 6), (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch { /* contexto sin crypto.subtle: se sigue sin copia */ }
+  dueno = { token, valor };
+  return valor;
+}
 
 /** GET que guarda la respuesta buena y, si no hay señal, devuelve la última (marcada con staleAt). */
 export async function apiConUltimaCopia(path) {
-  const copia = loadLast(duenoDeCopias(), path);
+  const de = await duenoDeCopias();
+  const copia = de ? loadLast(de, path) : null;
   try {
     const data = await api(path, copia ? { signal: AbortSignal.timeout?.(SIN_SENAL_TIMEOUT_MS) } : {});
-    saveLast(duenoDeCopias(), path, data);
+    if (de) saveLast(de, path, data);
     return data;
   } catch (e) {
     if (!copia || !sinServicio(e)) throw e;

@@ -14,7 +14,7 @@ const eventos = [];
 globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); return true; } };
 globalThis.location = { hash: "" };
 
-const { Itinerary, Sessions, Today, getToken, setToken } = await import("../../web/js/api.js");
+const { Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
 const { clearLast, loadLast, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
 
 const respuesta = (data) => ({ ok: true, status: 200, json: async () => data });
@@ -28,9 +28,33 @@ test("con red devuelve lo del servidor y deja una copia con su hora", async () =
   const data = await Itinerary.get();
   assert.deepEqual(data, { days: [{ day: "lunes" }] });
   assert.equal(staleAt(data), null);
-  const copia = loadLast(getToken().slice(-12), "/api/itinerary");
+  const copia = loadLast(await duenoDeCopias(), "/api/itinerary");
   assert.deepEqual(copia.data, data);
   assert.ok(Math.abs(copia.at - Date.now()) < 5000);
+});
+
+test("el nombre de la clave no lleva ningún pedazo del token (se ve en DevTools y en backups)", async () => {
+  globalThis.fetch = async () => respuesta({ days: [] });
+  await Itinerary.get();
+  const token = getToken();
+  const claves = [...memoria.keys()].filter((k) => k.startsWith("reinventar.last."));
+  assert.ok(claves.length > 0);
+  for (const clave of claves) {
+    for (let i = 0; i + 6 <= token.length; i++) assert.ok(!clave.includes(token.slice(i, i + 6)), `${clave} lleva «${token.slice(i, i + 6)}»`);
+  }
+  assert.match(await duenoDeCopias(), /^[0-9a-f]{12}$/);
+});
+
+test("el dueño es el mismo para el mismo token y distinto para otro", async () => {
+  const a = await duenoDeCopias();
+  assert.equal(await duenoDeCopias(), a);
+  setToken("tok-zzzzzzzzzzzz");
+  assert.notEqual(await duenoDeCopias(), a);
+});
+
+test("sin token no hay dueño: no se guarda ni se lee nada", async () => {
+  setToken("");
+  assert.equal(await duenoDeCopias(), null);
 });
 
 test("sin red muestra la última copia y la marca con la hora en que se guardó", async () => {
