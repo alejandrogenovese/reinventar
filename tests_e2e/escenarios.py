@@ -12,7 +12,9 @@ FRANJA = "Sin señal · datos de las"
 GRABAR_SEGUNDOS = 12  # más que el TIMESLICE_MS (10 s) de recorder.js: sale al menos un pedazo antes de terminar
 TITULO = "Grabación E2E sin señal"
 ESPERA_SECCIONES_S = 2  # que las secciones de Inicio que se piden aparte (anuncios) terminen de resolverse antes de leer el texto
-ESPERA_SUBIDA_S = 60 # el uploader reintenta con backoff y se despierta solo cada 30 s
+TITULO_CIERRE = "Grabación E2E cierre diferido"
+ESPERA_CIERRE_S = 45  # tras volver la red y abrir la app: subir lo que falta y cerrar la sesión pedida
+ESPERA_SUBIDA_S = 60# el uploader reintenta con backoff y se despierta solo cada 30 s
 INICIO_CARGADO = "document.body.innerText.includes('Tus grabaciones')"  # condición JS: Inicio ya dibujó la lista
 
 
@@ -134,7 +136,7 @@ async def escenario_4_portal_cautivo(c: Contexto) -> None:
 async def escenario_5_ver_contrasena_en_el_login(c: Contexto) -> None:
     p = c.pagina
     await p.offline(False)
-    await p.evaluar("localStorage.removeItem('reinventar.token'); location.hash = '#/login'")  # último escenario: no hace falta volver
+    await p.evaluar("localStorage.removeItem('reinventar.token'); location.hash = '#/login'")  # el 6 se vuelve a loguear
     await p.esperar("!!document.querySelector('#password')", "el login")
     tipo = "document.querySelector('#password').type"
     assert await p.evaluar(tipo) == "password", "el campo debía arrancar oculto"
@@ -154,6 +156,51 @@ async def escenario_5_ver_contrasena_en_el_login(c: Contexto) -> None:
     await p.tocar("document.querySelector('button[type=submit]')")
     await p.esperar("document.body.innerText.includes('Usuario o contraseña inválidos')", "el aviso de login inválido")
     assert await p.evaluar(tipo) == "password", "al enviar el formulario la contraseña debía volver a ocultarse"
+    # Se vuelve a entrar como el usuario de prueba para los escenarios que siguen.
+    await p.evaluar(f"localStorage.setItem('reinventar.token', {json.dumps(c.servidor.token)}); location.hash = '#/'")
+    await p.esperar(INICIO_CARGADO, "Inicio de nuevo con la sesión de prueba")
+
+
+async def escenario_6_cierre_diferido(c: Contexto) -> None:
+    """Sesión creada con señal: se corta la red, Terminar deja el cierre pedido y lo hace el uploader al volver, con la pestaña cerrada de por medio."""
+    p = c.pagina
+    await p.offline(False)
+    await _ir_a(p, "#/nueva")
+    await p.esperar("!!document.querySelector('#title')", "formulario Nueva sesión")
+    await p.evaluar(f"document.querySelector('#title').value = {json.dumps(TITULO_CIERRE)}")
+    await _click(p, "button[type=submit]", "el botón «Preparar grabación»")
+    await p.esperar("/^#\\/grabar\\/(?!loc_)[\\w-]+$/.test(location.hash)", "pantalla de grabar con una sesión del servidor (no loc_…)")
+    await p.esperar("document.body.innerText.includes('Listo para grabar')", "micrófono listo")
+    await _click(p, "button.ra-rec", "el botón de grabar")
+    await p.esperar("document.body.innerText.includes('Grabando')", "estado «Grabando»")
+    await asyncio.sleep(GRABAR_SEGUNDOS)  # con red: el primer pedazo (10 s) sube solo; el resto queda en el celular
+    await p.offline(True)
+    await p.esperar("[...document.querySelectorAll('button')].some(b => b.textContent.includes('Terminar') && !b.disabled)", "«Terminar» habilitado")
+    await p.tocar("[...document.querySelectorAll('button')].find(b => b.textContent.includes('Terminar'))")
+    await p.esperar("document.body.innerText.includes('Terminada · esperando señal')", "el estado «Terminada · esperando señal»", 15)
+    await p.esperar("[...document.querySelectorAll('button')].some(b => b.textContent.includes('Volver al inicio') && !b.disabled)", "el botón «Volver al inicio»", 10)
+    await p.tocar("[...document.querySelectorAll('button')].find(b => b.textContent.includes('Volver al inicio'))")
+    await p.esperar("location.hash === '#/' && document.body.innerText.includes('Grabadas en este celular') && document.body.innerText.includes('Esperando señal')",
+                    "la tarjeta «Esperando señal» en «Grabadas en este celular»", 15)
+    propias = [s for s in _sesiones_en_servidor(c) if s["title"] == TITULO_CIERRE]
+    assert len(propias) == 1 and propias[0]["status"] == "recording", f"antes de volver la red la sesión debía seguir abierta: {propias}"
+    # Se cierra la pestaña (la app deja de correr) y vuelve la red: nada se cierra solo sin la app abierta.
+    await p.reabrir()
+    await p.offline(False)
+    await asyncio.sleep(3)
+    propias = [s for s in _sesiones_en_servidor(c) if s["title"] == TITULO_CIERRE]
+    assert propias[0]["status"] == "recording", f"con la app cerrada no debería haberse cerrado la sesión: status={propias[0]['status']}"
+    # Se abre la app de nuevo: el uploader sube lo que falta y cierra la sesión pedida.
+    await p.ir(c.servidor.url + "/#/")
+    limite = time.monotonic() + ESPERA_CIERRE_S
+    while time.monotonic() < limite:
+        propias = [s for s in _sesiones_en_servidor(c) if s["title"] == TITULO_CIERRE]
+        if propias and propias[0]["status"] != "recording":
+            break
+        await asyncio.sleep(1)
+    assert len(propias) == 1, f"debía haber una sola sesión «{TITULO_CIERRE}» en el servidor y hay {len(propias)}"
+    assert propias[0]["status"] != "recording", f"la sesión no se cerró tras volver la red ({ESPERA_CIERRE_S} s): status={propias[0]['status']}"
+    await p.esperar("!document.body.innerText.includes('Grabadas en este celular')", "la tarjeta local desapareció", 20)
 
 
 ESCENARIOS = (
@@ -162,4 +209,5 @@ ESCENARIOS = (
     ("3 · al volver la red se sube y se cierra", escenario_3_subida_al_volver),
     ("4 · portal cautivo en /api/", escenario_4_portal_cautivo),
     ("5 · ver y ocultar la contraseña en el login", escenario_5_ver_contrasena_en_el_login),
+    ("6 · terminar sin red una sesión ya creada y cerrarla al volver", escenario_6_cierre_diferido),
 )
