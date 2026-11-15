@@ -27,9 +27,9 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
-import { Recorder, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
+import { Recorder, empezarSesion, listMics, pickDjI, preferredMic, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
-import { Button, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
+import { Button, Hint, LevelMeter, METER_SILENT, RecordButton, SessionCard, Skeleton, StatusPill, h, hms, toast, toastOnError } from "./ui.js";
 
 const view = document.getElementById("view");
 const KINDS = ["Keynote", "Chalk talk", "Workshop", "Breakout"];
@@ -75,7 +75,7 @@ const routes = [
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
-  [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => viewDetail(view, id, {
+  [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => store.esLocal(id) ? abrirSesionLocal(id) : viewDetail(view, id, {
     at, q: q ? decodeURIComponent(q) : "", canGoBack: navigatedInApp, setCleanup: (fn) => { cleanup = fn; }, onError: renderError })],
   [/^#\/itinerario$/, () => it.viewItinerario(view)],
   [/^#\/eventos$/, () => viewEventos(view)],
@@ -247,7 +247,7 @@ function viewNew() {
     const btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
     try {
-      const s = await Sessions.create({
+      const s = await empezarSesion({
         title: fd.get("title").trim(), kind: fd.get("kind"),
         code: fd.get("code").trim() || null, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,
       });
@@ -282,9 +282,35 @@ function fillFromTalk(form, talk) {
 // --- grabación ---------------------------------------------------------------
 const SILENCE_WARN_MS = 8000;  // grabando sin sonido este rato → aviso visible
 
+const FINISH_LOCAL_ESPERA_MS = 20_000;  // cuánto espera "Terminar" a que se cierre una grabación que empezó sin señal
+
+// Una grabación que empezó sin señal se sigue grabando con su id local (loc_…) aunque ya exista en el servidor.
+async function sesionParaGrabar(id) {
+  if (!store.esLocal(id)) {
+    const local = store.idLocalDe(id);
+    if (local) { location.replace(`#/grabar/${local}`); return null; }
+    const s = await Sessions.get(id);
+    if (!["recording", "uploading", "error"].includes(s.status) || s.blocks?.length) { location.hash = `#/s/${id}`; return null; }
+    return s;
+  }
+  const local = store.sesionLocal(id);
+  if (!local || local.terminar) {
+    if (local) toast("Esa grabación ya se terminó: se procesa cuando termine de subir.");
+    location.hash = "#/";
+    return null;
+  }
+  return { ...local.meta, status: "recording", blocks: [] };
+}
+
+// #/s/loc_…: si ya está en el servidor se abre la real; si sigue grabándose, la pantalla de grabar; si no, el inicio.
+function abrirSesionLocal(id) {
+  const local = store.sesionLocal(id);
+  location.replace(local?.realId ? `#/s/${local.realId}` : local && !local.terminar ? `#/grabar/${id}` : "#/");
+}
+
 async function viewRecord(id) {
-  const s = await Sessions.get(id);
-  if (!["recording", "uploading", "error"].includes(s.status) || s.blocks?.length) { location.hash = `#/s/${id}`; return; }
+  const s = await sesionParaGrabar(id);
+  if (!s) return;
 
   const rec = new Recorder(id);
   activeRecorder = rec;
@@ -294,6 +320,7 @@ async function viewRecord(id) {
   const micSelect = h("select", { id: "mic", "aria-label": "Micrófono" });
   const recSlot = h("div");
   const upl = h("div", { class: "upl" });
+  const sinSenal = h("div");  // aviso mientras la grabación existe solo en el celular (todavía sin sesión en el servidor)
   const msg = h("div");
   const finishBtn = Button("Terminar y procesar", { variant: "primary", disabled: true, onclick: finish });
   const salaBtn = Button("Modo sala", { onclick: salaOn });
@@ -311,7 +338,7 @@ async function viewRecord(id) {
       resumed ? h("p", { class: "caption" }, "Retomás una grabación: lo nuevo se agrega a continuación.") : null),
     h("section", { class: "ra-input", "aria-label": "Entrada de audio" },
       h("div", { class: "field" }, h("label", { class: "label", for: "mic" }, "Micrófono"), micSelect), meter, silence, paused),
-    h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, upl, msg,
+    h("div", { class: "recorder" }, h("div", { class: "ra-clock" }, counter, recStatus), recSlot, sinSenal, upl, msg,
       h("div", { class: "actions" }, salaBtn, finishBtn),
       h("div", { class: "actions" }, Button("Descartar", { variant: "danger", onclick: discard })))));
 
@@ -334,7 +361,10 @@ async function viewRecord(id) {
     silence.hidden = !(quiet && performance.now() - quietSince > SILENCE_WARN_MS);
   });
   rec.addEventListener("error", (e) => { msg.replaceChildren(h("div", { class: "notice err" }, e.detail.message)); });
+  const pintarSinSenal = () => sinSenal.replaceChildren(...(store.esLocal(id) && !store.sesionLocal(id)?.realId
+    ? [Hint("Sin señal: se graba en el celular y se sube cuando vuelva.", { tone: "warn", iconName: "alerta" })] : []));
   const onUp = (e) => {
+    pintarSinSenal();
     const { pending, failed, error } = e.detail;
     const pill = pending ? StatusPill("uploading", `Subiendo ${pending}`)
       : failed ? StatusPill("error", `${failed} sin subir`) : StatusPill("ready", "Todo subido");
@@ -345,6 +375,7 @@ async function viewRecord(id) {
   toastOnError(uploader.refresh());
   if (resumed) finishBtn.disabled = false;
   paint();
+  pintarSinSenal();
 
   async function openMic(deviceId) {
     try {
@@ -387,10 +418,30 @@ async function viewRecord(id) {
     if (rec.state === "recording") void wakeLock.acquire();
   }
 
+  // Grabación que empezó sin señal: se deja pedido el cierre y lo termina el uploader cuando suba todo (aunque se
+  // cierre la app). Si hay señal se espera un rato y se abre la grabación; si no, se vuelve al inicio.
+  async function finishLocal() {
+    store.pedirTerminar(id, rec.partsCount());
+    msg.replaceChildren(h("div", { class: "notice" }, "Terminando: se sube y se procesa en cuanto haya señal…"));
+    uploader.kick();
+    let realId = null;
+    for (let t = 0; t < FINISH_LOCAL_ESPERA_MS; t += 500) {
+      await new Promise((r) => setTimeout(r, 500));
+      const local = store.sesionLocal(id);
+      realId = local?.realId || realId;
+      if (!local) { activeRecorder = null; location.hash = realId ? `#/s/${realId}` : "#/"; return; }
+      if (local.error) { msg.replaceChildren(h("div", { class: "notice err" }, local.error)); return; }
+    }
+    activeRecorder = null;
+    toast("Grabación terminada: se sube y se procesa cuando vuelva la señal.");
+    location.hash = "#/";
+  }
+
   async function finish() {
     finishBtn.disabled = true;
     await rec.stop();
     rec.close();
+    if (store.esLocal(id)) return finishLocal();
     msg.replaceChildren(h("div", { class: "notice" }, "Esperando que termine de subir…"));
     uploader.kick();
     for (let i = 0; (await store.countFor(id)) > 0; i++) {
@@ -418,6 +469,15 @@ async function viewRecord(id) {
   async function discard() {
     if (!await confirmDialog("¿Descartar esta grabación?", { text: "Se borra el audio del celular y del servidor. No se puede deshacer.", confirmLabel: "Descartar", danger: true })) return;
     await rec.stop(); rec.close(); activeRecorder = null;
+    if (store.esLocal(id)) {
+      // Sin sesión en el servidor no hay nada que llamar; si ya se creó, se borra también allá.
+      const realId = store.sesionLocal(id)?.realId;
+      await store.deleteChunksOf(id);
+      store.quitarSesionLocal(id);
+      if (realId) { try { await Sessions.remove(realId); } catch {} }
+      location.hash = "#/";
+      return;
+    }
     store.dropRecMeta(id);
     try { await Sessions.remove(id); } catch {}
     location.hash = "#/";
