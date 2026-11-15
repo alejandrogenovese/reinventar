@@ -44,6 +44,8 @@ if (supported()) {
   const sync = () => void syncSubscription().catch(() => {});
   sync();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync(); });
+  // setToken (api.js) avisa en cada login: el token nuevo le llega al service worker en el momento, no en la próxima apertura.
+  window.addEventListener("reinventar:token", sync);
 }
 
 async function enable() {

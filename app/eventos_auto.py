@@ -53,7 +53,7 @@ SEGUNDOS_ENTRE_PEDIDOS = 1.0
 MIN_PROPORCION = 0.5                        # una fuente que trae menos que esto de lo que traía no cancela nada
 MIN_ENTRE_FALTAS = dt.timedelta(hours=1)    # dos faltas tienen que estar al menos así de separadas
 ESPERA_INICIAL_S = 120                      # la primera revisión, 2 min después de arrancar
-CANDADO = 20261129                          # pg_try_advisory_xact_lock: una revisión a la vez entre réplicas
+CANDADO = 20261129                          # advisory lock (CANDADO, hash del schema): una revisión a la vez por schema
 TIMEOUT_S = 30
 USER_AGENT = "ReinventAR/1.0 (agenda personal de re:Invent)"
 _CAMPOS_FIRMA = {LUMA: ("nombre", "inicio", "fin", "imagen_url"),
@@ -356,7 +356,7 @@ def _revisar(conectar, http, schema, resumir, tope, ahora, pausa, resolver) -> d
     with conectar() as conn, conn.transaction():
         cur = conn.cursor(row_factory=tuple_row)
         _usar_schema(cur, schema)
-        if not cur.execute("SELECT pg_try_advisory_xact_lock(%s)", (CANDADO,)).fetchone()[0]:
+        if not cur.execute("SELECT pg_try_advisory_xact_lock(%s, hashtext(%s))", (CANDADO, schema)).fetchone()[0]:
             return {"estado": "ocupado"}
         conteo = {f: {"total": 0, "nuevos": 0, "cambiados": 0, "cancelados": 0, "pendientes": 0}
                   for f in (LUMA, CONFERENCEPARTIES, LINKS)}

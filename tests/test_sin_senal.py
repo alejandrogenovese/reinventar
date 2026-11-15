@@ -1,0 +1,45 @@
+"""Inicio e Itinerario sin señal: el cableado de la última copia buena (la lógica está en tests/js/ultimaCopia.test.mjs)."""
+from pathlib import Path
+
+WEB = Path(__file__).resolve().parent.parent / "web"
+
+
+def _js(nombre):
+    return (WEB / "js" / nombre).read_text()
+
+
+def test_hoy_itinerario_y_grabaciones_usan_la_ultima_copia():
+    api = _js("api.js")
+    assert 'list: () => apiConUltimaCopia("/api/sessions")' in api
+    assert 'get: () => apiConUltimaCopia("/api/today")' in api
+    assert 'get: () => apiConUltimaCopia("/api/itinerary")' in api
+
+
+def test_las_pantallas_muestran_la_franja_sin_senal():
+    assert "SinSenal(sessions)" in _js("app.js")
+    assert _js("itinerary.js").count("SinSenal(data)") == 2  # con y sin días armados
+
+
+def test_los_modulos_nuevos_estan_en_el_cache_offline():
+    sw = (WEB / "sw.js").read_text()
+    for modulo in ("lastgood", "sinSenal", "locales"):
+        assert f'"/js/{modulo}.js"' in sw, modulo
+
+
+def test_inicio_muestra_las_grabaciones_locales_arriba_de_tus_grabaciones():
+    app = _js("app.js")
+    assert "cargarLocales(store)" in app
+    assert "LocalesPendientes(fichas)" in app
+    assert app.index("localesSlot,") < app.index('id: "grabaciones-title"')  # arriba de «Tus grabaciones»
+    # se cargan antes de pedir la lista al servidor: sin señal ni copia esa falla y las locales igual se ven
+    assert app.index("void refreshLocales();") < app.index("const sessions = await Sessions.list();")
+
+
+def test_el_login_le_deja_el_token_al_service_worker():
+    assert 'new Event("reinventar:token")' in _js("api.js")
+    assert 'addEventListener("reinventar:token", sync)' in _js("notifications.js")
+
+
+def test_la_api_nunca_se_cachea_en_el_service_worker():
+    sw = (WEB / "sw.js").read_text()
+    assert 'url.pathname.startsWith("/api/")' in sw  # el SW la deja pasar: la copia vive en la página

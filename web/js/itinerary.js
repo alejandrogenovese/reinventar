@@ -8,6 +8,7 @@ import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
 import { ShowFunctionCard } from "./shows.js";
 import { icon } from "./icons.js";
+import { SinSenal } from "./sinSenal.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, mensajeError, toast, toastOnError, withUndo } from "./ui.js";
 
@@ -267,6 +268,7 @@ export async function viewItinerario(view) {
     view.replaceChildren();
     if (!data.days.length) {
       view.append(h("div", { class: "stack-lg" },
+        SinSenal(data),
         h("div", { class: "empty" },
           h("p", {}, "Todavía no armaste tu itinerario."),
           h("p", { class: "caption" }, "Te conocemos y armamos cada día charla por charla, o lo armamos rápido con un par de preguntas.")),
@@ -283,6 +285,7 @@ export async function viewItinerario(view) {
     const list = h("div", { class: "daylist" });
     const dayHeading = h("h2", { class: "sr-only" }); // título para el lector de pantalla: las pestañas no son encabezados
     view.append(h("div", { class: "stack-lg" },
+      SinSenal(data),
       h("div", { class: "ra-sec-head" }, h("h1", { class: "title" }, "Tu itinerario"), NumerosLink()),
       h("div", { class: "actions" },
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),

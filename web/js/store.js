@@ -143,3 +143,107 @@ const META = "reinventar.rec.";
 export function recMeta(id) { try { return JSON.parse(localStorage.getItem(META + id)) || { parts: {} }; } catch { return { parts: {} }; } }
 export function saveRecMeta(id, m) { try { localStorage.setItem(META + id, JSON.stringify(m)); } catch {} }
 export function dropRecMeta(id) { try { localStorage.removeItem(META + id); } catch {} }
+
+/** Borra todos los pedazos de una sesión (descartar una grabación local que nunca llegó al servidor). */
+export const deleteChunksOf = (session) => tx("readwrite", (s) => {
+  s.index("session").openCursor(IDBKeyRange.only(session)).onsuccess = (ev) => {
+    const cur = ev.target.result;
+    if (!cur) return;
+    cur.delete();
+    cur.continue();
+  };
+});
+
+// --- Sesiones locales: grabar sin señal ---------------------------------------------------------------------------
+// Si no hay red al empezar, la grabación arranca con un id provisorio "loc_…" y los pedazos se guardan en IndexedDB
+// con ese id. No se remapean: cuando vuelve la señal el uploader crea la sesión en el servidor, guarda el realId acá
+// y sube cada pedazo a la sesión real (ver sesionRemota en recorder.js). Vive en localStorage junto a recMeta.
+const LOCAL = "reinventar.sesion-local.";
+const LOCAL_INDICE = "reinventar.sesiones-locales";
+const ID_LOCAL = /^loc_[0-9a-f]{12}$/;
+const ACTIVIDAD_RECIENTE_MS = 60_000;  // sin latido en este rato: la app se cerró o el celular se durmió
+const LATIDO_CADA_MS = 5_000;
+const ultimoLatido = new Map();
+
+export const esLocal = (id) => typeof id === "string" && ID_LOCAL.test(id);
+export function nuevoIdLocal() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return "loc_" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function leer(clave, defecto) { try { return JSON.parse(localStorage.getItem(clave)) ?? defecto; } catch { return defecto; } }
+function escribir(clave, valor) { try { localStorage.setItem(clave, JSON.stringify(valor)); return true; } catch { return false; } }
+const idsLocales = () => leer(LOCAL_INDICE, []);
+
+function guardarLocal(sesion) {
+  if (!escribir(LOCAL + sesion.id, sesion)) throw new Error("No pude guardar la grabación en el celular: revisá el espacio disponible");
+  const indice = idsLocales();
+  if (!indice.includes(sesion.id)) escribir(LOCAL_INDICE, [...indice, sesion.id]);
+  return sesion;
+}
+function actualizarLocal(id, cambios) {
+  const actual = sesionLocal(id);
+  return actual ? guardarLocal({ ...actual, ...cambios }) : null;
+}
+
+export const sesionLocal = (id) => (esLocal(id) ? leer(LOCAL + id, null) : null);
+export function crearSesionLocal(meta) {
+  const ahora = Date.now();
+  return guardarLocal({ id: nuevoIdLocal(), meta: { ...meta }, creadaEn: ahora, latido: ahora, activa: false, realId: null, terminar: null, error: null });
+}
+export const marcarCreada = (id, realId) => actualizarLocal(id, { realId });
+/** El usuario terminó la grabación: el uploader la cierra (finish) cuando suba todo y vuelva la señal. */
+export const pedirTerminar = (id, parts) => actualizarLocal(id, { terminar: { parts: { ...parts }, intentos: 0 }, activa: false });
+export function contarIntentoDeCierre(id) {
+  const t = sesionLocal(id)?.terminar;
+  return t ? actualizarLocal(id, { terminar: { ...t, intentos: t.intentos + 1 } }) : null;
+}
+export const marcarErrorLocal = (id, error) => actualizarLocal(id, { error });
+/** Reintento manual: borra el error de las sesiones locales y les devuelve los intentos de cierre. */
+export function reabrirCierres() {
+  for (const id of idsLocales()) {
+    const s = sesionLocal(id);
+    if (s?.error || s?.terminar?.intentos) actualizarLocal(id, { error: null, terminar: s.terminar && { ...s.terminar, intentos: 0 } });
+  }
+}
+export function idLocalDe(realId) { return idsLocales().find((id) => sesionLocal(id)?.realId === realId) || null; }
+
+/** Latido de la grabación en curso (con tope de escrituras): distingue "grabando ahora" de "quedó a medias". */
+export function registrarActividad(id, activa) {
+  if (!esLocal(id)) return;
+  const ahora = Date.now();
+  if (activa && ahora - (ultimoLatido.get(id) ?? 0) < LATIDO_CADA_MS) return;
+  ultimoLatido.set(id, activa ? ahora : 0);
+  actualizarLocal(id, { activa, latido: ahora });
+}
+
+/** Saca la sesión local, su índice y su recMeta. Los pedazos se borran aparte (deleteChunksOf) o al subirse. */
+export function quitarSesionLocal(id) {
+  try { localStorage.removeItem(LOCAL + id); } catch {}
+  escribir(LOCAL_INDICE, idsLocales().filter((x) => x !== id));
+  dropRecMeta(id);
+  ultimoLatido.delete(id);
+}
+
+/** Sesiones locales que todavía no terminaron de pasar al servidor (síncrono; lo usa el uploader). */
+export function sesionesLocales() {
+  const ahora = Date.now();
+  return idsLocales().map(sesionLocal).filter(Boolean).map((s) => ({
+    id: s.id, title: s.meta.title, realId: s.realId, error: s.error, creadaEn: s.creadaEn,
+    estado: s.terminar ? "terminada" : s.activa && ahora - s.latido < ACTIVIDAD_RECIENTE_MS ? "grabando" : "pendiente",
+  }));
+}
+
+const TITULO_POR_DEFECTO = "Grabación sin conexión";
+const ESTADO_PUBLICO = { grabando: "grabando", pendiente: "pendiente_de_subir", terminada: "esperando_senal" };
+
+/**
+ * Para la lista de Inicio: las grabaciones que nacieron sin señal y todavía no terminaron de pasar al servidor.
+ * Siempre un array (vacío si no hay), de la más reciente a la más vieja. `at` = ms de cuando se creó.
+ * estado: "grabando" | "pendiente_de_subir" | "esperando_senal" (terminada, falta subir y cerrar).
+ */
+export async function sesionesLocalesPendientes() {
+  return sesionesLocales()
+    .map((s) => ({ id: s.id, title: s.title?.trim() || TITULO_POR_DEFECTO, estado: ESTADO_PUBLICO[s.estado], at: s.creadaEn, realId: s.realId, error: s.error }))
+    .sort((a, b) => b.at - a.at);
+}
