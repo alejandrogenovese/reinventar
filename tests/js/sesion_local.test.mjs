@@ -224,6 +224,67 @@ test("sesionRemota falla claro si la sesión local ya no existe", async () => {
   await assert.rejects(rec.sesionRemota("loc_aaaaaaaaaaaa", async () => ({ id: "x" })), /no existe/);
 });
 
+test("sesionRemota manda client_id (el id local) y recorded_at (ISO de la creación local)", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  const creadaEn = store.sesionLocal(s.id).creadaEn;
+  let enviado = null;
+  await rec.sesionRemota(s.id, async (m) => { enviado = m; return { id: "real00000003" }; });
+  assert.equal(enviado.client_id, s.id);
+  assert.equal(enviado.recorded_at, new Date(creadaEn).toISOString());
+  assert.equal(enviado.title, META.title);
+});
+
+test("sesionRemota no cambia la meta guardada al agregar client_id y recorded_at", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  await rec.sesionRemota(s.id, async () => ({ id: "real00000004" }));
+  assert.deepEqual(store.sesionLocal(s.id).meta, META);
+});
+
+test("sesionRemota usa como realId la sesión que el servidor ya tenía para ese client_id", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  // la app se cayó tras el POST sin guardar el realId: el reintento recibe la misma sesión
+  await assert.rejects(rec.sesionRemota(s.id, async () => { throw Object.assign(new Error("Sin conexión"), { status: 0 }); }));
+  assert.equal(await rec.sesionRemota(s.id, async () => ({ id: "yaexistente01" })), "yaexistente01");
+  assert.equal(store.sesionLocal(s.id).realId, "yaexistente01");
+});
+
+test("si el servidor rechaza recorded_at con 422, reintenta sin ese campo y no falla", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  const envios = [];
+  const crear = async (m) => {
+    envios.push(m);
+    if ("recorded_at" in m) throw Object.assign(new Error("recorded_at fuera de rango"), { status: 422 });
+    return { id: "real00000005" };
+  };
+  assert.equal(await rec.sesionRemota(s.id, crear), "real00000005");
+  assert.equal(envios.length, 2);
+  assert.equal(envios[1].client_id, s.id);
+  assert.equal("recorded_at" in envios[1], false);
+});
+
+test("un 422 sin recorded_at no se reintenta más y se informa", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  let llamadas = 0;
+  const crear = async () => { llamadas++; throw Object.assign(new Error("kind inválido"), { status: 422 }); };
+  await assert.rejects(rec.sesionRemota(s.id, crear), (e) => e.status === 422 && e.origen === "crear");
+  assert.equal(llamadas, 2);
+  assert.equal(store.sesionLocal(s.id).realId, null);
+});
+
+test("otros errores al crear no disparan el reintento sin recorded_at", async () => {
+  limpiar();
+  const s = store.crearSesionLocal(META);
+  let llamadas = 0;
+  const crear = async () => { llamadas++; throw Object.assign(new Error("caído"), { status: 503 }); };
+  await assert.rejects(rec.sesionRemota(s.id, crear));
+  assert.equal(llamadas, 1);
+});
+
 test("fallo al crear: sin señal y errores del servidor se reintentan; un 4xx es definitivo", () => {
   for (const s of [0, undefined, 401, 500, 502, 503]) assert.equal(rec.clasificarFalloAlCrear(s).accion, "reintentar");
   assert.equal(rec.clasificarFalloAlCrear(422).accion, "fallido");
