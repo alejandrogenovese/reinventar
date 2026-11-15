@@ -88,8 +88,27 @@ def clave(nombre: str) -> str:
     return _NO_ALFANUM.sub("", sin_tildes.lower()) or (nombre or "").strip().lower()
 
 
+# UTF-8 leído como cp1252/latin-1 (el buscador de AWS lo trae así en algunos textos): un carácter inicial (Â, Ã, â…)
+# seguido de tantos «continuadores» como bytes le faltan: «Â » es un espacio duro, «â€”» una raya, «Ã©» una é.
+_CONTINUADOR = r"[\u0080-¿ŒœŠšŸŽžƒˆ˜–-›€™]"
+_MOJIBAKE = re.compile(rf"[Â-ß]{_CONTINUADOR}|[à-ï]{_CONTINUADOR}{{2}}|[ð-ô]{_CONTINUADOR}{{3}}")
+
+
+def _reparar_secuencia(m: re.Match) -> str:
+    for codec in ("cp1252", "latin-1"):
+        try:
+            return m.group().encode(codec).decode("utf-8")
+        except UnicodeError:
+            continue
+    return m.group()  # no era mojibake: se deja como está
+
+
+def _reparar_mojibake(texto: str) -> str:
+    return _MOJIBAKE.sub(_reparar_secuencia, texto)
+
+
 def _limpio(texto: str | None) -> str:
-    return re.sub(r"\s+", " ", (texto or "").replace(" ", " ")).strip()
+    return re.sub(r"\s+", " ", _reparar_mojibake(texto or "").replace(" ", " ")).strip()
 
 
 def _o_none(texto: str | None) -> str | None:
