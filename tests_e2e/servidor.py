@@ -41,7 +41,7 @@ def _url_de_la_base() -> str:
     """La base de Postgres sale del entorno (E2E_DATABASE_URL o, si no, DATABASE_URL): en el código no va ninguna clave."""
     url = os.environ.get("E2E_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not url:
-        raise RuntimeError("Falta la base: exportá E2E_DATABASE_URL (o DATABASE_URL) con la URL del Postgres local. Ver README.")
+        raise RuntimeError("Falta la base: exportá E2E_DATABASE_URL (o DATABASE_URL) con la URL del Postgres local. Ver docs/pruebas.md.")
     return url
 
 
