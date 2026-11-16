@@ -5,6 +5,7 @@ mayúsculas) y se devuelven con la grafía canónica. Lo que no existe se inform
 """
 import datetime
 import logging
+import re
 
 from . import catalog, explore, llm, prompts, trazas
 from .llm_router import Tarea
@@ -13,6 +14,7 @@ log = logging.getLogger("reinventar.nl_filters")
 
 NL_MAX_TOKENS = 2000
 Q_LIMIT = 200
+_SESSION_CODE = re.compile(r"[a-z]{3}\d{3}(-(r\d+|s))?", re.IGNORECASE)  # AIM204, AIM204-R1 (repetición), ABC123-S (sponsoreada)
 VALUES_PER_FACET = 20
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 _LABELS = {
@@ -69,7 +71,11 @@ def _validate(proposed: dict, allowed: dict[str, list[str]]) -> tuple[dict[str, 
 
 
 def parse(text: str) -> dict:
-    """{"filters": {faceta: [valores]}, "q": texto libre restante, "ignored": ["faceta: valor"]}."""
+    """{"filters": {faceta: [valores]}, "q": texto libre restante, "ignored": ["faceta: valor"]}.
+    Un código de charla («KEY002», «AIM204-R1») no es una frase para traducir: no hay filtros que proponer y no se
+    llama al LLM (el que lo escribió ya lo busca por texto)."""
+    if _SESSION_CODE.fullmatch(text.strip()):
+        return {"filters": {}, "q": "", "ignored": []}
     allowed = _allowed()
     try:
         with trazas.abrir():
