@@ -60,7 +60,7 @@ están en [`.env.example`](.env.example).
 |---|---|
 | [Arquitectura](docs/arquitectura.md) | Componentes, flujo de una grabación y estructura del código |
 | [Despliegue y operación](docs/despliegue.md) | Railway, CI/CD, proveedores de IA, gateway LiteLLM y usuarios |
-| [Pruebas](docs/pruebas.md) | Tests automáticos, prueba E2E sin señal y pruebas en dispositivo |
+| [Pruebas](docs/pruebas.md) | Tests automáticos y prueba E2E sin señal |
 | [CHANGELOG](CHANGELOG.md) | Cambios de cada versión |
 | [Cómo contribuir](CONTRIBUTING.md) | Ramas, commits, tests y publicación de versiones |
 | [Seguridad](SECURITY.md) | Cómo reportar una vulnerabilidad |
