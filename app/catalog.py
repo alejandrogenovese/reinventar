@@ -221,11 +221,16 @@ def _keys_text(session: dict) -> str:
     return " · ".join(v for k in ("tech", "concepts", "concepts_en") for v in _split(session.get(k)))
 
 
+def _codes_text(session: dict) -> str:
+    """Códigos de todos los horarios de la charla (AIM204, AIM204-R1…): escribir «aim204» tiene que encontrarla."""
+    return " ".join(i["c"] for i in session.get("instances", []) if i.get("c"))
+
+
 def _matches(q: str, session: dict) -> bool:
-    """Texto libre (q ya pasado por fold): título, resumen, speakers (nombre) y su empresa/industria/sector/cargo."""
+    """Texto libre (q ya pasado por fold): título, resumen, código, speakers (nombre) y su empresa/industria/sector/cargo."""
     names = " ".join(p.get("name") or "" for p in session.get("people", []))
-    texts = (session.get("title"), session.get("abstract"), session.get("abstract_es"), _keys_text(session), names,
-             _people_text(session))
+    texts = (session.get("title"), session.get("abstract"), session.get("abstract_es"), _keys_text(session),
+             _codes_text(session), names, _people_text(session))
     return any(q in fold(text) for text in texts)
 
 

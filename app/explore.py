@@ -48,7 +48,8 @@ def _session_values(s: dict) -> dict[str, set[str]]:
 
 def _entry(s: dict) -> dict:
     names = " ".join(p.get("name") or "" for p in s.get("people", []))
-    text = " ".join(filter(None, (s.get("title"), s.get("abstract"), s.get("abstract_es"), catalog._keys_text(s), names, catalog._people_text(s))))
+    text = " ".join(filter(None, (s.get("title"), s.get("abstract"), s.get("abstract_es"), catalog._keys_text(s),
+                                  catalog._codes_text(s), names, catalog._people_text(s))))
     instances = [(i["d"], (i.get("v") or "").split("|")[0].strip(), i, hora(i.get("st")),
                   anuncios.FILTRO_BUSCAR if anuncios.nivel(s, i) else None) for i in s.get("instances", [])]
     return {"session": s, "values": _session_values(s), "instances": instances, "text": catalog.fold(text)}
