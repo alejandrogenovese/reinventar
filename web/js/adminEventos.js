@@ -106,7 +106,7 @@ export function EventosPanel() {
     } });
     revisar.disabled = d.ocupado || !d.activo || d.migracion_pendiente;
     if (d.ocupado) setTimeout(paint, ESPERA_MS);
-    box.replaceChildren(
+    box.replaceChildren(...[ // filter(Boolean): replaceChildren escribe «null» en vez de saltearlo
       !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
       d.migracion_pendiente ? Hint("Falta la migración 007 en la base.", { tone: "error" }) : null,
       d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties${d.ticketmaster ? ", Ticketmaster" : ""} y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
@@ -116,7 +116,7 @@ export function EventosPanel() {
       d.links.length ? h("ul", { class: "stack" }, d.links.map((l) => h("li", {},
         h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(l.id)}` }, l.nombre), l.cancelado ? " · cancelado" : ""))) : null,
       CharlasNuevas(d.charlas_nuevas),
-      d.activo && !d.migracion_pendiente ? AddLink(paint) : null);
+      d.activo && !d.migracion_pendiente ? AddLink(paint) : null].filter(Boolean));
   }
   void paint();
   return h("div", { class: "stack" }, h("h2", { class: "label" }, "Eventos automáticos"), box);

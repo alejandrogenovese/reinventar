@@ -40,6 +40,8 @@ Itinerario) y sube todo sola cuando vuelve la red.
   «sistema:healthcheck», «sistema:temas» o «sistema:pipeline».
 
 ### Corregido
+- Debajo de «¿Te sirvió este resumen?» ya no aparece la palabra «null» cuando nadie votó todavía (lo mismo en
+  Administración › Eventos automáticos).
 - Los errores se muestran en castellano en toda la app (antes salían textos del navegador como «Failed to fetch» o
   «NotAllowedError»). Sin red: «Sin conexión: revisá la señal y probá de nuevo.». Micrófono: «Necesito permiso para
   usar el micrófono.», «No encuentro ningún micrófono.» o «El micrófono está ocupado por otra app».

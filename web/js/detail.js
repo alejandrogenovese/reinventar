@@ -37,7 +37,7 @@ function VotoResumen(id, voto) {
     const total = v.si + v.no;
     box.replaceChildren(h("span", { class: "caption", id: `voto-${id}` }, "¿Te sirvió este resumen?"),
       h("div", { class: "ra-voto-botones", role: "group", "aria-labelledby": `voto-${id}` }, botones),
-      total ? h("span", { class: "caption" }, `Le sirvió a ${v.si} de ${personas(total)}`) : null);
+      total ? h("span", { class: "caption" }, `Le sirvió a ${v.si} de ${personas(total)}`) : ""); // "" y no null: replaceChildren escribe «null»
   };
   pintar(voto || { si: 0, no: 0, mio: null });
   return box;
