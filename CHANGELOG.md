@@ -24,9 +24,21 @@ Itinerario) y sube todo sola cuando vuelve la red.
 - **«Grabadas en este celular»** en Inicio: las grabaciones que todavía esperan señal, con su estado (Grabando,
   Pendiente de subir, Esperando señal) o el error si algo falló.
 - **Ver la contraseña:** un ojo en cada campo de contraseña (al entrar y al cambiarla) la muestra u oculta. No tapa
-  el ícono del gestor de contraseñas y al enviar vuelve a ocultarse.
+  el ícono del gestor de contraseñas y al enviar vuelve a ocultarse. El ícono muestra el estado, como en Android:
+  ojo tachado con la contraseña oculta, ojo abierto cuando se ve.
+- **Tramos sin audio marcados.** Si una llamada o un audio de WhatsApp le saca el micrófono a la app más de 8 s, la
+  transcripción lo marca con «— sin audio mm:ss–mm:ss —» (también en el Markdown exportado). La primera vez que
+  grabás, un tip sugiere poner No molestar.
+- **«Llevame» dentro de la app:** el mapa con el recorrido a pie, los minutos y la distancia se abren en la misma app,
+  con «Abrir en Google Maps» si querés la navegación.
+- **Buscar por código de charla:** «key002» o «aim204» encuentran la charla (también sus repeticiones, «AIM204-R1»).
 
 ### Cambiado
+- **Modo sala** muestra «En pausa» cuando la grabación está pausada.
+- Ajustes y «Tus grabaciones» sin señal muestran tu cuenta y la última copia en vez de «Sesión no válida».
+- La distancia a la sede: «Estás en la sede» si estás a menos de 50 m; desde muy lejos (otra ciudad), solo los km.
+- El ingreso con biometría dice «huella o rostro» (Face ID solo en iPhone).
+- El Horario de la ficha se ve bien en el celular: la sede ocupa todo el ancho y los botones van abajo.
 - Lo elegido se ve mejor en modo claro y oscuro: los filtros (días, tipos), las pestañas (Networking / Shows,
   Filtrar / Preguntar, Números) y «Agrupar» se marcan en naranja suave con borde, en vez de blanco que encandilaba en
   oscuro o gris apenas distinto del fondo.
