@@ -36,13 +36,3 @@ Si un escenario falla, deja capturas, el log de consola y el del servidor en `e2
 Variables: `E2E_CHROME` (ejecutable de Chrome/Chromium; por defecto el del caché de Playwright o el Chrome instalado en macOS; si no
 hay ninguno la prueba se saltea con un aviso), `E2E_PYTHON` (intérprete con las dependencias de la app; por defecto `.venv`)
 y `E2E_DATABASE_URL` (obligatoria si no exportás `DATABASE_URL`: el código no trae ninguna clave).
-
-## Pruebas manuales en dispositivo
-
-Antes de cada evento, en un Android y un iPhone reales con la app instalada desde staging:
-
-1. Micrófono externo (receptor USB-C): que aparezca en el selector y la app lo elija sola.
-2. 60 min con *Modo sala* y con la pantalla bloqueada: que la grabación no se corte.
-3. Modo avión a mitad de la grabación y de vuelta: la cola se vacía sola y la grabación se procesa.
-4. Una llamada durante la grabación: la transcripción marca el tramo «— sin audio —».
-5. Tiempo y costo de procesar una keynote de 2 h.
