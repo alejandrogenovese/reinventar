@@ -150,6 +150,26 @@ function firstChoice(functions, day) {
   return (day && usable.find((f) => f.day === day)) || usable.find((f) => f.in_itinerary) || usable[0] || functions[0];
 }
 
+const CUANDO_ETIQUETA = { libre: "Libre", justo: "Justa", choca: "Choca" };
+
+/** «¿Cuándo nos conviene?»: las funciones ordenadas según tu itinerario, cada una con su razón. Si falla o no hay, no se muestra. */
+function CuandoSection(id, onPick) {
+  const lista = h("div", { class: "stack" });
+  const caja = section("¿Cuándo nos conviene?", lista);
+  Shows.cuando(id).then(({ sugerencias }) => {
+    if (!sugerencias.length) { caja.remove(); return; }
+    const mejor = sugerencias[0].estado === "libre" ? sugerencias[0].code : null;
+    lista.replaceChildren(...sugerencias.map((s) => h("article", { class: "ra-event" },
+      h("div", { class: "ra-event-body" },
+        h("span", { class: "ra-kind" }, [s.code === mejor ? "RECOMENDADA" : CUANDO_ETIQUETA[s.estado].toUpperCase(), shortDay(s.day), s.start].join(" · ")),
+        h("p", {}, s.razon),
+        priceText(s.price_from) ? h("p", { class: "caption" }, priceText(s.price_from)) : null,
+        s.aviso ? Hint(s.aviso, { tone: "info" }) : null,
+        h("div", { class: "actions" }, Button("Ver esta función", { onclick: () => onPick(s.code) }))))));
+  }).catch(() => caja.remove());
+  return caja;
+}
+
 export async function viewShow(view, id, query = "") {
   const s = await Shows.get(decodeURIComponent(id));
   const day = new URLSearchParams(query.replace(/^\?/, "")).get("dia");
@@ -188,5 +208,10 @@ export async function viewShow(view, id, query = "") {
       CountdownBadge(startsAt(chosen.day, chosen.start))),
     section("Funciones esta semana", picker,
       h("p", { class: "caption" }, "Elegí la función y agregala: queda fijada en tu itinerario y te avisamos cuándo salir.")),
+    CuandoSection(id, (code) => {
+      chosen = s.functions.find((f) => f.code === code) ?? chosen;
+      paint();
+      picker.scrollIntoView({ behavior: "smooth", block: "start" });
+    }),
     detail));
 }
