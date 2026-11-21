@@ -4,6 +4,7 @@
 import { Events, Itinerary, Shows } from "./api.js";
 import { CountdownBadge, refreshCountdown } from "./countdown.js";
 import { GoThere, currentPosition, distanceMeters, startsAt } from "./location.js";
+import { HORA_DE_FIESTAS, TODAS, filtrarEventos, guardarFiltros, leerFiltros } from "./eventosTodas.js";
 import { MyEventsSection } from "./myEvents.js";
 import { ShowsPanel } from "./shows.js";
 import { sandboxNow } from "./sandbox.js";
@@ -22,8 +23,6 @@ const place = (e) => {
 };
 // Dónde anotarse: Luma, o la página del organizador (conferenceparties o un link cargado a mano).
 const signupLabel = (e) => (e.platform === "luma" ? "Anotarme en Luma" : "Anotarme en la página del evento");
-// Los cancelados (ya no aparecen en su fuente) van al final de la lista.
-const byCancelled = (a, b) => Number(Boolean(a.cancelled)) - Number(Boolean(b.cancelled));
 const Cancelled = () => Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" });
 
 // Imagen y link vienen de la fuente externa (Luma, conferenceparties o la página del organizador): solo https.
@@ -94,7 +93,14 @@ export async function viewEventos(view, tab = "networking") {
   const types = [ALL, ...new Set(all.map((e) => e.type).filter(Boolean))];
   // Arranca en el día de hoy (o el del reloj simulado en modo prueba) si hay eventos ese día.
   const today = sandboxNow().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-  const state = { day: days.some((d) => d.day === today) ? today : days[0].day, type: ALL, near: false };
+  const saved = leerFiltros();
+  const dayExists = (day) => day === TODAS || days.some((d) => d.day === day);
+  const state = {
+    day: saved?.day && dayExists(saved.day) ? saved.day : days.some((d) => d.day === today) ? today : days[0].day,
+    type: saved && types.includes(saved.type) ? saved.type : ALL,
+    near: saved?.near ?? false,
+    desde: saved?.desde ?? null,
+  };
   let here = null;
   void currentPosition().then((p) => { here = p; });
 
@@ -104,19 +110,29 @@ export async function viewEventos(view, tab = "networking") {
   const chip = (label, on, onclick) => h("button", { type: "button", class: `ra-chip${on ? " ra-chip-on" : ""}`, "aria-pressed": String(on), onclick }, label);
 
   function paint() {
-    dayTabs.replaceChildren(...days.map((d) => chip(`${dayLabel(d.day)} (${d.events.length})`, d.day === state.day, () => { state.day = d.day; paint(); })));
+    guardarFiltros(state);
+    dayTabs.replaceChildren(
+      chip(`Todas las fechas (${all.length})`, state.day === TODAS, () => { state.day = TODAS; paint(); }),
+      ...days.map((d) => chip(`${dayLabel(d.day)} (${d.events.length})`, d.day === state.day, () => { state.day = d.day; paint(); })));
     typeChips.replaceChildren(...types.map((t) => chip(t === ALL ? "Todos" : t, t === state.type, () => { state.type = t; paint(); })),
+      chip(`Desde las ${HORA_DE_FIESTAS}`, state.desde != null, () => { state.desde = state.desde == null ? HORA_DE_FIESTAS : null; paint(); }),
       chip("↕ Más cerca", state.near, async () => {
         state.near = !state.near;
         here = here || await currentPosition();
         if (state.near && !here) { toast("Activá la ubicación para ordenar por cercanía."); }
         paint();
       }));
-    let shown = days.find((d) => d.day === state.day)?.events || [];
-    if (state.type !== ALL) shown = shown.filter((e) => e.type === state.type);
-    if (state.near && here) shown = [...shown].sort((a, b) => distanceMeters(here, a.venue) - distanceMeters(here, b.venue));
-    shown = [...shown].sort(byCancelled);
-    list.replaceChildren(...(shown.length ? shown.map((e) => EventCard(e, { onAdded: reload })) : [h("p", { class: "caption" }, "No hay eventos de ese tipo ese día.")]));
+    const groups = filtrarEventos(days, { ...state, here, distance: (a, b) => distanceMeters(a, b) });
+    if (!groups.length) {
+      list.replaceChildren(h("p", { class: "caption" }, state.day === TODAS ? "No hay eventos con esos filtros." : "No hay eventos con esos filtros ese día."));
+      return;
+    }
+    const card = (e) => EventCard(e, { onAdded: reload });
+    list.replaceChildren(...(state.day === TODAS
+      ? groups.flatMap((g) => [
+        h("h2", { class: "label" }, `${dayLabel(g.day)} · ${g.events.length} ${g.events.length === 1 ? "evento" : "eventos"}`),
+        ...g.events.map(card)])
+      : groups[0].events.map(card)));
   }
   async function reload() {
     ({ days } = await Events.list());

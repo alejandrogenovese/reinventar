@@ -149,10 +149,53 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
   updated_at DOUBLE PRECISION NOT NULL
 );
 ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS eventos_nuevos BOOLEAN NOT NULL DEFAULT TRUE;
+-- Control de gastos del viaje (app/gastos.py). client_id lo genera el teléfono: reenviar un gasto no lo duplica.
+-- updated_at es el reloj del teléfono (decide quién gana en un conflicto); sincronizado_at es el del servidor (es el
+-- cursor de /sync: un teléfono con el reloj atrasado no puede hacer que otro se pierda el cambio). Las tres cotizaciones
+-- (ARS por USD) se congelan al crear el gasto; foto_clave la maneja solo el servidor.
+CREATE TABLE IF NOT EXISTS gastos (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT NOT NULL,
+  client_id UUID NOT NULL,
+  fecha DATE NOT NULL,
+  monto NUMERIC(12,2) NOT NULL CHECK (monto > 0),
+  moneda TEXT NOT NULL CHECK (moneda IN ('USD', 'ARS')),
+  categoria TEXT NOT NULL CHECK (categoria IN ('comida', 'transporte', 'shows', 'compras', 'otros')),
+  nota TEXT NOT NULL DEFAULT '',
+  reintegrable BOOLEAN NOT NULL DEFAULT FALSE,
+  compartido BOOLEAN NOT NULL DEFAULT FALSE,
+  cotizacion_oficial NUMERIC(14,4) NOT NULL,
+  cotizacion_blue NUMERIC(14,4) NOT NULL,
+  cotizacion_tarjeta NUMERIC(14,4) NOT NULL,
+  monto_usd NUMERIC(12,2) NOT NULL,
+  foto_clave TEXT,
+  updated_at TIMESTAMPTZ NOT NULL,
+  sincronizado_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ,
+  UNIQUE (username, client_id)
+);
+CREATE INDEX IF NOT EXISTS gastos_usuario_fecha ON gastos (username, fecha);
+CREATE INDEX IF NOT EXISTS gastos_usuario_sync ON gastos (username, sincronizado_at);
+CREATE TABLE IF NOT EXISTS gastos_presupuesto (
+  username TEXT PRIMARY KEY,
+  total_usd NUMERIC(12,2),
+  diario_usd NUMERIC(12,2),
+  por_categoria JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+-- Historial de cotizaciones (app/cotizacion.py): solo se agrega una fila cuando alguna se movió más de 0,1 %.
+-- Es global (no de una persona): se lee y escribe siempre en el schema real, aunque exista también en el de prueba.
+CREATE TABLE IF NOT EXISTS cotizaciones (
+  id BIGSERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  oficial NUMERIC(14,4) NOT NULL,
+  blue NUMERIC(14,4) NOT NULL,
+  tarjeta NUMERIC(14,4) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cotizaciones_at ON cotizaciones (at DESC);
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
-                        "reporte_lleno", "voto_resumen")
+                        "reporte_lleno", "voto_resumen", "gastos", "gastos_presupuesto", "cotizaciones")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).

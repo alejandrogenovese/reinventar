@@ -30,12 +30,14 @@ from . import (
     charlas_auto,
     comer_api,
     config,
+    cotizacion,
     cuerpo,
     db,
     eventos_auto,
     events,
     events_api,
     fragmentos,
+    gastos_api,
     guided_api,
     huecos,
     interview_api,
@@ -83,6 +85,7 @@ async def lifespan(_app):
     push.start_worker()
     eventos_auto.start_worker()
     charlas_auto.start_worker()
+    cotizacion.start_worker()
     yield
     pg.close()
 
@@ -155,6 +158,8 @@ app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
+app.include_router(gastos_api.router)
+app.include_router(gastos_api.router_publico)
 app.include_router(huecos.router)
 app.include_router(comer_api.router)
 
