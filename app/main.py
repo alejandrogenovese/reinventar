@@ -28,6 +28,7 @@ from . import (
     cabeceras,
     catalog,
     charlas_auto,
+    codigos_api,
     config,
     cuerpo,
     db,
@@ -155,6 +156,7 @@ app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
 app.include_router(huecos.router)
+app.include_router(codigos_api.router)
 
 
 @app.exception_handler(RequestValidationError)
