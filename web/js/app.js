@@ -665,7 +665,6 @@ async function viewSettings() {
     h("h1", { class: "title" }, "Ajustes"),
     h("p", {}, textoDeCuenta(cuenta)),
     h("div", { class: "actions" },
-      Button("Gastos", { onclick: () => (location.hash = "#/gastos") }),
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       cuenta.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
