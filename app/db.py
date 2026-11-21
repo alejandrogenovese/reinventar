@@ -149,6 +149,39 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
   updated_at DOUBLE PRECISION NOT NULL
 );
 ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS eventos_nuevos BOOLEAN NOT NULL DEFAULT TRUE;
+-- Vuelos y hoteles cargados a mano (app/vuelos.py, app/viajes_avisos.py). Fechas y horas locales como texto ISO; la zona
+-- (IANA) dice de qué lugar son. En el vuelo, demora_min/puerta/estado son lo último que se avisó (base del próximo cambio).
+CREATE TABLE IF NOT EXISTS viajes_vuelos (
+  username TEXT NOT NULL,
+  id TEXT NOT NULL,
+  numero TEXT NOT NULL,
+  aerolinea TEXT NOT NULL DEFAULT '',
+  fecha TEXT NOT NULL,
+  hora TEXT,
+  zona TEXT NOT NULL,
+  salida_utc DOUBLE PRECISION,
+  demora_min INTEGER,
+  puerta TEXT,
+  terminal TEXT,
+  estado TEXT,
+  consultado_en DOUBLE PRECISION,
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, id)
+);
+CREATE TABLE IF NOT EXISTS viajes_hoteles (
+  username TEXT NOT NULL,
+  id TEXT NOT NULL,
+  nombre TEXT NOT NULL,
+  direccion TEXT NOT NULL DEFAULT '',
+  checkin TEXT NOT NULL,
+  checkout TEXT NOT NULL,
+  zona TEXT NOT NULL,
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, id)
+);
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_checkin BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_hoteles BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_estado BOOLEAN NOT NULL DEFAULT TRUE;
 -- Control de gastos del viaje (app/gastos.py). client_id lo genera el teléfono: reenviar un gasto no lo duplica.
 -- updated_at es el reloj del teléfono (decide quién gana en un conflicto); sincronizado_at es el del servidor (es el
 -- cursor de /sync: un teléfono con el reloj atrasado no puede hacer que otro se pierda el cambio). Las tres cotizaciones
@@ -205,7 +238,7 @@ CREATE TABLE IF NOT EXISTS codigos_deseados (
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
-                        "reporte_lleno", "voto_resumen", "gastos", "gastos_presupuesto", "cotizaciones",
+                        "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "cotizaciones",
                         "codigos_deseados")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la

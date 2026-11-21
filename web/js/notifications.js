@@ -1,6 +1,6 @@
 // Ajustes › Notificaciones en el celular (Web Push): avisos de lo fijado y de cambios aunque la app esté cerrada.
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
-import { getToken, Push, Ubicacion } from "./api.js";
+import { getToken, Push, Ubicacion, Viajes } from "./api.js";
 import { locationEnabled, reportVenue, setLocationEnabled, setVenueReportEnabled } from "./location.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
@@ -132,6 +132,25 @@ export async function prenderSede(d) {
   throw new Error("No pudimos leer tu ubicación: revisá el permiso del navegador.");
 }
 
+/** Avisos de Viajes (vuelos y hoteles que cargaste en #/viajes): check-in web, hotel y estado del vuelo. */
+function ViajesSettings() {
+  const campos = [["viajes_checkin", "Avisarme cuándo abre el check-in de mis vuelos"],
+    ["viajes_hoteles", "Avisarme el check-in y el check-out del hotel"],
+    ["viajes_estado", "Avisarme demoras y cambios de puerta de mis vuelos"]];
+  const switches = campos.map(([clave, texto]) => ({ clave, ...Switch(`push-${clave}`, texto) }));
+  const save = () => Viajes.savePrefs(Object.fromEntries(switches.map((s) => [s.clave, s.input.checked])));
+  for (const sw of switches) {
+    sw.input.onchange = async () => {
+      sw.input.disabled = true;
+      try { await save(); } catch (err) { sw.input.checked = !sw.input.checked; toast(mensajeError(err)); }
+      sw.input.disabled = false;
+    };
+  }
+  void Viajes.prefs().then((p) => { for (const sw of switches) { sw.input.checked = p[sw.clave] !== false; sw.input.disabled = false; } }).catch(() => {});
+  return h("div", { class: "stack" }, ...switches.map((s) => s.row),
+    h("p", { class: "caption" }, "Los vuelos y hoteles se cargan en Viajes. Las alertas de demora y puerta necesitan que el servidor tenga activado el estado de vuelos."));
+}
+
 /** "Recordarme grabar" y "Avisarme de eventos nuevos" (prendidos) y "Usar en qué sede estoy para los avisos" (apagado;
  *  pide el permiso al prenderlo). */
 function ReminderSettings() {
@@ -170,6 +189,7 @@ function ReminderSettings() {
     }
     sede.input.disabled = false;
   };
+  const viajes = ViajesSettings();
   void Push.prefs().then((p) => {
     grabar.input.checked = p.grabar;
     sede.input.checked = p.ubicacion;
@@ -185,7 +205,8 @@ function ReminderSettings() {
     nuevos.row,
     h("p", { class: "caption" }, "Un aviso cuando aparecen eventos nuevos (nunca de noche). Si se cancela uno de tu itinerario, te avisamos igual."),
     sede.row,
-    h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."));
+    h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."),
+    viajes);
 }
 
 export function PushSettings() {
