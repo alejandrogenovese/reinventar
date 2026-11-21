@@ -261,7 +261,7 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
     cerrada = true;
     for (const url of [vistaPrevia, ...urlsDeFotos]) if (url) URL.revokeObjectURL(url);
   });
-  if (gasto?.foto_url) mostrarFotoGuardada(gasto.foto_url);
+  if (gasto?.foto_url) mostrarFotoGuardada(gasto.foto_url).catch((e) => console.warn("[gastos] foto guardada", e));
   estimar();
   monto.focus();
 }

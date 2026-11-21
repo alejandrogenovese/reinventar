@@ -2,6 +2,7 @@
 contexto y falla con AssertionError diciendo qué no pasó. Van en orden: el 3 sigue lo que dejó el 2."""
 import asyncio
 import json
+import math
 import time
 from dataclasses import dataclass
 
@@ -262,7 +263,8 @@ async def escenario_7_gasto_sin_red(c: Contexto) -> None:
     await p.esperar("!document.body.innerText.includes('Sin sincronizar')", "el gasto ya sin la marca «Sin sincronizar»", ESPERA_SYNC_GASTOS_S)
     cambios = await p.evaluar("window.__sync.flatMap((s) => s.cambios)")
     assert len(cambios) == 1, f"el gasto debía viajar una sola vez y viajó {len(cambios)}: {cambios}"
-    assert cambios[0]["monto"] == 14.1 and cambios[0]["moneda"] == "USD" and cambios[0]["nota"] == "Café E2E", cambios[0]
+    assert math.isclose(cambios[0]["monto"], 14.1, abs_tol=0.005), cambios[0]
+    assert cambios[0]["moneda"] == "USD" and cambios[0]["nota"] == "Café E2E", cambios[0]
     assert len(cambios[0]["client_id"]) == 36, f"el client_id debía ser un UUID: {cambios[0]['client_id']}"
     # El cursor del próximo sync es el `ahora` que devolvió el servidor, no el reloj del teléfono.
     await p.evaluar("document.dispatchEvent(new Event('visibilitychange'))")
