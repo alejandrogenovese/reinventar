@@ -25,6 +25,7 @@ CACHE_S = 15 * 60          # el mismo vuelo y día no se vuelve a pedir antes de
 DEMORA_AVISO_MIN = 15      # una demora que cambia en 15 min o más se avisa
 HORAS_CHECKIN_DEFECTO = 24
 FALLO_CACHE_S = 8 * 60     # un fallo (401, 429, 5xx, red) no se reintenta antes de esto
+USUARIO_CONTADOR = "_aerodatabox"  # el contador diario vive en push_sent bajo este usuario (adb:<día>:<n>)
 TOPE_DIARIO_POR_USUARIO = 40  # consultas por persona y por día: una persona con vuelos falsos no agota el cupo de todos
 
 # Cuántas horas antes de la salida abre el check-in web, por código de aerolínea (IATA), y dónde se hace.
@@ -149,6 +150,7 @@ _lock = threading.Lock()
 _cache: dict[tuple[str, str], tuple[float, dict | None, float]] = {}   # (momento, resultado, cuánto vale)
 _dia = {"fecha": None, "n": 0}
 _por_usuario: dict[str, int] = {}
+_persistir_contador = True   # los tests de unidad lo apagan para no tocar la base
 
 
 def reiniciar_consultas() -> None:
@@ -162,18 +164,43 @@ def estado_disponible() -> bool:
     return bool(config.AERODATABOX_API_KEY)
 
 
+def _contador_del_dia(hoy: str) -> int:
+    """Cuántas consultas se hicieron hoy según la base (sobrevive a un reinicio). Si la base falla, arranca de cero."""
+    if not _persistir_contador:
+        return 0
+    try:
+        with db.conn() as c:
+            c.execute("DELETE FROM push_sent WHERE username=%s AND key NOT LIKE %s", (USUARIO_CONTADOR, f"adb:{hoy}:%"))
+            return c.execute("SELECT count(*) AS n FROM push_sent WHERE username=%s AND key LIKE %s",
+                             (USUARIO_CONTADOR, f"adb:{hoy}:%")).fetchone()["n"]
+    except Exception:  # noqa: BLE001 — sin la base el contador sigue en memoria
+        log.warning("no se pudo leer el contador diario de consultas de vuelos", exc_info=True)
+        return 0
+
+
+def _anotar_consulta(hoy: str, n: int) -> None:
+    if not _persistir_contador:
+        return
+    try:
+        db.mark_push_sent(USUARIO_CONTADOR, f"adb:{hoy}:{n}")
+    except Exception:  # noqa: BLE001
+        log.warning("no se pudo guardar el contador diario de consultas de vuelos", exc_info=True)
+
+
 def _reservar_cupo(usuario: str | None) -> bool:
-    """Gasta una consulta del día (global y de la persona). Con el cupo de una persona agotado no toca el de todos."""
+    """Gasta una consulta del día (global y de la persona). Con el cupo de una persona agotado no toca el de todos.
+    El total del día se guarda en la base: un redeploy no lo pone en cero."""
     hoy = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d")
     with _lock:
         if _dia["fecha"] != hoy:
-            _dia.update(fecha=hoy, n=0)
+            _dia.update(fecha=hoy, n=_contador_del_dia(hoy))
             _por_usuario.clear()
         if _dia["n"] >= config.AERODATABOX_TOPE_DIARIO:
             return False
         if usuario is not None and _por_usuario.get(usuario, 0) >= TOPE_DIARIO_POR_USUARIO:
             return False
         _dia["n"] += 1
+        _anotar_consulta(hoy, _dia["n"])
         if usuario is not None:
             _por_usuario[usuario] = _por_usuario.get(usuario, 0) + 1
         return True
@@ -181,7 +208,10 @@ def _reservar_cupo(usuario: str | None) -> bool:
 
 def _devolver_cupo(usuario: str | None) -> None:
     with _lock:
-        _dia["n"] = max(0, _dia["n"] - 1)
+        if _dia["fecha"] and _dia["n"] > 0:
+            if _persistir_contador:
+                db.unmark_push_sent(USUARIO_CONTADOR, f"adb:{_dia['fecha']}:{_dia['n']}")
+            _dia["n"] -= 1
         if usuario is not None:
             _por_usuario[usuario] = max(0, _por_usuario.get(usuario, 0) - 1)
 

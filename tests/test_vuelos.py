@@ -116,6 +116,7 @@ def test_avisa_la_cancelacion_una_sola_vez():
 def _limpio(monkeypatch):
     monkeypatch.setattr(config, "AERODATABOX_API_KEY", "clave-de-prueba")
     monkeypatch.setattr(config, "AERODATABOX_TOPE_DIARIO", 3)
+    monkeypatch.setattr(vuelos, "_persistir_contador", False)   # sin tocar la base
     vuelos.reiniciar_consultas()
 
 

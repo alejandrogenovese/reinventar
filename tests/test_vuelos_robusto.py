@@ -11,6 +11,7 @@ from app import config, vuelos
 def _limpio(monkeypatch):
     monkeypatch.setattr(config, "AERODATABOX_API_KEY", "clave-de-prueba")
     monkeypatch.setattr(config, "AERODATABOX_TOPE_DIARIO", 150)
+    monkeypatch.setattr(vuelos, "_persistir_contador", False)   # sin tocar la base
     vuelos.reiniciar_consultas()
 
 

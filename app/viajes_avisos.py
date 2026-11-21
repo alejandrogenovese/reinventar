@@ -2,10 +2,14 @@
 mismo hilo de 60 s: cada uno por clave en push_sent, así que ninguno se repite.
 
 - Check-in web: desde que abre la ventana de la aerolínea (vuelos.CHECKIN_WEB) hasta la salida.
-- Hotel: el check-in desde 3 h antes; el check-out desde las 19:00 de la noche anterior (si cae de noche, sale a la mañana).
-- Estado del vuelo (AeroDataBox, solo con clave): desde 24 h antes, una consulta cada 20 min como mucho; avisa si la demora
-  cambia 15 min o más contra la última avisada, si aparece o cambia la puerta, o si se cancela.
-Ninguno sale en el horario de silencio (app/recordatorio.py), salvo el estado del vuelo cuando faltan menos de 6 h.
+- Hotel: el check-in desde 3 h antes; el check-out desde las 19:00 de la noche anterior, nunca antes del check-in. Si la
+  ventana cae entera en silencio, el aviso sale a la mañana.
+- Estado del vuelo (AeroDataBox, solo con clave): desde 24 h antes (un vuelo sin hora, durante su día) hasta la salida
+  demorada; el intervalo entre consultas baja de 2 h a 15 min a medida que se acerca (intervalo_s). Avisa si la demora
+  cambia 15 min o más contra la última avisada, si aparece o cambia la puerta, o si se cancela. Lo que se compara se guarda
+  recién cuando el aviso llegó a algún dispositivo (confirmar / descartar, los llama app/push.py).
+Ninguno sale en el horario de silencio (app/recordatorio.py), salvo el check-in web y el estado del vuelo cuando faltan
+menos de 6 h para la salida.
 Cada tipo se apaga desde Ajustes (preferencias_avisos.viajes_*).
 """
 import datetime as dt
@@ -17,7 +21,11 @@ from . import db, recordatorio, vuelos
 CHECKIN_HOTEL_ANTES_H = 3
 CHECKOUT_DESDE_HORA = 19        # la noche anterior al check-out
 ESTADO_ANTES_H = 24             # desde cuándo se consulta el estado del vuelo
-INTERVALO_CONSULTA_S = 20 * 60  # entre consultas del mismo vuelo
+# Cada cuánto se consulta el mismo vuelo según cuánto falta para la salida: lejos alcanza con poco y el cupo diario
+# (AERODATABOX_TOPE_DIARIO) rinde para varios vuelos; cerca de la salida se mira más seguido.
+INTERVALOS_CONSULTA = ((12, 120 * 60), (6, 60 * 60), (2, 30 * 60))   # (más de N horas faltan, segundos entre consultas)
+INTERVALO_CERCA_S = 15 * 60
+VENTANA_EXTRA_SILENCIO_H = 2    # si una ventana cae toda en silencio, se avisa a la mañana hasta 2 h después
 URGENTE_H = 6                   # con menos que esto para salir, el estado avisa aunque sea de noche
 TTL_SEGUNDOS = 3600
 
@@ -41,10 +49,14 @@ def _msg(title: str, body: str, url: str) -> dict:
 
 
 def checkin_web(lista: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    """De noche solo sale si falta poco para la salida (URGENTE_H); si no, queda para la mañana."""
+    de_noche = recordatorio.en_silencio(now)
     out = []
     for v in lista:
         abre, sale = vuelos.abre_checkin(v), vuelos.salida(v)
         if not abre or not abre <= now < sale:
+            continue
+        if de_noche and sale - now > dt.timedelta(hours=URGENTE_H):
             continue
         local = sale.astimezone(vuelos.zona(v["zona"]))
         out.append((f"vcheckin:{v['id']}",
@@ -57,16 +69,41 @@ def _local(texto: str, zona: str) -> dt.datetime:
     return dt.datetime.fromisoformat(texto).replace(tzinfo=vuelos.zona(zona))
 
 
+def _fin_del_silencio(desde: dt.datetime) -> dt.datetime:
+    """El primer momento, desde `desde`, que ya no es de noche (en la zona de `desde`)."""
+    momento = desde
+    for _ in range(24 * 4):
+        if not recordatorio.en_silencio(momento):
+            return momento
+        momento += dt.timedelta(minutes=15)
+    return momento
+
+
+def _ventana(desde: dt.datetime, hasta: dt.datetime, tz) -> tuple[dt.datetime, dt.datetime]:
+    """La ventana de aviso tal cual, salvo que caiga entera en el horario de silencio: entonces se alarga hasta un rato
+    después de que termina, así el aviso sale a la mañana en vez de perderse."""
+    momento = desde
+    while momento < hasta:
+        if not recordatorio.en_silencio(momento.astimezone(tz)):
+            return desde, hasta
+        momento += dt.timedelta(minutes=15)
+    return desde, _fin_del_silencio(hasta.astimezone(tz)) + dt.timedelta(hours=VENTANA_EXTRA_SILENCIO_H)
+
+
 def hoteles(lista: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    if recordatorio.en_silencio(now):
+        return []
     out = []
     for h in lista:
         entrada, salida = _local(h["checkin"], h["zona"]), _local(h["checkout"], h["zona"])
         donde = f" · {h['direccion']}" if h["direccion"] else ""
-        if entrada - dt.timedelta(hours=CHECKIN_HOTEL_ANTES_H) <= now < entrada:
+        desde, hasta = _ventana(entrada - dt.timedelta(hours=CHECKIN_HOTEL_ANTES_H), entrada, now.tzinfo)
+        if desde <= now < hasta:
             out.append((f"hin:{h['id']}", _msg(f"Hoy hacés el check-in en {h['nombre']}",
                                                f"Desde las {entrada:%H:%M}{donde}", _url_hotel(h))))
         noche_anterior = (salida - dt.timedelta(days=1)).replace(hour=CHECKOUT_DESDE_HORA, minute=0)
-        if noche_anterior <= now < salida:
+        desde, hasta = _ventana(max(noche_anterior, entrada), salida, now.tzinfo)   # nunca antes de entrar al hotel
+        if desde <= now < hasta:
             out.append((f"hout:{h['id']}", _msg(f"Mañana es el check-out de {h['nombre']}",
                                                 f"Hasta las {salida:%H:%M}{donde}", _url_hotel(h))))
     return out
@@ -86,6 +123,27 @@ def _aviso_cambio(v: dict, tipo: str, valor, sale_local: dt.datetime) -> tuple[s
     return f"vcancel:{v['id']}", _msg(f"Se canceló {num}", "Revisá con la aerolínea cómo seguís.", url)
 
 
+def intervalo_s(falta: dt.timedelta) -> int:
+    """Segundos entre consultas del mismo vuelo según cuánto falta para que salga."""
+    for horas, segundos in INTERVALOS_CONSULTA:
+        if falta > dt.timedelta(hours=horas):
+            return segundos
+    return INTERVALO_CERCA_S
+
+
+def _ventana_estado(v: dict) -> tuple[dt.datetime, dt.datetime] | None:
+    """Entre cuándo se consulta el estado: desde 24 h antes hasta la salida demorada (la última demora avisada). Un vuelo
+    sin hora se consulta durante todo su día (en la zona del vuelo); la respuesta trae la hora real."""
+    sale = vuelos.salida(v)
+    if sale:
+        return sale - dt.timedelta(hours=ESTADO_ANTES_H), sale + dt.timedelta(minutes=max(v.get("demora_min") or 0, 0))
+    try:
+        dia = dt.datetime.fromisoformat(v["fecha"]).replace(tzinfo=vuelos.zona(v["zona"]))
+    except (KeyError, ValueError):
+        return None
+    return dia, dia + dt.timedelta(days=1)
+
+
 def _es_cancelado(texto: str | None) -> bool:
     return (texto or "").lower().startswith("cancel")
 
@@ -99,10 +157,12 @@ def estado(lista: list[dict], now: dt.datetime, consulta: Callable[[str, str], d
     de_noche = recordatorio.en_silencio(now)
     avisos, guardar, diferidos = [], [], {}
     for v in lista:
-        sale = vuelos.salida(v)
-        if not sale or not sale - dt.timedelta(hours=ESTADO_ANTES_H) <= now < sale:
+        ventana = _ventana_estado(v)
+        if not ventana or not ventana[0] <= now < ventana[1]:
             continue
-        if v.get("consultado_en") and ahora_ts - v["consultado_en"] < INTERVALO_CONSULTA_S:
+        sale = vuelos.salida(v)
+        intervalo = intervalo_s(sale - now) if sale else INTERVALOS_CONSULTA[1][1]
+        if v.get("consultado_en") and ahora_ts - v["consultado_en"] < intervalo:
             continue
         nuevo = consulta(v["numero"], v["fecha"])
         campos: dict = {"consultado_en": ahora_ts}
@@ -155,11 +215,10 @@ def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     prefs = vuelos.get_prefs(username)
     lista_vuelos = vuelos.listar_vuelos(username)
     out: list[tuple[str, dict]] = []
-    if not recordatorio.en_silencio(now):
-        if prefs["viajes_checkin"]:
-            out += checkin_web(lista_vuelos, now)
-        if prefs["viajes_hoteles"]:
-            out += hoteles(vuelos.listar_hoteles(username), now)
+    if prefs["viajes_checkin"]:
+        out += checkin_web(lista_vuelos, now)   # de noche solo sale lo urgente
+    if prefs["viajes_hoteles"]:
+        out += hoteles(vuelos.listar_hoteles(username), now)
     if prefs["viajes_estado"] and lista_vuelos and vuelos.estado_disponible():
         nuevos, guardar, diferidos = estado(
             lista_vuelos, now, lambda n, f: vuelos.consultar(n, f, usuario=username), time.time())

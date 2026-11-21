@@ -153,12 +153,13 @@ def test_avisa_la_cancelacion():
     assert key == "vcancel:v1" and "cancel" in msg["title"].lower()
 
 
-def test_no_vuelve_a_consultar_antes_de_20_min():
-    v = _vuelo(consultado_en=1_000_000.0 - 19 * 60)
+def test_cerca_de_la_salida_no_vuelve_a_consultar_antes_de_15_min():
+    ahora = _ahora("2026-11-28T14:30")   # faltan 1 h 35 min
+    v = _vuelo(consultado_en=1_000_000.0 - 14 * 60)
 
-    assert _correr(v, _ahora("2026-11-28T08:00"), _estado(45))[2] == []
-    v = _vuelo(consultado_en=1_000_000.0 - 21 * 60)
-    assert _correr(v, _ahora("2026-11-28T08:00"), _estado(45))[2] == [("AR1302", "2026-11-28")]
+    assert _correr(v, ahora, _estado(45))[2] == []
+    v = _vuelo(consultado_en=1_000_000.0 - 16 * 60)
+    assert _correr(v, ahora, _estado(45))[2] == [("AR1302", "2026-11-28")]
 
 
 def test_si_la_consulta_falla_no_cambia_nada_pero_se_anota_el_intento():
