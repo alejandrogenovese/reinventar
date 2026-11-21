@@ -15,6 +15,9 @@ from . import itinerary
 MAX_BYTES = 1024 * 1024
 MAX_DESCOMPRIMIDO = 50 * 1024 * 1024  # un .xlsx es un zip: se corta antes de abrir uno que se infla de más
 MAX_FILAS = 5000
+MAX_COLUMNAS = 50   # un archivo puede declarar 16384 columnas: openpyxl rellena cada fila hasta ese ancho
+MAX_HOJAS = 10
+MAX_CELDAS = 250_000  # celdas con algo, entre todas las hojas
 MAX_CODIGOS = 500
 EXTENSIONES = (".xlsx", ".csv")
 _MAGIC_XLSX = b"PK\x03\x04"
@@ -50,6 +53,14 @@ def normalizar(texto: str) -> list[Codigo]:
 
 # ---------- lectura del archivo ----------
 
+def _sin_vacias_al_final(fila: tuple) -> list:
+    """La fila sin las celdas vacías del final (el relleno hasta el ancho declarado no cuenta ni se guarda)."""
+    fila = list(fila)
+    while fila and fila[-1] is None:
+        fila.pop()
+    return fila
+
+
 def _filas_xlsx(datos: bytes) -> list[list[list]]:
     """Por hoja, las filas con los valores de las celdas (las fórmulas sin calcular quedan vacías)."""
     import openpyxl  # diferido: solo hace falta al subir un Excel
@@ -61,13 +72,19 @@ def _filas_xlsx(datos: bytes) -> list[list[list]]:
             raise ArchivoInvalido("El Excel es demasiado grande por dentro.")
         libro = openpyxl.load_workbook(io.BytesIO(datos), read_only=True, data_only=True)
         try:
-            hojas = []
+            if len(libro.worksheets) > MAX_HOJAS:
+                raise ArchivoInvalido(f"El Excel tiene demasiadas hojas (máximo {MAX_HOJAS}).")
+            hojas, celdas = [], 0
             for hoja in libro.worksheets:
                 filas = []
-                for fila in hoja.iter_rows(values_only=True):
+                for fila in hoja.iter_rows(max_col=MAX_COLUMNAS, values_only=True):
                     if len(filas) >= MAX_FILAS:
                         raise ArchivoInvalido(f"El archivo tiene demasiadas filas (máximo {MAX_FILAS}).")
-                    filas.append(list(fila))
+                    fila = _sin_vacias_al_final(fila)
+                    celdas += len(fila)
+                    if celdas > MAX_CELDAS:
+                        raise ArchivoInvalido("El Excel tiene demasiadas celdas: subí solo la hoja con los códigos.")
+                    filas.append(fila)
                 hojas.append(filas)
             return hojas
         finally:
@@ -90,26 +107,33 @@ def _filas_csv(datos: bytes) -> list[list[list]]:
     except csv.Error:
         delimitador = ","
     filas = []
-    for fila in csv.reader(io.StringIO(texto), delimiter=delimitador):
-        if len(filas) >= MAX_FILAS:
-            raise ArchivoInvalido(f"El archivo tiene demasiadas filas (máximo {MAX_FILAS}).")
-        filas.append(fila)
+    try:
+        for fila in csv.reader(io.StringIO(texto), delimiter=delimitador):
+            if len(filas) >= MAX_FILAS:
+                raise ArchivoInvalido(f"El archivo tiene demasiadas filas (máximo {MAX_FILAS}).")
+            filas.append(fila[:MAX_COLUMNAS])
+    except csv.Error as e:  # p. ej. un campo de más de 128 KB
+        raise ArchivoInvalido("No pude leer el archivo como un CSV: tiene un campo demasiado largo o está mal armado.") from e
     return [filas]
 
 
-def _mejor_columna(hojas: list[list[list]]) -> list[Codigo]:
-    """Los códigos de la columna (de cualquier hoja) con más celdas que traen alguno; si empatan, la primera."""
-    mejor, mejor_celdas = [], 0
+@dataclass(frozen=True)
+class Lectura:
+    codigos: list[Codigo]      # los de la columna elegida, sin repetir
+    descartados: list[Codigo]  # los que están en otras columnas u hojas y no entraron (sin repetir)
+
+
+def _columnas(hojas: list[list[list]]) -> list[list[list[Codigo]]]:
+    """Por cada columna de cada hoja que trae algún código, los códigos de cada celda, en el orden del archivo."""
+    columnas = []
     for filas in hojas:
         por_columna: dict[int, list[list[Codigo]]] = {}
         for fila in filas:
             for i, celda in enumerate(fila):
                 if isinstance(celda, str) and (codigos := normalizar(celda)):
                     por_columna.setdefault(i, []).append(codigos)
-        for celdas in por_columna.values():
-            if len(celdas) > mejor_celdas:
-                mejor, mejor_celdas = [c for codigos in celdas for c in codigos], len(celdas)
-    return mejor
+        columnas.extend(por_columna.values())
+    return columnas
 
 
 def _sin_repetir_por_base(codigos: list[Codigo]) -> list[Codigo]:
@@ -120,8 +144,21 @@ def _sin_repetir_por_base(codigos: list[Codigo]) -> list[Codigo]:
     return list(vistos.values())
 
 
-def extraer_codigos(datos: bytes, nombre: str) -> list[Codigo]:
-    """Los códigos del archivo, sin repetir, en el orden en que aparecen. ArchivoInvalido si no sirve."""
+def _elegir(hojas: list[list[list]]) -> Lectura:
+    """La columna (de cualquier hoja) con más celdas con código; si empatan, la primera. Lo de las demás se informa."""
+    columnas = _columnas(hojas)
+    if not columnas:
+        return Lectura([], [])
+    mejor = max(range(len(columnas)), key=lambda i: (len(columnas[i]), -i))  # más celdas; en empate, la primera
+    planas = [[c for celda in col for c in celda] for col in columnas]
+    elegidos = _sin_repetir_por_base(planas[mejor])
+    bases = {c.base for c in elegidos}
+    otros = [c for i, col in enumerate(planas) if i != mejor for c in col if c.base not in bases]
+    return Lectura(elegidos, _sin_repetir_por_base(otros))
+
+
+def leer_codigos(datos: bytes, nombre: str) -> Lectura:
+    """Los códigos del archivo, sin repetir, en el orden en que aparecen, y los que quedaron afuera. ArchivoInvalido si no sirve."""
     if not datos:
         raise ArchivoInvalido("El archivo está vacío.")
     if len(datos) > MAX_BYTES:
@@ -130,12 +167,17 @@ def extraer_codigos(datos: bytes, nombre: str) -> list[Codigo]:
     if extension not in EXTENSIONES:
         raise ArchivoInvalido("Subí un archivo .xlsx o .csv.")
     hojas = _filas_xlsx(datos) if extension == ".xlsx" else _filas_csv(datos)
-    unicos = _sin_repetir_por_base(_mejor_columna(hojas))
-    if not unicos:
+    lectura = _elegir(hojas)
+    if not lectura.codigos:
         raise ArchivoInvalido("No encontré códigos de sesión en el archivo. Tienen que verse como AIM301 o DAT402-R.")
-    if len(unicos) > MAX_CODIGOS:
+    if len(lectura.codigos) > MAX_CODIGOS:
         raise ArchivoInvalido(f"Hay más de {MAX_CODIGOS} códigos distintos: subí una lista más corta.")
-    return unicos
+    return lectura
+
+
+def extraer_codigos(datos: bytes, nombre: str) -> list[Codigo]:
+    """Solo los códigos de la columna elegida (ver leer_codigos)."""
+    return leer_codigos(datos, nombre).codigos
 
 
 # ---------- cruce ----------

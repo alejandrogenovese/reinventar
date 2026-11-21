@@ -3,6 +3,7 @@
 // (registrada y no está en el Excel) y código que no existe. Solo clases y componentes que ya existen.
 import { api } from "./api.js";
 import { Kpi, dayShort, int } from "./charts.js";
+import { confirmDialog } from "./dialog.js";
 import { Button, Hint, IconText, Tag, h, mensajeError, toast } from "./ui.js";
 
 const ACCEPT = ".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -55,9 +56,12 @@ const subidaEl = (ms) => new Date(ms).toLocaleString("es-AR", { dateStyle: "shor
 const plural = (n, uno, varios) => `${int(n)} ${n === 1 ? uno : varios}`;
 
 export async function viewMiExcel(view) {
-  let data = await Codigos.ver();
+  const inicial = await Codigos.ver();
+  if (!view.isConnected) return; // si ya navegó a otra pantalla, esta respuesta no la pisa
+  let data = inicial;
   let filtro = "todos";
   let error = "";
+  let descartados = []; // códigos del Excel que quedaron afuera (otras columnas u hojas): solo se saben al subir
 
   const elegirArchivo = () => {
     const input = h("input", { type: "file", accept: ACCEPT, hidden: true });
@@ -65,14 +69,32 @@ export async function viewMiExcel(view) {
       const file = input.files?.[0];
       input.remove();
       if (!file) return;
-      try { data = await Codigos.subir(file); filtro = "todos"; error = ""; } catch (err) { error = mensajeError(err); toast(error); }
+      try {
+        const nueva = await Codigos.subir(file);
+        if (!view.isConnected) return;
+        ({ codigos_descartados: descartados = [], ...data } = nueva);
+        filtro = "todos"; error = "";
+      } catch (err) {
+        if (!view.isConnected) return;
+        error = mensajeError(err); toast(error);
+      }
       paint();
     });
     document.body.append(input);
     input.click();
   };
   const borrar = async () => {
-    try { data = await Codigos.borrar(); error = ""; toast("Borré tu lista."); } catch (err) { toast(mensajeError(err)); }
+    const ok = await confirmDialog("¿Borrar tu lista?", {
+      text: "Se borra la lista que subiste. Tus charlas registradas no se tocan.", confirmLabel: "Borrar", danger: true });
+    if (!ok) return;
+    try {
+      const nueva = await Codigos.borrar();
+      if (!view.isConnected) return;
+      data = nueva; error = ""; descartados = []; toast("Borré tu lista.");
+    } catch (err) {
+      if (!view.isConnected) return;
+      toast(mensajeError(err));
+    }
     paint();
   };
 
@@ -96,6 +118,7 @@ export async function viewMiExcel(view) {
         Kpi("Te faltan", int(r.faltan), { tone: r.faltan ? "err" : "" }),
         Kpi("Choques", int(r.choques), { tone: r.choques ? "err" : "" }),
         Kpi("De más", int(r.de_mas), { note: r.inexistentes ? plural(r.inexistentes, "código que no existe", "códigos que no existen") : "" })),
+      descartados.length ? Hint(`No usé ${plural(descartados.length, "código", "códigos")} que ${descartados.length === 1 ? "estaba" : "estaban"} en otras columnas u hojas: ${descartados.slice(0, 10).join(", ")}${descartados.length > 10 ? "…" : ""}. Tomé la columna con más códigos.`, { tone: "warn" }) : null,
       h("div", { class: "ra-chips", role: "group", "aria-label": "Filtrar el resultado" }, chips),
       items.length ? h("div", { class: "daylist" }, items) : h("p", { class: "caption" }, "No hay nada en esta categoría."),
       Subida(),

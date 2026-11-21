@@ -1,12 +1,16 @@
 """Cruce de «mis códigos de sesión» con un Excel o CSV: lectura del archivo, cruce con el catálogo y el itinerario, y la API.
 Usa un catálogo chico en memoria (no el schema reinvent): corre en CI. Los archivos se generan acá, no hay binarios."""
 import io
+import threading
+import time
+import tracemalloc
+import zipfile
 
 import openpyxl
 import pytest
 from fastapi.testclient import TestClient
 
-from app import catalog, codigos_excel, db
+from app import catalog, codigos_api, codigos_excel, db
 from app.codigos_excel import ArchivoInvalido, Codigo, cruzar, extraer_codigos, normalizar
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
@@ -288,7 +292,9 @@ def test_subir_cruza_y_el_get_devuelve_lo_mismo(client, H):
     assert r.status_code == 200, r.text
     estados = {e["base"]: e["estado"] for e in r.json()["codigos"]}
     assert estados == {"KEY001": "registrado", "ARC407": "falta", "ZZZ999": "inexistente"}
-    assert client.get("/api/codigos", headers=H).json() == r.json()
+    subida = {k: v for k, v in r.json().items() if k != "codigos_descartados"}  # el aviso de descartados es solo de la subida
+    assert client.get("/api/codigos", headers=H).json() == subida
+    assert r.json()["codigos_descartados"] == []
 
 
 def test_volver_a_subir_reemplaza_la_lista_sin_duplicar(client, H):
@@ -353,3 +359,144 @@ def test_subir_un_xlsx_de_verdad(client, H):
     r = _subir(client, H, _xlsx(("Hoja", [("Código", "Nota"), ("aim301", "x"), (None, None), ("ARC407-R", "y")])), "lista.xlsx")
     assert r.status_code == 200, r.text
     assert [(e["codigo"], e["base"]) for e in r.json()["codigos"]] == [("AIM301", "AIM301"), ("ARC407-R", "ARC407")]
+
+
+# ---------- archivos armados a propósito ----------
+
+def _xlsx_ancho_declarado(filas=5000):
+    """Un .xlsx chico que declara A1:XFD<filas> y trae una sola celda por fila: openpyxl (solo lectura) rellena cada fila
+    hasta el ancho declarado, así que sin tope ocupa cientos de MB."""
+    ns = "http://schemas.openxmlformats.org/"
+    celdas = "".join(f'<row r="{i}"><c r="A{i}" t="inlineStr"><is><t>x</t></is></c></row>' for i in range(1, filas + 1))
+    hoja = (f'<?xml version="1.0"?><worksheet xmlns="{ns}spreadsheetml/2006/main"><dimension ref="A1:XFD{filas}"/>'
+            f"<sheetData>{celdas}</sheetData></worksheet>")
+    libro = (f'<?xml version="1.0"?><workbook xmlns="{ns}spreadsheetml/2006/main" xmlns:r="{ns}officeDocument/2006/relationships">'
+             '<sheets><sheet name="a" sheetId="1" r:id="rId1"/></sheets></workbook>')
+    rel_libro = (f'<?xml version="1.0"?><Relationships xmlns="{ns}package/2006/relationships"><Relationship Id="rId1" '
+                 f'Type="{ns}officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
+    tipos = (f'<?xml version="1.0"?><Types xmlns="{ns}package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/>'
+             '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+             '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+             '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+    rel_raiz = (f'<?xml version="1.0"?><Relationships xmlns="{ns}package/2006/relationships"><Relationship Id="rId1" '
+                f'Type="{ns}officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+    salida = io.BytesIO()
+    with zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", tipos)
+        z.writestr("_rels/.rels", rel_raiz)
+        z.writestr("xl/workbook.xml", libro)
+        z.writestr("xl/_rels/workbook.xml.rels", rel_libro)
+        z.writestr("xl/worksheets/sheet1.xml", hoja)
+    return salida.getvalue()
+
+
+def test_un_xlsx_que_declara_un_ancho_enorme_se_corta_rapido_y_con_poca_memoria():
+    datos = _xlsx_ancho_declarado()
+    assert len(datos) < 100 * 1024
+    tracemalloc.start()
+    inicio = time.monotonic()
+    try:
+        with pytest.raises(ArchivoInvalido):
+            extraer_codigos(datos, "malicioso.xlsx")  # no tiene códigos: lo que importa es que no explote
+        _, pico = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert pico < 60 * 1024 * 1024, f"pico de {pico / 1e6:.0f} MB"
+    assert time.monotonic() - inicio < 10
+
+
+def test_rechaza_un_libro_con_demasiadas_hojas():
+    hojas = [(f"h{i}", [("AIM301",)]) for i in range(codigos_excel.MAX_HOJAS + 1)]
+    with pytest.raises(ArchivoInvalido, match="hojas"):
+        extraer_codigos(_xlsx(*hojas), "hojas.xlsx")
+
+
+def test_rechaza_un_libro_con_demasiadas_celdas(monkeypatch):
+    monkeypatch.setattr(codigos_excel, "MAX_CELDAS", 20)
+    with pytest.raises(ArchivoInvalido, match="celdas"):
+        extraer_codigos(_xlsx(("H", [("AIM301", "a", "b", "c")] * 6)), "celdas.xlsx")
+
+
+def test_las_columnas_de_mas_de_50_no_se_leen():
+    fila = [None] * codigos_excel.MAX_COLUMNAS + ["AIM301"]
+    with pytest.raises(ArchivoInvalido, match="códigos"):
+        extraer_codigos(_xlsx(("H", [fila])), "ancho.xlsx")
+
+
+def test_un_csv_con_un_campo_enorme_es_un_archivo_invalido():
+    with pytest.raises(ArchivoInvalido, match="CSV"):
+        extraer_codigos(b"AIM301," + b"a" * 200_000 + b"\n", "campo.csv")
+
+
+# ---------- códigos que se descartan ----------
+
+def test_informa_los_codigos_de_las_columnas_que_no_se_eligieron():
+    filas = [("AIM301", "SEC201"), ("DAT402", "KEY001"), ("ARC407", None)]
+    lectura = codigos_excel.leer_codigos(_xlsx(("H", filas)), "dos.xlsx")
+    assert _bases(lectura.codigos) == ["AIM301", "DAT402", "ARC407"]
+    assert _bases(lectura.descartados) == ["SEC201", "KEY001"]
+
+
+def test_informa_los_codigos_de_otra_hoja_y_no_repite_los_que_si_entraron():
+    hojas = [("A", [("AIM301",), ("DAT402",)]), ("B", [("DAT402",), ("SEC201",)])]
+    lectura = codigos_excel.leer_codigos(_xlsx(*hojas), "hojas.xlsx")
+    assert _bases(lectura.codigos) == ["AIM301", "DAT402"]
+    assert _bases(lectura.descartados) == ["SEC201"]
+
+
+def test_sin_columnas_de_mas_no_hay_descartados():
+    assert codigos_excel.leer_codigos(b"AIM301\nSEC201\n", "l.csv").descartados == []
+
+
+# ---------- API: límites y concurrencia ----------
+
+@pytest.fixture(autouse=True)
+def _cupo_de_subidas_limpio():
+    codigos_api._subidas.reiniciar()
+    yield
+
+
+def test_la_api_devuelve_los_descartados_al_subir(client, H):
+    r = _subir(client, H, b"AIM301;SEC201\nDAT402;KEY001\n", "dos.csv")
+    assert r.status_code == 200, r.text
+    assert r.json()["codigos_descartados"] == ["SEC201", "KEY001"]
+
+
+def test_un_csv_con_un_campo_enorme_da_422_y_no_500(client, H):
+    r = _subir(client, H, b"AIM301," + b"a" * 200_000 + b"\n", "campo.csv")
+    assert r.status_code == 422
+
+
+def test_solo_se_pueden_subir_diez_listas_por_hora(client, H):
+    for _ in range(codigos_api.SUBIDAS_POR_HORA):
+        assert _subir(client, H, b"AIM301\n").status_code == 200
+    r = _subir(client, H, b"AIM301\n")
+    assert r.status_code == 429
+    assert "muchos pedidos" in r.json()["detail"]
+
+
+def test_el_cupo_de_subidas_es_por_usuario(client, H):
+    for _ in range(codigos_api.SUBIDAS_POR_HORA):
+        _subir(client, H, b"AIM301\n")
+    otro = login_headers(client, TEST_ADMIN, TEST_ADMIN_PASSWORD)
+    assert _subir(client, otro, b"AIM301\n").status_code == 200
+
+
+def test_dos_subidas_simultaneas_no_chocan_por_la_clave_primaria(client):
+    codigos = [Codigo("AIM301", "AIM301"), Codigo("SEC201", "SEC201"), Codigo("KEY001", "KEY001")]
+    errores, arranque = [], threading.Barrier(6)
+
+    def subir():
+        try:
+            arranque.wait()
+            codigos_api._guardar(TEST_USER, codigos, "x.csv")
+        except Exception as e:  # noqa: BLE001 - se junta para verificar abajo
+            errores.append(e)
+
+    hilos = [threading.Thread(target=subir) for _ in range(6)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+    assert errores == []
+    assert [f["codigo"] for f in _filas_guardadas(TEST_USER)] == ["AIM301", "SEC201", "KEY001"]
