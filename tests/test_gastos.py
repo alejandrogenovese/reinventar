@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, db, gastos, gastos_api, gastos_links, limites
+from app import config, db, gastos, gastos_api, gastos_links, limites, tickets_almacen
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
 
@@ -41,6 +41,7 @@ def poner_cotizacion(oficial=1000, blue=1200, tarjeta=1300):
 @pytest.fixture
 def cli(tmp_path, monkeypatch):
     monkeypatch.setattr("app.config.TICKETS_DIR", tmp_path)
+    monkeypatch.setattr("app.cotizacion._ultima_consulta_ok", None)
     with TestClient(app) as c:
         c.A = login_headers(c)
         c.B = login_headers(c, TEST_ADMIN, TEST_ADMIN_PASSWORD)
@@ -141,7 +142,8 @@ def test_borrado_logico_sale_de_la_lista_y_de_los_totales_pero_viaja_en_el_sync(
         assert c.execute("SELECT count(*) AS n FROM gastos").fetchone()["n"] == 1
 
 
-def test_sync_devuelve_solo_lo_modificado_desde(cli):
+def test_sync_devuelve_solo_lo_modificado_desde(cli, monkeypatch):
+    monkeypatch.setattr(gastos, "SOLAPAMIENTO", timedelta(0))
     primero = sync(cli, cli.A, entrada())
     assert len(primero["cambios"]) == 1
     assert sync(cli, cli.A, desde=primero["ahora"])["cambios"] == []
@@ -279,7 +281,7 @@ def test_el_csv_neutraliza_celdas_que_excel_leeria_como_formula(cli):
                               "fecha", "nota-larga", "client_id", "sin-zona"])
 def test_sync_rechaza_gastos_invalidos(cli, cambio):
     r = cli.post("/api/gastos/sync", headers=cli.A, json={"cambios": [entrada(**cambio)], "desde": None})
-    assert r.status_code == 422
+    assert r.status_code == 200 and r.json()["cambios"] == [] and len(r.json()["rechazados"]) == 1
     assert cli.get("/api/gastos", headers=cli.A).json()["gastos"] == []
 
 
@@ -299,7 +301,7 @@ def test_la_foto_se_guarda_y_vuelve_igual(cli, datos, tipo):
     g = entrada()
     sync(cli, cli.A, g)
     r = foto(cli, cli.A, g["client_id"], datos, tipo)
-    assert r.status_code == 200 and r.json() == {"foto_url": f"/api/gastos/{g['client_id']}/foto"}
+    assert r.status_code == 200 and r.json()["foto_url"].startswith(f"/api/gastos/{g['client_id']}/foto?v=")
     vuelta = cli.get(r.json()["foto_url"], headers=cli.A)
     assert vuelta.content == datos and vuelta.headers["content-type"] == tipo
     assert vuelta.headers["x-content-type-options"] == "nosniff"
@@ -327,7 +329,7 @@ def test_sincronizar_despues_no_pisa_la_foto(cli):
     sync(cli, cli.A, g)
     foto(cli, cli.A, g["client_id"])
     r = sync(cli, cli.A, {**g, "monto": 11, "updated_at": (T0 + timedelta(hours=1)).isoformat()})
-    assert r["cambios"][0]["foto_url"] == f"/api/gastos/{g['client_id']}/foto"
+    assert r["cambios"][0]["foto_url"].startswith(f"/api/gastos/{g['client_id']}/foto?v=")
 
 
 @pytest.mark.parametrize(("datos", "tipo"), [(b"esto es texto, no una imagen", "image/jpeg"),
@@ -403,9 +405,9 @@ def test_el_link_vence_a_los_90_dias_por_defecto(cli, monkeypatch):
     _con_foto(cli)
     ruta = _link_del_csv(cli)
     ahora = gastos_links._ahora()
-    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 89 * 86400)
+    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 29 * 86400)
     assert cli.get(ruta).status_code == 200
-    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 91 * 86400)
+    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 31 * 86400)
     assert cli.get(ruta).status_code == 404
 
 
@@ -481,3 +483,241 @@ def test_sin_secreto_propio_la_clave_se_deriva_de_la_base_y_con_secreto_cambia(m
     monkeypatch.setattr(config, "DATABASE_URL", "")
     with pytest.raises(RuntimeError):
         gastos_links.firmar("ale", uuid.uuid4())
+
+
+# ---------- sync: cursor, tope, rechazos por gasto ----------
+
+def _fecha(texto):
+    return datetime.fromisoformat(texto)
+
+
+def test_el_cursor_vuelve_con_solapamiento_y_no_pierde_una_transaccion_concurrente(cli):
+    r = sync(cli, cli.A, entrada())
+    ahora = _fecha(r["ahora"])
+    assert ahora <= datetime.now(UTC) - gastos.SOLAPAMIENTO + timedelta(seconds=1)
+    # Una transacción que empezó antes del cierre y confirmó después deja su sincronizado_at por detrás del cursor.
+    concurrente = entrada()
+    sync(cli, cli.B, concurrente)
+    with db.conn() as c:
+        c.execute("UPDATE gastos SET sincronizado_at = %s, username = %s WHERE client_id = %s",
+                  (ahora + timedelta(seconds=2), TEST_USER, concurrente["client_id"]))
+    visto = sync(cli, cli.A, desde=r["ahora"])
+    assert concurrente["client_id"] in [c["client_id"] for c in visto["cambios"]]
+
+
+def test_reenviar_con_el_solapamiento_es_idempotente(cli):
+    g = entrada()
+    r = sync(cli, cli.A, g)
+    otra = sync(cli, cli.A, g, desde=r["ahora"])
+    assert [c["client_id"] for c in otra["cambios"]] == [g["client_id"]]
+    assert len(cli.get("/api/gastos", headers=cli.A).json()["gastos"]) == 1
+
+
+def test_sin_corte_hay_mas_es_falso(cli):
+    r = sync(cli, cli.A, entrada())
+    assert r["hay_mas"] is False and r["rechazados"] == []
+
+
+def test_cuando_se_corta_por_el_tope_hay_mas_y_el_cursor_es_el_de_la_ultima_fila(cli, monkeypatch):
+    monkeypatch.setattr(gastos, "CAMBIOS_MAX_RESPUESTA", 3)
+    ids = []
+    for _ in range(5):
+        g = entrada()
+        ids.append(g["client_id"])
+        sync(cli, cli.A, g)
+    primera = sync(cli, cli.A)
+    assert primera["hay_mas"] is True and len(primera["cambios"]) == 3
+    with db.conn() as c:
+        ultimo = c.execute("SELECT sincronizado_at FROM gastos WHERE client_id = %s",
+                           (primera["cambios"][-1]["client_id"],)).fetchone()["sincronizado_at"]
+    assert _fecha(primera["ahora"]) == ultimo
+    recibidos = {c["client_id"] for c in primera["cambios"]}
+    pagina = primera
+    for _ in range(5):  # el cliente repite enseguida con desde=ahora hasta que no haya más
+        if not pagina["hay_mas"]:
+            break
+        pagina = sync(cli, cli.A, desde=pagina["ahora"])
+        recibidos |= {c["client_id"] for c in pagina["cambios"]}
+    assert pagina["hay_mas"] is False and recibidos == set(ids)
+
+
+def test_un_gasto_invalido_no_tumba_al_resto_y_se_informa_por_client_id(cli):
+    bueno = entrada()
+    malo = entrada(monto=-5)
+    r = cli.post("/api/gastos/sync", headers=cli.A, json={
+        "cambios": [bueno, malo, "no soy un gasto", {"monto": 3}, entrada(categoria="joyas")], "desde": None})
+    assert r.status_code == 200, r.text
+    cuerpo = r.json()
+    assert [c["client_id"] for c in cuerpo["cambios"]] == [bueno["client_id"]]
+    assert cuerpo["aplicados"] == [bueno["client_id"]]
+    rechazados = cuerpo["rechazados"]
+    assert len(rechazados) == 4
+    assert rechazados[0]["client_id"] == malo["client_id"] and rechazados[0]["error"]
+    assert rechazados[1]["client_id"] is None and rechazados[2]["client_id"] is None
+    assert all(isinstance(x["error"], str) and x["error"] for x in rechazados)
+    assert len(cli.get("/api/gastos", headers=cli.A).json()["gastos"]) == 1
+
+
+def test_el_client_id_no_uuid_de_un_rechazado_vuelve_tal_cual_o_nulo(cli):
+    r = cli.post("/api/gastos/sync", headers=cli.A, json={
+        "cambios": [entrada(client_id="no-es-uuid"), entrada(client_id=7)], "desde": None})
+    assert [x["client_id"] for x in r.json()["rechazados"]] == ["no-es-uuid", None]
+
+
+def test_los_mensajes_de_rechazo_estan_en_castellano_y_no_filtran_el_valor(cli):
+    r = cli.post("/api/gastos/sync", headers=cli.A, json={"cambios": [entrada(monto="secreto-abc")], "desde": None})
+    error = r.json()["rechazados"][0]["error"]
+    assert "monto" in error.lower() and "secreto-abc" not in error
+
+
+# ---------- cotización congelada: a la fecha del gasto y marca de estimada ----------
+
+def _cotizacion_en(at, oficial, tarjeta):
+    with db.conn() as c:
+        c.execute("INSERT INTO cotizaciones (at, oficial, blue, tarjeta) VALUES (%s, %s, %s, %s)",
+                  (at, oficial, oficial + 100, tarjeta))
+
+
+def test_el_gasto_congela_la_cotizacion_vigente_a_su_fecha_no_la_del_dia_que_se_sincroniza(cli):
+    with db.conn() as c:
+        c.execute("DELETE FROM cotizaciones")
+    ahora = datetime.now(UTC)
+    _cotizacion_en(ahora - timedelta(days=7), 1000, 1300)   # la del día del gasto
+    _cotizacion_en(ahora - timedelta(days=5), 1100, 1430)   # la del día que se sincroniza
+    del_martes = sync(cli, cli.A, entrada(fecha=(ahora.date() - timedelta(days=7)).isoformat(), moneda="ARS",
+                                          monto=1300))["cambios"][0]
+    assert del_martes["cotizacion_tarjeta"] == 1300 and del_martes["monto_usd"] == 1
+    de_hoy = sync(cli, cli.A, entrada(fecha=ahora.date().isoformat(), moneda="ARS", monto=1430))["cambios"][-1]
+    assert de_hoy["cotizacion_tarjeta"] == 1430
+
+
+def test_con_la_tabla_vacia_se_usa_el_respaldo_y_el_gasto_queda_marcado(cli):
+    with db.conn() as c:
+        c.execute("DELETE FROM cotizaciones")
+    g = sync(cli, cli.A, entrada())["cambios"][0]
+    assert g["cotizacion_tarjeta"] == 1885 and g["cotizacion_estimada"] is True
+
+
+def test_una_cotizacion_fresca_no_marca_el_gasto(cli):
+    assert sync(cli, cli.A, entrada())["cambios"][0]["cotizacion_estimada"] is False
+
+
+def test_una_cotizacion_de_mas_de_48_horas_marca_el_gasto(cli):
+    with db.conn() as c:
+        c.execute("DELETE FROM cotizaciones")
+    _cotizacion_en(datetime.now(UTC) - timedelta(hours=60), 1000, 1300)
+    assert sync(cli, cli.A, entrada())["cambios"][0]["cotizacion_estimada"] is True
+
+
+def test_el_gasto_ya_guardado_conserva_su_marca_al_editarlo(cli):
+    with db.conn() as c:
+        c.execute("DELETE FROM cotizaciones")
+    g = entrada()
+    sync(cli, cli.A, g)
+    poner_cotizacion()
+    r = sync(cli, cli.A, {**g, "monto": 11, "updated_at": (T0 + timedelta(hours=1)).isoformat()})
+    assert r["cambios"][0]["cotizacion_estimada"] is True and r["cambios"][0]["cotizacion_tarjeta"] == 1885
+
+
+def test_la_cotizacion_informa_su_antiguedad_y_si_es_de_respaldo(cli):
+    hoy = cli.get("/api/gastos/cotizacion", headers=cli.A).json()
+    assert hoy["es_respaldo"] is False and isinstance(hoy["edad_min"], int) and 0 <= hoy["edad_min"] < 5
+    with db.conn() as c:
+        c.execute("DELETE FROM cotizaciones")
+    vacia = cli.get("/api/gastos/cotizacion", headers=cli.A).json()
+    assert vacia["es_respaldo"] is True and vacia["edad_min"] is None and vacia["tarjeta"] == 1885
+
+
+# ---------- fotos: ?v=, borrado y orden de reemplazo ----------
+
+def test_la_url_de_la_foto_cambia_al_reemplazarla(cli):
+    g = entrada()
+    sync(cli, cli.A, g)
+    primera = foto(cli, cli.A, g["client_id"], JPEG).json()["foto_url"]
+    segunda = foto(cli, cli.A, g["client_id"], JPEG + b"x").json()["foto_url"]
+    assert primera.startswith(f"/api/gastos/{g['client_id']}/foto?v=") and primera != segunda
+    assert cli.get("/api/gastos", headers=cli.A).json()["gastos"][0]["foto_url"] == segunda
+    assert cli.get(segunda, headers=cli.A).status_code == 200
+
+
+def test_borrar_el_gasto_borra_la_foto_del_almacen(cli, tmp_path):
+    g = entrada()
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"])
+    borrar(cli, g)
+    assert [p for p in tmp_path.rglob("*") if p.is_file()] == []
+
+
+def test_si_el_almacen_falla_al_borrar_el_gasto_se_borra_igual(cli, monkeypatch, caplog):
+    g = entrada()
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"])
+
+    class Roto:
+        def borrar(self, clave):
+            raise OSError("bucket caído")
+
+    monkeypatch.setattr("app.tickets_almacen.obtener", lambda: Roto())
+    r = borrar(cli, g)
+    assert r["cambios"][0]["deleted_at"] is not None
+    assert cli.get("/api/gastos", headers=cli.A).json()["gastos"] == []
+    assert "bucket caído" in caplog.text
+
+
+def test_al_reemplazar_si_falla_borrar_la_vieja_la_nueva_queda_anotada(cli, monkeypatch, tmp_path):
+    g = entrada()
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"], JPEG, "image/jpeg")
+    original = tickets_almacen.AlmacenLocal.borrar
+
+    def borrar_roto(self, clave):
+        raise OSError("sin permiso")
+
+    monkeypatch.setattr(tickets_almacen.AlmacenLocal, "borrar", borrar_roto)
+    r = foto(cli, cli.A, g["client_id"], PNG, "image/png")
+    monkeypatch.setattr(tickets_almacen.AlmacenLocal, "borrar", original)
+    assert r.status_code == 200
+    vuelta = cli.get(r.json()["foto_url"], headers=cli.A)
+    assert vuelta.status_code == 200 and vuelta.content == PNG
+
+
+def test_si_falla_guardar_la_nueva_la_vieja_sigue_en_pie(cli, monkeypatch, tmp_path):
+    g = entrada()
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"], JPEG, "image/jpeg")
+    monkeypatch.setattr(tickets_almacen.AlmacenLocal, "guardar", lambda *a: (_ for _ in ()).throw(OSError("lleno")))
+    assert foto(cli, cli.A, g["client_id"], PNG, "image/png").status_code == 502
+    assert cli.get(f"/api/gastos/{g['client_id']}/foto", headers=cli.A).content == JPEG
+
+
+def test_si_el_objeto_no_esta_en_el_almacen_se_loguea_claro(cli, caplog, tmp_path):
+    g = entrada()
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"])
+    for p in tmp_path.rglob("*.jpg"):
+        p.unlink()
+    assert cli.get(f"/api/gastos/{g['client_id']}/foto", headers=cli.A).status_code == 404
+    assert any(x.levelname == "ERROR" and str(g["client_id"]) in x.getMessage() for x in caplog.records)
+
+
+# ---------- links firmados ----------
+
+def test_los_links_duran_30_dias_por_defecto():
+    assert config.FOTOS_LINK_DIAS == 30
+
+
+def test_en_produccion_sin_fotos_link_secret_avisa_en_el_log(monkeypatch, caplog):
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "")
+    gastos_links.verificar_configuracion()
+    assert any(x.levelname == "WARNING" and "FOTOS_LINK_SECRET" in x.getMessage() for x in caplog.records)
+
+
+def test_con_secreto_o_fuera_de_produccion_no_avisa(monkeypatch, caplog):
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "propio")
+    gastos_links.verificar_configuracion()
+    monkeypatch.setattr(config, "EN_PRODUCCION", False)
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "")
+    gastos_links.verificar_configuracion()
+    assert "FOTOS_LINK_SECRET" not in caplog.text

@@ -240,6 +240,10 @@ CREATE TABLE IF NOT EXISTS gastos (
   deleted_at TIMESTAMPTZ,
   UNIQUE (username, client_id)
 );
+-- cotizacion_estimada: la cotización congelada era la de respaldo o tenía más de 48 h. foto_at: cuándo se puso la foto
+-- actual (va como ?v= en la URL para no ver la vieja cacheada).
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS cotizacion_estimada BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS foto_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS gastos_usuario_fecha ON gastos (username, fecha);
 CREATE INDEX IF NOT EXISTS gastos_usuario_sync ON gastos (username, sincronizado_at);
 CREATE TABLE IF NOT EXISTS gastos_presupuesto (

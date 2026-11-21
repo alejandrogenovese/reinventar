@@ -120,6 +120,22 @@ class AlmacenS3:
             r.raise_for_status()
 
 
+_VARIABLES_S3 = (("TICKETS_S3_ENDPOINT", "ENDPOINT"), ("TICKETS_S3_BUCKET", "BUCKET"), ("TICKETS_S3_KEY_ID", "KEY_ID"),
+                 ("TICKETS_S3_SECRET", "SECRET"), ("TICKETS_S3_REGION", "REGION"))
+
+
+def verificar_configuracion() -> None:
+    """Al arrancar: un bucket configurado a medias, o ninguno en producción, hace que las fotos caigan al disco del
+    contenedor, que se pierde en cada deploy. Se avisa con un error (solo nombres de variables, nunca valores)."""
+    faltan = [nombre for nombre, sufijo in _VARIABLES_S3 if not getattr(config, f"TICKETS_S3_{sufijo}")]
+    if 0 < len(faltan) < len(_VARIABLES_S3):
+        log.error("Bucket de tickets configurado a medias: faltan %s. Las fotos se guardan en el disco del contenedor "
+                  "y se pierden en el próximo deploy.", ", ".join(faltan))
+    elif faltan and config.EN_PRODUCCION:
+        log.error("No hay bucket para las fotos de tickets (TICKETS_S3_*): se guardan en el disco del contenedor y se "
+                  "pierden en el próximo deploy.")
+
+
 def s3_configurado() -> bool:
     return all((config.TICKETS_S3_ENDPOINT, config.TICKETS_S3_BUCKET, config.TICKETS_S3_KEY_ID,
                 config.TICKETS_S3_SECRET, config.TICKETS_S3_REGION))

@@ -89,6 +89,7 @@ async def lifespan(_app):
     eventos_auto.start_worker()
     charlas_auto.start_worker()
     cotizacion.start_worker()
+    gastos_api.al_arrancar()
     yield
     pg.close()
 

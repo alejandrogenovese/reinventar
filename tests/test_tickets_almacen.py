@@ -94,3 +94,38 @@ def test_obtener_usa_disco_sin_variables_y_s3_con_las_cinco(monkeypatch, tmp_pat
     assert isinstance(tickets_almacen.obtener(), AlmacenS3)
     monkeypatch.setattr(config, "TICKETS_S3_SECRET", "")  # falta una: vuelve al disco
     assert isinstance(tickets_almacen.obtener(), AlmacenLocal)
+
+
+def _variables_s3(monkeypatch, **valores):
+    for nombre in ("ENDPOINT", "BUCKET", "KEY_ID", "SECRET", "REGION"):
+        monkeypatch.setattr(config, f"TICKETS_S3_{nombre}", valores.get(nombre, ""))
+
+
+def test_bucket_a_medias_loguea_error_con_los_nombres_que_faltan(monkeypatch, caplog):
+    _variables_s3(monkeypatch, ENDPOINT="https://s3.example.test", BUCKET="b", SECRET="no-se-loguea")
+    tickets_almacen.verificar_configuracion()
+    errores = [x.getMessage() for x in caplog.records if x.levelname == "ERROR"]
+    assert len(errores) == 1
+    assert "TICKETS_S3_KEY_ID" in errores[0] and "TICKETS_S3_REGION" in errores[0]
+    assert "no-se-loguea" not in caplog.text and "TICKETS_S3_BUCKET" not in errores[0].split("faltan")[-1]
+
+
+def test_sin_bucket_en_produccion_loguea_error(monkeypatch, caplog):
+    _variables_s3(monkeypatch)
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+    tickets_almacen.verificar_configuracion()
+    assert any(x.levelname == "ERROR" and "disco" in x.getMessage() for x in caplog.records)
+
+
+def test_sin_bucket_fuera_de_produccion_no_avisa(monkeypatch, caplog):
+    _variables_s3(monkeypatch)
+    monkeypatch.setattr(config, "EN_PRODUCCION", False)
+    tickets_almacen.verificar_configuracion()
+    assert caplog.records == []
+
+
+def test_bucket_completo_no_loguea_nada(monkeypatch, caplog):
+    _variables_s3(monkeypatch, ENDPOINT="https://s3.example.test", BUCKET="b", KEY_ID="k", SECRET="s", REGION="auto")
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+    tickets_almacen.verificar_configuracion()
+    assert caplog.records == []

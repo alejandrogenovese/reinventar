@@ -1,13 +1,15 @@
 """Cotización del dólar para el control de gastos: oficial y blue de Bluelytics, y la de tarjeta derivada.
 
-Se actualiza cada COTIZACION_MINUTOS en segundo plano y se guarda el historial (tabla cotizaciones): solo se agrega una
+Se actualiza al arrancar y cada COTIZACION_MINUTOS en segundo plano, y se guarda el historial (tabla cotizaciones): solo se agrega una
 fila cuando alguna de las tres se movió más de MOVIMIENTO_MINIMO. Si la API falla se queda con la última guardada; si
-nunca hubo ninguna, usa RESPALDO. Un gasto congela la cotización vigente al crearse (app/gastos.py).
+nunca hubo ninguna, usa RESPALDO. Un gasto congela la cotización vigente a su fecha (app/gastos.py); si era la de
+respaldo o tenía más de 48 h, queda marcado como estimada.
 """
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -19,8 +21,13 @@ URL = "https://api.bluelytics.com.ar/v2/latest"
 TIMEOUT_SEGUNDOS = 10
 MOVIMIENTO_MINIMO = Decimal("0.001")   # 0,1 %: por debajo no vale la pena sumar una fila al historial
 DECIMALES = Decimal("0.0001")
+EDAD_MAXIMA = timedelta(hours=48)      # más vieja que esto (o el respaldo), el gasto queda marcado como estimado
+ZONA = ZoneInfo("America/Argentina/Buenos_Aires")   # el día del gasto es el de Argentina
 # Respaldo si la API nunca respondió y la base está vacía (primer arranque sin red). Valores de orden de magnitud.
 RESPALDO = {"oficial": Decimal("1450"), "blue": Decimal("1480"), "tarjeta": Decimal("1885")}
+
+
+_ultima_consulta_ok: datetime | None = None   # última vez que la API respondió bien, haya o no movimiento
 
 
 def _dec(valor) -> Decimal:
@@ -65,9 +72,41 @@ def actual() -> dict:
     return {"oficial": fila["oficial"], "blue": fila["blue"], "tarjeta": fila["tarjeta"], "at": fila["at"].isoformat()}
 
 
+def edad_min(c: dict) -> int | None:
+    """Minutos desde que la cotización es confiable: lo más reciente entre su fila y la última consulta exitosa a la
+    API (una cotización que no se movió sigue siendo fresca). None si es el respaldo."""
+    if c["at"] is None:
+        return None
+    desde = datetime.fromisoformat(c["at"])
+    if _ultima_consulta_ok and _ultima_consulta_ok > desde:
+        desde = _ultima_consulta_ok
+    return max(0, int((datetime.now(UTC) - desde).total_seconds() // 60))
+
+
+def vigente_en(fecha: date, ahora: datetime | None = None) -> dict:
+    """La cotización que regía al terminar el día `fecha` (la última guardada hasta entonces; si el historial arranca
+    después, la más antigua). {oficial, blue, tarjeta, at, respaldo, estimada}: `estimada` si es el respaldo o si dista
+    más de 48 h del momento del gasto (el fin de su día, o ahora si es de hoy o futuro)."""
+    ahora = ahora or datetime.now(UTC)
+    fin = datetime.combine(fecha + timedelta(days=1), time.min, tzinfo=ZONA)
+    with sandbox.real(), db.conn() as c:
+        fila = c.execute("SELECT at, oficial, blue, tarjeta FROM cotizaciones WHERE at < %s "
+                         "ORDER BY at DESC, id DESC LIMIT 1", (fin,)).fetchone()
+        if fila is None:
+            fila = c.execute("SELECT at, oficial, blue, tarjeta FROM cotizaciones ORDER BY at, id LIMIT 1").fetchone()
+    if fila is None:
+        return {**RESPALDO, "at": None, "respaldo": True, "estimada": True}
+    # Para un gasto de hoy vale también la última consulta exitosa: una cotización que no se movió no está vieja.
+    fresca = max(fila["at"], _ultima_consulta_ok) if _ultima_consulta_ok and fin > ahora else fila["at"]
+    estimada = abs(min(ahora, fin) - fresca) > EDAD_MAXIMA
+    return {"oficial": fila["oficial"], "blue": fila["blue"], "tarjeta": fila["tarjeta"],
+            "at": fila["at"].isoformat(), "respaldo": False, "estimada": estimada}
+
+
 def refrescar(cliente: httpx.Client | None = None) -> bool:
     """Pide la cotización y la guarda si se movió. Devuelve False si la API falló o devolvió algo inservible (en ese
     caso no toca nada: se sigue con la última guardada)."""
+    global _ultima_consulta_ok
     propio = cliente is None
     cliente = cliente or httpx.Client(timeout=TIMEOUT_SEGUNDOS)
     try:
@@ -80,6 +119,7 @@ def refrescar(cliente: httpx.Client | None = None) -> bool:
     finally:
         if propio:
             cliente.close()
+    _ultima_consulta_ok = datetime.now(UTC)
     if _se_movio(nueva, ultima()):
         with sandbox.real(), db.conn() as c:
             c.execute("INSERT INTO cotizaciones (at, oficial, blue, tarjeta) VALUES (%s, %s, %s, %s)",
