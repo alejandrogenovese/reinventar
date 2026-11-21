@@ -1,0 +1,140 @@
+/* Administración (#/admin…): la capa visual de las cinco pestañas. Solo tokens de tokens.css; los componentes base
+   (.ra-num-card, .ra-kpis, .ra-hint, .ra-tag, .ra-chip, .ra-searchfield, .ra-bar-*) vienen de styles.css y gastos.css. */
+
+.ra-adm-view { display: flex; flex-direction: column; gap: var(--space-6); padding-bottom: var(--space-8); }
+.ra-adm-view > section, .ra-adm-sec { display: flex; flex-direction: column; gap: var(--space-3); }
+.ra-adm-resumen { gap: var(--space-6); }
+
+/* cabecera pegajosa: título + pestañas (links a cada ruta; la actual lleva aria-current) */
+.ra-adm-head { position: sticky; top: var(--masthead-h, 0px); z-index: 5; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) 0 var(--space-2); background: var(--bg); }
+.ra-adm-head h1.title { margin: 0; }
+.ra-adm-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1); background: var(--surface-3); border-radius: var(--radius-m); }
+.ra-adm-tabs .ra-segtab { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: var(--touch); padding: 0 2px; text-decoration: none; }
+.ra-adm-tabs .ra-segtab[aria-current="page"] { background: var(--brand-soft); color: var(--brand-ink); box-shadow: inset 0 0 0 1px var(--brand-ink); }
+.ra-adm-tabs .ra-segtab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* cabeceras de sección y textos auxiliares */
+.ra-adm-view .ra-sec-head { min-height: var(--touch); align-items: center; }
+.ra-adm-cap { font: var(--t-small); color: var(--ink-muted); }
+.ra-adm-ayuda { font: var(--t-small); color: var(--ink-muted); }
+.ra-adm-sub { font: var(--t-small-strong); color: var(--ink-muted); }
+.ra-adm-ok { display: flex; align-items: center; gap: var(--space-2); font: var(--t-small); color: var(--on-success-soft); }
+.ra-adm-ok svg { color: var(--success); }
+.ra-adm-nueva-head { display: flex; flex-direction: column; gap: 2px; }
+.ra-adm-count { font: var(--t-data); color: var(--ink-muted); margin-left: var(--space-1); }
+
+/* botones chicos (44 px de alto, no 48) y el rojo de las acciones que no son «Borrar datos de prueba» */
+.ra-btn.ra-adm-btn-s { min-height: var(--touch); padding: 0 var(--space-4); font: var(--t-small-strong); }
+.ra-btn.ra-adm-btn-err { color: var(--error); }
+.ra-adm-acciones { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* avisos de «Requiere atención» con el link a 44 px */
+.ra-adm-avisos { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-adm-link { display: flex; align-items: center; min-height: var(--touch); margin-top: calc(-1 * var(--space-2)); color: inherit; font: var(--t-small-strong); }
+
+/* puntos de estado (siempre con texto al lado) */
+.ra-adm-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--ink-muted); flex: none; }
+.ra-adm-dot.is-ok { background: var(--success); }
+.ra-adm-dot.is-warn { background: var(--warning); }
+.ra-adm-dot.is-err { background: var(--error); }
+.ra-adm-estado { display: inline-flex; align-items: center; gap: var(--space-2); font: var(--t-small); color: var(--ink-muted); white-space: nowrap; }
+
+/* KPIs de alto parejo */
+.ra-adm-view .ra-kpis { grid-auto-rows: 1fr; }
+.ra-adm-kpi-pill { margin-top: var(--space-1); align-self: flex-start; }
+.ra-adm-kpi-bar { margin-top: var(--space-1); }
+.ra-kpi-value small { font: var(--t-small); color: var(--ink-muted); }
+
+/* chequeo funcional */
+.ra-adm-check { display: grid; grid-template-columns: 1fr; margin: 0; padding: 0; list-style: none; }
+.ra-adm-check li { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: var(--space-2); min-height: 36px; border-top: 1px solid var(--line); font: var(--t-small); }
+.ra-adm-check li:first-child { border-top: 0; }
+.ra-adm-check .is-bien svg { color: var(--success); }
+.ra-adm-check .is-falla svg { color: var(--error); }
+.ra-adm-check .is-falla { font-weight: 600; }
+.ra-adm-check .ra-adm-detalle-falla { grid-column: 2 / -1; padding-bottom: var(--space-2); color: var(--on-error-soft); font-weight: 400; }
+.ra-adm-resumen-check { font: var(--t-small-strong); color: var(--ink); }
+
+/* bloques plegables: «Herramientas», «Cargar oferta», «Cargados por link» */
+.ra-adm-det { background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge); }
+.ra-adm-det > summary, .ra-adm-bar { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 56px; padding: var(--space-2) var(--space-4); cursor: pointer; font: var(--t-body-strong); border-radius: var(--radius-m); }
+.ra-adm-det > summary::-webkit-details-marker, .ra-adm-bar::-webkit-details-marker { display: none; }
+.ra-adm-det > summary:hover { background: var(--surface-3); }
+.ra-adm-det > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ra-adm-det[open] > summary { border-radius: var(--radius-m) var(--radius-m) 0 0; }
+.ra-adm-chev { transition: transform var(--ease); color: var(--ink-muted); }
+.ra-adm-det[open] > summary .ra-adm-chev { transform: rotate(90deg); }
+.ra-adm-det-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-4); border-top: 1px solid var(--line); }
+
+/* formularios */
+.ra-adm-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.ra-adm-form .field label { font: var(--t-small-strong); }
+.ra-adm-form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ra-adm-form-2 .field, .ra-adm-form-2 input { min-width: 0; }
+.ra-adm-form-card { padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); }
+.ra-adm-select { appearance: auto; }
+
+.ra-adm-check-row { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch); font: var(--t-small-strong); cursor: pointer; }
+
+/* «Nuevo usuario»: la cabecera de la sección es lo que despliega el formulario */
+.ra-adm-nuevo > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--touch); cursor: pointer; border-radius: var(--radius-m); }
+.ra-adm-nuevo > summary::-webkit-details-marker { display: none; }
+.ra-adm-nuevo > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ra-adm-nuevo > summary .ra-btn { pointer-events: none; }
+.ra-adm-nuevo[open] > summary .ra-btn { background: var(--surface-3); }
+.ra-adm-nuevo > form { margin-top: var(--space-3); padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); }
+.ra-adm-nuevo-ico { transition: transform var(--ease); }
+.ra-adm-nuevo[open] .ra-adm-nuevo-ico { transform: rotate(45deg); }
+
+/* lista compacta de filas (usuarios, fuentes, charlas, ofertas) */
+.ra-adm-lista { display: flex; flex-direction: column; background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); overflow: hidden; }
+.ra-adm-fila { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-1) var(--space-3); width: 100%; min-height: 56px; padding: var(--space-3) var(--space-4); border: 0; border-top: 1px solid var(--line); background: transparent; color: inherit; text-align: left; text-decoration: none; transition: background var(--ease); }
+a.ra-adm-fila, summary.ra-adm-fila { cursor: pointer; }
+.ra-adm-lista { margin: 0; padding: 0; list-style: none; }
+.ra-adm-lista > :first-child, .ra-adm-lista > li:first-child > .ra-adm-fila { border-top: 0; }
+a.ra-adm-fila:hover, summary.ra-adm-fila:hover { background: var(--surface-3); }
+.ra-adm-fila:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ra-adm-fila-nombre { font: var(--t-body-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ra-adm-fila.is-off .ra-adm-fila-nombre { color: var(--ink-muted); }
+.ra-adm-fila-side { display: flex; align-items: center; gap: var(--space-2); font: var(--t-small); color: var(--ink-muted); text-align: right; }
+.ra-adm-fila-cuerpo { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.ra-adm-fila-sub { font: var(--t-small); color: var(--ink-muted); }
+.ra-adm-fila-titulo { font: var(--t-small-strong); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: pretty; }
+.ra-adm-code { font: var(--t-data); color: var(--brand-ink); }
+.ra-adm-usuario { border-top: 1px solid var(--line); }
+.ra-adm-usuario:first-child { border-top: 0; }
+.ra-adm-usuario > summary { list-style: none; border-top: 0; }
+.ra-adm-usuario > summary::-webkit-details-marker { display: none; }
+.ra-adm-chev { flex: none; }
+.ra-adm-usuario[open] > summary .ra-adm-chev { transform: rotate(90deg); }
+.ra-adm-usuario-det { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-1) var(--space-4) var(--space-4); }
+.ra-adm-usuario-det h3 { font: var(--t-small-strong); }
+.ra-adm-grupo { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-adm-grupo + .ra-adm-grupo { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+
+/* barras del LLM */
+.ra-adm-bars .ra-bar-row { grid-template-columns: minmax(110px, 38%) 1fr auto; row-gap: var(--space-1); }
+.ra-adm-bars .ra-bar-value { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.ra-adm-bars-nota { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-1); font: var(--t-small); color: var(--on-warning-soft); }
+.ra-adm-bars-nota.is-err { color: var(--on-error-soft); }
+.ra-adm-datos { display: flex; flex-direction: column; margin: 0; }
+.ra-adm-datos > div { display: flex; justify-content: space-between; gap: var(--space-3); min-height: 36px; align-items: center; border-top: 1px solid var(--line); font: var(--t-small); }
+.ra-adm-datos dt { color: var(--ink-muted); }
+.ra-adm-datos dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* tema claro: pista con borde y relleno de marca oscura (contraste de no-texto de las barras) */
+:root[data-theme="light"] .ra-adm-view .ra-bar-track, :root[data-theme="light"] .ra-adm-view .ra-g-avance { box-shadow: inset 0 0 0 1px var(--line-strong); }
+:root[data-theme="light"] .ra-adm-view .ra-bar-fill:not(.is-warn):not(.is-err) { background: var(--brand-ink); }
+
+/* escritorio: Estado en dos columnas, cabecera en una línea */
+.ra-adm-desk-grid { display: flex; flex-direction: column; gap: var(--space-6); }
+.ra-adm-desk-grid > div { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; }
+@media (min-width: 900px) {
+  .ra-adm-head { flex-direction: row; align-items: center; justify-content: space-between; }
+  .ra-adm-head .ra-adm-tabs { width: 440px; }
+  .ra-adm-desk-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+  .ra-adm-desk-grid .ra-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ra-adm-desk-grid .ra-adm-check { grid-template-columns: 1fr 1fr; column-gap: var(--space-6); }
+  .ra-adm-desk-grid .ra-adm-check li:nth-child(2) { border-top: 0; }
+  .ra-adm-desk-grid .ra-adm-check li.is-falla { grid-column: 1 / -1; }
+}

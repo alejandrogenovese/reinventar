@@ -2,6 +2,7 @@
 // Reintentar / vacío), botón ocupado, confirmación y región viva para que los lectores de pantalla oigan los avisos.
 import { confirmDialog } from "./dialog.js";
 import { PESTANAS } from "./adminTextos.js";
+import { icon } from "./icons.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
 let regionEstado = null;
@@ -16,16 +17,38 @@ export function avisar(texto, { error = false } = {}) {
   setTimeout(() => { region.textContent = texto; }, 50); // vaciar y volver a escribir hace que repita un aviso igual
 }
 
-/** Barra de pestañas pegada arriba: cada una es una ruta (links, no botones) y la actual lleva aria-current. */
-export const AdminTabs = (actual) => h("nav", { class: "tabs admin-tabs", "aria-label": "Secciones de administración" },
-  PESTANAS.map(([id, etiqueta, ruta]) => h("a", { class: "ra-tab", href: ruta, "aria-current": id === actual ? "page" : null }, etiqueta)));
+/** Barra de pestañas: cada una es una ruta (links, no botones) y la actual lleva aria-current. */
+export const AdminTabs = (actual) => h("nav", { class: "ra-adm-tabs", "aria-label": "Secciones de administración" },
+  PESTANAS.map(([id, etiqueta, ruta]) => h("a", { class: "ra-segtab", href: ruta, "aria-current": id === actual ? "page" : null }, etiqueta)));
 
-/** Marco común: título, pestañas, regiones vivas y el contenido de la pestaña. */
+/** Marco común: cabecera pegajosa (título y pestañas), regiones vivas y el contenido de la pestaña. */
 export function AdminShell(view, actual, ...contenido) {
   regionEstado = h("div", { class: "sr-only", role: "status", "aria-live": "polite", "aria-atomic": "true" });
   regionAlerta = h("div", { class: "sr-only", role: "alert", "aria-live": "assertive", "aria-atomic": "true" });
-  view.append(h("div", { class: "stack-lg" }, h("h1", { class: "title" }, "Administración"), AdminTabs(actual), regionEstado, regionAlerta, ...contenido));
+  view.append(h("header", { class: "ra-adm-head" }, h("h1", { class: "title" }, "Administración"), AdminTabs(actual)),
+    h("div", { class: "ra-adm-view" }, regionEstado, regionAlerta, ...contenido));
 }
+
+/** «hace 5 min», «hace 3 h», «hace 2 días» a partir de una fecha ISO (`ahora` se puede pasar para probarlo). */
+export function hace(iso, ahora = Date.now()) {
+  const min = Math.round((ahora - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "recién";
+  if (min < 60) return `hace ${min} min`;
+  const horas = Math.round(min / 60);
+  return horas < 48 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} días`;
+}
+
+/** Flecha que gira al abrir un bloque plegable (la anima admin.css). */
+export function Chevron(size = 20) {
+  const el = icon("seguir", size);
+  el.classList.add("ra-adm-chev");
+  return el;
+}
+
+/** Bloque plegable (<details>): el título es lo que se toca para abrirlo. `extra` va junto al título (p. ej. un contador). */
+export const Plegable = (titulo, cuerpo, { abierto = false, extra = null, clase = "ra-adm-det-body" } = {}) => h("details", { class: "ra-adm-det", open: abierto },
+  h("summary", {}, h("span", {}, titulo, extra), Chevron()),
+  h("div", { class: clase }, ...[cuerpo].flat().filter(Boolean)));
 
 /**
  * Un bloque que carga solo lo suyo: «Cargando…», el contenido, un error con Reintentar o un texto de vacío.
