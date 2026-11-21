@@ -293,6 +293,7 @@ export async function viewItinerario(view) {
         Button(IconText("agregar", "Mi evento"), { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
         Button("Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
         Button("Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
+        Button("Cruzar con mi Excel", { title: "Subí un Excel o CSV con los códigos que querés y mirá cuáles te faltan registrar", onclick: () => (location.hash = "#/itinerario/excel") }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,

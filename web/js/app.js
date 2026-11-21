@@ -28,6 +28,7 @@ import * as it from "./itinerary.js";
 import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
+import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
 import { viewGastos } from "./gastos.js";
 import { viewAdminOfertas } from "./adminOfertas.js";
@@ -101,6 +102,7 @@ const routes = [
   [/^#\/itinerario\/ficha$/, () => viewFicha(view)],
   [/^#\/itinerario\/armar$/, () => viewArmar(view)],
   [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
+  [/^#\/itinerario\/excel$/, () => viewMiExcel(view)],
   [/^#\/viajes$/, () => viewViajes(view)],
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],

@@ -9,3 +9,4 @@ webauthn==2.5.2
 fastembed==0.9.1
 numpy>=2.5.4,<3
 cryptography==50.0.2  # Web Push: cifrado aes128gcm y firma VAPID (app/push.py)
+openpyxl==3.1.5  # leer el Excel con los códigos de sesión, solo lectura y sin fórmulas (app/codigos_excel.py)
