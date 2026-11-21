@@ -210,11 +210,14 @@ async def escenario_6_cierre_diferido(c: Contexto) -> None:
     await p.esperar("!document.body.innerText.includes('Grabadas en este celular')", "la tarjeta local desapareció", 20)
 
 
-# La API de gastos vive en otra rama: el escenario 7 la simula en la página (fetch) y solo comprueba lo que hace el front.
+# La API de gastos (PR del backend) no está en esta rama: el escenario 7 la simula en la página (fetch) con la forma real
+# de sus respuestas (app/gastos.py: aplicados, cambios con el gasto completo y ahora) y solo comprueba lo que hace el front.
 STUB_GASTOS = """(() => {
   window.__sync = [];
   const original = window.fetch.bind(window);
   const json = (cuerpo) => new Response(JSON.stringify(cuerpo), { status: 200, headers: { "content-type": "application/json" } });
+  const delServidor = (c) => ({ ...c, cotizacion_oficial: 1000, cotizacion_blue: 1200, cotizacion_tarjeta: 1300,
+    monto_usd: c.moneda === 'USD' ? c.monto : Math.round(c.monto / 13) / 100, foto_url: null });
   window.fetch = async (url, init = {}) => {
     const ruta = String(url);
     if (!ruta.startsWith('/api/gastos')) return original(url, init);
@@ -222,8 +225,9 @@ STUB_GASTOS = """(() => {
     if (ruta.startsWith('/api/gastos/cotizacion')) return json({ oficial: 1000, blue: 1200, tarjeta: 1300, at: new Date().toISOString() });
     if (ruta.startsWith('/api/gastos/sync')) {
       const cuerpo = JSON.parse(init.body);
-      window.__sync.push(cuerpo);
-      return json({ aplicados: cuerpo.cambios.map((c) => c.client_id), cambios: [], ahora: new Date().toISOString() });
+      const ahora = new Date().toISOString();
+      window.__sync.push({ ...cuerpo, ahora });
+      return json({ aplicados: cuerpo.cambios.map((c) => c.client_id), cambios: cuerpo.cambios.map(delServidor), ahora });
     }
     return json({ gastos: [], totales: { usd: 0, por_categoria: {}, por_dia: {} }, presupuesto: { total_usd: 1000, diario_usd: 100, por_categoria: {} } });
   };
@@ -260,6 +264,11 @@ async def escenario_7_gasto_sin_red(c: Contexto) -> None:
     assert len(cambios) == 1, f"el gasto debía viajar una sola vez y viajó {len(cambios)}: {cambios}"
     assert cambios[0]["monto"] == 14.1 and cambios[0]["moneda"] == "USD" and cambios[0]["nota"] == "Café E2E", cambios[0]
     assert len(cambios[0]["client_id"]) == 36, f"el client_id debía ser un UUID: {cambios[0]['client_id']}"
+    # El cursor del próximo sync es el `ahora` que devolvió el servidor, no el reloj del teléfono.
+    await p.evaluar("document.dispatchEvent(new Event('visibilitychange'))")
+    await p.esperar("window.__sync.length >= 2", "otro sync al volver a primer plano", ESPERA_SYNC_GASTOS_S)
+    syncs = await p.evaluar("window.__sync")
+    assert syncs[-1]["desde"] == syncs[-2]["ahora"], f"el desde debía ser el ahora del servidor: {syncs[-2:]}"
 
 
 ESCENARIOS = (
