@@ -23,9 +23,6 @@
 .ra-adm-nueva-head { display: flex; flex-direction: column; gap: 2px; }
 .ra-adm-count { font: var(--t-data); color: var(--ink-muted); margin-left: var(--space-1); }
 
-/* los avisos ocultos (error del alta de usuario sin error): .ra-hint es flex y pisaría el atributo hidden */
-.ra-hint[hidden] { display: none; }
-
 /* botones chicos (44 px de alto, no 48) y el rojo de las acciones que no son «Borrar datos de prueba» */
 .ra-btn.ra-adm-btn-s { min-height: var(--touch); padding: 0 var(--space-4); font: var(--t-small-strong); }
 .ra-btn.ra-adm-btn-err { color: var(--error); }

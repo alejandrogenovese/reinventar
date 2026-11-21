@@ -113,7 +113,8 @@ def test_nada_de_innerhtml_con_datos_del_servidor(modulo):
 
 def test_los_avisos_de_error_ocultos_no_se_pintan_como_barras_vacias():
     # .ra-hint es display:flex y pisa el atributo hidden: sin esta regla el aviso vacío del alta de usuario se ve como una barra roja.
-    assert re.search(r"\.ra-hint\[hidden\]\s*\{\s*display:\s*none", SIN_COMENTARIOS)
+    styles = (WEB / "styles.css").read_text(encoding="utf-8")
+    assert re.search(r"\.ra-hint\[hidden\][^{]*\{\s*display:\s*none", styles)
     usuarios = _js("adminUsuarios")
     assert 'class: "ra-hint is-error"' in usuarios and "hidden: true" in usuarios
 

@@ -16,7 +16,7 @@
 .ra-btn-danger { background: transparent; color: var(--error); border-color: var(--error); }
 .ra-btn-danger:hover { background: color-mix(in srgb, var(--error) 8%, transparent); }
 .ra-btn[disabled] { opacity: .45; cursor: not-allowed; }
-.ra-btn[hidden], .actions[hidden] { display: none; }
+.ra-btn[hidden], .actions[hidden], .ra-hint[hidden] { display: none; }
 /* Botón de solo ícono (ej. Llevame en Hoy): 48 × 48, el nombre va en aria-label */
 .ra-btn-icon { width: 48px; min-width: 48px; padding: 0; flex: none; }
 
