@@ -253,29 +253,61 @@ def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     return out
 
 
+def _avisos_de(username: str) -> int:
+    """Los avisos del itinerario, viajes y cambios de una persona. Devuelve cuántos salieron."""
+    sent = 0
+    for key, message in due(username, sandbox.ahora()):
+        if not db.mark_push_sent(username, key):
+            viajes_avisos.confirmar(username, key)  # ya avisado antes (p. ej. se cortó entre el push y guardar el estado)
+            continue
+        if _notificar(username, key, message):
+            sent += 1
+            viajes_avisos.confirmar(username, key)
+        else:
+            db.unmark_push_sent(username, key)  # no llegó a ningún dispositivo: se reintenta la próxima vuelta
+            viajes_avisos.descartar(username, key)
+    return sent
+
+
+def _seguro(que: str, username: str, paso, *args) -> int:
+    """Corre un paso de los avisos de una persona; si falla lo registra y sigue (los datos raros de una persona, o un
+    tipo de aviso, no frenan al resto)."""
+    try:
+        return paso(*args)
+    except Exception:  # noqa: BLE001
+        log.exception("los avisos de %s de %s fallaron", que, username)
+        return 0
+
+
+def _notificar(username: str, key: str, message: dict) -> bool:
+    try:
+        return bool(notify(username, message))
+    except Exception:  # noqa: BLE001 — un timeout con el servicio de push no corta los demás avisos
+        log.exception("el aviso %s de %s no se pudo mandar", key.split(":")[0], username)
+        return False
+
+
 def tick() -> int:
-    """Una vuelta: avisa lo que corresponde a cada usuario suscripto. Devuelve cuántos avisos salieron."""
+    """Una vuelta: avisa lo que corresponde a cada usuario suscripto. Devuelve cuántos avisos salieron.
+    Lo que falla (un job, los datos raros de una persona) se registra y no frena a las demás."""
     sent = 0
     db.purgar_ubicaciones(time.time() - recordatorio.UBICACION_BORRADO_MIN * 60)
     db.purgar_reportes_lleno(time.time() - lleno.BORRADO_H * 3600)
     with sandbox.real():
         users = db.push_usernames()
-        ofertas.correr_si_toca(sandbox.ahora())  # precios de shows cada 6 h (app/ofertas.py)
+        try:
+            ofertas.correr_si_toca(sandbox.ahora())  # precios de shows cada 6 h (app/ofertas.py)
+        except Exception:  # noqa: BLE001 — sin precios de shows igual salen los demás avisos
+            log.exception("el job de ofertas falló")
     for username in users:
-        with sandbox.real():
-            sb = sandbox.desde_usuario(db.get_user(username))
-        with sandbox.activar(sb):  # en modo prueba: su reloj simulado y su schema de prueba
-            for key, message in due(username, sandbox.ahora()):
-                if not db.mark_push_sent(username, key):
-                    continue  # ya avisado
-                if notify(username, message):
-                    sent += 1
-                else:
-                    db.unmark_push_sent(username, key)  # no llegó a ningún dispositivo: se reintenta la próxima vuelta
-            try:
-                sent += ofertas_avisos.enviar(username, sandbox.ahora(), notify)
-            except Exception:  # noqa: BLE001 — las ofertas de una persona no frenan los avisos de las demás
-                log.exception("avisos de ofertas de %s fallaron", username)
+        try:
+            with sandbox.real():
+                sb = sandbox.desde_usuario(db.get_user(username))
+            with sandbox.activar(sb):  # en modo prueba: su reloj simulado y su schema de prueba
+                sent += _seguro("itinerario y viajes", username, _avisos_de, username)
+                sent += _seguro("ofertas", username, ofertas_avisos.enviar, username, sandbox.ahora(), notify)
+        except Exception:  # noqa: BLE001 — leer a la persona o su modo prueba tampoco frena a las demás
+            log.exception("los avisos de %s fallaron", username)
     return sent
 
 

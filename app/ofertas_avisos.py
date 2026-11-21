@@ -93,6 +93,11 @@ def _push_de_hoy(username: str, ahora: dt.datetime) -> int:
                          (username, f"{PREFIJO_PUSH}{ahora:%Y-%m-%d}:%")).fetchone()["n"]
 
 
+def _desmarcar(username: str, claves: tuple[str, ...]) -> None:
+    for k in claves:
+        db.unmark_push_sent(username, k)
+
+
 def enviar(username: str, ahora: dt.datetime, notificar: Callable[[str, dict], int]) -> int:
     """Manda a esta persona las ofertas que correspondan. `notificar(usuario, mensaje)` devuelve a cuántos dispositivos
     llegó (en producción, push.notify). Devuelve cuántos push salieron."""
@@ -108,9 +113,13 @@ def enviar(username: str, ahora: dt.datetime, notificar: Callable[[str, dict], i
             continue  # otra vuelta ya lo mandó
         marca = f"{PREFIJO_PUSH}{ahora:%Y-%m-%d}:{time.time_ns()}"
         db.mark_push_sent(username, marca)
-        if notificar(username, aviso.mensaje):
+        try:
+            llego = notificar(username, aviso.mensaje)
+        except Exception:
+            _desmarcar(username, (*nuevas, marca))  # un timeout no puede dar la oferta por avisada ni gastar el tope del día
+            raise
+        if llego:
             enviados += 1
         else:  # no llegó a ningún dispositivo: se reintenta en la próxima vuelta
-            for k in (*nuevas, marca):
-                db.unmark_push_sent(username, k)
+            _desmarcar(username, (*nuevas, marca))
     return enviados

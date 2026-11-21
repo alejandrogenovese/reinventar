@@ -109,8 +109,11 @@ def _correr(v, now, res, *, ts=1_000_000.0):
         pedidos.append((numero, fecha))
         return res
 
-    avisos, updates = va.estado([v], now, consulta, ts)
-    return avisos, dict(updates), pedidos
+    avisos, updates, diferidos = va.estado([v], now, consulta, ts)
+    todo = dict(updates)
+    for id_, campos in diferidos.values():   # lo que se guarda cuando el aviso llega
+        todo[id_] = {**todo[id_], **campos}
+    return avisos, todo, pedidos
 
 
 def test_no_consulta_antes_de_las_24_h():
@@ -150,12 +153,13 @@ def test_avisa_la_cancelacion():
     assert key == "vcancel:v1" and "cancel" in msg["title"].lower()
 
 
-def test_no_vuelve_a_consultar_antes_de_20_min():
-    v = _vuelo(consultado_en=1_000_000.0 - 19 * 60)
+def test_cerca_de_la_salida_no_vuelve_a_consultar_antes_de_15_min():
+    ahora = _ahora("2026-11-28T14:30")   # faltan 1 h 35 min
+    v = _vuelo(consultado_en=1_000_000.0 - 14 * 60)
 
-    assert _correr(v, _ahora("2026-11-28T08:00"), _estado(45))[2] == []
-    v = _vuelo(consultado_en=1_000_000.0 - 21 * 60)
-    assert _correr(v, _ahora("2026-11-28T08:00"), _estado(45))[2] == [("AR1302", "2026-11-28")]
+    assert _correr(v, ahora, _estado(45))[2] == []
+    v = _vuelo(consultado_en=1_000_000.0 - 16 * 60)
+    assert _correr(v, ahora, _estado(45))[2] == [("AR1302", "2026-11-28")]
 
 
 def test_si_la_consulta_falla_no_cambia_nada_pero_se_anota_el_intento():
@@ -256,7 +260,7 @@ def test_con_clave_consulta_guarda_la_base_y_no_repite(cli, monkeypatch):
     vuelos.reiniciar_consultas()
     llamadas = []
 
-    def consultar(numero, fecha, http=None):
+    def consultar(numero, fecha, http=None, usuario=None):
         llamadas.append(numero)
         return {"salida_utc": dt.datetime(2026, 11, 29, 0, 5, tzinfo=dt.UTC).timestamp(), "demora_min": 45,
                 "puerta": "B12", "terminal": None, "estado": "Expected"}
@@ -266,6 +270,9 @@ def test_con_clave_consulta_guarda_la_base_y_no_repite(cli, monkeypatch):
 
     claves = _claves(TEST_USER, _ahora("2026-11-28T08:00"))
     assert f"vdemora:{v['id']}:0>45" in claves and f"vpuerta:{v['id']}:B12" in claves
+    assert vuelos.get_vuelo(TEST_USER, v["id"])["demora_min"] is None   # se guarda recién cuando el aviso llega
+    for k in (f"vdemora:{v['id']}:0>45", f"vpuerta:{v['id']}:B12"):
+        va.confirmar(TEST_USER, k)
     assert vuelos.get_vuelo(TEST_USER, v["id"])["demora_min"] == 45
     # un minuto después: el intervalo de 20 min frena la consulta, y la base guardada evita repetir el cambio
     assert not any(k.startswith(("vdemora", "vpuerta")) for k in _claves(TEST_USER, _ahora("2026-11-28T08:01")))
