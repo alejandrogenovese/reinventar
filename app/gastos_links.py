@@ -9,13 +9,24 @@ import base64
 import binascii
 import hashlib
 import hmac
+import logging
 import time
 from uuid import UUID
 
 from . import config
 
+log = logging.getLogger("reinventar.gastos")
+
 SEGUNDOS_POR_DIA = 86400
 CONTEXTO_DERIVACION = b"reinventar-gastos-foto-link-v1"
+
+
+def verificar_configuracion() -> None:
+    """Al arrancar en producción: sin FOTOS_LINK_SECRET la clave sale de DATABASE_URL, y si Railway rota esa contraseña
+    todos los links ya emitidos dejan de andar."""
+    if config.EN_PRODUCCION and not config.FOTOS_LINK_SECRET:
+        log.warning("Falta FOTOS_LINK_SECRET: los links de fotos del CSV se firman con una clave derivada de "
+                    "DATABASE_URL y mueren si cambia la contraseña de la base")
 
 
 def _clave() -> bytes:

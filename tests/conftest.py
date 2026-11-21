@@ -16,6 +16,7 @@ os.environ.setdefault("ADMIN_USERS", TEST_ADMIN)
 os.environ.setdefault("STT_PROVIDER", "fake")
 os.environ.setdefault("LLM_PROVIDER", "fake")
 os.environ.setdefault("EMBED_PROVIDER", "fake")  # vectores por hashing de palabras: sin bajar el modelo en los tests
+os.environ.setdefault("COTIZACION_AUTO", "0")  # sin hilo de cotización: los tests no pegan a la red
 # Postgres del docker local; cada corrida usa un schema propio que se borra al final.
 os.environ.setdefault("DATABASE_URL", "postgresql://reinvent:reinvent2026@localhost:5433/reinvent")
 os.environ.setdefault("DB_SCHEMA", f"app_test_{uuid.uuid4().hex[:8]}")

@@ -77,6 +77,12 @@ def extraer_foto(content_type: str, cuerpo: bytes) -> tuple[str, bytes] | None:
     return None
 
 
+def al_arrancar() -> None:
+    """Chequeos de configuración de gastos, una vez al iniciar la app (los llama el lifespan)."""
+    tickets_almacen.verificar_configuracion()
+    gastos_links.verificar_configuracion()
+
+
 def _gasto_o_404(username: str, client_id: UUID) -> dict:
     fila = gastos.obtener(username, client_id)
     if fila is None:
@@ -87,7 +93,8 @@ def _gasto_o_404(username: str, client_id: UUID) -> dict:
 @router.get("/cotizacion")
 def get_cotizacion():
     c = cotizacion.actual()
-    return {"oficial": float(c["oficial"]), "blue": float(c["blue"]), "tarjeta": float(c["tarjeta"]), "at": c["at"]}
+    return {"oficial": float(c["oficial"]), "blue": float(c["blue"]), "tarjeta": float(c["tarjeta"]), "at": c["at"],
+            "edad_min": cotizacion.edad_min(c), "es_respaldo": c["at"] is None}
 
 
 @router.get("/export.csv")
@@ -140,13 +147,16 @@ def _guardar_foto(username: str, client_id: UUID, tipo: str, datos: bytes) -> di
     almacen = tickets_almacen.obtener()
     try:
         almacen.guardar(clave, datos, tipo)
-        if anterior and anterior != clave:
-            almacen.borrar(anterior)
     except (httpx.HTTPError, OSError) as e:
         log.error("No se pudo guardar la foto del gasto %s: %s", client_id, e)
         raise HTTPException(502, "No se pudo guardar la foto. Probá de nuevo en un rato.") from e
-    gastos.poner_foto(username, client_id, clave)
-    return {"foto_url": gastos.url_foto(client_id)}
+    foto_at = gastos.poner_foto(username, client_id, clave)
+    if anterior and anterior != clave:  # recién con la nueva ya anotada en la base: si esto falla no se pierde nada
+        try:
+            almacen.borrar(anterior)
+        except (httpx.HTTPError, OSError) as e:
+            log.warning("No se pudo borrar la foto anterior %s del gasto %s: %s", anterior, client_id, e)
+    return {"foto_url": gastos.url_foto(client_id, foto_at)}
 
 
 @router.get("/{client_id}/foto")
@@ -173,6 +183,8 @@ def _servir_foto(client_id: UUID, clave: str | None) -> Response:
     except (httpx.HTTPError, OSError) as e:
         log.error("No se pudo leer la foto del gasto %s: %s", client_id, e)
         raise HTTPException(502, "No se pudo traer la foto. Probá de nuevo en un rato.") from e
+    if datos is None:
+        log.error("La base dice que el gasto %s tiene foto (%s) pero el almacén no la tiene", client_id, clave)
     tipo = tipo_por_firma(datos) if datos else None
     if tipo is None:
         raise HTTPException(404, "Este gasto no tiene foto")
