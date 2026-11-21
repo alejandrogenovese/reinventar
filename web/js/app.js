@@ -29,6 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
+import { viewViajes } from "./viajes.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
@@ -94,6 +95,8 @@ const routes = [
   [/^#\/itinerario\/ficha$/, () => viewFicha(view)],
   [/^#\/itinerario\/armar$/, () => viewArmar(view)],
   [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
+  [/^#\/viajes$/, () => viewViajes(view)],
+  [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],
   [/^#\/viaje$/, () => viewViaje(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
