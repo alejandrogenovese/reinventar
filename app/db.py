@@ -1,7 +1,7 @@
 """Estado de la app en Postgres (schema DB_SCHEMA): grabaciones, usuarios, tokens e itinerarios.
 
 Las tablas de datos del usuario (DATOS_USUARIO) existen también en el schema de prueba (app/sandbox.py); las de cuentas
-(CUENTAS) solo en el real, así que un usuario en modo prueba se loguea igual pero escribe en el schema de prueba.
+(CUENTAS) y las globales (GLOBALES: ofertas, cotizaciones) solo en el real, así que un usuario en modo prueba se loguea igual pero escribe en el schema de prueba.
 """
 import hashlib
 import json
@@ -32,13 +32,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at DOUBLE PRECISION NOT NULL,
   updated_at DOUBLE PRECISION NOT NULL
 );
--- Quién grabó (username): para «Tu re:Invent en números». Las grabaciones de antes quedan en NULL (no son de nadie).
-ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
--- Tramos sin audio (Android le sacó el micrófono a la app): JSON [{"desde": s, "hasta": s}], ver app/huecos.py.
-ALTER TABLE sessions ADD COLUMN IF NOT EXISTS huecos TEXT;
--- Id que genera el cliente al grabar sin señal (sesión local «loc_…»): con él, reintentar el alta no duplica la sesión.
-ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client_id TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_by, client_id) WHERE client_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS chunks (
   session_id TEXT NOT NULL,
   part INTEGER NOT NULL,
@@ -73,18 +66,6 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
   added_at DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, code)
 );
--- talk (charla del catálogo) o event (evento de networking, reinvent.evento): todo se maneja desde el itinerario.
-ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'talk';
--- Cómo era al agregarlo (título, día, hora, sala, lleno): si AWS lo cambia, la app avisa (app/changes.py).
-ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS snapshot JSONB;
--- Itinerario guiado (app/interview.py): respuestas de la entrevista y la ficha que arma el LLM.
-ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS respuestas JSONB;
-ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha JSONB;
-ALTER TABLE itinerary_profile ADD COLUMN IF NOT EXISTS ficha_texto TEXT;
--- Armado guiado (app/guided.py): salir N min antes de que termine (para llegar a la siguiente) y si la persona
--- tiene la charla reservada en el portal de AWS (si no, hay que hacer la cola de walk-up).
-ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS salir_antes INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS reservada BOOLEAN NOT NULL DEFAULT FALSE;
 -- "☆ Me interesa, para otro día": charlas que quedaron afuera por choque y vuelven cuando se repiten.
 CREATE TABLE IF NOT EXISTS itinerary_pending (
   username TEXT NOT NULL,
@@ -148,40 +129,6 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
   ubicacion BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at DOUBLE PRECISION NOT NULL
 );
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS eventos_nuevos BOOLEAN NOT NULL DEFAULT TRUE;
--- Alertas de ofertas (app/ofertas_avisos.py): apagadas hasta que la persona las prende; categorías a elegir.
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS ofertas BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS ofertas_categorias TEXT[] NOT NULL
-  DEFAULT ARRAY['shows','comida','compras','otros'];
--- Ofertas (app/ofertas.py): las cargadas a mano por un admin y las bajas de precio de shows. Son de todos: se leen
--- siempre del schema real (sandbox.real()), no del de prueba.
-CREATE TABLE IF NOT EXISTS oferta (
-  id TEXT PRIMARY KEY,
-  fuente TEXT NOT NULL,
-  categoria TEXT NOT NULL CHECK (categoria IN ('shows', 'comida', 'compras', 'otros')),
-  titulo TEXT NOT NULL,
-  lugar TEXT NOT NULL DEFAULT '',
-  desde TIMESTAMPTZ NOT NULL,
-  hasta TIMESTAMPTZ,
-  link TEXT,
-  nota TEXT NOT NULL DEFAULT '',
-  id_show TEXT,
-  precio_antes NUMERIC(10,2),
-  precio_ahora NUMERIC(10,2),
-  creado DOUBLE PRECISION NOT NULL
-);
--- Precio mínimo (USD) de cada función de Ticketmaster cada 6 h, para detectar bajas (se purga a los 14 días).
-CREATE TABLE IF NOT EXISTS precio_snapshot (
-  id_funcion TEXT NOT NULL,
-  tomado DOUBLE PRECISION NOT NULL,
-  precio NUMERIC(10,2) NOT NULL,
-  PRIMARY KEY (id_funcion, tomado)
-);
--- Cuándo corrió por última vez cada fuente de ofertas (para no pedirla más seguido que cada 6 h).
-CREATE TABLE IF NOT EXISTS oferta_job (
-  fuente TEXT PRIMARY KEY,
-  ultimo DOUBLE PRECISION NOT NULL
-);
 -- Vuelos y hoteles cargados a mano (app/vuelos.py, app/viajes_avisos.py). Fechas y horas locales como texto ISO; la zona
 -- (IANA) dice de qué lugar son. En el vuelo, demora_min/puerta/estado son lo último que se avisó (base del próximo cambio).
 CREATE TABLE IF NOT EXISTS viajes_vuelos (
@@ -212,9 +159,6 @@ CREATE TABLE IF NOT EXISTS viajes_hoteles (
   creado DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, id)
 );
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_checkin BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_hoteles BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS viajes_estado BOOLEAN NOT NULL DEFAULT TRUE;
 -- Control de gastos del viaje (app/gastos.py). client_id lo genera el teléfono: reenviar un gasto no lo duplica.
 -- updated_at es el reloj del teléfono (decide quién gana en un conflicto); sincronizado_at es el del servidor (es el
 -- cursor de /sync: un teléfono con el reloj atrasado no puede hacer que otro se pierda el cambio). Las tres cotizaciones
@@ -240,10 +184,6 @@ CREATE TABLE IF NOT EXISTS gastos (
   deleted_at TIMESTAMPTZ,
   UNIQUE (username, client_id)
 );
--- cotizacion_estimada: la cotización congelada era la de respaldo o tenía más de 48 h. foto_at: cuándo se puso la foto
--- actual (va como ?v= en la URL para no ver la vieja cacheada).
-ALTER TABLE gastos ADD COLUMN IF NOT EXISTS cotizacion_estimada BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE gastos ADD COLUMN IF NOT EXISTS foto_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS gastos_usuario_fecha ON gastos (username, fecha);
 CREATE INDEX IF NOT EXISTS gastos_usuario_sync ON gastos (username, sincronizado_at);
 CREATE TABLE IF NOT EXISTS gastos_presupuesto (
@@ -252,16 +192,6 @@ CREATE TABLE IF NOT EXISTS gastos_presupuesto (
   diario_usd NUMERIC(12,2),
   por_categoria JSONB NOT NULL DEFAULT '{}'::jsonb
 );
--- Historial de cotizaciones (app/cotizacion.py): solo se agrega una fila cuando alguna se movió más de 0,1 %.
--- Es global (no de una persona): se lee y escribe siempre en el schema real, aunque exista también en el de prueba.
-CREATE TABLE IF NOT EXISTS cotizaciones (
-  id BIGSERIAL PRIMARY KEY,
-  at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  oficial NUMERIC(14,4) NOT NULL,
-  blue NUMERIC(14,4) NOT NULL,
-  tarjeta NUMERIC(14,4) NOT NULL
-);
-CREATE INDEX IF NOT EXISTS cotizaciones_at ON cotizaciones (at DESC);
 -- Los códigos de sesión que la persona quiere, de su Excel o CSV (app/codigos_api.py). Subir otra lista reemplaza la anterior.
 CREATE TABLE IF NOT EXISTS codigos_deseados (
   username TEXT NOT NULL,
@@ -273,10 +203,41 @@ CREATE TABLE IF NOT EXISTS codigos_deseados (
   PRIMARY KEY (username, codigo)
 );
 """
+INDICES_DATOS_USUARIO = """
+-- Va después de agregar las columnas: usa client_id.
+CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_by, client_id) WHERE client_id IS NOT NULL;
+"""
+# Columnas agregadas después de crear la tabla (solo se hace el ALTER si faltan: ver _agregar_columnas).
+# created_by: quién grabó (para «Tu re:Invent en números»; las de antes quedan en NULL). huecos: tramos sin audio, JSON
+# [{"desde": s, "hasta": s}] (app/huecos.py). client_id: id que genera el cliente al grabar sin señal, para que reintentar
+# el alta no duplique la sesión. kind: talk o event. snapshot: cómo era el ítem al agregarlo (app/changes.py).
+# respuestas/ficha/ficha_texto: itinerario guiado (app/interview.py). salir_antes/reservada: armado guiado (app/guided.py).
+# ofertas*: alertas de ofertas (app/ofertas_avisos.py), apagadas hasta que la persona las prende.
+# cotizacion_estimada: la congelada era la de respaldo o tenía más de 48 h. foto_at: va como ?v= para no ver la foto vieja.
+COLUMNAS_DATOS_USUARIO = (
+    ("sessions", "created_by", "TEXT"),
+    ("sessions", "huecos", "TEXT"),
+    ("sessions", "client_id", "TEXT"),
+    ("itinerary_items", "kind", "TEXT NOT NULL DEFAULT 'talk'"),
+    ("itinerary_items", "snapshot", "JSONB"),
+    ("itinerary_profile", "respuestas", "JSONB"),
+    ("itinerary_profile", "ficha", "JSONB"),
+    ("itinerary_profile", "ficha_texto", "TEXT"),
+    ("itinerary_items", "salir_antes", "INTEGER NOT NULL DEFAULT 0"),
+    ("itinerary_items", "reservada", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("preferencias_avisos", "eventos_nuevos", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("preferencias_avisos", "ofertas", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("preferencias_avisos", "ofertas_categorias", "TEXT[] NOT NULL DEFAULT ARRAY['shows','comida','compras','otros']"),
+    ("preferencias_avisos", "viajes_checkin", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("preferencias_avisos", "viajes_hoteles", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("preferencias_avisos", "viajes_estado", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("gastos", "foto_at", "TIMESTAMPTZ"),
+)
+
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
-                        "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "cotizaciones",
-                        "codigos_deseados")
+                        "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
@@ -295,6 +256,8 @@ CREATE TABLE IF NOT EXISTS fragmentos (
 );
 """
 vector_disponible = False
+INIT_LOCK_TIMEOUT = "5s"
+INIT_ADVISORY_LOCK = 7_265_001  # clave arbitraria del lock de arranque (solo tiene que ser siempre la misma)
 
 CUENTAS = """
 CREATE TABLE IF NOT EXISTS users (
@@ -303,19 +266,11 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
--- Altas de columnas sobre tablas con datos reales: los usuarios existentes quedan obligados a cambiar la contraseña.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
--- Modo prueba (app/sandbox.py): lo prende un admin; "prueba" guarda proveedores, reloj y ubicación simulados.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS modo_prueba BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS prueba JSONB;
 CREATE TABLE IF NOT EXISTS auth_tokens (
   token TEXT PRIMARY KEY,              -- sha256 del token (el token en claro solo lo tiene el celular)
   username TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
-ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS usado_at DOUBLE PRECISION;
-ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS hasheado BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE TABLE IF NOT EXISTS passkeys (
   id TEXT PRIMARY KEY,                 -- credential id en base64url
   username TEXT NOT NULL,
@@ -340,7 +295,58 @@ CREATE TABLE IF NOT EXISTS webauthn_challenges (
   created_at DOUBLE PRECISION NOT NULL
 );
 """
-SCHEMA = DATOS_USUARIO + CUENTAS
+# Los usuarios que ya existían quedan obligados a cambiar la contraseña. prueba: modo prueba (app/sandbox.py).
+COLUMNAS_CUENTAS = (
+    ("users", "must_change_password", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("users", "modo_prueba", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("users", "prueba", "JSONB"),
+    ("auth_tokens", "usado_at", "DOUBLE PRECISION"),
+    ("auth_tokens", "hasheado", "BOOLEAN NOT NULL DEFAULT FALSE"),
+)
+
+GLOBALES = """
+-- Ofertas (app/ofertas.py): las cargadas a mano por un admin y las bajas de precio de shows. Son de todos: solo existen
+-- en el schema real (y se leen siempre de ahí, también en modo prueba).
+CREATE TABLE IF NOT EXISTS oferta (
+  id TEXT PRIMARY KEY,
+  fuente TEXT NOT NULL,
+  categoria TEXT NOT NULL CHECK (categoria IN ('shows', 'comida', 'compras', 'otros')),
+  titulo TEXT NOT NULL,
+  lugar TEXT NOT NULL DEFAULT '',
+  desde TIMESTAMPTZ NOT NULL,
+  hasta TIMESTAMPTZ,
+  link TEXT,
+  nota TEXT NOT NULL DEFAULT '',
+  id_show TEXT,
+  precio_antes NUMERIC(10,2),
+  precio_ahora NUMERIC(10,2),
+  creado DOUBLE PRECISION NOT NULL
+);
+-- Precio mínimo (USD) de cada función de Ticketmaster cada 6 h, para detectar bajas (se purga a los 14 días).
+CREATE TABLE IF NOT EXISTS precio_snapshot (
+  id_funcion TEXT NOT NULL,
+  tomado DOUBLE PRECISION NOT NULL,
+  precio NUMERIC(10,2) NOT NULL,
+  PRIMARY KEY (id_funcion, tomado)
+);
+-- Cuándo corrió por última vez cada fuente de ofertas (para no pedirla más seguido que cada 6 h).
+CREATE TABLE IF NOT EXISTS oferta_job (
+  fuente TEXT PRIMARY KEY,
+  ultimo DOUBLE PRECISION NOT NULL
+);
+-- Historial de cotizaciones (app/cotizacion.py): solo se agrega una fila cuando alguna se movió más de 0,1 %.
+-- Es global (no de una persona): solo existe en el schema real.
+CREATE TABLE IF NOT EXISTS cotizaciones (
+  id BIGSERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  oficial NUMERIC(14,4) NOT NULL,
+  blue NUMERIC(14,4) NOT NULL,
+  tarjeta NUMERIC(14,4) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cotizaciones_at ON cotizaciones (at DESC);
+"""
+
 
 KINDS = ("Keynote", "Chalk talk", "Workshop", "Breakout")
 PROCESSING = ("queued", "transcribing", "translating", "summarizing")
@@ -358,8 +364,12 @@ def init():
     config.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     with sandbox.real():
         with conn() as c:
+            _preparar_init(c)
             c.execute(f"CREATE SCHEMA IF NOT EXISTS {config.DB_SCHEMA}")
-            c.execute(SCHEMA)
+            _crear_datos_usuario(c)
+            c.execute(GLOBALES)
+            c.execute(CUENTAS)
+            _agregar_columnas(c, COLUMNAS_CUENTAS)
             _crear_fragmentos(c)
             _hashear_tokens_viejos(c)
             sectors.ensure(c)
@@ -369,6 +379,29 @@ def init():
         bootstrap_users()
 
 
+def _preparar_init(c) -> None:
+    """Dos arranques a la vez (un deploy con réplicas) no se pisan: el segundo espera al primero. Y si algún DDL no
+    consigue su lock en INIT_LOCK_TIMEOUT, el arranque falla en vez de dejar colgados los pedidos que esperan detrás."""
+    c.execute(f"SET LOCAL lock_timeout = '{INIT_LOCK_TIMEOUT}'")
+    c.execute("SELECT pg_advisory_xact_lock(%s)", (INIT_ADVISORY_LOCK,))
+
+
+def _agregar_columnas(c, columnas) -> None:
+    """ALTER TABLE ... ADD COLUMN solo de las que faltan en el schema actual (search_path): aunque la columna exista,
+    el ADD COLUMN IF NOT EXISTS pide ACCESS EXCLUSIVE sobre la tabla en cada arranque."""
+    existentes = {(r["table_name"], r["column_name"]) for r in c.execute(
+        "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema()").fetchall()}
+    for tabla, columna, definicion in columnas:
+        if (tabla, columna) not in existentes:
+            c.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {columna} {definicion}")
+
+
+def _crear_datos_usuario(c) -> None:
+    c.execute(DATOS_USUARIO)
+    _agregar_columnas(c, COLUMNAS_DATOS_USUARIO)
+    c.execute(INDICES_DATOS_USUARIO)
+
+
 def _hashear_tokens_viejos(c) -> None:
     """Los tokens se guardaban en claro: se reemplazan por su sha256 (una sola vez; las sesiones siguen valiendo)."""
     c.execute("UPDATE auth_tokens SET token = encode(sha256(convert_to(token, 'UTF8')), 'hex'), hasheado = TRUE "
@@ -376,10 +409,10 @@ def _hashear_tokens_viejos(c) -> None:
 
 
 def _crear_schema_prueba(c) -> None:
-    """Solo las tablas de datos del usuario: lo demás (cuentas, cachés compartidos) se lee del schema real."""
+    """Solo las tablas de datos del usuario: lo demás (cuentas, tablas globales, cachés compartidos) se lee del schema real."""
     c.execute(f"CREATE SCHEMA IF NOT EXISTS {sandbox.schema_prueba()}")
     c.execute(f"SET LOCAL search_path TO {sandbox.schema_prueba()}, public")  # public: el tipo vector de pgvector
-    c.execute(DATOS_USUARIO)
+    _crear_datos_usuario(c)
     if vector_disponible:
         c.execute(FRAGMENTOS)
 
