@@ -109,3 +109,15 @@ def test_llm_en_tarjetas_con_hora_y_actualizar_arriba():
 @pytest.mark.parametrize("modulo", ["adminEstado", "adminEventos", "adminLlm", "adminUsuarios", "adminOfertas", "adminAtencion", "adminCharlas"])
 def test_nada_de_innerhtml_con_datos_del_servidor(modulo):
     assert "innerHTML" not in _js(modulo) if (WEB / "js" / f"{modulo}.js").exists() else False
+
+
+def test_los_avisos_de_error_ocultos_no_se_pintan_como_barras_vacias():
+    # .ra-hint es display:flex y pisa el atributo hidden: sin esta regla el aviso vacío del alta de usuario se ve como una barra roja.
+    assert re.search(r"\.ra-hint\[hidden\]\s*\{\s*display:\s*none", SIN_COMENTARIOS)
+    usuarios = _js("adminUsuarios")
+    assert 'class: "ra-hint is-error"' in usuarios and "hidden: true" in usuarios
+
+
+def test_el_admin_no_deja_hints_vacios_fuera_del_alta_de_usuario():
+    for modulo in ("adminOfertas", "adminEventos", "adminEstado", "adminLlm"):
+        assert "hidden:" not in _js(modulo).replace('"aria-hidden"', ""), modulo
