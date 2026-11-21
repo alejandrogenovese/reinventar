@@ -398,7 +398,7 @@ export async function viewGastos(view) {
     const t = totales(lista, ctx.tarjeta);
     const pendientes = lista.filter((g) => g.pendiente).length;
     raiz.replaceChildren(...[
-      h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/ajustes" }, icon("volver", 16), h("span", {}, "Ajustes")),
+      h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/viaje" }, icon("volver", 16), h("span", {}, "Viaje")),
       h("div", { class: "ra-g-head" }, h("h1", { class: "title" }, "Gastos"),
         Button("Cargar gasto", { variant: "primary", onclick: () => abrirCarga({ tarjeta: ctx.tarjeta, alGuardar: recargar }) })),
       ctx.aviso ? Hint(ctx.aviso, { tone: "warn" }) : null,
