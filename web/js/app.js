@@ -30,6 +30,8 @@ import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
+import { viewAdminOfertas } from "./adminOfertas.js";
+import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
@@ -80,6 +82,8 @@ const routes = [
   [/^#\/ajustes$/, viewSettings],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
+  [/^#\/admin\/ofertas$/, () => viewAdminOfertas(view)],
+  [/^#\/ofertas(?:\/([\w-]+))?$/, (id) => viewOfertas(view, id)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
   [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => store.esLocal(id) ? abrirSesionLocal(id) : viewDetail(view, id, {
