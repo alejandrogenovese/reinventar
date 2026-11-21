@@ -29,6 +29,7 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
+import { viewGastos } from "./gastos.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -74,6 +75,7 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
@@ -663,6 +665,7 @@ async function viewSettings() {
     h("h1", { class: "title" }, "Ajustes"),
     h("p", {}, textoDeCuenta(cuenta)),
     h("div", { class: "actions" },
+      Button("Gastos", { onclick: () => (location.hash = "#/gastos") }),
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       cuenta.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
