@@ -55,7 +55,7 @@ function Tarjeta(o, nombres) {
 function Filtros(nombres, actual, onPick) {
   return h("div", { class: "ra-segtabs", role: "group", "aria-label": "Categoría" },
     [[TODAS, "Todas"], ...Object.entries(nombres)].map(([valor, nombre]) => h("button", { type: "button", class: "ra-segtab",
-      "aria-pressed": String(valor === actual), onclick: () => onPick(valor) }, nombre)));
+      "aria-pressed": String(valor === actual), "data-valor": valor, onclick: () => onPick(valor) }, nombre)));
 }
 
 // --- pantallas -------------------------------------------------------------------
@@ -66,11 +66,20 @@ export async function viewOfertas(view, id = null) {
   const lista = h("div", { class: "stack" });
   const filtros = h("div");
   const admin = h("div", { class: "actions" });
+  let pedido = 0;
+  // Los botones se repintan en el lugar (sin rehacerlos), así el foco no se pierde al elegir un filtro.
+  const marcar = () => { for (const b of filtros.querySelectorAll("button[data-valor]")) b.setAttribute("aria-pressed", String(b.dataset.valor === categoria)); };
   async function pintar() {
+    const mio = ++pedido;
     let d;
-    try { d = await Ofertas.list(categoria); } catch (err) { lista.replaceChildren(Hint(mensajeError(err), { tone: "error" })); return; }
+    try { d = await Ofertas.list(categoria); } catch (err) {
+      if (mio === pedido) lista.replaceChildren(Hint(mensajeError(err), { tone: "error" }));
+      return;
+    }
+    if (mio !== pedido) return; // llegó una respuesta más nueva: esta ya no vale
     const nombres = d.categorias || CATEGORIAS_FALLBACK;
-    filtros.replaceChildren(Filtros(nombres, categoria, (c) => { categoria = c; void pintar(); }));
+    if (!filtros.firstChild) filtros.replaceChildren(Filtros(nombres, categoria, (c) => { categoria = c; marcar(); void pintar(); }));
+    marcar();
     admin.replaceChildren(...(d.es_admin ? [h("a", { class: "ra-btn", href: "#/admin/ofertas" }, "Cargar ofertas")] : []));
     lista.replaceChildren(...(d.ofertas.length ? d.ofertas.map((o) => Tarjeta(o, nombres))
       : [h("p", { class: "caption" }, categoria === TODAS ? "Todavía no hay ofertas vigentes." : "No hay ofertas vigentes en esta categoría.")]));
@@ -82,13 +91,17 @@ export async function viewOfertas(view, id = null) {
 }
 
 async function viewOferta(view, id) {
+  const raiz = h("div"); // si ya navegó a otra pantalla, la respuesta tardía no la pisa
+  view.append(raiz);
   let o;
   try { o = await Ofertas.get(id); } catch (err) {
-    view.append(h("div", { class: "stack-lg" }, h("h1", { class: "title" }, "Oferta"), Hint(err.status === 404 ? "Esta oferta ya no está disponible." : mensajeError(err), { tone: "error" }),
+    if (!raiz.isConnected) return;
+    raiz.append(h("div", { class: "stack-lg" }, h("h1", { class: "title" }, "Oferta"), Hint(err.status === 404 ? "Esta oferta ya no está disponible." : mensajeError(err), { tone: "error" }),
       h("a", { class: "ra-link", href: "#/ofertas" }, "← Ver todas las ofertas")));
     return;
   }
-  view.append(h("div", { class: "stack-lg" }, h("a", { class: "ra-link", href: "#/ofertas" }, "← Ofertas"), Tarjeta(o, o.categoria_nombre ? { [o.categoria]: o.categoria_nombre } : CATEGORIAS_FALLBACK),
+  if (!raiz.isConnected) return;
+  raiz.append(h("div", { class: "stack-lg" }, h("a", { class: "ra-link", href: "#/ofertas" }, "← Ofertas"), Tarjeta(o, o.categoria_nombre ? { [o.categoria]: o.categoria_nombre } : CATEGORIAS_FALLBACK),
     o.id_show ? h("a", { class: "ra-btn", href: `#/show/${encodeURIComponent(o.id_show)}` }, "Ver el show") : null));
 }
 

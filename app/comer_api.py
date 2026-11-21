@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/comer")
 CELDA_GRADOS = 0.0018        # ~200 m de lado en latitud
 RADIO_BUSQUEDA_M = 1000      # cubre 15 min caminando (~800 m en línea recta) más el desvío del centro de la celda
 TTL_CACHE_S = 6 * 3600
+TTL_ABIERTO_S = 30 * 60      # «abierto ahora» es lo único que cambia con la hora: pasado esto no se afirma
 MAX_CACHE = 500              # cuadrados guardados; al pasarse se descartan los más viejos
 BUSQUEDAS_POR_HORA = 20      # llamadas reales a Google por usuario
 PRECIO_MAXIMO_DEFAULT = 2
@@ -54,10 +55,19 @@ def _centro(celda: tuple[int, int]) -> tuple[float, float]:
 def _en_cache(celda: tuple[int, int]) -> list[dict] | None:
     with _lock:
         hit = _cache.get(celda)
-        return hit[1] if hit and time.monotonic() - hit[0] < TTL_CACHE_S else None
+        if not hit:
+            return None
+        edad = time.monotonic() - hit[0]
+        if edad >= TTL_CACHE_S:
+            return None
+        if edad < TTL_ABIERTO_S:
+            return hit[1]
+        return [{**lugar, "abierto": None} for lugar in hit[1]]
 
 
 def _guardar(celda: tuple[int, int], lugares: list[dict]) -> None:
+    if not lugares:  # una respuesta vacía puede ser un hipo de Google: no se queda 6 h
+        return
     with _lock:
         if len(_cache) >= MAX_CACHE:
             del _cache[min(_cache, key=lambda k: _cache[k][0])]
