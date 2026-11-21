@@ -75,6 +75,19 @@ export function mezclarServidor(local, servidor) {
   return { ...servidor, pendiente: false };
 }
 
+/** Un gasto que perdió el conflicto: el servidor no lo da por aplicado y devuelve su versión en `cambios`, que reemplaza
+ * a la local. Si se editó mientras viajaba el sync (updated_at distinto del enviado), manda la edición y va en el próximo. */
+export function reemplazarPerdido(local, enviado, servidor) {
+  if (!local || local.updated_at !== enviado.updated_at) return null;
+  return { ...servidor, pendiente: false };
+}
+
+export function partirEnLotes(lista, tamano) {
+  const lotes = [];
+  for (let i = 0; i < lista.length; i += tamano) lotes.push(lista.slice(i, i + tamano));
+  return lotes;
+}
+
 /** Los que se ven en la lista: sin borrados, por día y hora de carga, lo más nuevo primero. */
 export const visibles = (gastos) => gastos.filter((g) => !g.deleted_at)
   .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || String(b.updated_at).localeCompare(String(a.updated_at)));

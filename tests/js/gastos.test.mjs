@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CATEGORIAS, aCambio, borrarGasto, crearGasto, editarGasto, escalarLado, estimarUsd, fechaLocal, marcarAplicado, mezclarServidor,
-  parsearMonto, totales, visibles,
+  parsearMonto, partirEnLotes, reemplazarPerdido, totales, visibles,
 } from "../../web/js/gastosCola.js";
 
 const AHORA = "2026-12-01T10:00:00.000Z";
@@ -90,6 +90,27 @@ test("mezclarServidor guarda lo nuevo del servidor como sincronizado", () => {
   assert.equal(nuevo.monto_usd, 14.1);
   const viejo = { ...servidor, pendiente: false, updated_at: "2026-12-01T08:00:00.000Z", nota: "vieja" };
   assert.equal(mezclarServidor(viejo, servidor).nota, "Café");
+});
+
+test("reemplazarPerdido pone la versión del servidor en el gasto que perdió el conflicto", () => {
+  const enviado = crearGasto(base, { ahora: AHORA, id: "abc" });
+  const servidor = { ...base, client_id: "abc", nota: "del servidor", updated_at: "2026-12-01T12:00:00.000Z", deleted_at: null, monto_usd: 14.1 };
+  const nuevo = reemplazarPerdido(enviado, enviado, servidor);
+  assert.equal(nuevo.nota, "del servidor");
+  assert.equal(nuevo.pendiente, false);
+});
+
+test("reemplazarPerdido respeta lo que se editó mientras viajaba el sync", () => {
+  const enviado = crearGasto(base, { ahora: AHORA, id: "abc" });
+  const editado = editarGasto(enviado, { nota: "más nueva" }, "2026-12-01T10:00:05.000Z");
+  const servidor = { ...base, client_id: "abc", updated_at: "2026-12-01T12:00:00.000Z" };
+  assert.equal(reemplazarPerdido(editado, enviado, servidor), null);
+  assert.equal(reemplazarPerdido(undefined, enviado, servidor), null);
+});
+
+test("partirEnLotes corta la lista en pedazos del tamaño pedido", () => {
+  assert.deepEqual(partirEnLotes([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(partirEnLotes([], 200), []);
 });
 
 test("visibles oculta los borrados y ordena por fecha y hora, lo más nuevo primero", () => {

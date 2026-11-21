@@ -25,9 +25,26 @@ def test_el_js_es_sintaxis_valida(archivo):
     assert r.returncode == 0, r.stderr
 
 
-def test_la_ruta_y_el_acceso_desde_ajustes():
+def test_la_ruta_existe_y_el_acceso_no_va_en_ajustes():
     assert re.search(r"\^#\\/gastos\$.*viewGastos", APP)
-    assert 'location.hash = "#/gastos"' in APP
+    assert 'location.hash = "#/gastos"' not in APP  # el acceso es el hub Viaje (viaje.js), no Ajustes
+
+
+def test_la_foto_guardada_se_pide_con_token_y_se_muestra_desde_un_blob():
+    assert "src: gasto.foto_url" not in PANTALLA and "href: gasto.foto_url" not in PANTALLA
+    assert "mostrarFotoGuardada(gasto.foto_url)" in PANTALLA
+    assert "createObjectURL" in PANTALLA and "revokeObjectURL" in PANTALLA
+
+
+def test_el_sync_parte_en_lotes_de_200_y_usa_el_ahora_del_servidor_como_cursor():
+    assert re.search(r"LOTE_SYNC\s*=\s*200", PANTALLA)
+    assert "desde = r.ahora" in PANTALLA
+    assert "reemplazarPerdido" in PANTALLA
+
+
+def test_el_export_baja_con_token_como_blob():
+    assert '"/api/gastos/export.csv", { raw: true }' in PANTALLA
+    assert 'download: "gastos-reintegrables.csv"' in PANTALLA
 
 
 def test_el_service_worker_y_el_index_cargan_los_archivos_nuevos():

@@ -7,11 +7,12 @@ import { icon } from "./icons.js";
 import {
   CALIDAD_JPEG, CATEGORIAS, TOPE_FOTO_BYTES, aCambio, borrarFoto, borrarGasto, contarIntentoFoto, crearGasto, editarGasto, escalarLado, fechaLocal,
   fotosPendientes, gastosPendientes, guardarFoto, guardarGasto, guardarGastos, guardarMeta, leerGasto, leerMeta, listarGastos, marcarAplicado,
-  mezclarServidor, parsearMonto, totales, usdDe, visibles,
+  mezclarServidor, parsearMonto, partirEnLotes, reemplazarPerdido, totales, usdDe, visibles,
 } from "./gastosCola.js";
 import { Button, Hint, h, mensajeError, toast, toastOnError } from "./ui.js";
 
 const SYNC_CADA_MS = 60_000;
+const LOTE_SYNC = 200;             // tope de gastos por pedido de /sync del servidor
 const AVISO_AMBAR = 0.8;           // desde acá la barra se pone ámbar; al pasarse del 100 %, roja
 const MAX_INTENTOS_FOTO = 5;       // con un error del servidor (4xx) la foto se abandona tras tantos intentos
 const CALIDAD_MINIMA = 0.3;
@@ -54,23 +55,34 @@ async function subirFotos() {
   }
 }
 
-async function hacerSync() {
-  if (!getToken()) return;
-  const pendientes = await gastosPendientes();
-  const desde = await leerMeta("ultimoSync");
-  const r = await api("/api/gastos/sync", { method: "POST", json: { cambios: pendientes.map(aCambio), desde } });
-  const enviados = new Map(pendientes.map((g) => [g.client_id, g]));
-  for (const id of r.aplicados ?? []) {
+/** Aplica la respuesta de un /sync: marca los aplicados, reemplaza los que perdieron el conflicto y mezcla lo nuevo del servidor. */
+async function aplicarRespuesta(lote, r) {
+  const enviados = new Map(lote.map((g) => [g.client_id, g]));
+  const aplicados = new Set(r.aplicados ?? []);
+  for (const id of aplicados) {
     const actual = await leerGasto(id);
     if (actual && enviados.has(id)) await guardarGasto(marcarAplicado(actual, enviados.get(id)));
   }
   const nuevos = [];
   for (const delServidor of r.cambios ?? []) {
-    const mezclado = mezclarServidor(await leerGasto(delServidor.client_id), delServidor);
-    if (mezclado) nuevos.push(mezclado);
+    const local = await leerGasto(delServidor.client_id);
+    const enviado = enviados.get(delServidor.client_id);
+    const resultado = enviado && !aplicados.has(delServidor.client_id) ? reemplazarPerdido(local, enviado, delServidor) : mezclarServidor(local, delServidor);
+    if (resultado) nuevos.push(resultado);
   }
   await guardarGastos(nuevos);
-  await guardarMeta("ultimoSync", r.ahora);
+}
+
+async function hacerSync() {
+  if (!getToken()) return;
+  let desde = await leerMeta("ultimoSync");
+  const lotes = partirEnLotes(await gastosPendientes(), LOTE_SYNC);
+  for (const lote of lotes.length ? lotes : [[]]) {
+    const r = await api("/api/gastos/sync", { method: "POST", json: { cambios: lote.map(aCambio), desde } });
+    await aplicarRespuesta(lote, r);
+    desde = r.ahora;  // el cursor es el reloj del servidor (`ahora`), nunca el del teléfono
+  }
+  await guardarMeta("ultimoSync", desde);
   await subirFotos();
   avisar();
 }
@@ -169,7 +181,9 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
   const nota = h("input", { id: "g-nota", type: "text", maxlength: 200, autocomplete: "off", value: gasto?.nota ?? "" });
   const fecha = h("input", { id: "g-fecha", type: "date", value: gasto?.fecha ?? fechaLocal() });
   const error = h("p", { class: "notice err", role: "alert", hidden: true });
-  const miniatura = h("span", { class: "caption" }, gasto?.foto_url ? h("a", { class: "ra-link", href: gasto.foto_url, target: "_blank", rel: "noopener" }, "Ver la foto guardada") : "");
+  const miniatura = h("span", { class: "caption" });
+  let cerrada = false;
+  const urlsDeFotos = [];   // blobs de las fotos que se muestran: se sueltan al cerrar la hoja
   const archivo = h("input", { type: "file", accept: "image/*", capture: "environment", id: "g-foto", tabindex: "-1", "aria-hidden": "true",
     onchange: async () => {
       const elegido = archivo.files?.[0];
@@ -190,6 +204,17 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
     estimado.textContent = u == null ? "Sin cotización todavía: se calcula cuando haya señal." : `≈ ${usd(u)} con la tarjeta (${ars(tarjeta)})`;
   }
   function mostrarError(texto) { error.textContent = texto; error.hidden = false; }
+
+  /** La foto guardada pide sesión: se baja con el token y se muestra desde un blob (un <img src> directo iría sin token). */
+  async function mostrarFotoGuardada(ruta) {
+    miniatura.textContent = "Cargando la foto…";
+    try {
+      const url = URL.createObjectURL(await (await api(ruta, { raw: true })).blob());
+      if (cerrada) { URL.revokeObjectURL(url); return; }
+      urlsDeFotos.push(url);
+      miniatura.replaceChildren(h("img", { src: url, alt: "Foto guardada del ticket" }));
+    } catch (e) { if (!cerrada) miniatura.textContent = `No se pudo traer la foto: ${textoError(e)}`; }
+  }
 
   async function guardar() {
     const n = parsearMonto(monto.value);
@@ -232,7 +257,11 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
   const dlg = Hoja("g-carga-titulo", gasto ? "Editar gasto" : "Nuevo gasto", cuerpo, [
     gasto ? Button("Borrar", { variant: "danger", onclick: () => toastOnError(borrar()) }) : Button("Cancelar", { onclick: () => dlg.close() }),
     Button("Guardar gasto", { variant: "primary", onclick: () => toastOnError(guardar()) })]);
-  dlg.addEventListener("close", () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); });
+  dlg.addEventListener("close", () => {
+    cerrada = true;
+    for (const url of [vistaPrevia, ...urlsDeFotos]) if (url) URL.revokeObjectURL(url);
+  });
+  if (gasto?.foto_url) mostrarFotoGuardada(gasto.foto_url);
   estimar();
   monto.focus();
 }
