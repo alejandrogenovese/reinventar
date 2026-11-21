@@ -139,6 +139,16 @@ export const Numeros = {
   mio: () => api("/api/numeros/mio"),
 };
 
+export const Viajes = {
+  get: () => api("/api/viajes"),
+  agregarVuelo: (json) => api("/api/viajes/vuelos", { method: "POST", json }),
+  quitarVuelo: (id) => api(`/api/viajes/vuelos/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  agregarHotel: (json) => api("/api/viajes/hoteles", { method: "POST", json }),
+  quitarHotel: (id) => api(`/api/viajes/hoteles/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  prefs: () => api("/api/viajes/preferencias"),
+  savePrefs: (prefs) => api("/api/viajes/preferencias", { method: "PUT", json: prefs }),
+};
+
 export const Today = {
   get: () => apiConUltimaCopia("/api/today"),
 };

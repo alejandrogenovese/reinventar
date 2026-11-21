@@ -6,6 +6,7 @@ import { h } from "./ui.js";
 export const SECCIONES = [
   { href: "#/comer", icono: () => icon("ubicacion", 20), titulo: "Dónde comer barato", bajada: "Cerca de tu próxima charla, con precio y reseñas" },
   { href: "#/gastos", icono: () => icon("listo", 20), titulo: "Gastos", bajada: "Cuánto llevás gastado y qué se reintegra" },
+  { href: "#/viajes", icono: () => icon("viaje", 20), titulo: "Vuelos y hoteles", bajada: "Check-in, demoras y puerta de embarque" },
 ];
 
 const Tarjeta = (s) => h("a", { class: "ra-card", href: s.href, style: { textDecoration: "none" } },
