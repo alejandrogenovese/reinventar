@@ -30,6 +30,7 @@ import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
+import { viewGastos } from "./gastos.js";
 import { viewAdminOfertas } from "./adminOfertas.js";
 import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
@@ -80,6 +81,7 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
   [/^#\/admin\/ofertas$/, () => viewAdminOfertas(view)],
