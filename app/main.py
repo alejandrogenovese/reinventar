@@ -29,6 +29,7 @@ from . import (
     catalog,
     charlas_auto,
     codigos_api,
+    comer_api,
     config,
     cotizacion,
     cuerpo,
@@ -162,6 +163,7 @@ app.include_router(gastos_api.router)
 app.include_router(gastos_api.router_publico)
 app.include_router(huecos.router)
 app.include_router(codigos_api.router)
+app.include_router(comer_api.router)
 
 
 @app.exception_handler(RequestValidationError)

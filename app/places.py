@@ -90,3 +90,55 @@ def details(place_id: str, sesion: str | None = None) -> dict:
     except httpx.HTTPError as e:
         raise PlacesNoDisponible(f"Sin conexión con Places: {e}") from e
     return leer_lugar(_respuesta(r))
+
+
+# ---- Búsqueda cercana (dónde comer): una llamada por celda, la cachea app/comer_api.py ----
+NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
+# Mínimo para listar: id, nombre, puntaje, cantidad de reseñas, precio, ubicación, dirección, si está abierto, link y
+# reseñas (estas últimas cuestan más: se piden porque la lista muestra una o dos).
+NEARBY_FIELDS = ",".join(f"places.{c}" for c in (
+    "id", "displayName", "rating", "userRatingCount", "priceLevel", "location", "formattedAddress",
+    "currentOpeningHours.openNow", "googleMapsUri", "reviews"))
+TIPOS_COMER = ["restaurant", "cafe", "fast_food_restaurant", "sandwich_shop", "pizza_restaurant", "bakery"]
+MAX_RESULTADOS = 20  # tope de searchNearby
+# priceLevel de Places (New) → 1 = $, 2 = $$, 3 = $$$, 4 = $$$$; gratis cuenta como $. Sin dato o sin especificar → None.
+NIVELES_PRECIO = {"PRICE_LEVEL_FREE": 1, "PRICE_LEVEL_INEXPENSIVE": 1, "PRICE_LEVEL_MODERATE": 2,
+                  "PRICE_LEVEL_EXPENSIVE": 3, "PRICE_LEVEL_VERY_EXPENSIVE": 4}
+MAX_RESENAS = 2
+MAX_CARACTERES_RESENA = 160
+
+
+def _resena_corta(r: dict) -> str | None:
+    texto = ((r.get("text") or r.get("originalText") or {}).get("text") or "").strip()
+    if not texto:
+        return None
+    return texto if len(texto) <= MAX_CARACTERES_RESENA else texto[:MAX_CARACTERES_RESENA].rstrip() + "…"
+
+
+def leer_cercanos(data: dict) -> list[dict]:
+    """Lugares sin coordenadas o sin id se descartan; las reseñas quedan en {texto, puntaje} y recortadas."""
+    out = []
+    for p in data.get("places") or []:
+        loc = p.get("location") or {}
+        if not p.get("id") or loc.get("latitude") is None or loc.get("longitude") is None:
+            continue
+        resenas = [{"texto": t, "puntaje": r.get("rating")} for r in (p.get("reviews") or [])
+                   if (t := _resena_corta(r))][:MAX_RESENAS]
+        out.append({"place_id": p["id"], "nombre": (p.get("displayName") or {}).get("text", ""),
+                    "direccion": p.get("formattedAddress", ""), "lat": loc["latitude"], "lng": loc["longitude"],
+                    "rating": p.get("rating"), "resenas": p.get("userRatingCount") or 0,
+                    "precio": NIVELES_PRECIO.get(p.get("priceLevel")),
+                    "abierto": (p.get("currentOpeningHours") or {}).get("openNow"),
+                    "url": p.get("googleMapsUri"), "extracto": resenas})
+    return out
+
+
+def nearby(lat: float, lng: float, radio_m: float, tipos: list[str] | None = None) -> list[dict]:
+    body = {"includedTypes": tipos or TIPOS_COMER, "maxResultCount": MAX_RESULTADOS, "languageCode": "es",
+            "rankPreference": "POPULARITY",
+            "locationRestriction": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radio_m)}}}
+    try:
+        r = httpx.post(NEARBY_URL, json=body, headers=_headers(NEARBY_FIELDS), timeout=TIMEOUT_S)
+    except httpx.HTTPError as e:
+        raise PlacesNoDisponible(f"Sin conexión con Places: {e}") from e
+    return leer_cercanos(_respuesta(r))
