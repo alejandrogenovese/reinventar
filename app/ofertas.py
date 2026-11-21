@@ -111,6 +111,8 @@ def _oferta(fila: dict) -> Oferta:
 
 _SELECT = f"SELECT {', '.join(_COLUMNAS)} FROM oferta"
 
+TOPE_LISTA_ADMIN = 100  # la lista del admin no crece sin límite
+
 
 @sandbox.en_real
 def guardar(o: Oferta) -> bool:
@@ -147,9 +149,12 @@ def vigentes(ahora: dt.datetime, categoria: str | None = None) -> list[Oferta]:
 
 
 @sandbox.en_real
-def todas() -> list[Oferta]:
+def lista_admin(ahora: dt.datetime, pasadas: bool = False) -> list[Oferta]:
+    """Para el admin: las que no vencieron (vigentes y programadas) o, con `pasadas`, también las vencidas; con tope."""
     with db.conn() as c:
-        return [_oferta(f) for f in c.execute(f"{_SELECT} ORDER BY desde DESC, id").fetchall()]
+        filas = c.execute(f"{_SELECT} WHERE (%s OR hasta IS NULL OR hasta > %s) ORDER BY desde DESC, id LIMIT %s",
+                          (pasadas, ahora, TOPE_LISTA_ADMIN)).fetchall()
+    return [_oferta(f) for f in filas]
 
 
 @sandbox.en_real

@@ -1,8 +1,10 @@
-// Cuenta → Admin → LLM: costo, demora, errores y scores de los últimos 7 días, leídos de Langfuse por el servidor
+// Admin › LLM (#/admin/llm): costo, demora, errores y scores de los últimos 7 días, leídos de Langfuse por el servidor
 // (/api/admin/llm, con cache de 5 minutos). Barras y números con h() y los tokens de la app, sin librerías.
 import { api } from "./api.js";
+import { AdminShell, Cargable, conOcupado } from "./adminUi.js";
+import { nombreTarea } from "./adminTextos.js";
 import { icon } from "./icons.js";
-import { Button, h, mensajeError } from "./ui.js";
+import { Button, h } from "./ui.js";
 
 const SCORE_LABEL = {
   lineas_faltantes: "Líneas faltantes (traducción)", json_valido: "JSON válido",
@@ -53,7 +55,7 @@ function CostByTask(tareas) {
   const max = Math.max(0, ...tareas.map((t) => t.costo));
   return h("div", { class: "stack" },
     h("h3", { class: "label" }, "Costo por tarea"),
-    tareas.length ? tareas.map((t) => Bar(t.tarea, t.costo, max, usd(t.costo))) : h("p", { class: "caption" }, "Sin llamadas en estos días."));
+    tareas.length ? tareas.map((t) => Bar(nombreTarea(t.tarea), t.costo, max, usd(t.costo))) : h("p", { class: "caption" }, "Sin llamadas en estos días."));
 }
 
 function CostByDay(dias) {
@@ -68,7 +70,7 @@ function LatencyAndErrors(tareas) {
   return h("div", { class: "stack" },
     h("h3", { class: "label" }, "Demora y errores por tarea"),
     h("p", { class: "caption" }, "La barra es el p95 (el 5 % más lento); el número, p50 / p95."),
-    tareas.map((t) => Bar(t.tarea, t.p95_ms, max,
+    tareas.map((t) => Bar(nombreTarea(t.tarea), t.p95_ms, max,
       `${secs(t.p50_ms)} / ${secs(t.p95_ms)}${t.errores ? ` · ${int(t.errores)} err.` : ""}`, t.errores ? "is-err" : "")));
 }
 
@@ -98,18 +100,16 @@ function Dashboard(d) {
     h("p", { class: "caption" }, `Datos de Langfuse de las ${updated} (se actualizan cada 5 minutos). Lo de ${d.dias} días no cuenta el modo prueba. `, LangfuseLink(d.url)));
 }
 
-/** Sección "LLM" del portal de admin: carga sola, sin frenar el resto de la pantalla. */
-export function LlmPanel() {
-  const body = h("div", { class: "stack" });
-  const load = async () => {
-    body.replaceChildren(h("p", { class: "caption" }, "Cargando métricas de Langfuse…"));
-    try { body.replaceChildren(Dashboard(await api("/api/admin/llm"))); }
-    catch (err) { body.replaceChildren(h("div", { class: "notice err" }, `No se pudo cargar el tablero: ${mensajeError(err)}`)); }
-  };
-  void load();
-  return h("div", { class: "stack" },
-    h("h2", { class: "label" }, "LLM"),
+/** Pestaña LLM: carga sola; si falla, muestra el error con Reintentar y las demás pestañas siguen andando. */
+export function viewAdminLlm(view) {
+  const tablero = Cargable({
+    cargar: () => api("/api/admin/llm"),
+    pintar: Dashboard,
+    textoCargando: "Cargando métricas de Langfuse…",
+  });
+  const actualizar = Button("Actualizar", { onclick: () => conOcupado(actualizar, () => tablero.recargar()) });
+  AdminShell(view, "llm",
     h("p", { class: "caption" }, "Últimos 7 días: costo, demora y errores por tarea, y la calidad medida."),
-    body,
-    h("div", { class: "actions" }, Button("Actualizar", { onclick: load })));
+    tablero,
+    h("div", { class: "actions" }, actualizar));
 }

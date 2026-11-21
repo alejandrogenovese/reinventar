@@ -1,8 +1,9 @@
-// Cuenta → Admin → Eventos automáticos: la última revisión de cada fuente (Luma, conferenceparties, links y el catálogo
+// Admin › Eventos (#/admin/eventos): eventos automáticos: la última revisión de cada fuente (Luma, conferenceparties, links y el catálogo
 // oficial de charlas), «Revisar ahora», «Agregar evento por link» (vista previa con el LLM, corregible, y guardar) y las
 // «Charlas nuevas» que encontró la revisión. Ver app/eventos_auto.py y app/charlas_auto.py.
 import { Admin } from "./api.js";
-import { Button, Hint, h, mensajeError, toast } from "./ui.js";
+import { AdminShell, Cargable, avisar } from "./adminUi.js";
+import { Button, Hint, h, mensajeError } from "./ui.js";
 
 const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)" };
 const ESPERA_MS = 5000;
@@ -49,9 +50,9 @@ function Preview(p, onSaved) {
     };
     try {
       await Admin.eventosGuardarLink(datos);
-      toast(`Guardado: ${datos.nombre}`);
+      avisar(`Guardado: ${datos.nombre}`);
       onSaved();
-    } catch (err) { toast(mensajeError(err)); guardar.disabled = false; }
+    } catch (err) { avisar(mensajeError(err), { error: true }); guardar.disabled = false; }
   } },
     p.ya_cargado ? Hint(`Ya está cargado: ${p.ya_cargado}`, { tone: "error" }) : null,
     nombre.row, fecha.row, h("div", { class: "actions" }, inicio.row, fin.row), lugar.row, direccion.row,
@@ -72,7 +73,7 @@ function AddLink(onSaved) {
     try {
       const p = await Admin.eventosVistaPrevia(url.el.value.trim());
       preview.replaceChildren(Preview(p, () => { form.reset(); preview.replaceChildren(); onSaved(); }));
-    } catch (err) { preview.replaceChildren(); toast(mensajeError(err)); }
+    } catch (err) { preview.replaceChildren(); avisar(mensajeError(err), { error: true }); }
     mirar.disabled = false;
   } },
     h("h3", { class: "label" }, "Agregar evento por link"),
@@ -94,30 +95,73 @@ function CharlasNuevas(nuevas) {
       h("span", { class: "caption" }, ` · ${diaHora(c.primero)} · encontrada ${hace(c.alta)}`)))));
 }
 
-export function EventosPanel() {
-  const box = h("div", { class: "stack" });
-  async function paint() {
-    let d;
-    try { d = await Admin.eventos(); } catch (err) { box.replaceChildren(h("p", { class: "caption" }, mensajeError(err))); return; }
-    const revisar = Button(d.ocupado ? "Revisando…" : "Revisar ahora", { onclick: async () => {
-      revisar.disabled = true;
-      try { await Admin.eventosRevisar(); toast("Revisando las fuentes: tarda un par de minutos."); setTimeout(paint, ESPERA_MS); }
-      catch (err) { toast(mensajeError(err)); revisar.disabled = false; }
-    } });
-    revisar.disabled = d.ocupado || !d.activo || d.migracion_pendiente;
-    if (d.ocupado) setTimeout(paint, ESPERA_MS);
-    box.replaceChildren(...[ // filter(Boolean): replaceChildren escribe «null» en vez de saltearlo
-      !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
-      d.migracion_pendiente ? Hint("Falta la migración 007 en la base.", { tone: "error" }) : null,
-      d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties${d.ticketmaster ? ", Ticketmaster" : ""} y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
-      !d.ticketmaster ? h("p", { class: "caption" }, "Ticketmaster apagado: falta TICKETMASTER_API_KEY (sin key no aparece la pestaña Shows).") : null,
-      ...d.revisiones.map(RevisionRow),
-      h("div", { class: "actions" }, revisar),
-      d.links.length ? h("ul", { class: "stack" }, d.links.map((l) => h("li", {},
-        h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(l.id)}` }, l.nombre), l.cancelado ? " · cancelado" : ""))) : null,
-      CharlasNuevas(d.charlas_nuevas),
-      d.activo && !d.migracion_pendiente ? AddLink(paint) : null].filter(Boolean));
+/**
+ * Pestaña Eventos. El formulario «Agregar evento por link» (y su vista previa) se arma una sola vez y queda afuera de lo que
+ * se repinta: el sondeo de la revisión solo toca el estado de las fuentes. El timer se corta al salir de la pantalla.
+ */
+export function viewAdminEventos(view, { setCleanup = () => {} } = {}) {
+  let timer = null;
+  let activa = true;
+  let ocupado = false; // lo último que dijo el servidor: mientras sea true se sigue sondeando, aunque un sondeo falle
+  const parar = () => { activa = false; clearTimeout(timer); };
+  setCleanup(parar);
+  const formulario = h("div", { class: "stack" });
+  let formularioListo = false;
+
+  const estado = Cargable({
+    textoCargando: "Cargando las fuentes…",
+    cargar: async () => {
+      const d = await Admin.eventos();
+      if (!formularioListo && d.activo && !d.migracion_pendiente) {
+        formularioListo = true;
+        formulario.replaceChildren(AddLink(() => void estado.recargar({ silencioso: true })));
+      }
+      ocupado = d.ocupado;
+      if (ocupado) programar();
+      return d;
+    },
+    pintar: (d) => {
+      const revisar = Button(d.ocupado ? "Revisando…" : "Revisar ahora", { onclick: async () => {
+        revisar.disabled = true;
+        revisar.setAttribute("aria-busy", "true");
+        try {
+          await Admin.eventosRevisar();
+          // Queda deshabilitado en «Revisando…» hasta que el sondeo diga que terminó.
+          revisar.textContent = "Revisando…";
+          ocupado = true;
+          avisar("Revisando las fuentes: tarda un par de minutos.");
+          programar();
+          void estado.recargar({ silencioso: true });
+        } catch (err) {
+          avisar(mensajeError(err), { error: true });
+          revisar.disabled = false;
+          revisar.removeAttribute("aria-busy");
+        }
+      } });
+      revisar.disabled = d.ocupado || !d.activo || d.migracion_pendiente;
+      return [ // Cargable filtra los null: replaceChildren escribiría «null»
+        !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
+        d.migracion_pendiente ? Hint("Falta la migración 007 en la base.", { tone: "error" }) : null,
+        d.activo ? h("p", { class: "caption" }, `Revisa Luma, conferenceparties${d.ticketmaster ? ", Ticketmaster" : ""} y los links cada ${d.horas} h; el catálogo oficial de charlas, cada 3 h (cada 30 min durante el evento).`) : null,
+        !d.ticketmaster ? h("p", { class: "caption" }, "Ticketmaster apagado: falta TICKETMASTER_API_KEY (sin key no aparece la pestaña Shows).") : null,
+        ...d.revisiones.map(RevisionRow),
+        h("div", { class: "actions" }, revisar),
+        d.links.length ? h("ul", { class: "stack" }, d.links.map((l) => h("li", {},
+          h("a", { class: "ra-link", href: `#/evento/${encodeURIComponent(l.id)}` }, l.nombre), l.cancelado ? " · cancelado" : ""))) : null,
+        CharlasNuevas(d.charlas_nuevas),
+      ];
+    },
+  });
+
+  function programar() {
+    clearTimeout(timer);
+    if (!activa) return;
+    timer = setTimeout(async () => {
+      if (!activa || !estado.isConnected) { parar(); return; } // se fue de la pantalla: no sigue pidiendo
+      await estado.recargar({ silencioso: true });
+      if (ocupado) programar(); // un sondeo que falla en silencio no deja «Revisando…» congelado
+    }, ESPERA_MS);
   }
-  void paint();
-  return h("div", { class: "stack" }, h("h2", { class: "label" }, "Eventos automáticos"), box);
+
+  AdminShell(view, "eventos", formulario, h("div", { class: "stack" }, h("h2", { class: "label" }, "Eventos automáticos"), estado));
 }

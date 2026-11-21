@@ -95,7 +95,7 @@ def test_una_oferta_vencida_no_sale_en_la_lista_pero_el_admin_la_ve(cli, monkeyp
     cli.post("/api/ofertas/admin", headers=cli.HA, json=_manual(desde="2026-11-30T09:00:00", hasta="2026-11-30T18:00:00"))
 
     assert cli.get("/api/ofertas", headers=cli.H).json()["ofertas"] == []
-    assert len(cli.get("/api/ofertas/admin/lista", headers=cli.HA).json()["ofertas"]) == 1
+    assert len(cli.get("/api/ofertas/admin/lista?pasadas=true", headers=cli.HA).json()["ofertas"]) == 1
 
 
 def test_el_admin_la_da_de_baja(cli, monkeypatch):
@@ -271,3 +271,25 @@ def test_sin_precio_en_ticketmaster_el_job_no_inventa_ofertas(cli):
     assert _correr(None, AHORA) == 0
     assert _correr(None, AHORA + dt.timedelta(hours=6)) == 0
     assert ofertas.vigentes(AHORA + dt.timedelta(hours=6)) == []
+
+
+def test_la_lista_del_admin_trae_solo_las_que_no_vencieron(cli, monkeypatch):
+    monkeypatch.setattr(ofertas.sandbox, "ahora", lambda tz=None: AHORA)
+    cli.post("/api/ofertas/admin", headers=cli.HA, json=_manual(titulo="Vencida", desde="2026-11-30T09:00:00", hasta="2026-11-30T18:00:00"))
+    cli.post("/api/ofertas/admin", headers=cli.HA, json=_manual(titulo="Vigente"))
+    cli.post("/api/ofertas/admin", headers=cli.HA, json=_manual(titulo="Futura", desde="2026-12-02T09:00:00", hasta=None))
+
+    por_defecto = cli.get("/api/ofertas/admin/lista", headers=cli.HA).json()["ofertas"]
+    con_pasadas = cli.get("/api/ofertas/admin/lista?pasadas=true", headers=cli.HA).json()["ofertas"]
+
+    assert sorted(o["titulo"] for o in por_defecto) == ["Futura", "Vigente"]
+    assert sorted(o["titulo"] for o in con_pasadas) == ["Futura", "Vencida", "Vigente"]
+
+
+def test_la_lista_del_admin_tiene_tope(cli, monkeypatch):
+    monkeypatch.setattr(ofertas.sandbox, "ahora", lambda tz=None: AHORA)
+    monkeypatch.setattr(ofertas, "TOPE_LISTA_ADMIN", 2)
+    for n in range(3):
+        cli.post("/api/ofertas/admin", headers=cli.HA, json=_manual(titulo=f"Oferta {n}"))
+
+    assert len(cli.get("/api/ofertas/admin/lista", headers=cli.HA).json()["ofertas"]) == 2

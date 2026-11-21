@@ -11,7 +11,7 @@ DE_OTROS = set()
 # Funciones de app.js que se excluyen del barrido (ninguna: la grabación ya pasa por mensajeError).
 FUNCIONES_DE_GRABACION = ()
 # Detalle técnico a propósito: el diagnóstico del admin muestra el error crudo para poder arreglarlo.
-TECNICO_A_PROPOSITO = {("account.js", "detail:"), ("ui.js", "esPropio")}  # ui.js: la definición de mensajeError
+TECNICO_A_PROPOSITO = {("adminEstado.js", "detail:"), ("ui.js", "esPropio")}  # ui.js: la definición de mensajeError
 
 MENSAJE_CRUDO = re.compile(r"\b(?:err|e|error)\??\.message\b|\breason\??\.message\b")
 

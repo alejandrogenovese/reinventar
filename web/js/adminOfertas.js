@@ -1,7 +1,8 @@
 // Admin › Ofertas (#/admin/ofertas): cargar a mano una oferta (comida, happy hour, outlet) con su vigencia y darla de baja.
 // El push sale cuando arranca la vigencia. Las bajas de precio de shows entran solas (app/ofertas.py). Solo admin: el servidor lo exige.
 import { api } from "./api.js";
-import { Hint, h, mensajeError, toast } from "./ui.js";
+import { AdminShell, Cargable, avisar, confirmar, conOcupado } from "./adminUi.js";
+import { h, mensajeError } from "./ui.js";
 
 const CATEGORIAS = { comida: "Comida", compras: "Compras y outlets", shows: "Shows", otros: "Otros" };
 const cuando = (iso) => new Date(iso).toLocaleString("es-AR", { timeZone: "America/Los_Angeles", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }).replaceAll(".", "");
@@ -27,10 +28,10 @@ function Formulario(onSaved) {
       hasta: hasta.el.value || null, link: link.el.value.trim() || null, nota: nota.value.trim() || null };
     try {
       await api("/api/ofertas/admin", { method: "POST", json: datos });
-      toast(`Guardada: ${datos.titulo}`);
+      avisar(`Guardada: ${datos.titulo}`);
       form.reset();
       onSaved();
-    } catch (err) { toast(mensajeError(err)); }
+    } catch (err) { avisar(mensajeError(err), { error: true }); }
     guardar.disabled = false;
   } },
     h("h2", { class: "label" }, "Cargar una oferta"),
@@ -43,27 +44,35 @@ function Formulario(onSaved) {
 }
 
 function Fila(o, onDeleted) {
-  const borrar = h("button", { type: "button", class: "ra-btn ra-btn-danger", onclick: async () => {
-    borrar.disabled = true;
-    try { await api(`/api/ofertas/admin/${encodeURIComponent(o.id)}`, { method: "DELETE" }); toast("Oferta dada de baja."); onDeleted(); }
-    catch (err) { toast(mensajeError(err)); borrar.disabled = false; }
+  const borrar = h("button", { type: "button", class: "ra-btn ra-btn-danger", "aria-label": `Dar de baja ${o.titulo}`, onclick: async () => {
+    if (!await confirmar(`¿Dar de baja «${o.titulo}»?`, "La oferta deja de verse para todos y no se puede recuperar.", "Dar de baja")) return;
+    await conOcupado(borrar, async () => {
+      try { await api(`/api/ofertas/admin/${encodeURIComponent(o.id)}`, { method: "DELETE" }); avisar("Oferta dada de baja."); fila.remove(); onDeleted(); }
+      catch (err) { avisar(mensajeError(err), { error: true }); }
+    });
   } }, "Dar de baja");
-  return h("li", { class: "stack" },
+  const fila = h("li", { class: "stack" },
     h("p", {}, h("a", { class: "ra-link", href: `#/ofertas/${encodeURIComponent(o.id)}` }, o.titulo),
       ` · ${o.categoria_nombre} · ${o.fuente === "manual" ? "cargada a mano" : "baja de precio"}`),
     h("p", { class: "caption" }, `${cuando(o.desde)}${o.hasta ? ` → ${cuando(o.hasta)}` : ""}${o.lugar ? ` · ${o.lugar}` : ""}`),
     h("div", { class: "actions" }, borrar));
+  return fila;
 }
 
-export async function viewAdminOfertas(view) {
-  const lista = h("ul", { class: "stack" });
-  async function pintar() {
-    try {
-      const d = await api("/api/ofertas/admin/lista");
-      lista.replaceChildren(...(d.ofertas.length ? d.ofertas.map((o) => Fila(o, pintar)) : [h("li", { class: "caption" }, "Todavía no hay ofertas.")]));
-    } catch (err) { lista.replaceChildren(h("li", {}, Hint(mensajeError(err), { tone: "error" }))); }
-  }
-  view.append(h("div", { class: "stack-lg" }, h("a", { class: "ra-link", href: "#/ofertas" }, "← Ofertas"), h("h1", { class: "title" }, "Administrar ofertas"),
-    Formulario(pintar), h("div", { class: "stack" }, h("h2", { class: "label" }, "Cargadas"), lista)));
-  await pintar();
+export function viewAdminOfertas(view) {
+  const pasadas = h("input", { type: "checkbox", id: "of-pasadas" });
+  const lista = Cargable({
+    cargar: () => api(`/api/ofertas/admin/lista${pasadas.checked ? "?pasadas=true" : ""}`),
+    pintar: (d) => h("ul", { class: "stack" }, d.ofertas.map((o) => Fila(o, () => { if (!ul().querySelector("li")) void lista.recargar(); }))),
+    esVacio: (d) => !d.ofertas.length,
+    textoVacio: "No hay ofertas vigentes.",
+    textoCargando: "Cargando ofertas…",
+  });
+  const ul = () => lista.querySelector("ul") ?? h("ul");
+  pasadas.addEventListener("change", () => void lista.recargar());
+  AdminShell(view, "ofertas",
+    h("a", { class: "ra-link", href: "#/ofertas" }, "← Ofertas"),
+    Formulario(() => void lista.recargar({ silencioso: true })),
+    h("div", { class: "stack" }, h("h2", { class: "label" }, "Cargadas"),
+      h("label", { class: "actions is-center" }, pasadas, "Mostrar también las vencidas"), lista));
 }
