@@ -115,6 +115,24 @@ EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
 EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
 EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima
 
+# Control de gastos del viaje (app/gastos.py, app/cotizacion.py, app/tickets_almacen.py).
+# Dólar tarjeta = dólar oficial (venta) × este factor. Es el recargo de percepciones sobre los consumos en dólares con
+# tarjeta (hoy 30 %): si cambia, se ajusta acá sin tocar código. Los gastos ya cargados conservan su cotización congelada.
+TARJETA_FACTOR = float(_env("TARJETA_FACTOR", "1.30"))
+# Actualización de la cotización cada tanto en segundo plano. Apagada en los tests (STT_PROVIDER=fake): no pegan a la red.
+COTIZACION_AUTO = _env("COTIZACION_AUTO", "0" if STT_PROVIDER == "fake" else "1") == "1"
+COTIZACION_MINUTOS = float(_env("COTIZACION_MINUTOS", "30"))
+# Fotos de ticket: bucket S3-compatible (el de Railway) si están las cinco variables; si no, disco local (dev y tests).
+TICKETS_S3_ENDPOINT = _env("TICKETS_S3_ENDPOINT")
+TICKETS_S3_BUCKET = _env("TICKETS_S3_BUCKET")
+TICKETS_S3_KEY_ID = _env("TICKETS_S3_KEY_ID")
+TICKETS_S3_SECRET = _env("TICKETS_S3_SECRET")
+TICKETS_S3_REGION = _env("TICKETS_S3_REGION")
+# Links firmados a las fotos del CSV de reintegros (app/gastos_links.py). Sin FOTOS_LINK_SECRET se deriva de DATABASE_URL.
+FOTOS_LINK_SECRET = _env("FOTOS_LINK_SECRET")
+FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "90"))
+TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
+
 # Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de
 # la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
 # se loguea (ver app/ticketmaster.py).
