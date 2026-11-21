@@ -136,9 +136,29 @@ def test_cache_vence_con_el_ttl(client, google, monkeypatch):
     assert len(google.pedidos) == 2
 
 
+def test_abierto_ahora_no_sale_de_una_cache_vieja(client, google, monkeypatch):
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1150, -115.1728))
+    t = [1000.0]
+    monkeypatch.setattr(comer_api.time, "monotonic", lambda: t[0])
+    assert _pedir(client).json()["lugares"][0]["abierto"] is True
+    t[0] += comer_api.TTL_ABIERTO_S - 1
+    assert _pedir(client).json()["lugares"][0]["abierto"] is True  # todavía fresco
+    t[0] += 2
+    r = _pedir(client).json()["lugares"][0]
+    assert r["abierto"] is None  # pasada la media hora no se afirma nada
+    assert len(google.pedidos) == 1  # y la lista sigue saliendo de la cache
+
+
+def test_no_cachea_listas_vacias(client, google):
+    google.respuesta = _respuesta()
+    _pedir(client)
+    _pedir(client)
+    assert len(google.pedidos) == 2
+
+
 def test_limite_por_usuario_solo_cuenta_llamadas_a_google(client, google, monkeypatch):
     monkeypatch.setattr(comer_api, "_limite", comer_api.limites.Limite(2, 3600))
-    google.respuesta = _respuesta()
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1150, -115.1728))
     for i in range(2):
         assert _pedir(client, lat=STRIP[0] + i * 0.05).status_code == 200
     assert _pedir(client, lat=STRIP[0]).status_code == 200  # caché: no gasta cupo

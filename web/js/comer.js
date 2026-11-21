@@ -67,7 +67,7 @@ export async function viewComer(view) {
 
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" },
-      h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/" }, icon("volver", 16), h("span", {}, "Inicio")),
+      h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/viaje" }, icon("volver", 16), h("span", {}, "Viaje")),
       h("h1", { class: "title" }, "Dónde comer barato"), origenEl, ...chips),
     lista));
   pintarChips();
