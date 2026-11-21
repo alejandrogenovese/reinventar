@@ -1,6 +1,6 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
-import { viewAdmin, viewPassword } from "./account.js";
+import { viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
@@ -32,7 +32,11 @@ import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
 import { viewGastos } from "./gastos.js";
 import { borrarBaseLocal as borrarGastosLocales } from "./gastosCola.js";
+import { viewAdminEstado } from "./adminEstado.js";
+import { viewAdminEventos } from "./adminEventos.js";
+import { viewAdminLlm } from "./adminLlm.js";
 import { viewAdminOfertas } from "./adminOfertas.js";
+import { viewAdminUsuarios } from "./adminUsuarios.js";
 import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
 import { viewComer } from "./comer.js";
@@ -84,8 +88,11 @@ const routes = [
   [/^#\/ajustes$/, viewSettings],
   [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
-  [/^#\/admin$/, () => viewAdmin(view)],
+  [/^#\/admin$/, () => viewAdminEstado(view)],
+  [/^#\/admin\/usuarios$/, () => viewAdminUsuarios(view)],
+  [/^#\/admin\/eventos$/, () => viewAdminEventos(view, { setCleanup: (fn) => { cleanup = fn; } })],
   [/^#\/admin\/ofertas$/, () => viewAdminOfertas(view)],
+  [/^#\/admin\/llm$/, () => viewAdminLlm(view)],
   [/^#\/ofertas(?:\/([\w-]+))?$/, (id) => viewOfertas(view, id)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
