@@ -109,8 +109,11 @@ def _correr(v, now, res, *, ts=1_000_000.0):
         pedidos.append((numero, fecha))
         return res
 
-    avisos, updates = va.estado([v], now, consulta, ts)
-    return avisos, dict(updates), pedidos
+    avisos, updates, diferidos = va.estado([v], now, consulta, ts)
+    todo = dict(updates)
+    for id_, campos in diferidos.values():   # lo que se guarda cuando el aviso llega
+        todo[id_] = {**todo[id_], **campos}
+    return avisos, todo, pedidos
 
 
 def test_no_consulta_antes_de_las_24_h():
@@ -256,7 +259,7 @@ def test_con_clave_consulta_guarda_la_base_y_no_repite(cli, monkeypatch):
     vuelos.reiniciar_consultas()
     llamadas = []
 
-    def consultar(numero, fecha, http=None):
+    def consultar(numero, fecha, http=None, usuario=None):
         llamadas.append(numero)
         return {"salida_utc": dt.datetime(2026, 11, 29, 0, 5, tzinfo=dt.UTC).timestamp(), "demora_min": 45,
                 "puerta": "B12", "terminal": None, "estado": "Expected"}
@@ -266,6 +269,9 @@ def test_con_clave_consulta_guarda_la_base_y_no_repite(cli, monkeypatch):
 
     claves = _claves(TEST_USER, _ahora("2026-11-28T08:00"))
     assert f"vdemora:{v['id']}:0>45" in claves and f"vpuerta:{v['id']}:B12" in claves
+    assert vuelos.get_vuelo(TEST_USER, v["id"])["demora_min"] is None   # se guarda recién cuando el aviso llega
+    for k in (f"vdemora:{v['id']}:0>45", f"vpuerta:{v['id']}:B12"):
+        va.confirmar(TEST_USER, k)
     assert vuelos.get_vuelo(TEST_USER, v["id"])["demora_min"] == 45
     # un minuto después: el intervalo de 20 min frena la consulta, y la base guardada evita repetir el cambio
     assert not any(k.startswith(("vdemora", "vpuerta")) for k in _claves(TEST_USER, _ahora("2026-11-28T08:01")))

@@ -27,6 +27,7 @@ log = logging.getLogger("reinventar.ofertas")
 CATEGORIAS = {"shows": "Shows", "comida": "Comida", "compras": "Compras y outlets", "otros": "Otros"}
 REFERENCIA_DIAS = 7            # la baja se mide contra el máximo de estos días
 SNAPSHOTS_DIAS = 14            # y los snapshots se borran a los 14
+REINTENTO_FUENTE_MIN = 20      # si una fuente falla, se vuelve a probar a los 20 min
 ESTADOS_EN_VENTA = {"onsale", "rescheduled"}
 FUENTE_TICKETMASTER = "ticketmaster"
 FUENTE_MANUAL = "manual"
@@ -187,6 +188,7 @@ WHERE precio_desde IS NOT NULL AND inicio > now() AND inicio BETWEEN %s AND %s
 def funciones_de_ticketmaster() -> list[dict]:
     """Las funciones de la semana con precio (reinvent.show_funcion). Sin la key o sin la tabla, ninguna."""
     if not config.TICKETMASTER_API_KEY:
+        log.warning("sin TICKETMASTER_API_KEY: no hay ofertas de shows")
         return []
     try:
         with pg.pool().connection() as c:
@@ -256,18 +258,22 @@ def _purgar(ts: float) -> None:
 
 def correr_si_toca(ahora: dt.datetime, fuentes: list[Fuente] | None = None) -> int:
     """Pide las ofertas de cada fuente si pasaron OFERTAS_SNAPSHOT_HORAS desde la última vez, y guarda las nuevas.
-    Devuelve cuántas ofertas nuevas entraron. Una fuente que falla no frena a las otras."""
-    ts, nuevas = ahora.timestamp(), 0
+    Devuelve cuántas ofertas nuevas entraron. Una fuente que falla no frena a las otras y se reintenta en
+    REINTENTO_FUENTE_MIN minutos (no cada vuelta). Los snapshots viejos se purgan solo cuando alguna fuente corre."""
+    ts, nuevas, corrio = ahora.timestamp(), 0, False
     for fuente in fuentes if fuentes is not None else fuentes_activas():
         ultima = _ultima_corrida(fuente.nombre)
         if ultima is not None and ts - ultima < config.OFERTAS_SNAPSHOT_HORAS * 3600:
             continue
+        corrio = True
         try:
             nuevas += sum(guardar(o) for o in fuente.ofertas(ahora))
         except Exception:  # noqa: BLE001 — una fuente caída no corta el hilo de avisos
-            log.exception("la fuente de ofertas %s falló", fuente.nombre)
+            log.exception("la fuente de ofertas %s falló: se reintenta en %s min", fuente.nombre, REINTENTO_FUENTE_MIN)
+            # se anota como si hubiera corrido hace (período - reintento): la próxima vez toca en REINTENTO_FUENTE_MIN
+            _marcar_corrida(fuente.nombre, ts - config.OFERTAS_SNAPSHOT_HORAS * 3600 + REINTENTO_FUENTE_MIN * 60)
             continue
         _marcar_corrida(fuente.nombre, ts)
-    _purgar(ts)
+    if corrio:
+        _purgar(ts)
     return nuevas
-

@@ -12,7 +12,7 @@ import datetime as dt
 import time
 from collections.abc import Callable
 
-from . import recordatorio, vuelos
+from . import db, recordatorio, vuelos
 
 CHECKIN_HOTEL_ANTES_H = 3
 CHECKOUT_DESDE_HORA = 19        # la noche anterior al check-out
@@ -86,12 +86,18 @@ def _aviso_cambio(v: dict, tipo: str, valor, sale_local: dt.datetime) -> tuple[s
     return f"vcancel:{v['id']}", _msg(f"Se canceló {num}", "Revisá con la aerolínea cómo seguís.", url)
 
 
+def _es_cancelado(texto: str | None) -> bool:
+    return (texto or "").lower().startswith("cancel")
+
+
 def estado(lista: list[dict], now: dt.datetime, consulta: Callable[[str, str], dict | None], ahora_ts: float,
-           ) -> tuple[list[tuple[str, dict]], list[tuple[str, dict]]]:
-    """(avisos, [(id del vuelo, campos a guardar)]). consulta(número, fecha) devuelve el estado o None.
+           ) -> tuple[list[tuple[str, dict]], list[tuple[str, dict]], dict[str, tuple[str, dict]]]:
+    """(avisos, [(id del vuelo, campos a guardar ya)], {clave del aviso: (id del vuelo, campos a guardar si el aviso llega)}).
+    consulta(número, fecha) devuelve el estado o None. Lo que se compara para avisar (demora, puerta, cancelación) se guarda
+    recién cuando el aviso llegó a algún dispositivo: si no, la próxima vuelta no vería diferencia y se perdería.
     De noche solo avisa lo urgente; lo demás queda pendiente (no se guarda como avisado)."""
     de_noche = recordatorio.en_silencio(now)
-    avisos, guardar = [], []
+    avisos, guardar, diferidos = [], [], {}
     for v in lista:
         sale = vuelos.salida(v)
         if not sale or not sale - dt.timedelta(hours=ESTADO_ANTES_H) <= now < sale:
@@ -103,17 +109,45 @@ def estado(lista: list[dict], now: dt.datetime, consulta: Callable[[str, str], d
         guardar.append((v["id"], campos))
         if not nuevo:
             continue
-        campos.update(salida_utc=nuevo["salida_utc"], terminal=nuevo.get("terminal"), estado=nuevo.get("estado"))
+        campos.update(salida_utc=nuevo["salida_utc"], terminal=nuevo.get("terminal"))
         sale_real = dt.datetime.fromtimestamp(nuevo["salida_utc"], dt.UTC)
         if de_noche and sale_real - now > dt.timedelta(hours=URGENTE_H):
-            campos.pop("estado")   # sin avisar no se avanza la base: sale a la mañana
-            continue
+            continue   # sin avisar no se avanza la base: sale a la mañana
+        if not _es_cancelado(nuevo.get("estado")):
+            campos["estado"] = nuevo.get("estado")
         sale_local = (sale_real + dt.timedelta(minutes=nuevo["demora_min"])).astimezone(vuelos.zona(v["zona"]))
         for tipo, valor in vuelos.cambios(v, nuevo):
-            avisos.append(_aviso_cambio(v, tipo, valor, sale_local))
-            campos["demora_min" if tipo == "demora" else "puerta" if tipo == "puerta" else "estado"] = (
-                nuevo["demora_min"] if tipo == "demora" else valor if tipo == "puerta" else nuevo["estado"])
-    return avisos, guardar
+            clave, mensaje = _aviso_cambio(v, tipo, valor, sale_local)
+            avisos.append((clave, mensaje))
+            campo, nuevo_valor = (("demora_min", nuevo["demora_min"]) if tipo == "demora"
+                                  else ("puerta", valor) if tipo == "puerta" else ("estado", nuevo["estado"]))
+            diferidos[clave] = (v["id"], {campo: nuevo_valor})
+    return avisos, guardar, diferidos
+
+
+# Estados a guardar cuando llegue el aviso, por (usuario, clave). Los usa push.tick después de notify.
+_pendientes: dict[tuple[str, str], tuple[str, dict]] = {}
+
+
+def confirmar(username: str, clave: str) -> None:
+    """El aviso llegó a algún dispositivo: ahora sí se guarda el estado contra el que se compara. La clave de dedupe se
+    libera: de ahí en más la que decide es el estado guardado, y así una demora o puerta que vuelve a un valor anterior
+    (0 > 30 > 0 > 30, A > B > A) se vuelve a avisar."""
+    pendiente = _pendientes.pop((username, clave), None)
+    if not pendiente:
+        return
+    id_, campos = pendiente
+    try:
+        vuelos.guardar_estado(username, id_, campos)
+    finally:
+        db.unmark_push_sent(username, clave)
+
+
+def descartar(username: str, clave: str) -> None:
+    """El aviso no llegó: el estado no se guarda y la próxima vuelta vuelve a consultar sin esperar el intervalo."""
+    pendiente = _pendientes.pop((username, clave), None)
+    if pendiente:
+        vuelos.guardar_estado(username, pendiente[0], {"consultado_en": None})
 
 
 def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
@@ -127,8 +161,12 @@ def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
         if prefs["viajes_hoteles"]:
             out += hoteles(vuelos.listar_hoteles(username), now)
     if prefs["viajes_estado"] and lista_vuelos and vuelos.estado_disponible():
-        nuevos, guardar = estado(lista_vuelos, now, lambda n, f: vuelos.consultar(n, f), time.time())
+        nuevos, guardar, diferidos = estado(
+            lista_vuelos, now, lambda n, f: vuelos.consultar(n, f, usuario=username), time.time())
         for id_, campos in guardar:
             vuelos.guardar_estado(username, id_, campos)
+        for clave in [k for (u, k) in _pendientes if u == username]:
+            del _pendientes[(username, clave)]
+        _pendientes.update({(username, clave): pendiente for clave, pendiente in diferidos.items()})
         out += nuevos
     return out
