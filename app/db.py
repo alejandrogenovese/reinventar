@@ -149,6 +149,39 @@ CREATE TABLE IF NOT EXISTS preferencias_avisos (
   updated_at DOUBLE PRECISION NOT NULL
 );
 ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS eventos_nuevos BOOLEAN NOT NULL DEFAULT TRUE;
+-- Alertas de ofertas (app/ofertas_avisos.py): apagadas hasta que la persona las prende; categorías a elegir.
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS ofertas BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE preferencias_avisos ADD COLUMN IF NOT EXISTS ofertas_categorias TEXT[] NOT NULL
+  DEFAULT ARRAY['shows','comida','compras','otros'];
+-- Ofertas (app/ofertas.py): las cargadas a mano por un admin y las bajas de precio de shows. Son de todos: se leen
+-- siempre del schema real (sandbox.real()), no del de prueba.
+CREATE TABLE IF NOT EXISTS oferta (
+  id TEXT PRIMARY KEY,
+  fuente TEXT NOT NULL,
+  categoria TEXT NOT NULL CHECK (categoria IN ('shows', 'comida', 'compras', 'otros')),
+  titulo TEXT NOT NULL,
+  lugar TEXT NOT NULL DEFAULT '',
+  desde TIMESTAMPTZ NOT NULL,
+  hasta TIMESTAMPTZ,
+  link TEXT,
+  nota TEXT NOT NULL DEFAULT '',
+  id_show TEXT,
+  precio_antes NUMERIC(10,2),
+  precio_ahora NUMERIC(10,2),
+  creado DOUBLE PRECISION NOT NULL
+);
+-- Precio mínimo (USD) de cada función de Ticketmaster cada 6 h, para detectar bajas (se purga a los 14 días).
+CREATE TABLE IF NOT EXISTS precio_snapshot (
+  id_funcion TEXT NOT NULL,
+  tomado DOUBLE PRECISION NOT NULL,
+  precio NUMERIC(10,2) NOT NULL,
+  PRIMARY KEY (id_funcion, tomado)
+);
+-- Cuándo corrió por última vez cada fuente de ofertas (para no pedirla más seguido que cada 6 h).
+CREATE TABLE IF NOT EXISTS oferta_job (
+  fuente TEXT PRIMARY KEY,
+  ultimo DOUBLE PRECISION NOT NULL
+);
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",

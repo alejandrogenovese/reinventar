@@ -26,7 +26,21 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, eventos_avisos, itinerary, leave, lleno, recordatorio, sandbox, travel, venues
+from . import (
+    changes,
+    config,
+    db,
+    eventos_avisos,
+    itinerary,
+    leave,
+    lleno,
+    ofertas,
+    ofertas_avisos,
+    recordatorio,
+    sandbox,
+    travel,
+    venues,
+)
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -244,6 +258,7 @@ def tick() -> int:
     db.purgar_reportes_lleno(time.time() - lleno.BORRADO_H * 3600)
     with sandbox.real():
         users = db.push_usernames()
+        ofertas.correr_si_toca(sandbox.ahora())  # precios de shows cada 6 h (app/ofertas.py)
     for username in users:
         with sandbox.real():
             sb = sandbox.desde_usuario(db.get_user(username))
@@ -255,6 +270,10 @@ def tick() -> int:
                     sent += 1
                 else:
                     db.unmark_push_sent(username, key)  # no llegó a ningún dispositivo: se reintenta la próxima vuelta
+            try:
+                sent += ofertas_avisos.enviar(username, sandbox.ahora(), notify)
+            except Exception:  # noqa: BLE001 — las ofertas de una persona no frenan los avisos de las demás
+                log.exception("avisos de ofertas de %s fallaron", username)
     return sent
 
 
