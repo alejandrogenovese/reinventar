@@ -54,6 +54,7 @@ from . import (
     shows_api,
     talks,
     ubicacion_api,
+    viajes_api,
     voto_resumen_api,
 )
 from .auth import auth, bearer, context_for_token
@@ -150,6 +151,7 @@ app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(shows_api.router)
 app.include_router(push_api.router)
+app.include_router(viajes_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)

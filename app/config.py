@@ -89,6 +89,11 @@ VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")
 VAPID_PRIVATE_KEY = _env("VAPID_PRIVATE_KEY")
 VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
 
+# Estado de vuelos (app/vuelos.py), vía AeroDataBox en api.market. Sin la clave no hay alertas de demora ni de puerta:
+# el resto de los avisos de viajes anda igual. El tope corta las consultas del día (cuidan la cuota del plan).
+AERODATABOX_API_KEY = _env("AERODATABOX_API_KEY")
+AERODATABOX_TOPE_DIARIO = int(_env("AERODATABOX_TOPE_DIARIO", "150"))
+
 # Entorno de Railway: "production" en producción. Va como tag (prod/dev) en las trazas de Langfuse (app/trazas.py).
 RAILWAY_ENVIRONMENT_NAME = _env("RAILWAY_ENVIRONMENT_NAME")
 # Pisa el tag de entorno de las trazas y los scores: el servicio de staging vive en el mismo entorno de Railway que

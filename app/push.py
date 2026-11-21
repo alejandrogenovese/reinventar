@@ -26,7 +26,20 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from . import changes, config, db, eventos_avisos, itinerary, leave, lleno, recordatorio, sandbox, travel, venues
+from . import (
+    changes,
+    config,
+    db,
+    eventos_avisos,
+    itinerary,
+    leave,
+    lleno,
+    recordatorio,
+    sandbox,
+    travel,
+    venues,
+    viajes_avisos,
+)
 
 log = logging.getLogger("reinventar.push")
 TICK_SECONDS = 60
@@ -228,6 +241,7 @@ def due(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
     out += _recordatorios(username, days, now, prefs)
     out += eventos_avisos.avisos(days, now, quiere_nuevos=prefs.eventos_nuevos,
                                  ultimo_nuevos=db.ultimo_push(username, eventos_avisos.PREFIJO_NUEVOS))
+    out += viajes_avisos.avisos(username, now)  # check-in, hoteles y estado de vuelos (cada tipo se apaga en Ajustes)
     if recordatorio.en_silencio(now):  # los cambios siguen pendientes: el aviso sale a la mañana
         return out
     for ch in changes.pending(username):
