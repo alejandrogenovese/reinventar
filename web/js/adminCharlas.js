@@ -19,7 +19,7 @@ export function agruparCharlas(nuevas) {
       continue;
     }
     porCodigo.set(c.base, { ...previa, horarios: previa.horarios + (c.horarios ?? 1),
-      primero: [previa.primero, c.primero].filter(Boolean).sort()[0] ?? null });
+      primero: [previa.primero, c.primero].filter(Boolean).sort((a, b) => a.localeCompare(b))[0] ?? null });
   }
   return [...porCodigo.values()];
 }

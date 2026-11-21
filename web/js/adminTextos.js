@@ -60,7 +60,7 @@ export const textoCortarAccesos = (username) => `Se cierran todas las sesiones d
 
 /** «hace 5 min», «hace 3 h», «hace 2 días» a partir de una fecha ISO; sin fecha (o inválida) dice «sin datos», nunca «hace NaN». */
 export function hace(iso, ahora = Date.now()) {
-  const ms = iso ? new Date(iso).getTime() : NaN;
+  const ms = iso ? new Date(iso).getTime() : Number.NaN;
   if (Number.isNaN(ms)) return "sin datos";
   const min = Math.round((ahora - ms) / 60000);
   if (min < 1) return "recién";

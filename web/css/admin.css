@@ -66,7 +66,7 @@
 .ra-adm-det > summary:hover { background: var(--surface-3); }
 .ra-adm-det > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .ra-adm-det[open] > summary { border-radius: var(--radius-m) var(--radius-m) 0 0; }
-.ra-adm-chev { transition: transform var(--ease); color: var(--ink-muted); }
+.ra-adm-chev { flex: none; transition: transform var(--ease); color: var(--ink-muted); }
 .ra-adm-det[open] > summary .ra-adm-chev { transform: rotate(90deg); }
 .ra-adm-det-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-4); border-top: 1px solid var(--line); }
 
@@ -91,10 +91,9 @@
 .ra-adm-nuevo[open] .ra-adm-nuevo-ico { transform: rotate(45deg); }
 
 /* lista compacta de filas (usuarios, fuentes, charlas, ofertas) */
-.ra-adm-lista { display: flex; flex-direction: column; background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); overflow: hidden; }
+.ra-adm-lista { display: flex; flex-direction: column; background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); overflow: hidden; margin: 0; padding: 0; list-style: none; }
 .ra-adm-fila { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-1) var(--space-3); width: 100%; min-height: 56px; padding: var(--space-3) var(--space-4); border: 0; border-top: 1px solid var(--line); background: transparent; color: inherit; text-align: left; text-decoration: none; transition: background var(--ease); }
 a.ra-adm-fila, summary.ra-adm-fila { cursor: pointer; }
-.ra-adm-lista { margin: 0; padding: 0; list-style: none; }
 .ra-adm-lista > :first-child, .ra-adm-lista > li:first-child > .ra-adm-fila { border-top: 0; }
 a.ra-adm-fila:hover, summary.ra-adm-fila:hover { background: var(--surface-3); }
 .ra-adm-fila:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -109,7 +108,6 @@ a.ra-adm-fila:hover, summary.ra-adm-fila:hover { background: var(--surface-3); }
 .ra-adm-usuario:first-child { border-top: 0; }
 .ra-adm-usuario > summary { list-style: none; border-top: 0; }
 .ra-adm-usuario > summary::-webkit-details-marker { display: none; }
-.ra-adm-chev { flex: none; }
 .ra-adm-usuario[open] > summary .ra-adm-chev { transform: rotate(90deg); }
 .ra-adm-usuario-det { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-1) var(--space-4) var(--space-4); }
 .ra-adm-usuario-det h3 { font: var(--t-small-strong); }

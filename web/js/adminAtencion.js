@@ -23,7 +23,7 @@ function avisoGrabaciones(g) {
 export function estadoFuente(r, horas, ahora) {
   if (!r.ok) return "error";
   const esperado = r.fuente === "catalogo" ? HORAS_CATALOGO : horas;
-  const revisado = r.revisado ? new Date(r.revisado).getTime() : NaN;
+  const revisado = r.revisado ? new Date(r.revisado).getTime() : Number.NaN;
   if (!esperado || Number.isNaN(revisado)) return "ok"; // sin fecha no hay cómo saber si está atrasada
   return (ahora - revisado) / HORA_MS > esperado * FACTOR_ATRASO ? "atrasada" : "ok";
 }

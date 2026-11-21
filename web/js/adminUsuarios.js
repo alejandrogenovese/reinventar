@@ -150,7 +150,7 @@ function NewUserForm(alCrear, alCancelar) {
     return { input, error: aviso, ayuda: nota, el: h("div", { class: "field" }, h("label", { class: "label", for: id }, label), input, nota, aviso) };
   };
   const user = campo("new-username", "Usuario", "2 a 40 caracteres: minúsculas, números, punto, guion o guion bajo.",
-    { autocapitalize: "none", autocomplete: "off", pattern: "[a-z0-9_.\\-]{2,40}" });
+    { autocapitalize: "none", autocomplete: "off", pattern: String.raw`[a-z0-9_.\-]{2,40}` });
   const pwd = campo("new-password", "Contraseña temporal", `Al menos ${MIN_LENGTH} caracteres. Al primer ingreso va a tener que elegir la suya.`,
     { type: "text", autocomplete: "off", minlength: MIN_LENGTH });
   const limpiar = () => [user, pwd].forEach((c) => { c.error.hidden = true; c.error.textContent = ""; c.input.removeAttribute("aria-invalid"); c.input.setAttribute("aria-describedby", c.ayuda.id); });
