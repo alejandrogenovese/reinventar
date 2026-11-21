@@ -5,13 +5,16 @@ falta python-multipart para un solo archivo. La lista se guarda por usuario en `
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 
-from . import catalog, codigos_excel, cuerpo, db
+from . import catalog, codigos_excel, cuerpo, db, limites
 from .auth import auth
 from .codigos_excel import ArchivoInvalido, Codigo
 
 router = APIRouter(prefix="/api/codigos", dependencies=[Depends(auth)])
 SIN_LISTA = {"lista": False}
+SUBIDAS_POR_HORA = 10
+_subidas = limites.Limite(SUBIDAS_POR_HORA, limites.VENTANA_LARGA)
 
 
 def _guardar(username: str, codigos: list[Codigo], archivo: str) -> None:
@@ -19,6 +22,8 @@ def _guardar(username: str, codigos: list[Codigo], archivo: str) -> None:
     ahora = time.time()
     filas = [(username, c.completo, c.base, i, archivo, ahora) for i, c in enumerate(codigos)]
     with db.conn() as c:
+        # Un lock por usuario hasta el commit: dos subidas simultáneas se hacen una atrás de la otra y no chocan en la clave primaria.
+        c.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("codigos_deseados:" + username,))
         c.execute("DELETE FROM codigos_deseados WHERE username=%s", (username,))
         c.cursor().executemany("INSERT INTO codigos_deseados (username, codigo, base, orden, archivo, subido_en) "
                                "VALUES (%s,%s,%s,%s,%s,%s)", filas)
@@ -50,15 +55,21 @@ def _resultado(username: str) -> dict:
             **codigos_excel.cruzar(deseados, sesiones, _registrados(username))}
 
 
-@router.post("")
-async def subir(request: Request, nombre: str = Query("", max_length=255), username: str = Depends(auth)):
-    datos = await cuerpo.leer_con_tope(request, codigos_excel.MAX_BYTES, "El archivo es demasiado grande (máximo 1 MB).")
+def _procesar(username: str, datos: bytes, nombre: str) -> dict:
+    """Leer el archivo, guardar la lista y armar el cruce: trabajo bloqueante, va fuera del event loop."""
     try:
-        codigos = codigos_excel.extraer_codigos(datos, nombre)
+        lectura = codigos_excel.leer_codigos(datos, nombre)
     except ArchivoInvalido as e:
         raise HTTPException(422, str(e)) from e
-    _guardar(username, codigos, nombre)
-    return _resultado(username)
+    _guardar(username, lectura.codigos, nombre)
+    return {**_resultado(username), "codigos_descartados": [c.completo for c in lectura.descartados]}
+
+
+@router.post("")
+async def subir(request: Request, nombre: str = Query("", max_length=255), username: str = Depends(auth)):
+    limites.exigir_cupo(_subidas, username, "subida de listas de códigos")
+    datos = await cuerpo.leer_con_tope(request, codigos_excel.MAX_BYTES, "El archivo es demasiado grande (máximo 1 MB).")
+    return await run_in_threadpool(_procesar, username, datos, nombre)
 
 
 @router.get("")
