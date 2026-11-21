@@ -205,7 +205,6 @@ def usage(_admin: str = Depends(admin)):
     return {
         "recordings_by_status": db.recordings_by_status(),
         "recent_errors": db.recent_errors(),
-        "users": db.list_users(),
     }
 
 

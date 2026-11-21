@@ -122,4 +122,4 @@ def test_admin_uso_resume_grabaciones_e_itinerarios():
 
         assert r.status_code == 200, r.text
         body = r.json()
-        assert set(body) == {"recordings_by_status", "recent_errors", "users"}
+        assert set(body) == {"recordings_by_status", "recent_errors"}  # los usuarios van por /api/admin/users

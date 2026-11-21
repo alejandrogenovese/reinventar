@@ -56,8 +56,9 @@ def put_preferencias(body: Preferencias, username: str = Depends(auth)):
 
 
 @router.get("/admin/lista")
-def lista_admin(_admin: str = Depends(admin)):
-    return {"ofertas": [o.a_json() for o in ofertas.todas()], "categorias": ofertas.CATEGORIAS}
+def lista_admin(pasadas: bool = False, _admin: str = Depends(admin)):
+    """Por defecto solo las que no vencieron; `pasadas=true` suma las vencidas. Con tope (ofertas.TOPE_LISTA_ADMIN)."""
+    return {"ofertas": [o.a_json() for o in ofertas.lista_admin(sandbox.ahora(), pasadas)], "categorias": ofertas.CATEGORIAS}
 
 
 @router.post("/admin", status_code=201)
