@@ -14,12 +14,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
-from . import cotizacion, gastos, limites, tickets_almacen
+from . import cotizacion, gastos, gastos_links, limites, tickets_almacen
 from .auth import auth
 
 log = logging.getLogger("reinventar.gastos")
 
 router = APIRouter(prefix="/api/gastos", dependencies=[Depends(auth)])
+# Lo único de gastos que se abre sin sesión: el link firmado a una foto (va en el CSV de reintegros).
+router_publico = APIRouter(prefix="/api/gastos")
 
 FOTO_MAX_BYTES = 2 * 1024 * 1024
 MULTIPART_SOBRANTE = 64 * 1024             # encabezados y delimitadores del multipart, además de la foto
@@ -149,7 +151,21 @@ def _guardar_foto(username: str, client_id: UUID, tipo: str, datos: bytes) -> di
 
 @router.get("/{client_id}/foto")
 def ver_foto(client_id: UUID, username: str = Depends(auth)):
-    clave = _gasto_o_404(username, client_id)["foto_clave"]
+    return _servir_foto(client_id, _gasto_o_404(username, client_id)["foto_clave"])
+
+
+@router_publico.get("/foto-firmada/{token}")
+def ver_foto_firmada(token: str):
+    """La foto de un gasto por link firmado, sin sesión (el que usa el CSV de reintegros). Token inválido, adulterado,
+    vencido o de un gasto inexistente o borrado: el mismo 404, para no dar pistas."""
+    firmado = gastos_links.verificar(token)
+    fila = gastos.obtener(*firmado) if firmado else None
+    if fila is None:
+        raise HTTPException(404, "Foto no encontrada")
+    return _servir_foto(fila["client_id"], fila["foto_clave"])
+
+
+def _servir_foto(client_id: UUID, clave: str | None) -> Response:
     if not clave:
         raise HTTPException(404, "Este gasto no tiene foto")
     try:

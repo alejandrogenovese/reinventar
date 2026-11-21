@@ -123,6 +123,9 @@ TICKETS_S3_BUCKET = _env("TICKETS_S3_BUCKET")
 TICKETS_S3_KEY_ID = _env("TICKETS_S3_KEY_ID")
 TICKETS_S3_SECRET = _env("TICKETS_S3_SECRET")
 TICKETS_S3_REGION = _env("TICKETS_S3_REGION")
+# Links firmados a las fotos del CSV de reintegros (app/gastos_links.py). Sin FOTOS_LINK_SECRET se deriva de DATABASE_URL.
+FOTOS_LINK_SECRET = _env("FOTOS_LINK_SECRET")
+FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "90"))
 TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
 
 # Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de

@@ -158,6 +158,7 @@ app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
 app.include_router(gastos_api.router)
+app.include_router(gastos_api.router_publico)
 app.include_router(huecos.router)
 
 

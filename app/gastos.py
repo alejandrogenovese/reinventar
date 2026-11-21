@@ -14,7 +14,7 @@ from uuid import UUID
 from psycopg.types.json import Jsonb
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
-from . import cotizacion, db
+from . import cotizacion, db, gastos_links
 
 Moneda = Literal["USD", "ARS"]
 Categoria = Literal["comida", "transporte", "shows", "compras", "otros"]
@@ -241,7 +241,7 @@ def exportar_csv(username: str, base_url: str) -> bytes:
     for f in filas:
         concepto = f["categoria"] + (f" - {f['nota']}" if f["nota"] else "")
         cotizacion_usada = f["cotizacion_tarjeta"] if f["moneda"] == "ARS" else None
-        foto = f"{base_url.rstrip('/')}{url_foto(f['client_id'])}" if f["foto_clave"] else ""
+        foto = f"{base_url.rstrip('/')}{gastos_links.ruta_firmada(username, f['client_id'])}" if f["foto_clave"] else ""
         w.writerow([f["fecha"].isoformat(), _celda(concepto), f["moneda"], _decimal_es(f["monto"]),
                     _decimal_es(f["monto_usd"]), _decimal_es(cotizacion_usada), foto])
     return (BOM + salida.getvalue()).encode("utf-8")

@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from app import db, gastos, gastos_api, limites
+from app import config, db, gastos, gastos_api, gastos_links, limites
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
 
@@ -256,8 +256,9 @@ def test_el_csv_trae_solo_reintegrables_no_borrados_con_bom_y_link_absoluto(cli)
     assert r.content.startswith(b"\xef\xbb\xbf")
     filas = r.content.decode("utf-8-sig").splitlines()
     assert len(filas) == 2  # encabezado + el único reintegrable vigente
-    assert filas[1] == (f"2026-12-01;transporte - Uber al Venetian;ARS;13000,00;10,00;1300,0000;"
-                        f"http://testserver/api/gastos/{con_foto['client_id']}/foto")
+    *resto, link = filas[1].split(";")
+    assert resto == ["2026-12-01", "transporte - Uber al Venetian", "ARS", "13000,00", "10,00", "1300,0000"]
+    assert link.startswith("http://testserver/api/gastos/foto-firmada/")
 
 
 def test_el_csv_neutraliza_celdas_que_excel_leeria_como_formula(cli):
@@ -375,3 +376,108 @@ def test_si_el_almacen_falla_responde_502_y_no_guarda_la_clave(cli, monkeypatch)
     sync(cli, cli.A, g)
     assert foto(cli, cli.A, g["client_id"]).status_code == 502
     assert cli.get("/api/gastos", headers=cli.A).json()["gastos"][0]["foto_url"] is None
+
+
+# ---------- links firmados a la foto (los del CSV de reintegros) ----------
+
+def _con_foto(cli, **kw):
+    g = entrada(reintegrable=True, **kw)
+    sync(cli, cli.A, g)
+    foto(cli, cli.A, g["client_id"])
+    return g
+
+
+def _link_del_csv(cli):
+    texto = cli.get("/api/gastos/export.csv", headers=cli.A).content.decode("utf-8-sig")
+    return list(csv.reader(io.StringIO(texto), delimiter=";"))[1][-1].removeprefix("http://testserver")
+
+
+def test_el_link_del_csv_abre_la_foto_sin_sesion(cli):
+    _con_foto(cli)
+    r = cli.get(_link_del_csv(cli))  # sin Authorization
+    assert r.status_code == 200 and r.content == JPEG and r.headers["content-type"] == "image/jpeg"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_el_link_vence_a_los_90_dias_por_defecto(cli, monkeypatch):
+    _con_foto(cli)
+    ruta = _link_del_csv(cli)
+    ahora = gastos_links._ahora()
+    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 89 * 86400)
+    assert cli.get(ruta).status_code == 200
+    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 91 * 86400)
+    assert cli.get(ruta).status_code == 404
+
+
+def test_el_vencimiento_es_configurable(cli, monkeypatch):
+    _con_foto(cli)
+    monkeypatch.setattr(config, "FOTOS_LINK_DIAS", 1)
+    ruta = _link_del_csv(cli)
+    ahora = gastos_links._ahora()
+    monkeypatch.setattr(gastos_links, "_ahora", lambda: ahora + 2 * 86400)
+    assert cli.get(ruta).status_code == 404
+
+
+@pytest.mark.parametrize("adulterar", [
+    lambda t: t[:-2] + ("AA" if t[-2:] != "AA" else "BB"),                # firma distinta
+    lambda t: t.split(".")[0] + "." + t.split(".")[1][::-1],              # firma al revés
+    lambda t: t.split(".")[0],                                            # sin firma
+    lambda t: "." + t.split(".")[1],                                      # sin payload
+    lambda t: "basura",
+    lambda t: "",
+], ids=["firma", "firma-al-reves", "sin-firma", "sin-payload", "basura", "vacio"])
+def test_un_token_adulterado_da_404(cli, adulterar):
+    _con_foto(cli)
+    token = _link_del_csv(cli).rsplit("/", 1)[1]
+    assert cli.get(f"/api/gastos/foto-firmada/{adulterar(token)}").status_code == 404
+
+
+def test_cambiar_el_payload_para_apuntar_a_otro_usuario_o_gasto_invalida_la_firma(cli):
+    g = _con_foto(cli)
+    token = _link_del_csv(cli).rsplit("/", 1)[1]
+    firma = token.split(".")[1]
+    for otro in (f"{TEST_ADMIN}\n{g['client_id']}\n9999999999", f"{TEST_USER}\n{uuid.uuid4()}\n9999999999"):
+        falso = f"{gastos_links._b64(otro.encode())}.{firma}"
+        assert cli.get(f"/api/gastos/foto-firmada/{falso}").status_code == 404
+
+
+def test_un_token_firmado_con_otra_clave_no_vale(cli, monkeypatch):
+    g = _con_foto(cli)
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "otra-clave")
+    ajeno = gastos_links.firmar(TEST_USER, g["client_id"])
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "")
+    assert cli.get(f"/api/gastos/foto-firmada/{ajeno}").status_code == 404
+
+
+def test_el_link_de_un_gasto_borrado_da_404(cli):
+    g = _con_foto(cli)
+    ruta = _link_del_csv(cli)
+    assert cli.get(ruta).status_code == 200
+    borrar(cli, g)
+    assert cli.get(ruta).status_code == 404
+
+
+def test_un_gasto_sin_foto_da_404(cli):
+    g = entrada()
+    sync(cli, cli.A, g)
+    assert cli.get(gastos_links.ruta_firmada(TEST_USER, g["client_id"])).status_code == 404
+
+
+def test_no_se_pueden_enumerar_fotos_de_otros(cli):
+    g = _con_foto(cli)
+    # Ni siquiera un token bien firmado para otra persona devuelve la foto de A: se busca por (usuario, client_id).
+    assert cli.get(gastos_links.ruta_firmada(TEST_ADMIN, g["client_id"])).status_code == 404
+    assert cli.get(f"/api/gastos/foto-firmada/{uuid.uuid4()}").status_code == 404
+    assert cli.get(f"/api/gastos/{g['client_id']}/foto").status_code == 401  # la ruta con sesión sigue cerrada
+
+
+def test_sin_secreto_propio_la_clave_se_deriva_de_la_base_y_con_secreto_cambia(monkeypatch):
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "")
+    derivada = gastos_links._clave()
+    assert gastos_links.verificar(gastos_links.firmar("ale", uuid.uuid4()))[0] == "ale"
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "propio")
+    assert gastos_links._clave() != derivada
+    monkeypatch.setattr(config, "FOTOS_LINK_SECRET", "")
+    monkeypatch.setattr(config, "DATABASE_URL", "")
+    with pytest.raises(RuntimeError):
+        gastos_links.firmar("ale", uuid.uuid4())
