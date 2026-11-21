@@ -16,7 +16,7 @@
 .ra-btn-danger { background: transparent; color: var(--error); border-color: var(--error); }
 .ra-btn-danger:hover { background: color-mix(in srgb, var(--error) 8%, transparent); }
 .ra-btn[disabled] { opacity: .45; cursor: not-allowed; }
-.ra-btn[hidden], .actions[hidden] { display: none; }
+.ra-btn[hidden], .actions[hidden], .ra-hint[hidden] { display: none; }
 /* Botón de solo ícono (ej. Llevame en Hoy): 48 × 48, el nombre va en aria-label */
 .ra-btn-icon { width: 48px; min-width: 48px; padding: 0; flex: none; }
 
@@ -334,9 +334,6 @@ h2.caption { font: var(--t-small); text-transform: none; }
 }
 .ra-tab:hover { color: var(--ink); }
 .ra-tab[aria-selected="true"] { color: var(--ink); border-color: var(--brand); }
-/* Admin: las pestañas son links a cada ruta; 44 px de alto como mínimo y la actual marcada con aria-current. */
-.admin-tabs .ra-tab { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 48px; padding: 0 var(--space-2); text-decoration: none; }
-.admin-tabs .ra-tab[aria-current="page"] { color: var(--ink); border-color: var(--brand); }
 .quote { font-style: italic; }
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--space-6) + env(safe-area-inset-bottom)); transform: translateX(-50%);

@@ -11,6 +11,12 @@ export const PESTANAS = [
 
 export const pestanaDeHash = (hash) => PESTANAS.find(([, , ruta]) => ruta === hash)?.[0] ?? "estado";
 
+/** Nombre legible de cada fuente de eventos (la clave es la que manda el servidor). */
+export const NOMBRE_FUENTE = {
+  luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano",
+  catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)",
+};
+
 const TAREAS = {
   resumen: "Resumen de grabaciones", traduccion: "Traducción en vivo", entrevista: "Entrevista del itinerario",
   itinerario: "Armado del itinerario", razones: "Razones del armado", chat: "Chat de búsqueda",
@@ -51,3 +57,14 @@ export const campoDelError = ({ status, message } = {}) => (status === 409 || /^
 /** Lo que de verdad hace el servidor al cortar accesos (app/admin_api.py `_cortar_accesos`). */
 export const textoCortarAccesos = (username) => `Se cierran todas las sesiones de ${username} y además se borran sus passkeys, `
   + "se dan de baja sus notificaciones y se borra su sede reciente. Para volver a entrar va a necesitar su contraseña.";
+
+/** «hace 5 min», «hace 3 h», «hace 2 días» a partir de una fecha ISO; sin fecha (o inválida) dice «sin datos», nunca «hace NaN». */
+export function hace(iso, ahora = Date.now()) {
+  const ms = iso ? new Date(iso).getTime() : Number.NaN;
+  if (Number.isNaN(ms)) return "sin datos";
+  const min = Math.round((ahora - ms) / 60000);
+  if (min < 1) return "recién";
+  if (min < 60) return `hace ${min} min`;
+  const horas = Math.round(min / 60);
+  return horas < 48 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} días`;
+}
