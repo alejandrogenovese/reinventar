@@ -95,7 +95,8 @@ function FormHotel(onGuardado) {
 }
 
 /** `foco`: { tipo: "vuelo" | "hotel", id } cuando se llega desde un aviso o una tarjeta. */
-export async function viewViajes(view, foco = null) {
+export async function viewViajes(view, focoInicial = null) {
+  let foco = focoInicial;
   // Todo se pinta en un contenedor propio: si el usuario ya navegó a otra pantalla, una respuesta tardía no la pisa.
   const raiz = h("div");
   view.append(raiz);
