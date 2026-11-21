@@ -38,6 +38,8 @@
 .ra-g-marcas { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; min-width: 0; }
 .ra-g-marca { font: var(--t-micro); color: var(--on-info-soft); background: var(--info-soft); border-radius: var(--radius-s); padding: 3px 8px; white-space: nowrap; }
 .ra-g-marca.is-pendiente { color: var(--on-warning-soft); background: var(--warning-soft); }
+.ra-g-marca.is-rechazado { color: var(--on-error-soft); background: var(--error-soft); }
+.ra-g-fila-error { grid-column: 1 / -1; font: var(--t-small); color: var(--on-error-soft); }
 
 /* --- hoja de carga ------------------------------------------------------------ */
 .ra-g-form { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) 0; }
@@ -57,7 +59,6 @@
 .ra-g-estimado { font: var(--t-small); color: var(--ink-muted); min-height: 20px; }
 .ra-g-foto { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .ra-g-foto img { width: 56px; height: 56px; object-fit: cover; border-radius: var(--radius-m); }
-.ra-g-foto input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 /* --- presupuesto -------------------------------------------------------------- */
 .ra-g-presu { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }

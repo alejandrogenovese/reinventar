@@ -1,18 +1,22 @@
 // Gastos: control de gastos del viaje. Se carga en segundos y sin señal: el gasto se guarda en el celular (gastosCola.js)
 // y se manda solo al volver la red. Pantalla #/gastos: resumen contra presupuesto, cotizaciones, categorías y lista.
-import { ApiError, api, getToken, sinServicio } from "./api.js";
+import { ApiError, MSG_SIN_CONEXION, api, cuentaConCopia, getToken, sinServicio } from "./api.js";
 import { Bars, dayLong, dec, int } from "./charts.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import {
-  CALIDAD_JPEG, CATEGORIAS, TOPE_FOTO_BYTES, aCambio, borrarFoto, borrarGasto, contarIntentoFoto, crearGasto, editarGasto, escalarLado, fechaLocal,
-  fotosPendientes, gastosPendientes, guardarFoto, guardarGasto, guardarGastos, guardarMeta, leerGasto, leerMeta, listarGastos, marcarAplicado,
-  mezclarServidor, parsearMonto, partirEnLotes, reemplazarPerdido, totales, usdDe, visibles,
+  CALIDAD_JPEG, CATEGORIAS, TOPE_FOTO_BYTES, aCambio, agruparPorDia, borrarFoto, borrarGasto, contarIntentoFoto, crearGasto, decidirDueno,
+  edadCotizacion, editarGasto, escalarLado, fechaLocal, fotosPendientes, gastosPendientes, guardarFoto, guardarGasto, guardarMeta, leerGasto,
+  leerMeta, listarGastos, nuevoId, parsearMonto, partirEnLotes, resolverRespuesta, separarInvalidos, textoEdad, totales, transaccionarGastos,
+  usdDe, validarGasto, vaciarCola, visibles,
 } from "./gastosCola.js";
 import { Button, Hint, h, mensajeError, toast, toastOnError } from "./ui.js";
 
 const SYNC_CADA_MS = 60_000;
 const LOTE_SYNC = 200;             // tope de gastos por pedido de /sync del servidor
+const MAX_VUELTAS_SYNC = 50;       // tope de pedidos seguidos cuando el servidor dice `hay_mas` (50 x 1000 cambios)
+const TIMEOUT_PEDIDO_MS = 20_000;  // un Wi-Fi colgado no puede dejar el sync esperando para siempre
+const TIMEOUT_FOTO_MS = 60_000;    // la foto pesa hasta 2 MB: más margen
 const AVISO_AMBAR = 0.8;           // desde acá la barra se pone ámbar; al pasarse del 100 %, roja
 const MAX_INTENTOS_FOTO = 5;       // con un error del servidor (4xx) la foto se abandona tras tantos intentos
 const CALIDAD_MINIMA = 0.3;
@@ -22,6 +26,7 @@ const ACTIVO = "reinventar.gastos";  // marca que el usuario ya usó Gastos: des
 const ETIQUETAS = { comida: "Comida", transporte: "Transporte", shows: "Shows", compras: "Compras", otros: "Otros" };
 const MSG_SIN_SENAL = "Sin señal: los gastos quedan en el celular y se mandan solos cuando vuelva la red.";
 const MSG_NO_DISPONIBLE = "Gastos todavía no está disponible en el servidor.";
+const MSG_SESION_VENCIDA = "Tu sesión venció: los gastos siguen guardados en este celular y se mandan cuando vuelvas a entrar.";
 
 const usd = (n) => `US$ ${dec(n, 2)}`;
 const ars = (n) => `$ ${int(Math.round(n))}`;
@@ -36,6 +41,18 @@ let iniciado = false;
 
 const avisar = () => { for (const f of [...oyentes]) f(); };
 
+/** Pedido a la API con tope de espera: si el servidor no contesta en `ms`, se trata como falta de señal. */
+async function apiConTimeout(ruta, opciones = {}, ms = TIMEOUT_PEDIDO_MS) {
+  const control = new AbortController();
+  const reloj = setTimeout(() => control.abort(), ms);
+  try { return await api(ruta, { ...opciones, signal: control.signal }); } catch (e) {
+    if (e?.name === "AbortError" || e?.name === "TimeoutError") throw new ApiError(0, MSG_SIN_CONEXION);
+    throw e;
+  } finally { clearTimeout(reloj); }
+}
+
+const esSesionVencida = (e) => e instanceof ApiError && e.status === 401;
+
 async function subirFotos() {
   for (const foto of await fotosPendientes()) {
     const gasto = await leerGasto(foto.client_id);
@@ -44,8 +61,8 @@ async function subirFotos() {
     try {
       const cuerpo = new FormData();
       cuerpo.append("foto", foto.blob, "ticket.jpg");
-      const r = await api(`/api/gastos/${foto.client_id}/foto`, { method: "POST", body: cuerpo });
-      await guardarGasto({ ...(await leerGasto(foto.client_id)), foto_url: r.foto_url });
+      const r = await apiConTimeout(`/api/gastos/${foto.client_id}/foto`, { method: "POST", body: cuerpo }, TIMEOUT_FOTO_MS);
+      await transaccionarGastos((todos) => todos.filter((g) => g.client_id === foto.client_id).map((g) => ({ ...g, foto_url: r.foto_url })));
       await borrarFoto(foto.client_id);
     } catch (e) {
       const rechazada = e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status);
@@ -55,33 +72,72 @@ async function subirFotos() {
   }
 }
 
-/** Aplica la respuesta de un /sync: marca los aplicados, reemplaza los que perdieron el conflicto y mezcla lo nuevo del servidor. */
-async function aplicarRespuesta(lote, r) {
-  const enviados = new Map(lote.map((g) => [g.client_id, g]));
-  const aplicados = new Set(r.aplicados ?? []);
-  for (const id of aplicados) {
-    const actual = await leerGasto(id);
-    if (actual && enviados.has(id)) await guardarGasto(marcarAplicado(actual, enviados.get(id)));
+/** Aplica la respuesta de un /sync en una sola transacción: lo que se edite mientras tanto no se pisa. */
+const aplicarRespuesta = (lote, r) => transaccionarGastos((todos) => resolverRespuesta(lote, new Map(todos.map((g) => [g.client_id, g])), r));
+
+/** Los gastos que el servidor rechazaría seguro no salen: se marcan rechazados con el motivo y el resto del lote sigue. */
+const marcarInvalidos = (invalidos) => aplicarRespuesta(invalidos.map((i) => i.gasto),
+  { rechazados: invalidos.map(({ gasto, error }) => ({ client_id: gasto.client_id, error })) });
+
+/** Un pedido de /sync y, mientras el servidor diga `hay_mas`, los que siguen (sin gastos nuevos, desde el cursor que devolvió). */
+async function pedirSync(lote, desdeInicial) {
+  let desde = desdeInicial;
+  let cambios = lote;
+  for (let vuelta = 0; vuelta < MAX_VUELTAS_SYNC; vuelta += 1) {
+    const r = await apiConTimeout("/api/gastos/sync", { method: "POST", json: { cambios: cambios.map(aCambio), desde } });
+    await aplicarRespuesta(cambios, r);
+    desde = r.ahora;  // el cursor es el reloj del servidor (`ahora`), nunca el del teléfono
+    await guardarMeta("ultimoSync", desde);  // por pedido: si se corta a la mitad de una bajada larga, no se empieza de cero
+    if (!r.hay_mas) break;
+    cambios = [];
   }
-  const nuevos = [];
-  for (const delServidor of r.cambios ?? []) {
-    const local = await leerGasto(delServidor.client_id);
-    const enviado = enviados.get(delServidor.client_id);
-    const resultado = enviado && !aplicados.has(delServidor.client_id) ? reemplazarPerdido(local, enviado, delServidor) : mezclarServidor(local, delServidor);
-    if (resultado) nuevos.push(resultado);
+  return desde;
+}
+
+// ---------- dueño de la cola ----------
+
+let usuarioEnMemoria = { token: "", nombre: null };
+
+/** Quién está conectado: del servidor o, sin señal, de la copia de Ajustes. null si no se sabe. Con sesión vencida tira un 401. */
+async function usuarioActual() {
+  const token = getToken();
+  if (usuarioEnMemoria.token === token && usuarioEnMemoria.nombre) return usuarioEnMemoria.nombre;
+  const cuenta = await cuentaConCopia();
+  if (cuenta.estado === "sin_sesion") throw new ApiError(401, MSG_SESION_VENCIDA);
+  const nombre = cuenta.username ?? null;
+  if (cuenta.estado === "ok") usuarioEnMemoria = { token, nombre };
+  return nombre;
+}
+
+let verificando = null;
+
+async function verificarDueno() {
+  const usuario = await usuarioActual();
+  if (!usuario) return false;  // sin saber de quién es esta sesión no se manda nada
+  const { accion } = decidirDueno(await leerMeta("dueno"), usuario);
+  if (accion === "vaciar") {
+    const perdidos = (await listarGastos()).filter((g) => g.pendiente).length;
+    await vaciarCola();
+    if (perdidos) toast(`Había ${perdidos === 1 ? "1 gasto sin sincronizar" : `${perdidos} gastos sin sincronizar`} de otra cuenta en este celular: se descartaron.`);
   }
-  await guardarGastos(nuevos);
+  if (accion !== "seguir") await guardarMeta("dueno", usuario);
+  return true;
+}
+
+/** Antes de mostrar o mandar nada: la cola guardada tiene que ser de quien está conectado; si era de otra persona, se vacía. */
+function asegurarDueno() {
+  verificando ??= verificarDueno().finally(() => { verificando = null; });
+  return verificando;
 }
 
 async function hacerSync() {
   if (!getToken()) return;
+  if (!await asegurarDueno()) return;
   let desde = await leerMeta("ultimoSync");
-  const lotes = partirEnLotes(await gastosPendientes(), LOTE_SYNC);
-  for (const lote of lotes.length ? lotes : [[]]) {
-    const r = await api("/api/gastos/sync", { method: "POST", json: { cambios: lote.map(aCambio), desde } });
-    await aplicarRespuesta(lote, r);
-    desde = r.ahora;  // el cursor es el reloj del servidor (`ahora`), nunca el del teléfono
-  }
+  const { validos, invalidos } = separarInvalidos(await gastosPendientes());
+  if (invalidos.length) await marcarInvalidos(invalidos);
+  const lotes = partirEnLotes(validos, LOTE_SYNC);
+  for (const lote of lotes.length ? lotes : [[]]) desde = await pedirSync(lote, desde);
   await guardarMeta("ultimoSync", desde);
   await subirFotos();
   avisar();
@@ -174,6 +230,8 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
   let compartido = gasto?.compartido ?? false;
   let foto = null;
   let vistaPrevia = null;
+  let guardando = false;
+  const clientId = gasto?.client_id ?? nuevoId();   // fijo al abrir la hoja: tocar «Guardar» dos veces pisa el mismo gasto, no crea otro
 
   const monto = h("input", { id: "g-monto", type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": "Monto", placeholder: "0",
     value: gasto ? String(gasto.monto).replace(".", ",") : "", oninput: () => estimar() });
@@ -184,18 +242,21 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
   const miniatura = h("span", { class: "caption" });
   let cerrada = false;
   const urlsDeFotos = [];   // blobs de las fotos que se muestran: se sueltan al cerrar la hoja
-  const archivo = h("input", { type: "file", accept: "image/*", capture: "environment", id: "g-foto", tabindex: "-1", "aria-hidden": "true",
-    onchange: async () => {
-      const elegido = archivo.files?.[0];
-      if (!elegido) return;
-      try {
-        foto = await achicarFoto(elegido);
-        if (vistaPrevia) URL.revokeObjectURL(vistaPrevia);
-        vistaPrevia = URL.createObjectURL(foto);
-        miniatura.replaceChildren(h("img", { src: vistaPrevia, alt: "Foto del ticket" }), `${dec(foto.size / 1024, 0)} KB`);
-        error.hidden = true;
-      } catch (e) { mostrarError(mensajeError(e, "No se pudo leer la foto. Probá con otra.")); }
-    } });
+  async function alElegirFoto(entrada) {
+    const elegido = entrada.files?.[0];
+    entrada.value = "";   // elegir la misma foto otra vez tiene que volver a disparar el cambio
+    if (!elegido) return;
+    try {
+      foto = await achicarFoto(elegido);
+      if (vistaPrevia) URL.revokeObjectURL(vistaPrevia);
+      vistaPrevia = URL.createObjectURL(foto);
+      miniatura.replaceChildren(h("img", { src: vistaPrevia, alt: "Foto del ticket" }), `${dec(foto.size / 1024, 0)} KB`);
+      error.hidden = true;
+    } catch (e) { mostrarError(mensajeError(e, "No se pudo leer la foto. Probá con otra.")); }
+  }
+  // Dos entradas ocultas que se abren con botones: se llega con teclado y VoiceOver, y «Elegir de la galería» no fuerza la cámara.
+  const archivoCamara = h("input", { type: "file", accept: "image/*", capture: "environment", hidden: true, onchange: () => alElegirFoto(archivoCamara) });
+  const archivoGaleria = h("input", { type: "file", accept: "image/*", hidden: true, onchange: () => alElegirFoto(archivoGaleria) });
 
   function estimar() {
     const n = parsearMonto(monto.value);
@@ -218,13 +279,23 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
 
   async function guardar() {
     const n = parsearMonto(monto.value);
-    if (Number.isNaN(n)) { mostrarError("Poné un monto mayor a cero, por ejemplo 14,10."); monto.focus(); return; }
+    if (guardando) return;
+    if (Number.isNaN(n)) { mostrarError("Poné un monto mayor a cero y menor a mil millones, por ejemplo 14,10."); monto.focus(); return; }
     const datos = { fecha: fecha.value || fechaLocal(), monto: n, moneda, categoria, nota: nota.value.trim(), reintegrable, compartido };
-    const nuevo = gasto ? editarGasto(gasto, datos) : crearGasto(datos);
+    const motivo = validarGasto({ ...datos });
+    if (motivo) { mostrarError(motivo); return; }
+    const nuevo = gasto ? editarGasto(gasto, datos) : crearGasto(datos, { id: clientId });
+    guardando = true;
+    botonGuardar.disabled = true;
     try {
       await guardarGasto(nuevo);
       if (foto) await guardarFoto(nuevo.client_id, foto);
-    } catch (e) { mostrarError(mensajeError(e, "No se pudo guardar en el celular. Revisá el espacio y probá de nuevo.")); return; }
+    } catch (e) {
+      guardando = false;
+      botonGuardar.disabled = false;
+      mostrarError(mensajeError(e, "No se pudo guardar en el celular. Revisá el espacio y probá de nuevo."));
+      return;
+    }
     dlg.close();
     alGuardar();
     sincronizarEnSilencio();
@@ -250,17 +321,21 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
       Grupo("Reintegrable", "ra-chips", [[true, "Reintegrable"]], () => reintegrable, () => { reintegrable = !reintegrable; }, { chip: true }),
       Grupo("Individual o compartido", "ra-g-dos", [[false, "Individual"], [true, "Compartido"]], (v) => v === compartido, (v) => { compartido = v; })),
     h("div", { class: "ra-g-foto" },
-      h("label", { class: "ra-btn ra-btn-secondary", for: "g-foto" }, "Foto del ticket", archivo),
+      Button("Sacar foto del ticket", { onclick: () => archivoCamara.click() }),
+      Button("Elegir de la galería", { onclick: () => archivoGaleria.click() }),
+      archivoCamara, archivoGaleria,
       miniatura),
     error);
 
+  const botonGuardar = Button("Guardar gasto", { variant: "primary", onclick: () => toastOnError(guardar()) });
   const dlg = Hoja("g-carga-titulo", gasto ? "Editar gasto" : "Nuevo gasto", cuerpo, [
     gasto ? Button("Borrar", { variant: "danger", onclick: () => toastOnError(borrar()) }) : Button("Cancelar", { onclick: () => dlg.close() }),
-    Button("Guardar gasto", { variant: "primary", onclick: () => toastOnError(guardar()) })]);
+    botonGuardar]);
   dlg.addEventListener("close", () => {
     cerrada = true;
     for (const url of [vistaPrevia, ...urlsDeFotos]) if (url) URL.revokeObjectURL(url);
   });
+  if (gasto?.rechazado) mostrarError(`Este gasto no se pudo sincronizar: ${gasto.error}`);
   if (gasto?.foto_url) mostrarFotoGuardada(gasto.foto_url).catch((e) => console.warn("[gastos] foto guardada", e));
   estimar();
   monto.focus();
@@ -304,7 +379,15 @@ function abrirPresupuesto({ presupuesto, alGuardar }) {
 
 async function exportarReintegrables() {
   const r = await api("/api/gastos/export.csv", { raw: true });
-  const url = URL.createObjectURL(await r.blob());
+  const blob = await r.blob();
+  // En la app instalada de iPhone un enlace de descarga deja la pantalla trabada en el archivo: ahí se comparte con la hoja del sistema.
+  const archivo = typeof File === "function" ? new File([blob], "gastos-reintegrables.csv", { type: "text/csv" }) : null;
+  if (archivo && navigator.canShare?.({ files: [archivo] })) {
+    try { await navigator.share({ files: [archivo], title: "Gastos reintegrables" }); return; } catch (e) {
+      if (e?.name === "AbortError") return;   // cerró la hoja de compartir: no es un error
+    }
+  }
+  const url = URL.createObjectURL(blob);
   const enlace = h("a", { href: url, download: "gastos-reintegrables.csv" });
   document.body.append(enlace);
   enlace.click();
@@ -339,8 +422,11 @@ function Resumen(t, presupuesto, hoy) {
 function Cotizaciones(cotiz) {
   const celda = (etiqueta, valor) => h("div", {}, h("span", { class: "ra-g-dato-label" }, etiqueta), h("span", { class: "ra-g-dato-valor" }, valor > 0 ? ars(valor) : "—"));
   const hora = cotiz?.at ? new Date(cotiz.at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : null;
+  const edad = textoEdad(edadCotizacion(cotiz));
+  const cuando = [hora, edad ? `(${edad})` : null].filter(Boolean).join(" ");
   return h("section", { class: "stack" },
-    h("div", { class: "ra-sec-head" }, h("h2", { class: "label" }, "Cotización"), h("span", { class: "caption" }, hora ? `ARS por USD · ${hora}` : "ARS por USD · sin datos")),
+    h("div", { class: "ra-sec-head" }, h("h2", { class: "label" }, "Cotización"), h("span", { class: "caption" }, cuando ? `ARS por USD · ${cuando}` : "ARS por USD · sin datos")),
+    cotiz?.es_respaldo ? Hint("No pudimos traer la cotización del día: se usa un valor de respaldo, aproximado.", { tone: "warn" }) : null,
     h("div", { class: "ra-g-cotiz" }, celda("Oficial", cotiz?.oficial), celda("Blue", cotiz?.blue), celda("Tarjeta", cotiz?.tarjeta)));
 }
 
@@ -361,20 +447,22 @@ function Fila(gasto, { tarjeta, conFotoPendiente, alTocar }) {
   const u = usdDe(gasto, tarjeta);
   const marcas = [ETIQUETAS[gasto.categoria], gasto.reintegrable ? "Reintegrable" : null, gasto.compartido ? "Compartido" : null,
     gasto.foto_url ? "Foto" : conFotoPendiente ? "Foto pendiente" : null].filter(Boolean).map((m) => h("span", { class: "ra-g-marca" }, m));
-  if (gasto.pendiente) marcas.push(h("span", { class: "ra-g-marca is-pendiente" }, "Sin sincronizar"));
+  if (gasto.cotizacion_estimada) marcas.push(h("span", { class: "ra-g-marca" }, "Cotización estimada"));
+  if (gasto.rechazado) marcas.push(h("span", { class: "ra-g-marca is-rechazado" }, "No se pudo sincronizar"));
+  else if (gasto.pendiente) marcas.push(h("span", { class: "ra-g-marca is-pendiente" }, "Sin sincronizar"));
   return h("button", { type: "button", class: "ra-g-fila", onclick: alTocar },
     h("span", { class: "ra-g-fila-titulo" }, gasto.nota || ETIQUETAS[gasto.categoria]),
     h("span", { class: "ra-g-fila-monto" }, u == null ? "Sin cotización" : usd(u)),
     h("span", { class: "ra-g-marcas" }, marcas),
-    h("span", { class: "ra-g-fila-sub" }, gasto.moneda === "ARS" ? ars(gasto.monto) : ""));
+    h("span", { class: "ra-g-fila-sub" }, gasto.moneda === "ARS" ? ars(gasto.monto) : ""),
+    gasto.rechazado ? h("span", { class: "ra-g-fila-error" }, gasto.error) : null);
 }
 
 function Lista(gastos, t, ctx) {
   if (!gastos.length) {
     return h("div", { class: "empty" }, h("p", {}, "Todavía no cargaste gastos."), h("p", { class: "caption" }, "Tocá «Cargar gasto»: anda también sin señal."));
   }
-  const dias = Map.groupBy(gastos, (g) => g.fecha);
-  return [...dias].map(([dia, items]) => h("div", { class: "ra-g-dia" },
+  return agruparPorDia(gastos).map(([dia, items]) => h("div", { class: "ra-g-dia" },
     h("div", { class: "ra-g-dia-head" }, h("h2", { class: "label" }, capital(dayLong(dia))), h("span", { class: "caption" }, usd(t.porDia[dia] ?? 0))),
     items.map((g) => Fila(g, { tarjeta: ctx.tarjeta, conFotoPendiente: ctx.fotos.has(g.client_id), alTocar: () => abrirCarga({ gasto: g, tarjeta: ctx.tarjeta, alGuardar: ctx.recargar }) }))));
 }
@@ -385,7 +473,7 @@ export async function viewGastos(view) {
   activarSync();
   const raiz = h("div", { class: "ra-g" });
   view.append(raiz);
-  const ctx = { gastos: [], fotos: new Set(), cotiz: null, presupuesto: null, tarjeta: null, aviso: "", sincronizando: false, recargar };
+  const ctx = { gastos: [], fotos: new Set(), cotiz: null, presupuesto: null, tarjeta: null, aviso: "", sesionVencida: false, sincronizando: false, recargar };
 
   async function recargar() {
     const [todos, fotos, cotiz, presupuesto] = await Promise.all([listarGastos(), fotosPendientes(), leerMeta("cotizacion"), leerMeta("presupuesto")]);
@@ -396,12 +484,16 @@ export async function viewGastos(view) {
   function pintar() {
     const lista = visibles(ctx.gastos);
     const t = totales(lista, ctx.tarjeta);
-    const pendientes = lista.filter((g) => g.pendiente).length;
+    const pendientes = lista.filter((g) => g.pendiente && !g.rechazado).length;
+    const rechazados = lista.filter((g) => g.rechazado).length;
     raiz.replaceChildren(...[
       h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/viaje" }, icon("volver", 16), h("span", {}, "Viaje")),
       h("div", { class: "ra-g-head" }, h("h1", { class: "title" }, "Gastos"),
         Button("Cargar gasto", { variant: "primary", onclick: () => abrirCarga({ tarjeta: ctx.tarjeta, alGuardar: recargar }) })),
-      ctx.aviso ? Hint(ctx.aviso, { tone: "warn" }) : null,
+      ctx.sesionVencida ? h("div", { class: "stack" }, Hint(MSG_SESION_VENCIDA, { tone: "warn" }),
+        h("a", { class: "ra-btn ra-btn-primary", href: "#/login" }, "Volver a entrar")) : null,
+      ctx.aviso && !ctx.sesionVencida ? Hint(ctx.aviso, { tone: "warn" }) : null,
+      rechazados ? Hint(`${rechazados === 1 ? "1 gasto no se pudo sincronizar" : `${rechazados} gastos no se pudieron sincronizar`}: tocalo para corregirlo o borrarlo.`, { tone: "warn" }) : null,
       pendientes ? h("div", { class: "stack" },
         Hint(`${pendientes === 1 ? "1 gasto sin sincronizar" : `${pendientes} gastos sin sincronizar`}: están guardados en este celular.`, { tone: "info" }),
         Button(ctx.sincronizando ? "Sincronizando…" : "Sincronizar ahora", { disabled: ctx.sincronizando, onclick: () => refrescar() })) : null,
@@ -420,13 +512,15 @@ export async function viewGastos(view) {
   async function refrescar() {
     ctx.sincronizando = true;
     ctx.aviso = "";
+    ctx.sesionVencida = false;
     pintar();
     const hoy = fechaLocal();
     const [sync, cotizacion, resumen] = await Promise.allSettled([
-      sincronizar(), api("/api/gastos/cotizacion"), api(`/api/gastos?desde=${hoy}&hasta=${hoy}`)]);
-    if (cotizacion.status === "fulfilled") await guardarMeta("cotizacion", cotizacion.value);
+      sincronizar(), apiConTimeout("/api/gastos/cotizacion"), apiConTimeout(`/api/gastos?desde=${hoy}&hasta=${hoy}`)]);
+    if (cotizacion.status === "fulfilled") await guardarMeta("cotizacion", { ...cotizacion.value, leido_en: Date.now() });
     if (resumen.status === "fulfilled" && resumen.value.presupuesto) await guardarMeta("presupuesto", resumen.value.presupuesto);
     const falla = [sync, cotizacion, resumen].find((r) => r.status === "rejected");
+    ctx.sesionVencida = Boolean(falla) && esSesionVencida(falla.reason);
     ctx.aviso = !falla ? "" : sinServicio(falla.reason) && falla.reason.status === 0 ? MSG_SIN_SENAL : textoError(falla.reason);
     ctx.sincronizando = false;
     await recargar();
@@ -434,6 +528,7 @@ export async function viewGastos(view) {
 
   const alCambiar = () => { if (raiz.isConnected) recargar().catch(console.warn); else oyentes.delete(alCambiar); };
   oyentes.add(alCambiar);
+  await asegurarDueno().catch((e) => { ctx.sesionVencida = esSesionVencida(e); });   // la lista de otra persona no se muestra
   await recargar();
   refrescar().catch((e) => { ctx.aviso = textoError(e); ctx.sincronizando = false; pintar(); });
 }
