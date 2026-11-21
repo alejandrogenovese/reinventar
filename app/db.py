@@ -258,10 +258,21 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   tarjeta NUMERIC(14,4) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS cotizaciones_at ON cotizaciones (at DESC);
+-- Los códigos de sesión que la persona quiere, de su Excel o CSV (app/codigos_api.py). Subir otra lista reemplaza la anterior.
+CREATE TABLE IF NOT EXISTS codigos_deseados (
+  username TEXT NOT NULL,
+  codigo TEXT NOT NULL,                -- como lo escribió (AIM301-R1)
+  base TEXT NOT NULL,                  -- AIM301
+  orden INTEGER NOT NULL,
+  archivo TEXT,
+  subido_en DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, codigo)
+);
 """
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
-                        "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "cotizaciones")
+                        "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "cotizaciones",
+                        "codigos_deseados")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
