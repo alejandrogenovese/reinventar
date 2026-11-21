@@ -137,3 +137,10 @@ TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
 # la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
 # se loguea (ver app/ticketmaster.py).
 TICKETMASTER_API_KEY = _env("TICKETMASTER_API_KEY")
+
+# Alertas de ofertas por push (app/ofertas.py y app/ofertas_avisos.py).
+OFERTAS_MAX_POR_DIA = int(_env("OFERTAS_MAX_POR_DIA", "3"))        # push de ofertas por persona y por día (Las Vegas)
+OFERTAS_VENTANA_HORAS = float(_env("OFERTAS_VENTANA_HORAS", "12"))  # una oferta que arrancó hace más que esto ya no se avisa
+OFERTAS_SNAPSHOT_HORAS = float(_env("OFERTAS_SNAPSHOT_HORAS", "6"))  # cada cuánto se miran los precios de los shows
+OFERTAS_BAJA_PORCENTAJE = float(_env("OFERTAS_BAJA_PORCENTAJE", "15"))  # una baja de precio es oferta desde este %...
+OFERTAS_BAJA_USD = float(_env("OFERTAS_BAJA_USD", "20"))           # ...o desde estos dólares
