@@ -261,6 +261,7 @@ export const Events = {
 export const Shows = {
   list: () => api("/api/shows"),
   get: (id) => api(`/api/shows/${enc(id)}`),
+  cuando: (id) => api(`/api/shows/${enc(id)}/cuando`),
 };
 
 export const Knowledge = {
