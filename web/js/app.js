@@ -31,6 +31,7 @@ import { viewMiEvento } from "./myEvents.js";
 import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
 import { viewGastos } from "./gastos.js";
+import { borrarBaseLocal as borrarGastosLocales } from "./gastosCola.js";
 import { viewAdminOfertas } from "./adminOfertas.js";
 import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
@@ -671,6 +672,7 @@ async function viewSettings() {
     try { await disablePush(); } catch {}  // antes de borrar el token: la baja necesita la sesión
     try { await Auth.logout(); } catch {}
     setToken("");
+    try { await borrarGastosLocales(); } catch {}  // los gastos del celular son de esa persona: no quedan para la próxima
     location.hash = "#/login";
   }
 

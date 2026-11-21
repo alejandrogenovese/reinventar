@@ -39,7 +39,7 @@ def test_la_foto_guardada_se_pide_con_token_y_se_muestra_desde_un_blob():
 def test_el_sync_parte_en_lotes_de_200_y_usa_el_ahora_del_servidor_como_cursor():
     assert re.search(r"LOTE_SYNC\s*=\s*200", PANTALLA)
     assert "desde = r.ahora" in PANTALLA
-    assert "reemplazarPerdido" in PANTALLA
+    assert "resolverRespuesta" in PANTALLA and "reemplazarPerdido" in COLA
 
 
 def test_el_export_baja_con_token_como_blob():
@@ -113,3 +113,67 @@ def test_el_css_usa_tokens_y_no_colores_a_mano():
 
 def test_la_cola_no_toca_el_dom_para_poder_probarse_con_node():
     assert "document." not in COLA
+
+
+def test_el_logout_borra_la_base_local_de_gastos():
+    logout = APP[APP.index("async function logout()"):]
+    logout = logout[:logout.index("location.hash")]
+    assert "borrarGastosLocales()" in logout
+    assert logout.index('setToken("")') < logout.index("borrarGastosLocales()")
+    assert 'import { borrarBaseLocal as borrarGastosLocales } from "./gastosCola.js"' in APP
+
+
+def test_la_cola_tiene_dueno_y_no_manda_a_la_cuenta_de_otro():
+    assert "asegurarDueno()" in PANTALLA
+    sync = PANTALLA[PANTALLA.index("async function hacerSync"):]
+    assert sync.index("asegurarDueno()") < sync.index("gastosPendientes()")
+    assert 'leerMeta("dueno")' in PANTALLA and "decidirDueno" in PANTALLA
+
+
+def test_el_sync_sigue_mientras_hay_mas_y_tiene_timeout():
+    assert "r.hay_mas" in PANTALLA
+    assert re.search(r"TIMEOUT_PEDIDO_MS\s*=\s*20_?000", PANTALLA)
+    assert "AbortController" in PANTALLA
+    assert 'apiConTimeout("/api/gastos/sync"' in PANTALLA
+    assert 'api("/api/gastos/sync"' not in PANTALLA
+
+
+def test_los_rechazados_no_se_reintentan_solos():
+    assert "g.pendiente && !g.rechazado" in COLA
+    assert "rechazados" in PANTALLA and "is-rechazado" in PANTALLA and ".is-rechazado" in CSS
+
+
+def test_guardar_dos_veces_no_duplica():
+    assert "nuevoId()" in PANTALLA and "id: clientId" in PANTALLA
+    assert "botonGuardar.disabled = true" in PANTALLA
+
+
+def test_no_usa_map_groupby_que_no_existe_en_ios_16():
+    assert "groupBy" not in PANTALLA + COLA
+
+
+def test_la_base_local_se_reabre_si_ios_la_cierra():
+    assert "db.onclose" in COLA and "InvalidStateError" in COLA
+
+
+def test_la_edicion_y_el_sync_van_en_una_transaccion():
+    assert "transaccionarGastos" in COLA and "transaccionarGastos" in PANTALLA
+
+
+def test_el_csv_se_comparte_con_la_hoja_del_sistema_si_se_puede():
+    assert "navigator.share" in PANTALLA and "canShare" in PANTALLA
+    assert 'download: "gastos-reintegrables.csv"' in PANTALLA  # y si no se puede, la descarga de siempre
+
+
+def test_con_sesion_vencida_avisa_y_lleva_al_login():
+    assert "esSesionVencida" in PANTALLA and 'href: "#/login"' in PANTALLA
+
+
+def test_la_foto_se_elige_con_botones_y_tambien_de_la_galeria():
+    assert 'tabindex: "-1"' not in PANTALLA and '"aria-hidden": "true"' not in PANTALLA
+    assert "Elegir de la galería" in PANTALLA
+    assert PANTALLA.count('type: "file"') == 2 and PANTALLA.count('capture: "environment"') == 1
+
+
+def test_muestra_cotizacion_estimada_y_la_antiguedad_de_la_cotizacion():
+    assert "cotizacion_estimada" in PANTALLA and "es_respaldo" in PANTALLA and "edadCotizacion" in PANTALLA
