@@ -11,6 +11,12 @@ export const PESTANAS = [
 
 export const pestanaDeHash = (hash) => PESTANAS.find(([, , ruta]) => ruta === hash)?.[0] ?? "estado";
 
+/** Nombre legible de cada fuente de eventos (la clave es la que manda el servidor). */
+export const NOMBRE_FUENTE = {
+  luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano",
+  catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)",
+};
+
 const TAREAS = {
   resumen: "Resumen de grabaciones", traduccion: "Traducción en vivo", entrevista: "Entrevista del itinerario",
   itinerario: "Armado del itinerario", razones: "Razones del armado", chat: "Chat de búsqueda",
