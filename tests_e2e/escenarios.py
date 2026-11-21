@@ -210,6 +210,51 @@ async def escenario_6_cierre_diferido(c: Contexto) -> None:
     await p.esperar("!document.body.innerText.includes('Grabadas en este celular')", "la tarjeta local desapareció", 20)
 
 
+# ---------- alertas de ofertas (app/ofertas.py) ----------
+
+TEXTO_BLOQUEADAS = "Las notificaciones están bloqueadas"
+ESPERA_NOTIFICACION_S = 15
+
+
+async def _permiso_notificaciones(p: Pagina, valor: str) -> None:
+    await p.cdp.enviar("Browser.setPermission", {"permission": {"name": "notifications"}, "setting": valor, "origin": p.origen})
+
+
+async def escenario_7_ofertas_con_permiso_denegado(c: Contexto) -> None:
+    """Con las notificaciones bloqueadas, activar las alertas explica cómo habilitarlas y deja el interruptor apagado."""
+    p = c.pagina
+    await _permiso_notificaciones(p, "denied")
+    await _ir_a(p, "#/ajustes")
+    await p.esperar("(() => { const i = document.getElementById('ofertas-on'); return !!i && !i.disabled; })()", "el interruptor de ofertas listo")
+    await p.tocar("document.getElementById('ofertas-on')")
+    await p.esperar(f"document.body.innerText.includes({json.dumps(TEXTO_BLOQUEADAS)})", "la explicación de cómo habilitar las notificaciones")
+    assert not await p.evaluar("document.getElementById('ofertas-on').checked"), "con el permiso denegado el interruptor debía quedar apagado"
+    assert c.servidor.pedir("/api/ofertas/preferencias")["activas"] is False, "no debía guardarse la preferencia"  # type: ignore[index]
+
+
+async def escenario_8_push_de_oferta_abre_la_oferta(c: Contexto) -> None:
+    """Llega un push de oferta (simulado con ServiceWorker.deliverPushMessage): el service worker muestra la notificación
+    con la ruta de la oferta y esa ruta abre la pantalla dentro de la app. El toque sobre la notificación en sí no se puede
+    simular en Chromium sin cabeza: se verifica `data.url`, que es lo que abre notificationclick (web/sw.js)."""
+    p = c.pagina
+    await _permiso_notificaciones(p, "granted")
+    await _ir_a(p, "#/ofertas")
+    await p.esperar("document.body.innerText.includes('Ofertas')", "la pantalla Ofertas")
+    registro = asyncio.get_running_loop().create_future()
+    p.cdp.en("ServiceWorker.workerRegistrationUpdated",
+             lambda r: registro.done() or (r["registrations"] and registro.set_result(r["registrations"][0]["registrationId"])), p.sesion)
+    await p._enviar("ServiceWorker.enable")
+    async with asyncio.timeout(ESPERA_NOTIFICACION_S):
+        id_registro = await registro
+    mensaje = {"title": "2x1 en tragos", "body": "Venetian", "url": "/#/ofertas/no-existe", "tag": "oferta:no-existe"}
+    await p._enviar("ServiceWorker.deliverPushMessage", {"origin": p.origen, "registrationId": id_registro, "data": json.dumps(mensaje)})
+    url = await p.esperar("navigator.serviceWorker.ready.then(r => r.getNotifications()).then(n => n[0]?.data?.url || null)",
+                          "la notificación de la oferta", ESPERA_NOTIFICACION_S)
+    assert url == "/#/ofertas/no-existe", f"la notificación debía abrir la oferta y trae {url!r}"
+    await _ir_a(p, url.removeprefix("/"))
+    await p.esperar("document.body.innerText.includes('Esta oferta ya no está disponible')", "la ruta de la oferta abre dentro de la app")
+
+
 ESCENARIOS = (
     ("1 · franja «Sin señal» al recargar sin red", escenario_1_franja_sin_senal),
     ("2 · grabar sin red y terminar", escenario_2_grabar_sin_red),
@@ -217,4 +262,6 @@ ESCENARIOS = (
     ("4 · portal cautivo en /api/", escenario_4_portal_cautivo),
     ("5 · ver y ocultar la contraseña en el login", escenario_5_ver_contrasena_en_el_login),
     ("6 · terminar sin red una sesión ya creada y cerrarla al volver", escenario_6_cierre_diferido),
+    ("7 · alertas de ofertas con el permiso denegado", escenario_7_ofertas_con_permiso_denegado),
+    ("8 · el push de una oferta abre la oferta", escenario_8_push_de_oferta_abre_la_oferta),
 )
