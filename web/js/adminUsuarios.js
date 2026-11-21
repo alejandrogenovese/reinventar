@@ -23,8 +23,10 @@ async function askPassword(username) {
 /** Corre la acción con su botón ocupado y, si anduvo, avisa y repinta la fila; si falló, avisa el error y deja todo como estaba. */
 async function ejecutar(boton, accion, okMsg, despues) {
   await conOcupado(boton, async () => {
-    try { await accion(); avisar(okMsg); await despues(); }
-    catch (err) { avisar(mensajeError(err), { error: true }); }
+    try { await accion(); } catch (err) { avisar(mensajeError(err), { error: true }); return; }
+    avisar(okMsg);
+    // La acción ya anduvo: si falla el repintado no se la muestra como fallida.
+    try { await despues(); } catch { avisar(`${okMsg}, pero no se pudo actualizar la lista. Recargá la pantalla.`, { error: true }); }
   });
 }
 
@@ -149,11 +151,13 @@ function NewUserForm(alCrear) {
   return form;
 }
 
-export async function viewAdminUsuarios(view) {
-  let venues = [];
-  try { ({ venues } = await Admin.venues()); } catch { /* sin catálogo: el modo prueba anda igual, sin ubicación */ }
+export function viewAdminUsuarios(view) {
+  let venues = null; // se piden adentro de la carga: así el marco ya está armado y no se pisa si cambió de pestaña
   const lista = Cargable({
-    cargar: () => Admin.users(),
+    cargar: async () => {
+      if (!venues) venues = await Admin.venues().then((r) => r.venues, () => []); // sin catálogo: el modo prueba anda igual, sin ubicación
+      return Admin.users();
+    },
     pintar: ({ users }) => users.map((u) => UserRow(u, venues)),
     esVacio: ({ users }) => !users.length,
     textoVacio: "Todavía no hay usuarios.",

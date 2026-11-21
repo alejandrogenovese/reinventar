@@ -11,7 +11,7 @@ let regionAlerta = null;
 export function avisar(texto, { error = false } = {}) {
   toast(texto);
   const region = error ? regionAlerta : regionEstado;
-  if (!region) return;
+  if (!region?.isConnected) return; // la región de otra pestaña ya no está en pantalla
   region.textContent = "";
   setTimeout(() => { region.textContent = texto; }, 50); // vaciar y volver a escribir hace que repita un aviso igual
 }

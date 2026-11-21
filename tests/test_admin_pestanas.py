@@ -57,3 +57,26 @@ def test_el_polling_de_eventos_se_corta_al_salir_y_no_repinta_el_formulario():
 def test_cada_pestana_carga_por_su_cuenta():
     for modulo in ("adminUsuarios", "adminEstado", "adminEventos", "adminLlm", "adminOfertas"):
         assert "Cargable(" in _js(modulo), modulo
+
+
+def test_usuarios_arma_el_marco_antes_de_pedir_nada():
+    usuarios = _js("adminUsuarios")
+
+    assert "export function viewAdminUsuarios" in usuarios  # sin async: no hay await antes de AdminShell
+    assert "export async function viewAdminUsuarios" not in usuarios
+
+
+def test_ninguna_vista_admin_espera_antes_de_armar_el_marco():
+    for modulo in ("adminUsuarios", "adminEstado", "adminEventos", "adminLlm", "adminOfertas"):
+        assert not re.search(r"export async function viewAdmin", _js(modulo)), modulo
+
+
+def test_un_sondeo_que_falla_no_deja_la_revision_congelada():
+    eventos = _js("adminEventos")
+
+    assert "if (ocupado) programar();" in eventos
+    assert 'revisar.textContent = "Revisando…"' in eventos  # «Revisar ahora» no se rehabilita antes del sondeo
+
+
+def test_si_falla_el_repintado_no_se_muestra_la_accion_como_fallida():
+    assert "pero no se pudo actualizar la lista" in _js("adminUsuarios")

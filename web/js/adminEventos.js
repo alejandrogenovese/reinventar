@@ -2,7 +2,7 @@
 // oficial de charlas), «Revisar ahora», «Agregar evento por link» (vista previa con el LLM, corregible, y guardar) y las
 // «Charlas nuevas» que encontró la revisión. Ver app/eventos_auto.py y app/charlas_auto.py.
 import { Admin } from "./api.js";
-import { AdminShell, Cargable, avisar, conOcupado } from "./adminUi.js";
+import { AdminShell, Cargable, avisar } from "./adminUi.js";
 import { Button, Hint, h, mensajeError } from "./ui.js";
 
 const FUENTE = { luma: "Luma", conferenceparties: "conferenceparties", links: "Links cargados a mano", catalogo: "Catálogo oficial de charlas", ticketmaster: "Ticketmaster (shows)" };
@@ -102,6 +102,7 @@ function CharlasNuevas(nuevas) {
 export function viewAdminEventos(view, { setCleanup = () => {} } = {}) {
   let timer = null;
   let activa = true;
+  let ocupado = false; // lo último que dijo el servidor: mientras sea true se sigue sondeando, aunque un sondeo falle
   const parar = () => { activa = false; clearTimeout(timer); };
   setCleanup(parar);
   const formulario = h("div", { class: "stack" });
@@ -115,14 +116,28 @@ export function viewAdminEventos(view, { setCleanup = () => {} } = {}) {
         formularioListo = true;
         formulario.replaceChildren(AddLink(() => void estado.recargar({ silencioso: true })));
       }
-      if (d.ocupado) programar();
+      ocupado = d.ocupado;
+      if (ocupado) programar();
       return d;
     },
     pintar: (d) => {
-      const revisar = Button(d.ocupado ? "Revisando…" : "Revisar ahora", { onclick: () => conOcupado(revisar, async () => {
-        try { await Admin.eventosRevisar(); avisar("Revisando las fuentes: tarda un par de minutos."); programar(); }
-        catch (err) { avisar(mensajeError(err), { error: true }); }
-      }) });
+      const revisar = Button(d.ocupado ? "Revisando…" : "Revisar ahora", { onclick: async () => {
+        revisar.disabled = true;
+        revisar.setAttribute("aria-busy", "true");
+        try {
+          await Admin.eventosRevisar();
+          // Queda deshabilitado en «Revisando…» hasta que el sondeo diga que terminó.
+          revisar.textContent = "Revisando…";
+          ocupado = true;
+          avisar("Revisando las fuentes: tarda un par de minutos.");
+          programar();
+          void estado.recargar({ silencioso: true });
+        } catch (err) {
+          avisar(mensajeError(err), { error: true });
+          revisar.disabled = false;
+          revisar.removeAttribute("aria-busy");
+        }
+      } });
       revisar.disabled = d.ocupado || !d.activo || d.migracion_pendiente;
       return [ // Cargable filtra los null: replaceChildren escribiría «null»
         !d.activo ? Hint("Apagado en este entorno: se prende con EVENTOS_AUTO=1 (solo en producción).") : null,
@@ -141,9 +156,10 @@ export function viewAdminEventos(view, { setCleanup = () => {} } = {}) {
   function programar() {
     clearTimeout(timer);
     if (!activa) return;
-    timer = setTimeout(() => {
+    timer = setTimeout(async () => {
       if (!activa || !estado.isConnected) { parar(); return; } // se fue de la pantalla: no sigue pidiendo
-      void estado.recargar({ silencioso: true });
+      await estado.recargar({ silencioso: true });
+      if (ocupado) programar(); // un sondeo que falla en silencio no deja «Revisando…» congelado
     }, ESPERA_MS);
   }
 
