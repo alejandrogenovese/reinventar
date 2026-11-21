@@ -2,6 +2,7 @@
 // y se manda solo al volver la red. Pantalla #/gastos: resumen contra presupuesto, cotizaciones, categorías y lista.
 import { ApiError, MSG_SIN_CONEXION, api, cuentaConCopia, getToken, sinServicio } from "./api.js";
 import { Bars, dayLong, dec, int } from "./charts.js";
+import { sinDoble } from "./adminUi.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import {
@@ -328,8 +329,10 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
     error);
 
   const botonGuardar = Button("Guardar gasto", { variant: "primary", onclick: () => toastOnError(guardar()) });
+  // Un doble toque en «Borrar» no apila dos confirmaciones.
+  const botonBorrar = gasto ? Button("Borrar", { variant: "danger", onclick: () => toastOnError(sinDoble(botonBorrar, borrar)) }) : null;
   const dlg = Hoja("g-carga-titulo", gasto ? "Editar gasto" : "Nuevo gasto", cuerpo, [
-    gasto ? Button("Borrar", { variant: "danger", onclick: () => toastOnError(borrar()) }) : Button("Cancelar", { onclick: () => dlg.close() }),
+    botonBorrar ?? Button("Cancelar", { onclick: () => dlg.close() }),
     botonGuardar]);
   dlg.addEventListener("close", () => {
     cerrada = true;

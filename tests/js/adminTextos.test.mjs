@@ -60,3 +60,10 @@ test("hace() no muestra NaN ni 1970 con fechas vacías o inválidas", async () =
   assert.equal(hace("2026-12-01T15:00:00Z", ahora), "hace 5 h");
   assert.equal(hace("2026-11-28T20:00:00Z", ahora), "hace 3 días");
 });
+
+test("el resumen de grabaciones pluraliza cada estado según la cantidad", () => {
+  assert.equal(resumenEstados({ ready: 1 }), "1 lista");
+  assert.equal(resumenEstados({ ready: 2 }), "2 listas");
+  assert.equal(resumenEstados({ ready: 1, error: 1, queued: 1 }), "1 lista · 1 en cola · 1 con error");
+  assert.equal(resumenEstados({ ready: 3, error: 2, recording: 2, transcribing: 1 }), "3 listas · 2 grabando · 1 transcribiendo · 2 con error");
+});
