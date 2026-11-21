@@ -13,17 +13,19 @@ const haceTexto = (horas) => (horas < 24 ? `${Math.max(1, Math.round(horas))} h`
 function avisoGrabaciones(g) {
   const errores = g.por_estado?.error ?? g.errores?.length ?? 0;
   if (!errores) return [];
-  const ultima = g.errores?.[0];
+  const lista = (g.errores ?? []).map((e) => ({ ...e, ruta: `#/s/${encodeURIComponent(e.id)}` }));
+  const ultima = lista[0];
   return [{ id: "grabaciones", tono: "error", texto: `${plural(errores, "grabación", "grabaciones")} con error`,
-    ruta: ultima ? `#/s/${encodeURIComponent(ultima.id)}` : "#/admin", enlace: ultima ? "Ver la última" : "Ver" }];
+    ruta: ultima ? ultima.ruta : "#/admin", enlace: ultima ? "Ver la última" : "Ver", detalle: lista }];
 }
 
 /** «ok», «atrasada» (pasó 3 veces su intervalo sin revisarse) o «error» (falló la última revisión). `horas` = intervalo de las fuentes. */
 export function estadoFuente(r, horas, ahora) {
   if (!r.ok) return "error";
   const esperado = r.fuente === "catalogo" ? HORAS_CATALOGO : horas;
-  if (!esperado) return "ok";
-  return (ahora - new Date(r.revisado).getTime()) / HORA_MS > esperado * FACTOR_ATRASO ? "atrasada" : "ok";
+  const revisado = r.revisado ? new Date(r.revisado).getTime() : NaN;
+  if (!esperado || Number.isNaN(revisado)) return "ok"; // sin fecha no hay cómo saber si está atrasada
+  return (ahora - revisado) / HORA_MS > esperado * FACTOR_ATRASO ? "atrasada" : "ok";
 }
 
 function avisosFuentes(e, ahora) {

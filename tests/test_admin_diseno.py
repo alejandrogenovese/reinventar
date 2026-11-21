@@ -122,3 +122,40 @@ def test_los_avisos_de_error_ocultos_no_se_pintan_como_barras_vacias():
 def test_el_admin_no_deja_hints_vacios_fuera_del_alta_de_usuario():
     for modulo in ("adminOfertas", "adminEventos", "adminEstado", "adminLlm"):
         assert "hidden:" not in _js(modulo).replace('"aria-hidden"', ""), modulo
+
+
+def test_el_sondeo_de_eventos_no_repinta_el_buscador_ni_los_pliegues():
+    eventos = _js("adminEventos")
+    assert "charlasHost" in eventos and "linksHost" in eventos  # fuera de lo que repinta el sondeo
+    assert "charlas?.actualizar(" in eventos
+    assert "gracia" in eventos  # tras «Revisar ahora» sigue sondeando aunque el servidor diga ocupado=false al toque
+
+
+def test_cada_charla_nueva_muestra_su_horario_y_cuando_se_encontro():
+    eventos = _js("adminEventos")
+    assert "c.primero" in eventos and "encontrada" in eventos and "c.alta" in eventos
+
+
+def test_con_varias_grabaciones_con_error_hay_un_desplegable_con_cada_una():
+    assert "detalle" in _js("adminAtencion") and "a.detalle" in _js("adminEstado")
+
+
+def test_el_chequeo_conserva_el_detalle_y_los_ms_de_los_que_andan():
+    estado = _js("adminEstado")
+    assert "c.ms" in estado and "ra-adm-detalle" in estado
+
+
+def test_los_botones_con_confirmacion_no_abren_dos_dialogos_por_doble_toque():
+    assert "export async function sinDoble" in _js("adminUi")
+    for modulo in ("adminUsuarios", "adminOfertas", "adminEstado"):
+        assert "sinDoble(" in _js(modulo), modulo
+
+
+def test_si_falla_un_repintado_posterior_se_avisa():
+    usuarios = _js("adminUsuarios")
+    assert "no se pudo actualizar el modo prueba" in usuarios
+    assert "alFallar" in _js("adminUi") and "alFallar" in usuarios
+
+
+def test_al_repintar_una_fila_el_foco_no_se_pierde():
+    assert '?? nueva.querySelector("summary")' in _js("adminUsuarios")

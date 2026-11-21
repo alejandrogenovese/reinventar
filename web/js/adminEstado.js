@@ -3,7 +3,7 @@
 // para diagnosticar) sigue ahí.
 import { Admin, api } from "./api.js";
 import { atencion, nuevasUltimas24h, resumenKpiGrabaciones } from "./adminAtencion.js";
-import { AdminShell, Cargable, Plegable, avisar, confirmar, conOcupado, hace } from "./adminUi.js";
+import { AdminShell, Cargable, Plegable, avisar, confirmar, conOcupado, hace, sinDoble } from "./adminUi.js";
 import { TEXTO_CHEQUEO, resumenChequeo, resumenEstados } from "./adminTextos.js";
 import { icon } from "./icons.js";
 import { currentPosition, walkingMinutes } from "./location.js";
@@ -52,7 +52,7 @@ const FilaChequeo = (c) => h("li", { class: c.ok ? "is-bien" : "is-falla" },
   icon(c.ok ? "listo" : "alerta", 16),
   h("span", {}, c.name, c.ok ? h("span", { class: "sr-only" }, ": bien") : null),
   h("span", { class: "ra-adm-estado", style: c.ok ? {} : { color: "var(--on-error-soft)" } }, c.ok ? "Bien" : "Falla"),
-  c.ok ? null : h("span", { class: "ra-adm-detalle-falla" }, c.detail));
+  h("span", { class: c.ok ? "ra-adm-detalle" : "ra-adm-detalle-falla" }, `${c.detail} · ${c.ms} ms`));
 
 function FunctionalCheck() {
   const list = h("ul", { class: "ra-adm-check" });
@@ -85,9 +85,20 @@ async function cargarResumen() {
   return { ahora: Date.now(), usage, eventos, llm, usuarios: users?.users ?? null };
 }
 
-const Aviso = (a) => h("div", {},
+const fechaCorta = (ts) => (ts ? new Date(ts * 1000).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "sin fecha");
+
+/** Cada grabación con error (título, mensaje, fecha y link), para llegar a todas y no solo a la última. */
+const ListaErrores = (errores) => Plegable(`Ver las ${errores.length} grabaciones con error`,
+  h("div", { class: "ra-adm-lista" }, errores.map((e) => h("a", { class: "ra-adm-fila", href: e.ruta },
+    h("span", { class: "ra-adm-fila-cuerpo" },
+      h("span", { class: "ra-adm-fila-nombre" }, e.title || "Sin título"),
+      h("span", { class: "ra-adm-fila-sub" }, `${e.error || "error"} · ${fechaCorta(e.updated_at)}`)),
+    icon("seguir", 20)))));
+
+const Aviso = (a) => h("div", { class: "ra-adm-aviso" },
   Hint(a.texto, { tone: a.tono, iconName: "alerta" }),
-  h("a", { class: "ra-link ra-adm-link", href: a.ruta }, a.enlace, icon("seguir", 16)));
+  h("a", { class: "ra-link ra-adm-link", href: a.ruta }, a.enlace, icon("seguir", 16)),
+  a.detalle?.length > 1 ? ListaErrores(a.detalle) : null);
 
 function TarjetaAtencion(d) {
   const { avisos, incompleto } = atencion({
@@ -158,14 +169,14 @@ function Catalogo() {
 }
 
 function Herramientas() {
-  const btn = Button("Borrar datos de prueba", { variant: "danger", onclick: async () => {
+  const btn = Button("Borrar datos de prueba", { variant: "danger", onclick: () => sinDoble(btn, async () => {
     const ok = await confirmar("¿Borrar los datos de prueba?",
       "Se borran las grabaciones e itinerarios creados en modo prueba, de todos los usuarios. Los datos reales no se tocan.", "Borrar");
     if (!ok) return;
     await conOcupado(btn, async () => {
       try { const r = await Admin.clearSandboxData(); avisar(`Datos de prueba borrados (${r.rows} filas)`); } catch (err) { avisar(mensajeError(err), { error: true }); }
     });
-  } });
+  }) });
   return Plegable("Herramientas", [
     h("p", { class: "ra-adm-cap" }, "El modo prueba se prende por usuario, en la pestaña Usuarios. Lo que hacen en modo prueba queda aparte y se puede borrar entero. "
       + "No toca datos reales."),

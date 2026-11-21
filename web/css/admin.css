@@ -4,6 +4,7 @@
 .ra-adm-view { display: flex; flex-direction: column; gap: var(--space-6); padding-bottom: var(--space-8); }
 .ra-adm-view > section, .ra-adm-sec { display: flex; flex-direction: column; gap: var(--space-3); }
 .ra-adm-resumen { gap: var(--space-6); }
+.ra-adm-sec:empty { display: none; }
 
 /* cabecera pegajosa: título + pestañas (links a cada ruta; la actual lleva aria-current) */
 .ra-adm-head { position: sticky; top: var(--masthead-h, 0px); z-index: 5; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) 0 var(--space-2); background: var(--bg); }
@@ -39,6 +40,8 @@
 .ra-adm-dot.is-err { background: var(--error); }
 .ra-adm-estado { display: inline-flex; align-items: center; gap: var(--space-2); font: var(--t-small); color: var(--ink-muted); white-space: nowrap; }
 
+.ra-adm-aviso > .ra-adm-det { margin-top: var(--space-2); }
+
 /* KPIs de alto parejo */
 .ra-adm-view .ra-kpis { grid-auto-rows: 1fr; }
 .ra-adm-kpi-pill { margin-top: var(--space-1); align-self: flex-start; }
@@ -53,6 +56,7 @@
 .ra-adm-check .is-falla svg { color: var(--error); }
 .ra-adm-check .is-falla { font-weight: 600; }
 .ra-adm-check .ra-adm-detalle-falla { grid-column: 2 / -1; padding-bottom: var(--space-2); color: var(--on-error-soft); font-weight: 400; }
+.ra-adm-check .ra-adm-detalle { grid-column: 2 / -1; padding-bottom: var(--space-2); color: var(--ink-muted); }
 .ra-adm-resumen-check { font: var(--t-small-strong); color: var(--ink); }
 
 /* bloques plegables: «Herramientas», «Cargar oferta», «Cargados por link» */

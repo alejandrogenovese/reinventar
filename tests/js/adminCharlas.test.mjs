@@ -59,3 +59,17 @@ test("se ven 10 y el resto queda para «Ver las N restantes»", () => {
   assert.deepEqual(visibles(filas, true), { filas, restantes: 0 });
   assert.deepEqual(visibles(filas.slice(0, 4), false), { filas: filas.slice(0, 4), restantes: 0 });
 });
+
+test("una charla sin título no rompe la búsqueda ni queda como «undefined»", () => {
+  const filas = agruparCharlas([c("DAT1", undefined), c("AIM2", null)]);
+  assert.deepEqual(filas.map((f) => f.titulo), ["", ""]);
+  assert.deepEqual(filtrarCharlas(filas, { texto: "dat" }).map((f) => f.base), ["DAT1"]);
+});
+
+test("si el track elegido ya no existe se vuelve a «Todos»", async () => {
+  const { trackVigente } = await import("../../web/js/adminCharlas.js");
+  const filas = agruparCharlas([c("DAT1", "a"), c("AIM2", "b")]);
+  assert.equal(trackVigente(filas, "DAT"), "DAT");
+  assert.equal(trackVigente(filas, "SEC"), "");
+  assert.equal(trackVigente(filas, ""), "");
+});

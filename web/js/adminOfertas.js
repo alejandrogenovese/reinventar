@@ -2,7 +2,7 @@
 // con su vigencia. Se da de baja con confirmación. El push sale cuando arranca la vigencia. Las bajas de precio de shows entran solas
 // (app/ofertas.py). Solo admin: el servidor lo exige.
 import { api } from "./api.js";
-import { AdminShell, Cargable, Plegable, avisar, confirmar, conOcupado } from "./adminUi.js";
+import { AdminShell, Cargable, Plegable, avisar, confirmar, conOcupado, sinDoble } from "./adminUi.js";
 import { Tag, h, mensajeError } from "./ui.js";
 
 const CATEGORIAS = { comida: "Comida", compras: "Compras y outlets", shows: "Shows", otros: "Otros" };
@@ -44,13 +44,13 @@ function Formulario(onSaved) {
 }
 
 function Fila(o, onDeleted) {
-  const borrar = h("button", { type: "button", class: "ra-btn ra-btn-ghost ra-adm-btn-s ra-adm-btn-err", "aria-label": `Dar de baja ${o.titulo}`, onclick: async () => {
+  const borrar = h("button", { type: "button", class: "ra-btn ra-btn-ghost ra-adm-btn-s ra-adm-btn-err", "aria-label": `Dar de baja ${o.titulo}`, onclick: () => sinDoble(borrar, async () => {
     if (!await confirmar(`¿Dar de baja «${o.titulo}»?`, "La oferta deja de verse para todos y no se puede recuperar.", "Dar de baja")) return;
     await conOcupado(borrar, async () => {
       try { await api(`/api/ofertas/admin/${encodeURIComponent(o.id)}`, { method: "DELETE" }); avisar("Oferta dada de baja."); fila.remove(); onDeleted(); }
       catch (err) { avisar(mensajeError(err), { error: true }); }
     });
-  } }, "Dar de baja");
+  }) }, "Dar de baja");
   const fila = h("li", { class: "ra-adm-fila" },
     h("span", { class: "ra-adm-fila-cuerpo" },
       h("a", { class: "ra-adm-fila-nombre ra-link", href: `#/ofertas/${encodeURIComponent(o.id)}` }, o.titulo),

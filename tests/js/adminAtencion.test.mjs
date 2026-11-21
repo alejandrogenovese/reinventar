@@ -122,3 +122,19 @@ test("el estado de cada fuente: al día, atrasada o con error", async () => {
   assert.equal(estadoFuente({ fuente: "catalogo", ok: true, revisado: haceHoras(10) }, 6, AHORA), "atrasada");
   assert.equal(estadoFuente({ fuente: "luma", ok: true, revisado: haceHoras(500) }, undefined, AHORA), "ok");
 });
+
+test("una fuente sin fecha de revisión no se marca atrasada ni genera avisos de «hace NaN»", async () => {
+  const { estadoFuente } = await import("../../web/js/adminAtencion.js");
+  assert.equal(estadoFuente({ fuente: "luma", ok: true, revisado: null }, 6, AHORA), "ok");
+  const d = base();
+  d.eventos.revisiones = [{ fuente: "luma", ok: true, revisado: undefined }];
+  assert.deepEqual(atencion(d).avisos, []);
+});
+
+test("las grabaciones con error llevan la lista completa para llegar a cada una", () => {
+  const d = base();
+  d.grabaciones = { por_estado: { error: 2 }, errores: [{ id: "a", title: "Uno", error: "falló", updated_at: 1 }, { id: "b", title: "Dos", error: "x", updated_at: 2 }] };
+  const [a] = atencion(d).avisos;
+  assert.equal(a.detalle.length, 2);
+  assert.deepEqual(a.detalle.map((e) => e.ruta), ["#/s/a", "#/s/b"]);
+});

@@ -2,6 +2,7 @@
 // Reintentar / vacío), botón ocupado, confirmación y región viva para que los lectores de pantalla oigan los avisos.
 import { confirmDialog } from "./dialog.js";
 import { PESTANAS } from "./adminTextos.js";
+export { hace } from "./adminTextos.js";
 import { icon } from "./icons.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
@@ -29,15 +30,6 @@ export function AdminShell(view, actual, ...contenido) {
     h("div", { class: "ra-adm-view" }, regionEstado, regionAlerta, ...contenido));
 }
 
-/** «hace 5 min», «hace 3 h», «hace 2 días» a partir de una fecha ISO (`ahora` se puede pasar para probarlo). */
-export function hace(iso, ahora = Date.now()) {
-  const min = Math.round((ahora - new Date(iso).getTime()) / 60000);
-  if (min < 1) return "recién";
-  if (min < 60) return `hace ${min} min`;
-  const horas = Math.round(min / 60);
-  return horas < 48 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} días`;
-}
-
 /** Flecha que gira al abrir un bloque plegable (la anima admin.css). */
 export function Chevron(size = 20) {
   const el = icon("seguir", size);
@@ -52,12 +44,12 @@ export const Plegable = (titulo, cuerpo, { abierto = false, extra = null, clase 
 
 /**
  * Un bloque que carga solo lo suyo: «Cargando…», el contenido, un error con Reintentar o un texto de vacío.
- * `recargar({ silencioso })` repinta; en silencio no muestra «Cargando…» y, si falla, deja lo que ya había.
+ * `recargar({ silencioso, alFallar })` repinta; en silencio no muestra «Cargando…» y, si falla, deja lo que ya había y llama a `alFallar(err)`.
  */
 export function Cargable({ cargar, pintar, esVacio = () => false, textoVacio = "No hay nada para mostrar.", textoCargando = "Cargando…" }) {
   const box = h("div", { class: "stack", "aria-busy": "true" });
   let turno = 0;
-  async function recargar({ silencioso = false } = {}) {
+  async function recargar({ silencioso = false, alFallar = null } = {}) {
     const mio = ++turno;
     if (!silencioso) {
       box.setAttribute("aria-busy", "true");
@@ -68,7 +60,8 @@ export function Cargable({ cargar, pintar, esVacio = () => false, textoVacio = "
       if (mio !== turno) return;
       box.replaceChildren(...[esVacio(datos) ? h("p", { class: "caption" }, textoVacio) : pintar(datos)].flat().filter(Boolean));
     } catch (err) {
-      if (mio !== turno || silencioso) return;
+      if (mio !== turno) return;
+      if (silencioso) { alFallar?.(err); return; }
       box.replaceChildren(h("div", { class: "notice err", role: "alert" },
         h("p", {}, mensajeError(err)), Button("Reintentar", { onclick: () => recargar() })));
     }
@@ -93,3 +86,14 @@ export async function conOcupado(boton, accion) {
 
 /** Confirmación accesible (<dialog>) antes de algo que no se deshace. */
 export const confirmar = (titulo, texto, etiqueta) => confirmDialog(titulo, { text: texto, confirmLabel: etiqueta, danger: true });
+
+/**
+ * Corre `accion` una sola vez por vez para ese botón: un doble toque no abre dos diálogos de confirmación. A diferencia de
+ * `conOcupado` (que deshabilita el botón mientras corre la acción ya confirmada), cubre también la espera de la confirmación.
+ */
+export async function sinDoble(boton, accion) {
+  if (boton.dataset.enCurso) return undefined;
+  boton.dataset.enCurso = "1";
+  try { return await accion(); }
+  finally { delete boton.dataset.enCurso; }
+}

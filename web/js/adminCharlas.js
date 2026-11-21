@@ -15,7 +15,7 @@ export function agruparCharlas(nuevas) {
   for (const c of nuevas ?? []) {
     const previa = porCodigo.get(c.base);
     if (!previa) {
-      porCodigo.set(c.base, { base: c.base, titulo: c.titulo, alta: c.alta, primero: c.primero, horarios: c.horarios ?? 1, track: trackDe(c.base) });
+      porCodigo.set(c.base, { base: c.base, titulo: c.titulo ?? "", alta: c.alta, primero: c.primero, horarios: c.horarios ?? 1, track: trackDe(c.base) });
       continue;
     }
     porCodigo.set(c.base, { ...previa, horarios: previa.horarios + (c.horarios ?? 1),
@@ -42,3 +42,6 @@ export function visibles(filas, todas) {
   if (todas || filas.length <= VISIBLES_INICIAL) return { filas, restantes: 0 };
   return { filas: filas.slice(0, VISIBLES_INICIAL), restantes: filas.length - VISIBLES_INICIAL };
 }
+
+/** El track elegido si todavía hay charlas de ese track; si no (la lista cambió tras un sondeo), «Todos» (""). */
+export const trackVigente = (filas, track) => (track && filas.some((f) => f.track === track) ? track : "");

@@ -2,7 +2,7 @@
 // Lista compacta: cada usuario es una fila (nombre, etiquetas, último ingreso) que al abrirla muestra sus acciones.
 // Cada acción repinta solo la fila de ese usuario (lo abierto sigue abierto y el scroll no salta) y bloquea su botón mientras corre.
 import { Admin } from "./api.js";
-import { AdminShell, Cargable, Chevron, avisar, confirmar, conOcupado, hace } from "./adminUi.js";
+import { AdminShell, Cargable, Chevron, avisar, confirmar, conOcupado, hace, sinDoble } from "./adminUi.js";
 import { campoDelError, textoCortarAccesos } from "./adminTextos.js";
 import { promptDialog } from "./dialog.js";
 import { icon } from "./icons.js";
@@ -35,7 +35,7 @@ async function ejecutar(boton, accion, okMsg, despues) {
 /** Botón chico (44 px) de una acción sobre un usuario: el nombre accesible dice a quién afecta. */
 function botonDe(username) {
   return (texto, accion, { variante = "secondary", extra = "", nombre = `${texto} de ${username}`, ...attrs } = {}) => {
-    const b = h("button", { type: "button", class: `ra-btn ra-btn-${variante} ra-adm-btn-s${extra}`, "aria-label": nombre, ...attrs, onclick: () => accion(b) }, texto);
+    const b = h("button", { type: "button", class: `ra-btn ra-btn-${variante} ra-adm-btn-s${extra}`, "aria-label": nombre, ...attrs, onclick: () => sinDoble(b, () => accion(b)) }, texto);
     return b;
   };
 }
@@ -57,7 +57,11 @@ function SandboxPanel(u, venues, repintar) {
     clock: useClock.checked && clock.value ? clock.value : null,
     venue_id: venue.value ? Number(venue.value) : null,
   });
-  const despues = async () => { await repintar(); await refreshSandbox({ force: true }); };
+  const despues = async () => {
+    await repintar();
+    // Lo guardado ya anduvo y la fila ya se repintó: si falla solo el banner del modo prueba, se dice eso y no «no se pudo actualizar la lista».
+    try { await refreshSandbox({ force: true }); } catch { avisar("Se guardó, pero no se pudo actualizar el modo prueba de esta pantalla. Recargá la pantalla.", { error: true }); }
+  };
   const guardar = (b) => ejecutar(b, () => Admin.setSandbox(u.username, settings()),
     active.checked ? `Modo prueba de ${u.username} guardado` : `Modo prueba de ${u.username} apagado`, despues);
   const adelantar = (b, minutes) => ejecutar(b, () => Admin.advanceSandbox(u.username, minutes), `Reloj de ${u.username} +${minutes} min`, despues);
@@ -92,7 +96,9 @@ async function refrescarFila(fila, username, venues) {
   const nueva = UserRow(u, venues);
   [nueva, ...nueva.querySelectorAll("details")].forEach((d, i) => { d.open = abiertos[i] ?? false; });
   fila.replaceWith(nueva);
-  if (accionConFoco) nueva.querySelector(`[data-accion="${accionConFoco}"]`)?.focus();
+  if (accionConFoco) { // si ese botón ya no existe (p. ej. «Cerrar sesiones» sin sesiones), el foco queda en la fila y no se pierde
+    (nueva.querySelector(`[data-accion="${accionConFoco}"]`) ?? nueva.querySelector("summary"))?.focus();
+  }
 }
 
 const Marcas = (u) => h("span", { class: "ra-g-marcas" },
@@ -196,6 +202,9 @@ export function viewAdminUsuarios(view) {
   });
   const nuevo = h("details", { class: "ra-adm-nuevo" });
   const cerrar = () => { nuevo.open = false; };
-  nuevo.append(CabeceraNuevo(total), NewUserForm(() => { cerrar(); void lista.recargar({ silencioso: true }); }, cerrar));
+  nuevo.append(CabeceraNuevo(total), NewUserForm(() => {
+    cerrar();
+    void lista.recargar({ silencioso: true, alFallar: () => avisar("Usuario creado, pero no se pudo actualizar la lista. Recargá la pantalla.", { error: true }) });
+  }, cerrar));
   AdminShell(view, "usuarios", nuevo, lista);
 }

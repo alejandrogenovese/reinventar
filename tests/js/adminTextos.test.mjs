@@ -48,3 +48,15 @@ test("cerrar sesiones dice todo lo que borra de verdad", () => {
   const t = textoCortarAccesos("ana");
   for (const parte of ["sesiones", "passkeys", "notificaciones", "sede reciente", "ana"]) assert.match(t, new RegExp(parte));
 });
+
+test("hace() no muestra NaN ni 1970 con fechas vacías o inválidas", async () => {
+  const { hace } = await import("../../web/js/adminTextos.js");
+  const ahora = Date.parse("2026-12-01T20:00:00Z");
+  assert.equal(hace(null, ahora), "sin datos");
+  assert.equal(hace(undefined, ahora), "sin datos");
+  assert.equal(hace("no es fecha", ahora), "sin datos");
+  assert.equal(hace("2026-12-01T19:59:50Z", ahora), "recién");
+  assert.equal(hace("2026-12-01T19:30:00Z", ahora), "hace 30 min");
+  assert.equal(hace("2026-12-01T15:00:00Z", ahora), "hace 5 h");
+  assert.equal(hace("2026-11-28T20:00:00Z", ahora), "hace 3 días");
+});
