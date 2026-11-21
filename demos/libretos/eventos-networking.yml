@@ -1,0 +1,41 @@
+feature: eventos-networking
+titulo: "Eventos de networking en Las Vegas"
+beneficio: "Desayunos, happy hours y fiestas, filtrados y al itinerario"
+ruta: "#/eventos"
+notas:
+  - "Eventos cargados en staging. Modo prueba con reloj simulado en un día del evento (la lista arranca en el día de hoy según sandboxNow) y ubicación simulada en una sede, para que «↕ Más cerca» ordene sin pedir permiso de GPS."
+  - "Los filtros de Eventos quedan guardados en el navegador (eventosTodas.js guardarFiltros): arrancar con «↕ Más cerca» apagado y sin día guardado, si no la escena 4 lo apaga."
+  - "a.ra-link[href^='#/evento/'] matchea todas las tarjetas: tomar el primero."
+  - "El botón de agregar es «+ Itinerario» sin aria-label (events.js:42): se usa role=button[name='+ Itinerario'] (corregido en features.yml). Falta un testid (evento-agregar)."
+  - "El evento abierto no tiene que estar ya en el itinerario (si no, dice «En tu itinerario» y no hay botón, events.js:41). Solo hover: no se agrega."
+escenas:
+  - id: 1
+    accion: "goto #/eventos"
+    narracion: "Re:Invent no termina en las charlas: también están los desayunos, happy hours y fiestas."
+    subtitulo: "Re:Invent sigue fuera de las charlas:\ndesayunos, happy hours y fiestas"
+    duracion_s: 7
+  - id: 2
+    accion: "hover [aria-label='Día']"
+    narracion: "La lista arranca en el día de hoy, y cambiás de día con un toque."
+    subtitulo: "Arranca en el día de hoy;\ncambiás de día con un toque"
+    duracion_s: 7
+  - id: 3
+    accion: "hover [aria-label='Tipo de evento']"
+    narracion: "Filtrás por tipo de evento o por hora de inicio."
+    subtitulo: "Filtrás por tipo de evento\no por hora de inicio"
+    duracion_s: 5
+  - id: 4
+    accion: "click role=button[name='↕ Más cerca']"
+    narracion: "Y los ordenás por cercanía, para no cruzar todo el Strip."
+    subtitulo: "Los ordenás por cercanía\npara no cruzar todo el Strip"
+    duracion_s: 6
+  - id: 5
+    accion: "click a.ra-link[href^='#/evento/']"
+    narracion: "En la ficha ves de qué se trata, cuándo y dónde es, y quién lo organiza."
+    subtitulo: "De qué se trata, cuándo, dónde\ny quién lo organiza"
+    duracion_s: 8
+  - id: 6
+    accion: "hover role=button[name='+ Itinerario']"
+    narracion: "Lo agregás al itinerario y queda fijado, o vas directo a anotarte."
+    subtitulo: "Lo agregás y queda fijado,\no vas directo a anotarte"
+    duracion_s: 6

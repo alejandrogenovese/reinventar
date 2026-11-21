@@ -1,0 +1,44 @@
+feature: ficha-de-empresa
+titulo: "Ficha de empresa"
+beneficio: "Mirá quién viene de cada empresa y qué charlas da."
+ruta: "#/buscar"
+notas: >-
+  Se entra por Buscar porque features.yml no trae un id de empresa concreto: se abre el primer
+  a.ra-link[href^='#/empresa/'] de los resultados de «bancos el martes». Verificar antes que sea una empresa cliente
+  con varias charlas. «Preparar conversación» usa el LLM: el contenido varía y no se narra.
+escenas:
+  - id: 1
+    accion: "goto #/buscar"
+    narracion: "¿Querés saber qué trae una empresa a re:Invent? Lo encontrás desde Buscar."
+    subtitulo: "¿Qué trae una empresa\na re:Invent?"
+    duracion_s: 6
+  - id: 2
+    accion: "fill [aria-label='Buscar charlas'] \"bancos el martes\""
+    narracion: "Buscás, por ejemplo, bancos el martes."
+    subtitulo: "Por ejemplo,\nbancos el martes."
+    duracion_s: 4
+  - id: 3
+    accion: "click button.ra-suggest"
+    narracion: "En cada charla ves quién la da y para qué empresa trabaja."
+    subtitulo: "Cada charla muestra quién la da\ny de qué empresa es."
+    duracion_s: 6
+  - id: 4
+    accion: "click a.ra-link[href^='#/empresa/']"
+    narracion: "Tocás la empresa y se abre su ficha, con sector e industria."
+    subtitulo: "Tocás la empresa:\nsector e industria de un vistazo."
+    duracion_s: 6
+  - id: 5
+    accion: "click role=button[name='Preparar conversación']"
+    narracion: "Preparar conversación te arma una ficha para charlar con su gente, cruzada con tu perfil."
+    subtitulo: "Una ficha para charlar con su gente,\ncruzada con tu perfil."
+    duracion_s: 7
+  - id: 6
+    accion: "wait 8"
+    narracion: "Te cuenta qué hace la empresa con AWS y te sugiere temas y preguntas."
+    subtitulo: "Qué hace con AWS,\ntemas y preguntas para abrir."
+    duracion_s: 9
+  - id: 7
+    accion: "scroll 700"
+    narracion: "Más abajo, quiénes vienen de esa empresa y sus charlas, listas para agregar."
+    subtitulo: "Quiénes vienen y sus charlas,\nlistas para agregar."
+    duracion_s: 7

@@ -1,0 +1,41 @@
+feature: buscar-en-lo-grabado
+titulo: "Buscá en lo que grabaste"
+beneficio: "Encontrás el minuto exacto en que se dijo algo."
+ruta: "#/"
+notas: >-
+  Datos previos: al menos una grabación ready del tester cuya transcripción mencione «agentes»
+  (el buscador solo aparece si hay alguna grabación procesada). Busca solo, con una pausa de 350 ms
+  después de tipear: no hace falta apretar Enter.
+  Staging con pgvector y la grabación ya indexada (se indexa al terminar de procesar); sin pgvector dice
+  «no está disponible» (fragmentos.py:12). La búsqueda cubre las grabaciones de todos (main.py:295-297).
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "¿En qué charla hablaron de agentes? No hace falta acordarse."
+    subtitulo: "¿En qué charla hablaron de agentes?\nNo hace falta acordarse."
+    duracion_s: 5
+  - id: 2
+    accion: "fill [aria-label='Buscar en lo que grabaste'] \"agentes\""
+    narracion: "Escribís el tema y busca en todas las transcripciones del equipo mientras tipeás."
+    subtitulo: "Escribís el tema y busca\nen las transcripciones del equipo."
+    duracion_s: 7
+  - id: 3
+    accion: "wait 2"
+    narracion: "Te muestra los momentos: la charla, el minuto y lo que se dijo."
+    subtitulo: "La charla, el minuto\ny lo que se dijo."
+    duracion_s: 7
+  - id: 4
+    accion: "click a.ra-hit"
+    narracion: "Tocás uno y caés justo en ese punto de la transcripción."
+    subtitulo: "Tocás uno y caés justo en ese punto."
+    duracion_s: 6
+  - id: 5
+    accion: "wait 3"
+    narracion: "El momento queda marcado, con la búsqueda arriba para que no pierdas el hilo."
+    subtitulo: "El momento queda marcado,\ncon la búsqueda arriba."
+    duracion_s: 7
+  - id: 6
+    accion: "hover [aria-label='Quitar la marca de la búsqueda']"
+    narracion: "Cuando terminás, sacás la marca y seguís leyendo."
+    subtitulo: "Después sacás la marca y seguís leyendo."
+    duracion_s: 5

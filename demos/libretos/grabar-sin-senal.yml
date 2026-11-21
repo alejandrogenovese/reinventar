@@ -1,0 +1,65 @@
+feature: grabar-sin-senal
+titulo: "Grabá aunque no haya señal"
+beneficio: "El audio queda en el celular y sube solo cuando vuelve la red."
+ruta: "#/nueva"
+notas: >-
+  Marcar el tip de no molestar como visto antes de grabar (o tocar «Entendido» en el pre-roll; app.js:380-381).
+  Red simulada (no hay acción para esto en el libreto; la hace el runner):
+  1) cargar la app con red en #/ antes de la escena 1 (pre-roll, fuera del video);
+  2) cortar la red (context.setOffline(true)) antes de la escena 1: la escena 3 crea entonces una sesión
+  local «loc_…» y el grabador muestra «Sin señal: se graba en el celular y se sube cuando vuelva»;
+  3) devolver la red (context.setOffline(false)) al empezar la escena 8.
+  Con navigator.onLine en false, al terminar se ve «Sin señal: la grabación quedó guardada en el celular…»
+  y el botón pasa a «Volver al inicio». En Inicio sin red puede verse la franja «Sin señal · datos de las HH:MM».
+  Escena 7: se vuelve con «Volver al inicio» (app.js:555) y no con goto, porque finishLocal salta a #/s/{id}
+  hasta 20 s después de Terminar (app.js:505-511). Escena 9: la lista no se vuelve a pedir sola; goto /?r=1#/
+  fuerza una carga nueva (el director tiene que aceptar URL con query). Si la subida no terminó en el wait de la escena 8 (el uploader reintenta
+  con espera creciente), alargarlo.
+  Micrófono simulado (--use-fake-ui-for-media-stream, --use-fake-device-for-media-stream y un wav).
+  Crea una grabación real del tester: borrarla después, fuera de cámara.
+escenas:
+  - id: 1
+    accion: "goto #/nueva"
+    narracion: "En un salón lleno, la señal va y viene."
+    subtitulo: "En un salón lleno,\nla señal va y viene."
+    duracion_s: 5
+  - id: 2
+    accion: "fill #title \"Keynote de apertura\""
+    narracion: "Igual preparás la grabación como siempre, sin señal."
+    subtitulo: "Preparás la grabación como siempre,\nsin señal."
+    duracion_s: 5
+  - id: 3
+    accion: "click role=button[name='Preparar grabación']"
+    narracion: "No te frena: arranca una grabación en el celular."
+    subtitulo: "No te frena: arranca\nuna grabación en el celular."
+    duracion_s: 5
+  - id: 4
+    accion: "click button.ra-rec[aria-label='Empezar a grabar']"
+    narracion: "Grabás normal, y te avisa que todo queda guardado en el teléfono hasta que vuelva la red."
+    subtitulo: "Grabás normal: todo queda en el teléfono\nhasta que vuelva la red."
+    duracion_s: 8
+  - id: 5
+    accion: "wait 5"
+    narracion: "La charla sigue y el audio se va guardando de a pedazos."
+    subtitulo: "El audio se va guardando de a pedazos."
+    duracion_s: 6
+  - id: 6
+    accion: "click role=button[name='Terminar y procesar']"
+    narracion: "Al terminar, queda guardada y se procesa sola cuando vuelva la señal. Podés cerrar la app."
+    subtitulo: "Queda guardada y se procesa sola\ncuando vuelva la señal."
+    duracion_s: 8
+  - id: 7
+    accion: "click role=button[name='Volver al inicio']"
+    narracion: "En Inicio la ves aparte, en Grabadas en este celular, esperando señal."
+    subtitulo: "En Inicio la ves aparte,\nesperando señal."
+    duracion_s: 6
+  - id: 8
+    accion: "wait 10"
+    narracion: "Cuando vuelve la red, se sube sola y pasa a Tus grabaciones, sin que hagas nada."
+    subtitulo: "Cuando vuelve la red, se sube sola,\nsin que hagas nada."
+    duracion_s: 11
+  - id: 9
+    accion: "goto /?r=1#/"
+    narracion: "Y aparece en Tus grabaciones, procesándose como cualquier otra."
+    subtitulo: "Y aparece en Tus grabaciones,\ncomo cualquier otra."
+    duracion_s: 5

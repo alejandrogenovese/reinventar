@@ -1,0 +1,40 @@
+feature: anuncios-sin-reserva
+titulo: "Keynotes y lanzamientos sin reserva"
+beneficio: "Los anuncios del día, con la hora de la cola, en una fila"
+ruta: "#/"
+notas:
+  - "Modo prueba con reloj simulado temprano en un día con keynote (antes de que empiece): Inicio muestra los anuncios walk-up que quedan hoy (app/anuncios.py del_dia). Sin reloj simulado, fuera de la semana del evento muestra los del próximo día con anuncios."
+  - "Hacen falta más de 5 anuncios ese día (LIMITE_INICIO = 5) para que exista la tarjeta «+N · Ver todos» (a.ra-ann.is-more) de la escena 5."
+  - "Que los anuncios no estén en el itinerario del tester: los que ya están se excluyen de la fila."
+  - "Catálogo de re:Invent cargado en staging."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "Las keynotes y los lanzamientos no se reservan: se entra por la cola."
+    subtitulo: "Keynotes y lanzamientos no se reservan:\nse entra por la cola"
+    duracion_s: 7
+  - id: 2
+    accion: "scroll #anuncios-title"
+    narracion: "En Inicio los tenés juntos: los que quedan hoy, que no están en tu itinerario."
+    subtitulo: "Los que quedan hoy y no están\nen tu itinerario"
+    duracion_s: 7
+  - id: 3
+    accion: "click [aria-controls='anuncios-fila'][aria-label='Siguiente']"
+    narracion: "Cada tarjeta te dice cuánto falta y desde qué hora arranca la fila."
+    subtitulo: "Cuánto falta y desde qué hora\narranca la fila"
+    duracion_s: 7
+  - id: 4
+    accion: "click [aria-controls='anuncios-fila'][aria-label='Siguiente']"
+    narracion: "Si te interesa, la agregás al itinerario sin salir de Inicio."
+    subtitulo: "La agregás al itinerario\nsin salir de Inicio"
+    duracion_s: 6
+  - id: 5
+    accion: "click a.ra-ann.is-more"
+    narracion: "¿Querés ver todos? Vas a Buscar con el filtro de anuncios ya puesto."
+    subtitulo: "Ver todos te lleva a Buscar\ncon el filtro ya puesto"
+    duracion_s: 7
+  - id: 6
+    accion: "wait 3"
+    narracion: "Ahí está la lista completa del día para elegir con calma."
+    subtitulo: "La lista completa del día,\npara elegir con calma"
+    duracion_s: 6

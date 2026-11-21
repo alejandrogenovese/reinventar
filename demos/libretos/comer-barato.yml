@@ -1,0 +1,40 @@
+feature: comer-barato
+titulo: "Dónde comer barato, cerca"
+beneficio: "Lugares a pocos minutos a pie, con precio y reseñas"
+ruta: "#/comer"
+notas:
+  - "Staging con clave de Google Places (si no, la pantalla muestra un error) y de Maps con Routes API para la hoja de Llevame de la escena 6."
+  - "Modo prueba con ubicación simulada en una sede: la búsqueda sale «Cerca de donde estás» y Llevame abre el recorrido dentro de la app (sin ubicación abriría Google Maps en otra pestaña)."
+  - "[aria-label='Precio'] button matchea dos botones ($ y $$): tomar el primero ($, barato). Por defecto la pantalla arranca en $$ y 10 min."
+  - "[title='Llevame'] (selector de la feature llevame) matchea uno por lugar: tomar el primero."
+escenas:
+  - id: 1
+    accion: "goto #/comer"
+    narracion: "Entre charlas hay poco tiempo y comer en Las Vegas sale caro."
+    subtitulo: "Poco tiempo entre charlas\ny comer en Las Vegas sale caro"
+    duracion_s: 6
+  - id: 2
+    accion: "wait 2"
+    narracion: "La app busca lugares cerca de donde estás, o de tu próxima sesión."
+    subtitulo: "Lugares cerca de donde estás\no de tu próxima sesión"
+    duracion_s: 7
+  - id: 3
+    accion: "click [aria-label='Precio'] button"
+    narracion: "Elegís cuánto querés gastar: barato o moderado."
+    subtitulo: "Elegís cuánto gastar:\nbarato o moderado"
+    duracion_s: 4
+  - id: 4
+    accion: "hover [aria-label='Hasta 10 minutos caminando']"
+    narracion: "Y hasta cuántos minutos querés caminar: cinco, diez o quince."
+    subtitulo: "Y cuánto querés caminar:\n5, 10 o 15 minutos"
+    duracion_s: 5
+  - id: 5
+    accion: "scroll 400"
+    narracion: "Cada lugar trae puntaje, reseñas, minutos caminando y si está abierto ahora."
+    subtitulo: "Puntaje, reseñas, minutos a pie\ny si está abierto ahora"
+    duracion_s: 6
+  - id: 6
+    accion: "click [title='Llevame']"
+    narracion: "Te gusta uno, tocás Llevame y ves cómo llegar caminando."
+    subtitulo: "Tocás Llevame y ves\ncómo llegar caminando"
+    duracion_s: 6

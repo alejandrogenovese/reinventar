@@ -1,0 +1,40 @@
+feature: login-con-contrasena
+titulo: "Entrá con tu usuario"
+beneficio: "Tu agenda y tus grabaciones, a un paso de tu usuario."
+ruta: "#/login"
+notas: >-
+  Contexto sin sesión (localStorage limpio): el router manda solo a #/login.
+  La contraseña sale de un secreto local ({{TESTER_PASSWORD}}), nunca del repo.
+  No hacer click en el ojo (.ra-pass-eye): mostraría la contraseña en el video; solo hover.
+  El tester no debe tener contraseña temporal: si no, después de Entrar va a #/password.
+escenas:
+  - id: 1
+    accion: "goto #/login"
+    narracion: "Abrís ReinventAR sin sesión y te recibe la pantalla de ingreso."
+    subtitulo: "Sin sesión, arrancás en el ingreso."
+    duracion_s: 6
+  - id: 2
+    accion: "fill #username \"tester\""
+    narracion: "Escribís el usuario que te pasaron."
+    subtitulo: "Escribís el usuario que te pasaron."
+    duracion_s: 4
+  - id: 3
+    accion: "fill #password \"{{TESTER_PASSWORD}}\""
+    narracion: "Después, tu contraseña. Queda oculta mientras la escribís."
+    subtitulo: "Después, tu contraseña:\nqueda oculta mientras la escribís."
+    duracion_s: 5
+  - id: 4
+    accion: "hover .ra-pass-eye"
+    narracion: "Si querés chequear que esté bien, la mostrás con el ojo y se vuelve a ocultar al entrar."
+    subtitulo: "Si querés, la mostrás con el ojo.\nAl entrar se vuelve a ocultar."
+    duracion_s: 9
+  - id: 5
+    accion: "click role=button[name='Entrar']"
+    narracion: "Tocás Entrar. Si algo no coincide, te lo avisa ahí mismo."
+    subtitulo: "Tocás Entrar. Si algo no coincide,\nte lo avisa ahí mismo."
+    duracion_s: 6
+  - id: 6
+    accion: "wait 3"
+    narracion: "Y aparecés en Inicio, con tu día y tus grabaciones a mano. La primera vez, antes te pide elegir una contraseña propia."
+    subtitulo: "Aparecés en Inicio, con tu día a mano.\nLa primera vez elegís tu contraseña."
+    duracion_s: 10

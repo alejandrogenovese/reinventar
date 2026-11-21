@@ -1,0 +1,40 @@
+feature: exportar-calendario
+titulo: "Tu itinerario en el calendario"
+beneficio: "Llevá tu agenda de re:Invent al calendario del celular."
+ruta: "#/itinerario"
+notas: >-
+  En la compu (o headless) el navegador no comparte archivos y descarga reinvent-itinerario.ics con el aviso «Listo:
+  abrí el archivo para sumarlo a tu calendario.». Si el navegador de grabación soporta compartir archivos, se abre la
+  hoja de compartir del sistema: grabar con un perfil donde navigator.canShare no acepte archivos. Datos del .ics
+  confirmados en app/ics.py: hora, sede y alarma 15 min antes (o 15 min antes de la cola si no está reservada).
+escenas:
+  - id: 1
+    accion: "goto #/itinerario"
+    narracion: "Tu itinerario ya está armado. Ahora lo querés en el calendario de siempre."
+    subtitulo: "Tu itinerario, en el calendario\nque usás todos los días."
+    duracion_s: 7
+  - id: 2
+    accion: "scroll 300"
+    narracion: "Están tus charlas y eventos, día por día."
+    subtitulo: "Tus charlas y eventos,\ndía por día."
+    duracion_s: 5
+  - id: 3
+    accion: "wait 2"
+    narracion: "Cada charla entra con su hora y su sede, y una alarma quince minutos antes."
+    subtitulo: "Cada charla con hora, sede\ny alarma 15 minutos antes."
+    duracion_s: 7
+  - id: 4
+    accion: "hover role=button[name='Pasar a mi calendario']"
+    narracion: "Y si no la reservaste, la alarma te avisa a tiempo para la cola."
+    subtitulo: "¿Sin reserva? La alarma te avisa\na tiempo para la cola."
+    duracion_s: 7
+  - id: 5
+    accion: "click role=button[name='Pasar a mi calendario']"
+    narracion: "Con un toque, la app arma el archivo con toda tu agenda."
+    subtitulo: "Con un toque, la app arma\nel archivo con tu agenda."
+    duracion_s: 6
+  - id: 6
+    accion: "wait 3"
+    narracion: "Listo: en la compu se descarga, y en el celular lo mandás directo al Calendario."
+    subtitulo: "En la compu se descarga;\nen el celular, directo al Calendario."
+    duracion_s: 7

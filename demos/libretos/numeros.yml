@@ -1,0 +1,44 @@
+feature: numeros
+titulo: "Tu re:Invent en números"
+beneficio: "Horas, choques y caminata de tu semana, de un vistazo."
+ruta: "#/itinerario"
+notas: >-
+  Necesita itinerario con ítems en más de una sede (si no, la caminata dice que todo queda en la misma sede) y ficha
+  creada para la sección «Tu ficha vs. tu agenda» (sin ficha invita a hacer la entrevista).
+  Las barras son links a Buscar (charts.js:35,47): la escena 7 solo hace hover, no navega.
+escenas:
+  - id: 1
+    accion: "goto #/itinerario"
+    narracion: "¿Cómo viene tu semana? Desde el itinerario la ves en números."
+    subtitulo: "¿Cómo viene tu semana?\nMirala en números."
+    duracion_s: 6
+  - id: 2
+    accion: "click a.ra-sec-action[href^='#/itinerario/numeros']"
+    narracion: "Arriba ves cuánto tenés agendado, las horas ocupadas, lo que caminás y los choques."
+    subtitulo: "Lo agendado, las horas ocupadas,\nla caminata y los choques."
+    duracion_s: 7
+  - id: 3
+    accion: "scroll 400"
+    narracion: "La línea de tu semana muestra cada día de ocho a veintidós horas y marca lo que se pisa."
+    subtitulo: "Tu semana de 8 a 22 h,\ncon lo que se pisa marcado."
+    duracion_s: 9
+  - id: 4
+    accion: "scroll 500"
+    narracion: "También ves cuánto caminás por día y cuánto cubre tu agenda lo que pediste en tu ficha."
+    subtitulo: "Cuánto caminás por día y cuánto\ncubre tu agenda lo que pediste."
+    duracion_s: 8
+  - id: 5
+    accion: "click #num-catalogo"
+    narracion: "En Catálogo ves re:Invent completo: charlas, speakers, sedes y lanzamientos."
+    subtitulo: "Todo re:Invent: charlas,\nspeakers, sedes y lanzamientos."
+    duracion_s: 5
+  - id: 6
+    accion: "scroll 500"
+    narracion: "Ves qué días y horas vienen más cargados, y dónde ya tenés algo."
+    subtitulo: "Qué días y horas vienen cargados\ny dónde ya tenés algo."
+    duracion_s: 7
+  - id: 7
+    accion: "hover #numeros-panel a[href^='#/buscar']"
+    narracion: "Y tocando una barra, vas directo a esas charlas en Buscar."
+    subtitulo: "Tocás una barra y vas directo\na esas charlas en Buscar."
+    duracion_s: 6

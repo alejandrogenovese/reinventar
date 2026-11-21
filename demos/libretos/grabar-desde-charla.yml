@@ -1,0 +1,44 @@
+feature: grabar-desde-charla
+titulo: "Grabá la charla de tu itinerario"
+beneficio: "Un toque y la grabación ya sabe qué charla es."
+ruta: "#/grabar-charla/{{CODIGO_CHARLA_ITINERARIO}}"
+notas: >-
+  Marcar el tip de no molestar como visto antes de grabar (o tocar «Entendido» en el pre-roll; app.js:380-381).
+  Falta un dato concreto: {{CODIGO_CHARLA_ITINERARIO}} es el código de una charla que esté en el itinerario
+  del tester (features.yml no fija uno). Si no está en el itinerario, la pantalla dice «… ya no está en tu
+  itinerario»; si ya hay una grabación viva con ese código, salta directo al grabador.
+  El push «¿La grabás?» no se graba: se entra directo a la ruta a la que lleva el aviso.
+  Micrófono simulado (Chrome con --use-fake-ui-for-media-stream y --use-fake-device-for-media-stream).
+  Crea una grabación real del tester: borrarla después, fuera de cámara. La entrada desde Hoy
+  («Grabar esta charla») solo se narra: necesita reloj simulado dentro de la charla.
+escenas:
+  - id: 1
+    accion: "goto #/grabar-charla/{{CODIGO_CHARLA_ITINERARIO}}"
+    narracion: "Empieza una charla de tu itinerario y nadie la está grabando: te llega el aviso ¿La grabás?"
+    subtitulo: "Empieza una charla y nadie la graba:\nte llega «¿La grabás?»."
+    duracion_s: 8
+  - id: 2
+    accion: "wait 2"
+    narracion: "Lo tocás y caés acá, con la charla, la sala y el horario."
+    subtitulo: "Caés acá, con la charla,\nla sala y el horario."
+    duracion_s: 6
+  - id: 3
+    accion: "hover role=button[name='Empezar a grabar']"
+    narracion: "No arranca sola, así no quedan grabaciones vacías por error."
+    subtitulo: "No arranca sola: así no quedan\ngrabaciones vacías por error."
+    duracion_s: 5
+  - id: 4
+    accion: "click role=button[name='Empezar a grabar']"
+    narracion: "Tocás Empezar a grabar y se crea la grabación con título, código, sala y speakers."
+    subtitulo: "Se crea la grabación con título,\ncódigo, sala y speakers."
+    duracion_s: 7
+  - id: 5
+    accion: "wait 3"
+    narracion: "Se abre el grabador, ya con la charla cargada. También lo tenés en Hoy y en la ficha de la charla, con Grabar esta charla."
+    subtitulo: "El grabador, con la charla cargada.\nTambién desde Hoy y desde la ficha."
+    duracion_s: 11
+  - id: 6
+    accion: "click button.ra-rec[aria-label='Empezar a grabar']"
+    narracion: "Un toque más y estás grabando."
+    subtitulo: "Un toque más y estás grabando."
+    duracion_s: 4
