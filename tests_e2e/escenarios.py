@@ -210,6 +210,58 @@ async def escenario_6_cierre_diferido(c: Contexto) -> None:
     await p.esperar("!document.body.innerText.includes('Grabadas en este celular')", "la tarjeta local desapareció", 20)
 
 
+# La API de gastos vive en otra rama: el escenario 7 la simula en la página (fetch) y solo comprueba lo que hace el front.
+STUB_GASTOS = """(() => {
+  window.__sync = [];
+  const original = window.fetch.bind(window);
+  const json = (cuerpo) => new Response(JSON.stringify(cuerpo), { status: 200, headers: { "content-type": "application/json" } });
+  window.fetch = async (url, init = {}) => {
+    const ruta = String(url);
+    if (!ruta.startsWith('/api/gastos')) return original(url, init);
+    if (!navigator.onLine) throw new TypeError('Failed to fetch');
+    if (ruta.startsWith('/api/gastos/cotizacion')) return json({ oficial: 1000, blue: 1200, tarjeta: 1300, at: new Date().toISOString() });
+    if (ruta.startsWith('/api/gastos/sync')) {
+      const cuerpo = JSON.parse(init.body);
+      window.__sync.push(cuerpo);
+      return json({ aplicados: cuerpo.cambios.map((c) => c.client_id), cambios: [], ahora: new Date().toISOString() });
+    }
+    return json({ gastos: [], totales: { usd: 0, por_categoria: {}, por_dia: {} }, presupuesto: { total_usd: 1000, diario_usd: 100, por_categoria: {} } });
+  };
+})()"""
+BOTON_POR_TEXTO = "[...document.querySelectorAll('button')].find(b => b.textContent.trim() === {texto})"
+ESPERA_SYNC_GASTOS_S = 30
+ESPERA_ANIMACION_HOJA_S = 1
+
+
+async def escenario_7_gasto_sin_red(c: Contexto) -> None:
+    """Un gasto cargado sin señal queda en el celular como «Sin sincronizar» y viaja una sola vez al volver la red."""
+    p = c.pagina
+    await p.offline(False)
+    await _ir_a(p, "#/ajustes")
+    await p.esperar("document.body.innerText.includes('Conectado como')", "Ajustes cargado")
+    await p.evaluar(STUB_GASTOS)
+    await _ir_a(p, "#/gastos")
+    await p.esperar("document.body.innerText.includes('Todavía no cargaste gastos')", "la pantalla de Gastos vacía")
+    await p.offline(True)
+    await p.tocar(BOTON_POR_TEXTO.format(texto=json.dumps("Cargar gasto")))
+    await p.esperar("!!document.querySelector('dialog[open] #g-monto')", "la hoja de carga")
+    await asyncio.sleep(ESPERA_ANIMACION_HOJA_S)  # la hoja sube con animación: el toque real calcula el centro del botón antes
+    await p.evaluar("(() => { const m = document.querySelector('#g-monto'); m.value = '14,10'; m.dispatchEvent(new Event('input')); document.querySelector('#g-nota').value = 'Café E2E'; })()")
+    await p.tocar(BOTON_POR_TEXTO.format(texto=json.dumps("Guardar gasto")))
+    await p.esperar("!document.querySelector('dialog[open]')", "la hoja cerrada tras guardar")
+    await p.esperar("document.body.innerText.includes('Café E2E') && document.body.innerText.includes('Sin sincronizar')",
+                    "el gasto en la lista, marcado «Sin sincronizar»")
+    enviados = "window.__sync.flatMap((s) => s.cambios).length"  # el sync al abrir la pantalla (con red) iba con la lista vacía
+    assert await p.evaluar(enviados) == 0, "sin señal no debía haber salido ningún gasto"
+    await p.offline(False)
+    await p.esperar(f"{enviados} > 0", "el gasto sale al volver la red", ESPERA_SYNC_GASTOS_S)
+    await p.esperar("!document.body.innerText.includes('Sin sincronizar')", "el gasto ya sin la marca «Sin sincronizar»", ESPERA_SYNC_GASTOS_S)
+    cambios = await p.evaluar("window.__sync.flatMap((s) => s.cambios)")
+    assert len(cambios) == 1, f"el gasto debía viajar una sola vez y viajó {len(cambios)}: {cambios}"
+    assert cambios[0]["monto"] == 14.1 and cambios[0]["moneda"] == "USD" and cambios[0]["nota"] == "Café E2E", cambios[0]
+    assert len(cambios[0]["client_id"]) == 36, f"el client_id debía ser un UUID: {cambios[0]['client_id']}"
+
+
 ESCENARIOS = (
     ("1 · franja «Sin señal» al recargar sin red", escenario_1_franja_sin_senal),
     ("2 · grabar sin red y terminar", escenario_2_grabar_sin_red),
@@ -217,4 +269,5 @@ ESCENARIOS = (
     ("4 · portal cautivo en /api/", escenario_4_portal_cautivo),
     ("5 · ver y ocultar la contraseña en el login", escenario_5_ver_contrasena_en_el_login),
     ("6 · terminar sin red una sesión ya creada y cerrarla al volver", escenario_6_cierre_diferido),
+    ("7 · cargar un gasto sin red y sincronizarlo al volver", escenario_7_gasto_sin_red),
 )
