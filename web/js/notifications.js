@@ -2,6 +2,7 @@
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 import { getToken, Push, Ubicacion } from "./api.js";
 import { locationEnabled, reportVenue, setLocationEnabled, setVenueReportEnabled } from "./location.js";
+import { OfertasSettings } from "./ofertas.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
 const esIOS = ({ navigator: n }) => /iPhone|iPad|iPod/.test(n.userAgent ?? "") || (n.platform === "MacIntel" && n.maxTouchPoints > 1); // el iPad se presenta como Mac
@@ -188,12 +189,15 @@ function ReminderSettings() {
     h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."));
 }
 
+/** «Avisarme de ofertas» (web/js/ofertas.js): se muestra también donde el push no anda (iPhone sin instalar), para explicar por qué. */
+const ofertas = () => OfertasSettings({ estado: estadoPush, permiso: () => globalThis.Notification?.permission, activarDispositivo: enable });
+
 export function PushSettings() {
   void syncSubscription().catch(() => {});
   const box = h("div", { class: "stack" }, h("h2", { class: "label" }, "Notificaciones en el celular"));
   const estado = estadoPush();
   if (estado !== "ok") {
-    box.append(h("p", { class: "caption" }, textoNoSoportado(estado)));
+    box.append(h("p", { class: "caption" }, textoNoSoportado(estado)), ofertas());
     return box;
   }
   const toggle = h("input", { type: "checkbox", id: "push-on", disabled: true });
@@ -222,6 +226,6 @@ export function PushSettings() {
     status.textContent = mensajeError(err);
   });
   box.append(h("label", { class: "actions is-center", for: "push-on" }, toggle, "Activar notificaciones"), status, h("div", { class: "actions" }, testBtn),
-    ReminderSettings());
+    ReminderSettings(), ofertas());
   return box;
 }

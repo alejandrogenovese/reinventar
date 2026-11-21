@@ -29,6 +29,8 @@ import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
 import { viewNumeros } from "./numeros.js";
+import { viewAdminOfertas } from "./adminOfertas.js";
+import { viewOfertas } from "./ofertas.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -76,6 +78,8 @@ const routes = [
   [/^#\/ajustes$/, viewSettings],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdmin(view)],
+  [/^#\/admin\/ofertas$/, () => viewAdminOfertas(view)],
+  [/^#\/ofertas(?:\/([\w-]+))?$/, (id) => viewOfertas(view, id)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
   [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => store.esLocal(id) ? abrirSesionLocal(id) : viewDetail(view, id, {
