@@ -3,7 +3,7 @@ titulo: "Resumen y transcripción de tu charla"
 beneficio: "Lo importante de cada charla, en castellano y para llevártelo."
 ruta: "#/s/{id}"
 notas: >-
-  Datos previos: la primera grabación de Tus grabaciones ([aria-labelledby='grabaciones-title'] button.ra-reccard; no tiene que haber «Grabadas en este celular» antes) tiene que estar ready, vinculada a una
+  Datos previos: en staging se abre «CEO Keynote» (KEY002, ready y vinculada al catálogo). Si no, la primera grabación de Tus grabaciones ([aria-labelledby='grabaciones-title'] button.ra-reccard; no tiene que haber «Grabadas en este celular» antes) tiene que estar ready, vinculada a una
   charla del catálogo (si no, no aparece «Ver la ficha de la charla») e idealmente con algún tramo sin audio.
   Exportar .md descarga un archivo: habilitar acceptDownloads; no se ve ningún aviso en pantalla.
   El voto se muestra con hover sobre role=button[name='Me sirvió'] (detail.js:18) y no se toca, para no
@@ -17,7 +17,7 @@ escenas:
     subtitulo: "Saliste de una charla de una hora\ny querés lo importante, ya."
     duracion_s: 6
   - id: 2
-    accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard"
+    accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard:has-text('CEO Keynote')"
     narracion: "Abrís la grabación y arrancás por el resumen."
     subtitulo: "Abrís la grabación\ny arrancás por el resumen."
     duracion_s: 5

@@ -33,7 +33,7 @@ escenas:
     subtitulo: "Debajo, las charlas citadas\ny los momentos de tus grabaciones."
     duracion_s: 9
   - id: 6
-    accion: "click [aria-label='Agregar al itinerario']"
+    accion: "click role=button[name='Agregar']"
     narracion: "La que te cierra, la agregás al itinerario sin salir de la conversación."
     subtitulo: "La agregás al itinerario\nsin salir de la conversación."
     duracion_s: 7

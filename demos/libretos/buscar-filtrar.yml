@@ -38,7 +38,7 @@ escenas:
     subtitulo: "Cerrás y seguís con\nla lista ya acotada."
     duracion_s: 5
   - id: 7
-    accion: "click [aria-label='Agregar al itinerario']"
+    accion: "click role=button[name='Agregar']"
     narracion: "La que te interesa, la sumás a tu itinerario con Agregar. Queda marcada como Agregada."
     subtitulo: "La que te interesa,\nla sumás a tu itinerario."
     duracion_s: 7

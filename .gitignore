@@ -30,3 +30,6 @@ CONTEXTO_*.md
 sessions.json
 datos/
 Diagramas/
+
+# Videos y timelines de las demos (demos/specs)
+demos/out/
