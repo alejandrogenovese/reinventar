@@ -4,10 +4,10 @@ El archivo viaja como cuerpo del pedido (igual que /api/itinerary/import-ics), c
 falta python-multipart para un solo archivo. La lista se guarda por usuario en `codigos_deseados`; subir otra reemplaza."""
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from . import catalog, codigos_excel, cuerpo, db, limites
+from . import catalog, codigos_ejemplo, codigos_excel, cuerpo, db, limites
 from .auth import auth
 from .codigos_excel import ArchivoInvalido, Codigo
 
@@ -70,6 +70,13 @@ async def subir(request: Request, nombre: str = Query("", max_length=255), usern
     limites.exigir_cupo(_subidas, username, "subida de listas de códigos")
     datos = await cuerpo.leer_con_tope(request, codigos_excel.MAX_BYTES, "El archivo es demasiado grande (máximo 1 MB).")
     return await run_in_threadpool(_procesar, username, datos, nombre)
+
+
+@router.get("/ejemplo.xlsx")
+def ejemplo():
+    """Un Excel de ejemplo para completar y subir (ver app/codigos_ejemplo.py). Pide sesión como el resto del router."""
+    return Response(codigos_ejemplo.generar(), media_type=codigos_ejemplo.MEDIA_TYPE,
+                    headers={"Content-Disposition": f'attachment; filename="{codigos_ejemplo.NOMBRE}"'})
 
 
 @router.get("")

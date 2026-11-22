@@ -5,7 +5,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from . import ciudades, vuelos
+from . import ciudades, viajes_avisos, vuelos
 from .auth import auth
 
 router = APIRouter(prefix="/api/viajes", dependencies=[Depends(auth)])
@@ -117,6 +117,18 @@ def agregar_vuelo(body: VueloIn, username: str = Depends(auth)):
     return _vuelo_publico(v)
 
 
+@router.put("/vuelos/{id_}")
+def editar_vuelo(id_: str, body: VueloIn, username: str = Depends(auth)):
+    previo = vuelos.get_vuelo(username, id_)
+    v = previo and vuelos.actualizar_vuelo(username, id_, body.numero, body.aerolinea.strip(), body.fecha.isoformat(),
+                                           body.hora, body.zona, body.ciudad.strip())
+    if not v:
+        raise HTTPException(404, "No encontramos ese vuelo")
+    if vuelos.cambio_de_salida(previo, v):
+        viajes_avisos.olvidar_vuelo(username, id_)
+    return _vuelo_publico(v)
+
+
 @router.delete("/vuelos/{id_}")
 def quitar_vuelo(id_: str, username: str = Depends(auth)):
     if not vuelos.quitar_vuelo(username, id_):
@@ -130,6 +142,15 @@ def agregar_hotel(body: HotelIn, username: str = Depends(auth)):
                              body.checkin.strftime("%Y-%m-%dT%H:%M"), body.checkout.strftime("%Y-%m-%dT%H:%M"), body.zona)
     if not h:
         raise HTTPException(409, "Ya cargaste demasiados hoteles: quitá alguno")
+    return _hotel_publico(h)
+
+
+@router.put("/hoteles/{id_}")
+def editar_hotel(id_: str, body: HotelIn, username: str = Depends(auth)):
+    h = vuelos.actualizar_hotel(username, id_, body.nombre.strip(), body.direccion.strip(),
+                                body.checkin.strftime("%Y-%m-%dT%H:%M"), body.checkout.strftime("%Y-%m-%dT%H:%M"), body.zona)
+    if not h:
+        raise HTTPException(404, "No encontramos ese hotel")
     return _hotel_publico(h)
 
 

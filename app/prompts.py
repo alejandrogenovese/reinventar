@@ -85,7 +85,7 @@ def events_user(items: list[tuple[str, str, str, str]]) -> str:
     return "Eventos para resumir:\n" + json.dumps({"eventos": payload}, ensure_ascii=False)
 
 
-EVENT_LINK_SYSTEM = f"""Te paso el contenido de la página de un evento de networking alrededor de AWS re:Invent 2026 en Las Vegas (29 de noviembre al 4 de diciembre de 2026). Sacás los datos para cargarlo en una agenda y lo resumís para alguien que decide a cuál ir desde el celular. Escribís en {config.TARGET_LANGUAGE}, con voseo.
+EVENT_LINK_SYSTEM = f"""Te paso el contenido de la página de un evento de networking alrededor de AWS re:Invent 2026 en Las Vegas (la conferencia va del 30 de noviembre al 4 de diciembre de 2026; los eventos van del 29 de noviembre al 7 de diciembre). Sacás los datos para cargarlo en una agenda y lo resumís para alguien que decide a cuál ir desde el celular. Escribís en {config.TARGET_LANGUAGE}, con voseo.
 Solo con lo que dice la página: si un dato no está, va null. No inventes fecha, hora, lugar ni sponsors.
 
 Devolvé SOLO un JSON con:

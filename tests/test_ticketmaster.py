@@ -149,10 +149,10 @@ def test_sin_repetidos_ni_la_misma_funcion_de_reventa():
     assert [f.id_funcion for f in ticketmaster.limpiar([original, original, copia])] == ["A1"]
 
 
-def test_dias_de_la_semana_en_hora_de_las_vegas():
+def test_dias_de_la_estadia_en_hora_de_las_vegas():
     rangos = ticketmaster.dias()
 
-    assert len(rangos) == 6
+    assert len(rangos) == 9  # del dom 29/11 al lun 7/12
     assert rangos[0] == (ticketmaster.DESDE, dt.datetime(2026, 11, 30, 7, 59, 59, tzinfo=dt.UTC))
     assert rangos[-1][1] == ticketmaster.HASTA
 
@@ -234,7 +234,7 @@ def test_la_revision_guarda_las_funciones_limpias(base, con_key):
     assert _revision(base)[:3] == (True, 2, 2)
     params = tm.pedidos[0].url.params
     assert (params["dmaId"], params["size"], params["sort"]) == ("319", "200", "date,asc")
-    assert (params["startDateTime"], params["endDateTime"]) == ("2026-11-29T08:00:00Z", "2026-12-05T07:59:59Z")
+    assert (params["startDateTime"], params["endDateTime"]) == ("2026-11-29T08:00:00Z", "2026-12-07T21:00:00Z")
     assert set(params["segmentId"].split(",")) == set(ticketmaster.SEGMENTOS)
 
 
@@ -295,7 +295,7 @@ def test_con_mil_o_mas_se_pide_un_dia_por_vez(base, con_key):
     _revisar(base, tm)
 
     rangos = [(p.url.params["startDateTime"], p.url.params["endDateTime"]) for p in tm.pedidos]
-    assert rangos[0] == ("2026-11-29T08:00:00Z", "2026-12-05T07:59:59Z")
+    assert rangos[0] == ("2026-11-29T08:00:00Z", "2026-12-07T21:00:00Z")
     assert rangos[1:] == [(ticketmaster._iso(d), ticketmaster._iso(h)) for d, h in ticketmaster.dias()]
     assert _revision(base)[5] == "pedido un día por vez"
 
@@ -407,11 +407,22 @@ def en_memoria(monkeypatch):
              _fila("A2", dt.datetime(2026, 12, 1, 5, 30, tzinfo=dt.UTC)),
              _fila("A3", dt.datetime(2026, 12, 2, 3, tzinfo=dt.UTC), "canceled"),
              _fila("B1", dt.datetime(2026, 12, 1, 4, tzinfo=dt.UTC), id_show="s2", tipo="musica"),
-             _fila("X1", dt.datetime(2026, 12, 20, 4, tzinfo=dt.UTC), id_show="s3")]  # fuera de la semana
+             _fila("X1", dt.datetime(2026, 12, 20, 4, tzinfo=dt.UTC), id_show="s3")]  # fuera de la estadía
     funciones = {f"tm-{r['id_funcion']}": shows._card(r, SEDES) for r in filas}
     monkeypatch.setattr(shows, "_funciones", funciones)
     monkeypatch.setattr(shows.config, "TICKETMASTER_API_KEY", KEY)
     return funciones
+
+
+def test_por_dia_incluye_hasta_el_fin_de_la_estadia(monkeypatch):
+    filas = [_fila("S5", dt.datetime(2026, 12, 6, 4, tzinfo=dt.UTC), id_show="s5"),      # sáb 5/12 20:00
+             _fila("D6", dt.datetime(2026, 12, 7, 4, tzinfo=dt.UTC), id_show="s6"),      # dom 6/12 20:00
+             _fila("L7", dt.datetime(2026, 12, 7, 19, tzinfo=dt.UTC), id_show="s7"),     # lun 7/12 11:00
+             _fila("M8", dt.datetime(2026, 12, 9, 4, tzinfo=dt.UTC), id_show="s8")]      # mar 8/12: ya se fue
+    monkeypatch.setattr(shows, "_funciones", {f"tm-{r['id_funcion']}": shows._card(r, SEDES) for r in filas})
+
+    assert [d["day"] for d in shows.by_day()] == ["2026-12-05", "2026-12-06", "2026-12-07"]
+    assert shows.show("s8") is None
 
 
 def test_por_dia_agrupa_por_show(en_memoria):
