@@ -2,10 +2,10 @@
 import datetime as dt
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from . import vuelos
+from . import ciudades, vuelos
 from .auth import auth
 
 router = APIRouter(prefix="/api/viajes", dependencies=[Depends(auth)])
@@ -19,6 +19,7 @@ class VueloIn(BaseModel):
     fecha: dt.date
     hora: str | None = None
     zona: str = vuelos.ZONA_VUELO_DEFECTO
+    ciudad: str = Field(default="", max_length=80)
 
     @field_validator("numero")
     @classmethod
@@ -37,7 +38,7 @@ class VueloIn(BaseModel):
     @field_validator("zona")
     @classmethod
     def _zona(cls, v: str) -> str:
-        if v not in vuelos.ZONAS:
+        if not vuelos.zona_valida(v):
             raise ValueError("Zona horaria no disponible")
         return v
 
@@ -52,7 +53,7 @@ class HotelIn(BaseModel):
     @field_validator("zona")
     @classmethod
     def _zona(cls, v: str) -> str:
-        if v not in vuelos.ZONAS:
+        if not vuelos.zona_valida(v):
             raise ValueError("Zona horaria no disponible")
         return v
 
@@ -75,16 +76,21 @@ def _vuelo_publico(v: dict) -> dict:
     sale = vuelos.salida(v)
     abre = vuelos.abre_checkin(v)
     return {"id": v["id"], "numero": v["numero"], "aerolinea": v["aerolinea"], "fecha": v["fecha"], "hora": v["hora"],
-            "zona": v["zona"], "zona_nombre": vuelos.ZONAS.get(v["zona"], v["zona"]),
+            "zona": v["zona"], "zona_nombre": _nombre_de_salida(v),
             "salida": sale.astimezone(vuelos.zona(v["zona"])).strftime("%Y-%m-%dT%H:%M") if sale else None,
             "checkin_abre": abre.astimezone(vuelos.zona(v["zona"])).strftime("%Y-%m-%dT%H:%M") if abre else None,
             "checkin_horas": vuelos.horas_checkin(v["numero"]), "checkin_url": vuelos.url_checkin(v["numero"]),
             "demora_min": v["demora_min"], "puerta": v["puerta"], "terminal": v["terminal"], "estado": v["estado"]}
 
 
+def _nombre_de_salida(v: dict) -> str:
+    """La ciudad que eligió la persona; en vuelos viejos, el nombre de la zona («Buenos Aires»)."""
+    return v.get("ciudad") or vuelos.ZONAS.get(v["zona"]) or ciudades.nombre_de_zona(v["zona"])
+
+
 def _hotel_publico(h: dict) -> dict:
     return {k: h[k] for k in ("id", "nombre", "direccion", "checkin", "checkout", "zona")} | {
-        "zona_nombre": vuelos.ZONAS.get(h["zona"], h["zona"])}
+        "zona_nombre": vuelos.ZONAS.get(h["zona"]) or ciudades.nombre_de_zona(h["zona"])}
 
 
 @router.get("")
@@ -96,9 +102,16 @@ def listar(username: str = Depends(auth)):
             "preferencias": vuelos.get_prefs(username)}
 
 
+@router.get("/ciudades")
+def buscar_ciudades(q: str = Query(min_length=1, max_length=ciudades.LARGO_MAX_CONSULTA)):
+    """De dónde sale un vuelo: las ciudades que coinciden con lo escrito, con su zona horaria."""
+    return {"ciudades": ciudades.buscar(q)}
+
+
 @router.post("/vuelos", status_code=201)
 def agregar_vuelo(body: VueloIn, username: str = Depends(auth)):
-    v = vuelos.agregar_vuelo(username, body.numero, body.aerolinea.strip(), body.fecha.isoformat(), body.hora, body.zona)
+    v = vuelos.agregar_vuelo(username, body.numero, body.aerolinea.strip(), body.fecha.isoformat(), body.hora, body.zona,
+                             body.ciudad.strip())
     if not v:
         raise HTTPException(409, "Ya cargaste demasiados vuelos: quitá alguno")
     return _vuelo_publico(v)

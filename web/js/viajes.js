@@ -4,6 +4,11 @@ import { Viajes } from "./api.js";
 import { Button, Hint, h, mensajeError, toast } from "./ui.js";
 
 const ZONA_HOTEL = "America/Los_Angeles"; // los hoteles son de re:Invent: horas de Las Vegas
+const SALIDA_INICIAL = { nombre: "Buenos Aires", pais: "AR", zona: "America/Argentina/Buenos_Aires" };
+const BUSCAR_CIUDAD_MS = 200;
+const MIN_LETRAS_CIUDAD = 2;
+const paises = (() => { try { return new Intl.DisplayNames(["es"], { type: "region" }); } catch { return null; } })();
+const etiquetaCiudad = (c) => `${c.nombre}, ${paises?.of(c.pais) ?? c.pais}`;
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const dia = (iso) => { const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`; };
 // El link viene del servidor (aerolínea): solo https, como el resto de la app.
@@ -51,24 +56,61 @@ async function alGuardar(mensaje, onGuardado, btn) {
   try { await onGuardado(); } catch (err) { toast(mensajeError(err)); btn.disabled = false; }
 }
 
-function FormVuelo(zonas, onGuardado) {
+/** «Sale de»: escribís y aparecen las ciudades del mundo (GET /api/viajes/ciudades); se guarda su zona horaria. */
+function CampoCiudad() {
+  const lista = h("datalist", { id: "viajes-ciudades" });
+  const conocidas = new Map([[etiquetaCiudad(SALIDA_INICIAL), SALIDA_INICIAL]]);
+  const input = h("input", { list: "viajes-ciudades", value: etiquetaCiudad(SALIDA_INICIAL), autocomplete: "off",
+    required: true, placeholder: "Escribí la ciudad: Houston, Madrid…", maxlength: 60 });
+  let timer;
+  let ultimo = 0;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    input.setCustomValidity("");
+    if (q.length < MIN_LETRAS_CIUDAD || conocidas.has(input.value)) return;
+    timer = setTimeout(async () => {
+      const pedido = ++ultimo;
+      try {
+        const { ciudades } = await Viajes.ciudades(q);
+        if (pedido !== ultimo) return; // llegó tarde: ya se escribió otra cosa
+        lista.replaceChildren(...ciudades.map((c) => {
+          const etiqueta = etiquetaCiudad(c);
+          conocidas.set(etiqueta, c);
+          return h("option", { value: etiqueta });
+        }));
+      } catch (err) { console.warn("[viajes] no se pudo buscar la ciudad", err); }
+    }, BUSCAR_CIUDAD_MS);
+  });
+  const elegida = () => conocidas.get(input.value) ?? null;
+  return { input, lista, elegida };
+}
+
+function FormVuelo(onGuardado) {
   const numero = h("input", { placeholder: "AR1302", maxlength: 12, required: true, autocapitalize: "characters" });
   const fecha = h("input", { type: "date", required: true });
   const hora = h("input", { type: "time" });
   const aerolinea = h("input", { placeholder: "Opcional", maxlength: 60 });
-  const zona = h("select", {}, zonas.map((z) => h("option", { value: z.id }, z.nombre)));
+  const salida = CampoCiudad();
   const form = h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
+    const ciudad = salida.elegida();
+    if (!ciudad) {
+      salida.input.setCustomValidity("Elegí la ciudad de la lista que aparece al escribir.");
+      salida.input.reportValidity();
+      return;
+    }
     const btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
     try {
-      await Viajes.agregarVuelo({ numero: numero.value, aerolinea: aerolinea.value, fecha: fecha.value, hora: hora.value || null, zona: zona.value });
+      await Viajes.agregarVuelo({ numero: numero.value, aerolinea: aerolinea.value, fecha: fecha.value, hora: hora.value || null,
+        zona: ciudad.zona, ciudad: ciudad.nombre });
     } catch (err) { toast(mensajeError(err)); btn.disabled = false; return; }
     await alGuardar("Vuelo agregado.", onGuardado, btn);
   } },
   Campo("Número de vuelo", numero), Campo("Aerolínea", aerolinea),
   h("div", { class: "actions" }, Campo("Fecha de salida", fecha), Campo("Hora de salida", hora)),
-  Campo("Sale de", zona),
+  Campo("Sale de", salida.input), salida.lista,
   h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Agregar vuelo"));
   return form;
 }
@@ -120,7 +162,7 @@ export async function viewViajes(view, focoInicial = null) {
       !data.estado_disponible ? Hint("Las alertas de demora y puerta no están activas en este servidor; el resto de los avisos anda igual.") : null,
       h("section", { class: "stack" }, h("h2", { class: "label" }, "Vuelos"),
         vuelos.length ? vuelos : h("p", { class: "caption" }, "Todavía no cargaste vuelos."),
-        h("details", { class: "stack", open: !vuelos.length }, h("summary", { class: "label" }, "Agregar un vuelo"), FormVuelo(data.zonas, paint))),
+        h("details", { class: "stack", open: !vuelos.length }, h("summary", { class: "label" }, "Agregar un vuelo"), FormVuelo(paint))),
       h("section", { class: "stack" }, h("h2", { class: "label" }, "Hoteles"),
         hoteles.length ? hoteles : h("p", { class: "caption" }, "Todavía no cargaste hoteles."),
         h("details", { class: "stack", open: !hoteles.length }, h("summary", { class: "label" }, "Agregar un hotel"), FormHotel(paint)))));

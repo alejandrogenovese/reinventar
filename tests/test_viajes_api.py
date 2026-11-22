@@ -88,3 +88,30 @@ def test_el_guardado_de_push_no_apaga_los_avisos_de_viajes(cli):
 
 def test_sin_sesion_no_entra(cli):
     assert cli.get("/api/viajes").status_code == 401
+
+
+def test_sale_de_cualquier_ciudad_y_muestra_la_que_eligio(cli):
+    houston = {**VUELO, "numero": "UA1799", "zona": "America/Chicago", "ciudad": "Houston"}
+
+    v = cli.post("/api/viajes/vuelos", headers=cli.H, json=houston).json()
+
+    assert v["zona_nombre"] == "Houston"
+    assert v["salida"] == "2026-11-28T21:05"  # la hora cargada, en la zona de Houston
+
+
+def test_un_vuelo_sin_ciudad_muestra_el_nombre_de_la_zona(cli):
+    v = cli.post("/api/viajes/vuelos", headers=cli.H, json={**VUELO, "zona": "Europe/Rome"}).json()
+
+    assert v["zona_nombre"] == "Rome"
+
+
+def test_busca_la_ciudad_de_salida_mientras_se_escribe(cli):
+    r = cli.get("/api/viajes/ciudades", headers=cli.H, params={"q": "hou"})
+
+    assert r.status_code == 200
+    assert r.json()["ciudades"][0] == {"nombre": "Houston", "pais": "US", "zona": "America/Chicago"}
+
+
+def test_buscar_ciudades_pide_sesion_y_una_consulta(cli):
+    assert cli.get("/api/viajes/ciudades", params={"q": "hou"}).status_code == 401
+    assert cli.get("/api/viajes/ciudades", headers=cli.H, params={"q": ""}).status_code == 422

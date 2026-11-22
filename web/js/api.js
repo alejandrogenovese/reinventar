@@ -142,6 +142,7 @@ export const Numeros = {
 export const Viajes = {
   get: () => api("/api/viajes"),
   agregarVuelo: (json) => api("/api/viajes/vuelos", { method: "POST", json }),
+  ciudades: (q) => api(`/api/viajes/ciudades?q=${encodeURIComponent(q)}`),
   quitarVuelo: (id) => api(`/api/viajes/vuelos/${encodeURIComponent(id)}`, { method: "DELETE" }),
   agregarHotel: (json) => api("/api/viajes/hoteles", { method: "POST", json }),
   quitarHotel: (id) => api(`/api/viajes/hoteles/${encodeURIComponent(id)}`, { method: "DELETE" }),

@@ -233,6 +233,7 @@ COLUMNAS_DATOS_USUARIO = (
     ("preferencias_avisos", "viajes_estado", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("gastos", "foto_at", "TIMESTAMPTZ"),
+    ("viajes_vuelos", "ciudad", "TEXT NOT NULL DEFAULT ''"),  # de dónde sale, como la eligió la persona
 )
 
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
