@@ -5,7 +5,7 @@ PUT /api/admin/demos/archivos/<nombre> e /api/admin/demos/indice. Por cada video
 (un cuadro con el celular, sin la franja de subtítulos). El orden de la galería es el de demos/features.yml; las de admin no se publican.
 
 Uso:
-  DEMOS_ADMIN_PASSWORD=... python scripts/subir_demos.py [--base-url https://staging.reinventar.app] [--usuario tester]
+  DEMOS_ADMIN_PASSWORD=... python scripts/subir_demos.py [--entorno staging|local] [--usuario tester]
 """
 import argparse
 import os
@@ -13,7 +13,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse
 
 import httpx
 import yaml
@@ -23,7 +22,8 @@ PORTADA_SEGUNDO = "8"  # ya pasó la placa (3 s): se ve el celular con la app, q
 TIMEOUT_SUBIDA_S = 120
 # 16:9 de la parte de arriba del cuadro (el celular entero), sin la franja de los subtítulos.
 RECORTE_PORTADA = "crop=1493:840:213:0"
-DOMINIO = "reinventar.app"
+# La contraseña de admin solo viaja a estas URLs: no se acepta una URL suelta por línea de comandos.
+ENTORNOS = {"staging": "https://staging.reinventar.app", "local": "http://localhost:8000"}
 
 
 def orden_de_features(features_yml: Path) -> list[str]:
@@ -59,17 +59,6 @@ def portada(video: Path, destino: Path) -> None:
                     "-vf", f"{RECORTE_PORTADA},scale=960:-2", "-q:v", "4", str(destino)], check=True)
 
 
-def base_url_permitida(url: str) -> str:
-    """La contraseña de admin solo viaja a ReinventAR: https en reinventar.app (o un subdominio) o la app local."""
-    partes = urlparse(url)
-    host = partes.hostname or ""
-    if partes.scheme == "https" and (host == DOMINIO or host.endswith(f".{DOMINIO}")):
-        return url.rstrip("/")
-    if partes.scheme == "http" and host in ("localhost", "127.0.0.1"):
-        return url.rstrip("/")
-    raise ValueError(f"--base-url tiene que ser https://*.{DOMINIO} o http://localhost: {url}")
-
-
 def login(cliente: httpx.Client, usuario: str, password: str) -> None:
     r = cliente.post("/api/login", json={"username": usuario, "password": password})
     if r.status_code != 200:
@@ -85,14 +74,11 @@ def subir(cliente: httpx.Client, nombre: str, datos: bytes) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--base-url", default="https://staging.reinventar.app")
+    p.add_argument("--entorno", choices=sorted(ENTORNOS), default="staging")
     p.add_argument("--usuario", default=os.environ.get("DEMOS_ADMIN_USUARIO", "tester"))
     p.add_argument("--videos", type=Path, default=RAIZ / "demos" / "out" / "final")
     args = p.parse_args()
-    try:
-        base_url = base_url_permitida(args.base_url)
-    except ValueError as e:
-        sys.exit(str(e))
+    base_url = ENTORNOS[args.entorno]
     password = os.environ.get("DEMOS_ADMIN_PASSWORD")
     if not password:
         sys.exit("Falta DEMOS_ADMIN_PASSWORD (la contraseña del usuario admin)")
