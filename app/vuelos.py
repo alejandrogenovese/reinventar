@@ -6,12 +6,13 @@ con departure.{scheduledTime,revisedTime}.utc, departure.gate/terminal y status 
 AERODATABOX_API_KEY no se consulta nada y el resto de los avisos anda igual.
 """
 import datetime as dt
+import functools
 import logging
 import re
 import threading
 import time
 import uuid
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 import httpx
 
@@ -50,6 +51,16 @@ ZONA_VUELO_DEFECTO = "America/Argentina/Buenos_Aires"
 ZONA_HOTEL_DEFECTO = "America/Los_Angeles"
 
 _NUMERO = re.compile(r"^([A-Z0-9]{2})(\d{1,4}[A-Z]?)$")
+
+
+@functools.cache
+def _zonas_iana() -> frozenset[str]:
+    return frozenset(available_timezones())
+
+
+def zona_valida(nombre: str) -> bool:
+    """Cualquier zona IANA (la de la ciudad elegida en el buscador), no solo las de ZONAS."""
+    return nombre in _zonas_iana()
 
 
 def zona(nombre: str) -> ZoneInfo:
@@ -302,14 +313,15 @@ def get_vuelo(username: str, id_: str) -> dict | None:
     return dict(r) if r else None
 
 
-def agregar_vuelo(username: str, numero: str, aerolinea: str, fecha: str, hora: str | None, zona_: str) -> dict | None:
+def agregar_vuelo(username: str, numero: str, aerolinea: str, fecha: str, hora: str | None, zona_: str,
+                  ciudad: str = "") -> dict | None:
     """None si ya tiene demasiados cargados."""
     id_ = _nuevo_id()
     with db.conn() as c:
         if c.execute("SELECT COUNT(*) AS n FROM viajes_vuelos WHERE username=%s", (username,)).fetchone()["n"] >= TOPE_POR_PERSONA:
             return None
-        c.execute("INSERT INTO viajes_vuelos (username,id,numero,aerolinea,fecha,hora,zona,creado) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                  (username, id_, numero, aerolinea, fecha, hora, zona_, time.time()))
+        c.execute("INSERT INTO viajes_vuelos (username,id,numero,aerolinea,fecha,hora,zona,ciudad,creado) "
+                  "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)", (username, id_, numero, aerolinea, fecha, hora, zona_, ciudad, time.time()))
     return get_vuelo(username, id_)
 
 

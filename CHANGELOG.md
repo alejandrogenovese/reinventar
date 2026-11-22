@@ -5,6 +5,15 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.1.1] - 2026-11-22
+
+### Cambiado
+- **Vuelos: «Sale de» acepta cualquier ciudad del mundo.** Escribís y aparecen las ciudades que coinciden, con su país
+  (también por su nombre en castellano, como «Nueva York» o «San Pablo», o por el código del aeropuerto, como «HOU»).
+  La hora de salida y la apertura del check-in se calculan con la zona horaria de esa ciudad; antes había solo seis
+  ciudades para elegir y un vuelo desde Houston no se podía cargar con su hora local. Datos de ciudades de
+  [GeoNames](https://www.geonames.org) (CC BY 4.0).
+
 ## [1.1.0] - 2026-11-22
 
 El viaje además de la agenda: gastos, vuelos y hoteles, dónde comer, shows y ofertas, todo desde la pestaña Viaje.
