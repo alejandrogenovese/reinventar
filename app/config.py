@@ -131,6 +131,14 @@ TICKETS_S3_BUCKET = _env("TICKETS_S3_BUCKET")
 TICKETS_S3_KEY_ID = _env("TICKETS_S3_KEY_ID")
 TICKETS_S3_SECRET = _env("TICKETS_S3_SECRET")
 TICKETS_S3_REGION = _env("TICKETS_S3_REGION")
+# Videos demo (galería pública /demos/, app/demos.py): su propio bucket. Sin las cinco variables, la galería dice que no
+# hay demos (así está en producción hasta que se carguen).
+DEMOS_S3_ENDPOINT = _env("DEMOS_S3_ENDPOINT")
+DEMOS_S3_BUCKET = _env("DEMOS_S3_BUCKET")
+DEMOS_S3_KEY_ID = _env("DEMOS_S3_KEY_ID")
+DEMOS_S3_SECRET = _env("DEMOS_S3_SECRET")
+DEMOS_S3_REGION = _env("DEMOS_S3_REGION")
+DEMOS_LINK_HORAS = float(_env("DEMOS_LINK_HORAS", "6"))  # cuánto vale un link firmado a un video
 # Links firmados a las fotos del CSV de reintegros (app/gastos_links.py). Sin FOTOS_LINK_SECRET se deriva de DATABASE_URL.
 FOTOS_LINK_SECRET = _env("FOTOS_LINK_SECRET")
 FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "30"))

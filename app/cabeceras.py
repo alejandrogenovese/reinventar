@@ -12,7 +12,7 @@ import base64
 import hashlib
 import re
 
-from . import config
+from . import config, demos
 
 _GOOGLE = "https://*.googleapis.com https://*.gstatic.com https://*.google.com"
 
@@ -33,6 +33,7 @@ def politica() -> str:
         "style-src 'self' 'unsafe-inline'",  # Google Maps inyecta estilos inline
         "font-src 'self'",  # las tipografías se sirven desde /fonts
         "img-src 'self' data: blob: https:",  # imágenes de eventos (Luma y otras) y teselas del mapa
+        " ".join(filter(None, ["media-src 'self'", demos.origen_publico()])),  # videos de /demos/, solo de su bucket
         f"connect-src 'self' {_GOOGLE}",
         "worker-src 'self' blob:",
         "frame-src https://*.google.com",

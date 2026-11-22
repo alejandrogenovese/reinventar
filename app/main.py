@@ -34,6 +34,7 @@ from . import (
     cotizacion,
     cuerpo,
     db,
+    demos_api,
     eventos_auto,
     events,
     events_api,
@@ -168,6 +169,7 @@ app.include_router(gastos_api.router)
 app.include_router(gastos_api.router_publico)
 app.include_router(huecos.router)
 app.include_router(codigos_api.router)
+app.include_router(demos_api.router)
 app.include_router(comer_api.router)
 
 

@@ -1,0 +1,67 @@
+/* Galería pública de videos demo (/demos/). Usa los tokens de la app (web/css/tokens.css) y el estilo de la placa. */
+@layer demos {
+  :root { --dm-ancho: 1120px; --dm-hero-pad: 56px; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: var(--t-body); }
+
+  .dm-ancho { width: min(100% - 2 * var(--space-6), var(--dm-ancho)); margin-inline: auto; }
+  .dm-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .dm-hero { background: var(--hero); color: var(--on-hero); padding-block: var(--dm-hero-pad); }
+  .dm-marca { display: inline-flex; align-items: center; gap: var(--space-3); color: inherit; text-decoration: none;
+    font: var(--t-title); }
+  .dm-acento { width: 64px; height: 8px; border-radius: 4px; background: var(--brand); margin-block: var(--space-10) var(--space-6); }
+  .dm-hero h1 { margin: 0; font: 800 clamp(34px, 6vw, 64px)/1.05 var(--font-ui); letter-spacing: -0.03em; }
+  .dm-bajada { margin: var(--space-4) 0 0; max-width: 60ch; color: var(--on-hero-muted); font-size: 18px; line-height: 1.5; }
+
+  .dm-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4);
+    margin-block: var(--space-8) var(--space-6); }
+  .dm-buscar input { width: min(420px, 100%); min-height: var(--touch); padding: 0 var(--space-4); border-radius: var(--radius-m);
+    border: 1px solid var(--line-strong); background: var(--surface-1); color: var(--ink); font: var(--t-body); }
+  .dm-buscar input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .dm-conteo { margin: 0; color: var(--ink-muted); font: var(--t-small); }
+
+  .dm-estado { color: var(--ink-muted); }
+  .dm-estado:empty { display: none; }
+
+  .dm-grilla { list-style: none; margin: 0 0 var(--space-12); padding: 0; display: grid; gap: var(--space-6);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .dm-tarjeta { display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0; border: 0; text-align: left;
+    background: var(--surface-1); color: inherit; border-radius: var(--radius-l); overflow: hidden; cursor: pointer;
+    box-shadow: var(--shadow-1), var(--edge); transition: transform var(--ease), box-shadow var(--ease); font: inherit; }
+  .dm-tarjeta:hover { transform: translateY(-2px); box-shadow: var(--shadow-2), var(--edge); }
+  .dm-tarjeta:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .dm-portada { position: relative; aspect-ratio: 16 / 9; background: var(--hero); }
+  .dm-portada img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dm-duracion { position: absolute; right: var(--space-2); bottom: var(--space-2); padding: 2px var(--space-2);
+    border-radius: var(--radius-s); background: rgb(17 17 17 / .82); color: #fff; font: var(--t-data); }
+  .dm-play { position: absolute; inset: 0; margin: auto; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--brand); color: var(--on-brand); display: grid; place-items: center; font-size: 22px;
+    opacity: 0; transition: opacity var(--ease); }
+  .dm-tarjeta:hover .dm-play, .dm-tarjeta:focus-visible .dm-play { opacity: 1; }
+  .dm-texto { padding: var(--space-4); display: grid; gap: var(--space-1); }
+  .dm-texto strong { font: var(--t-heading); }
+  .dm-texto span { color: var(--ink-muted); font: var(--t-small); }
+
+  .dm-reproductor { width: min(100% - 2 * var(--space-4), 1100px); padding: 0; border: 0; border-radius: var(--radius-l);
+    background: var(--hero); color: var(--on-hero); }
+  .dm-reproductor::backdrop { background: rgb(0 0 0 / .72); }
+  .dm-rep-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+    padding: var(--space-3) var(--space-4); }
+  .dm-rep-cabecera h2 { margin: 0; font: var(--t-title); }
+  .dm-cerrar { min-width: var(--touch); min-height: var(--touch); border: 0; border-radius: var(--radius-m);
+    background: transparent; color: inherit; font-size: 20px; cursor: pointer; }
+  .dm-cerrar:hover { background: rgb(255 255 255 / .1); }
+  .dm-cerrar:focus-visible { outline: 2px solid var(--brand); }
+  .dm-reproductor video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .dm-rep-beneficio { margin: 0; padding: var(--space-3) var(--space-4) var(--space-4); color: var(--on-hero-muted); }
+
+  .dm-pie { padding-block: var(--space-8) var(--space-12); color: var(--ink-muted); font: var(--t-small); }
+  .dm-pie a { color: var(--brand-ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dm-tarjeta, .dm-play { transition: none; }
+    .dm-tarjeta:hover { transform: none; }
+  }
+}
