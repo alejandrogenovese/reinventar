@@ -1,0 +1,47 @@
+feature: cambio-de-contrasena
+titulo: "Cambiá tu contraseña"
+beneficio: "Una contraseña propia, y tus otras sesiones se cierran solas."
+ruta: "#/password"
+notas: >-
+  BLOQUEANTE: no grabar con la cuenta tester. Guardar cambia la contraseña de verdad y cierra la sesión
+  en los otros dispositivos (rompe el resto de los videos). Usar una cuenta descartable ya logueada.
+  {{DEMO_PASSWORD_ACTUAL}} y {{DEMO_PASSWORD_NUEVA}} salen de secretos locales (la nueva, de 8 caracteres o más),
+  nunca del repo. Guardar borra también las passkeys de esa cuenta (auth_api.py:115): no usar la cuenta de
+  login-con-passkey ni la de passkey-ajustes. No tocar los ojos de los campos: mostrarían las contraseñas.
+  La variante forzada («Elegí tu contraseña», primer ingreso) solo se narra en la última escena.
+escenas:
+  - id: 1
+    accion: "goto #/ajustes"
+    narracion: "En Ajustes manejás tu cuenta, empezando por la contraseña."
+    subtitulo: "En Ajustes manejás tu cuenta."
+    duracion_s: 5
+  - id: 2
+    accion: "click role=button[name='Cambiar contraseña']"
+    narracion: "La cambiás cuando quieras, desde acá."
+    subtitulo: "La cambiás cuando quieras, desde acá."
+    duracion_s: 4
+  - id: 3
+    accion: "fill #current \"{{DEMO_PASSWORD_ACTUAL}}\""
+    narracion: "Primero confirmás la que usás hoy."
+    subtitulo: "Primero confirmás la que usás hoy."
+    duracion_s: 4
+  - id: 4
+    accion: "fill #next \"{{DEMO_PASSWORD_NUEVA}}\""
+    narracion: "Después elegís la nueva: mínimo ocho caracteres."
+    subtitulo: "Elegís la nueva:\nmínimo ocho caracteres."
+    duracion_s: 4
+  - id: 5
+    accion: "fill #repeat \"{{DEMO_PASSWORD_NUEVA}}\""
+    narracion: "La repetís, así no te equivocás de tecla."
+    subtitulo: "La repetís, así no te equivocás de tecla."
+    duracion_s: 5
+  - id: 6
+    accion: "click role=button[name='Guardar']"
+    narracion: "Guardás, y se cierra la sesión en tus otros dispositivos."
+    subtitulo: "Guardás, y se cierra la sesión\nen tus otros dispositivos."
+    duracion_s: 5
+  - id: 7
+    accion: "wait 3"
+    narracion: "Listo: contraseña actualizada y volvés a Inicio. Y en tu primer ingreso, esta pantalla aparece sola para que elijas una propia."
+    subtitulo: "Contraseña actualizada.\nEn tu primer ingreso, te la pide sola."
+    duracion_s: 10

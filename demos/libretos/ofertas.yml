@@ -1,0 +1,34 @@
+feature: ofertas
+titulo: "Ofertas de la semana"
+beneficio: "Bajas de precio en shows y promos de comida, en una lista"
+ruta: "#/ofertas"
+notas:
+  - "Antes de grabar, un admin carga en Admin › Ofertas al menos una oferta vigente de categoría comida, con lugar, fecha «hasta» y link (ej. datos_prueba de admin-ofertas: «2x1 en tragos», Bar del lobby, Venetian). Sin ofertas vigentes, la lista dice «Todavía no hay ofertas vigentes»."
+  - "article[id^='oferta-'] matchea una por oferta: tomar la primera."
+  - "Darla de baja después de grabar si era solo para la demo."
+escenas:
+  - id: 1
+    accion: "goto #/ofertas"
+    narracion: "Durante la semana aparecen bajas de precio en shows y promos de comida y compras."
+    subtitulo: "Bajas de precio en shows\ny promos de comida y compras"
+    duracion_s: 7
+  - id: 2
+    accion: "hover [aria-label='Categoría']"
+    narracion: "Acá ves las que están vigentes, y filtrás por lo que te interesa."
+    subtitulo: "Las vigentes, filtradas\npor lo que te interesa"
+    duracion_s: 7
+  - id: 3
+    accion: "click button[data-valor='comida']"
+    narracion: "Por ejemplo, te quedás solo con las de comida."
+    subtitulo: "Por ejemplo, solo las de comida"
+    duracion_s: 5
+  - id: 4
+    accion: "hover article[id^='oferta-']"
+    narracion: "Cada oferta dice dónde es y hasta cuándo vale, con el link para aprovecharla."
+    subtitulo: "Dónde es, hasta cuándo vale\ny el link para aprovecharla"
+    duracion_s: 7
+  - id: 5
+    accion: "wait 3"
+    narracion: "Y si prendés los avisos en Ajustes, te llegan sin tener que entrar a mirar."
+    subtitulo: "Con los avisos prendidos en Ajustes,\nte llegan solas"
+    duracion_s: 7

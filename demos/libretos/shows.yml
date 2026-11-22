@@ -1,0 +1,46 @@
+feature: shows
+titulo: "Shows en Las Vegas, sin chocar"
+beneficio: "Elegí la función que mejor encaja con tu itinerario"
+ruta: "#/eventos"
+notas:
+  - "Ticketmaster habilitado en staging: sin la key no aparece la pestaña Shows (events.js viewEventos) y el libreto no se puede grabar."
+  - "Reemplazar {id} de la escena 4 por el id de un show con varias funciones en la semana. No hay selector para abrir una tarjeta de show (falta el testid show-card), por eso se entra por la ruta #/show/{id} de features.yml."
+  - "«¿Cuándo nos conviene?» necesita que el tester tenga ítems en el itinerario esos días (app/shows_recomendador.py compara cada función con lo que tenés ese día); si no hay sugerencias, la sección no aparece."
+  - "role=button[name='Ver esta función'] matchea uno por sugerencia: tomar el primero (es la recomendada cuando está libre)."
+  - "Agregar la función al itinerario no se muestra: falta el testid show-agregar-funcion."
+escenas:
+  - id: 1
+    accion: "goto #/eventos"
+    narracion: "Si te queda una noche libre, Las Vegas tiene shows, conciertos y deportes."
+    subtitulo: "Una noche libre: shows,\nconciertos y deportes"
+    duracion_s: 7
+  - id: 2
+    accion: "click role=tab[name='Shows']"
+    narracion: "En Shows ves los del día, con el precio mínimo y la sede."
+    subtitulo: "Los shows del día, con precio\nmínimo y la sede"
+    duracion_s: 7
+  - id: 3
+    accion: "hover [aria-label='Tipo de show']"
+    narracion: "Filtrás por música, teatro, comedia, deportes o actividades."
+    subtitulo: "Música, teatro, comedia,\ndeportes o actividades"
+    duracion_s: 5
+  - id: 4
+    accion: "goto #/show/{id}"
+    narracion: "En la ficha elegís la función que te sirve."
+    subtitulo: "Elegís la función que te sirve"
+    duracion_s: 5
+  - id: 5
+    accion: "scroll 500"
+    narracion: "Y la app te dice cuándo te conviene ir, según lo que ya tenés en tu agenda ese día."
+    subtitulo: "Te dice cuándo conviene ir,\nsegún tu agenda de ese día"
+    duracion_s: 9
+  - id: 6
+    accion: "hover role=button[name='Ver esta función']"
+    narracion: "Cada opción explica por qué: si queda libre, justa o si choca."
+    subtitulo: "Cada opción dice por qué:\nlibre, justa o choca"
+    duracion_s: 6
+  - id: 7
+    accion: "click role=button[name='Ver esta función']"
+    narracion: "La elegís y ves horario, precio y el link a Ticketmaster para comprar."
+    subtitulo: "Horario, precio y el link\na Ticketmaster para comprar"
+    duracion_s: 7

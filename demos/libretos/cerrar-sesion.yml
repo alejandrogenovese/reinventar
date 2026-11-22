@@ -1,0 +1,38 @@
+feature: cerrar-sesion
+titulo: "Cerrá sesión"
+beneficio: "Dejás el celular limpio para la próxima persona."
+ruta: "#/ajustes"
+notas: >-
+  Deja al tester sin sesión y da de baja el push de ese navegador: grabarlo al final del lote o volver
+  a loguear antes del siguiente video. «Cerrar sesión» no pide confirmación.
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "¿Le prestás el celular a alguien o terminó el evento? Cerrás sesión en dos toques."
+    subtitulo: "¿Prestás el celular o terminó el evento?\nCerrás sesión en dos toques."
+    duracion_s: 7
+  - id: 2
+    accion: "click [aria-label='Ajustes']"
+    narracion: "Vas a Ajustes, donde ves con qué cuenta estás conectado."
+    subtitulo: "En Ajustes ves con qué cuenta\nestás conectado."
+    duracion_s: 5
+  - id: 3
+    accion: "hover role=button[name='Cerrar sesión']"
+    narracion: "Cerrar sesión no solo te saca de la cuenta: también da de baja las notificaciones de este celular."
+    subtitulo: "Te saca de la cuenta y da de baja\nlas notificaciones de este celular."
+    duracion_s: 9
+  - id: 4
+    accion: "wait 2"
+    narracion: "Y borra los gastos guardados en este celular, así no le quedan a la próxima persona."
+    subtitulo: "Y borra los gastos guardados acá:\nno le quedan a la próxima persona."
+    duracion_s: 8
+  - id: 5
+    accion: "click role=button[name='Cerrar sesión']"
+    narracion: "Lo tocás y salís al instante."
+    subtitulo: "Lo tocás y salís al instante."
+    duracion_s: 4
+  - id: 6
+    accion: "wait 2"
+    narracion: "Volvés a la pantalla de ingreso, lista para la próxima persona."
+    subtitulo: "Volvés al ingreso,\nlisto para la próxima persona."
+    duracion_s: 6

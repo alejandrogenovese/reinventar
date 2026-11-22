@@ -1,0 +1,51 @@
+feature: gastos
+titulo: "Gastos del viaje en segundos"
+beneficio: "Cargás, ves el total en dólares y separás lo que se reintegra"
+ruta: "#/gastos"
+notas:
+  - "Conviene que el tester ya tenga dos o tres gastos de otros días para que «Por categoría» y el total no arranquen vacíos. Después de grabar, borrar el gasto «Almuerzo» (tocar la fila → Borrar)."
+  - "La cotización (oficial, blue, tarjeta) se baja con red; con red normal aparece sola."
+  - "La escena 5 usa [aria-label='Reintegrable'] button (un solo botón). No se elige moneda ni categoría: USD y Comida son los valores por defecto, y esos selectores de grupo matchean varios botones."
+  - "El presupuesto no se muestra: el botón «Guardar» de la hoja de presupuesto no está en features.yml (sugerido: testid gastos-presupuesto-guardar)."
+  - "No tocar «Sacar foto del ticket»: pide cámara."
+escenas:
+  - id: 1
+    accion: "goto #/gastos"
+    narracion: "En el viaje gastás en dólares y en pesos, y es fácil perder la cuenta."
+    subtitulo: "Dólares, pesos…\nes fácil perder la cuenta"
+    duracion_s: 7
+  - id: 2
+    accion: "click role=button[name='Cargar gasto']"
+    narracion: "Cargar un gasto lleva segundos, y anda aunque no tengas señal."
+    subtitulo: "Cargar un gasto lleva segundos,\ny anda sin señal"
+    duracion_s: 6
+  - id: 3
+    accion: 'fill #g-monto "14,10"'
+    narracion: "Ponés el monto, en dólares o en pesos."
+    subtitulo: "El monto, en dólares o en pesos"
+    duracion_s: 5
+  - id: 4
+    accion: 'fill #g-nota "Almuerzo"'
+    narracion: "Le sumás una nota para acordarte qué fue."
+    subtitulo: "Una nota para acordarte qué fue"
+    duracion_s: 5
+  - id: 5
+    accion: "click [aria-label='Reintegrable'] button"
+    narracion: "Si te lo reintegran, lo marcás. Después exportás esos en un archivo."
+    subtitulo: "Si te lo reintegran, lo marcás\ny después lo exportás"
+    duracion_s: 6
+  - id: 6
+    accion: "click role=button[name='Guardar gasto']"
+    narracion: "Lo guardás y se sincroniza solo cuando hay red."
+    subtitulo: "Lo guardás y se sincroniza\nsolo cuando hay red"
+    duracion_s: 5
+  - id: 7
+    accion: "scroll 250"
+    narracion: "Ves lo de hoy, el total del viaje, la cotización y cuánto va por categoría."
+    subtitulo: "Hoy, total del viaje, cotización\ny gasto por categoría"
+    duracion_s: 7
+  - id: 8
+    accion: "scroll text=Almuerzo"
+    narracion: "Y tu gasto ya aparece en la lista del día, marcado como reintegrable."
+    subtitulo: "Tu gasto ya está en la lista,\nmarcado como reintegrable"
+    duracion_s: 7

@@ -1,0 +1,35 @@
+feature: avisos-lleno-cola
+titulo: "¿Está llena? Avisá desde la puerta"
+beneficio: "Sabés si conviene ir antes de caminar hasta la sala"
+ruta: "#/"
+notas:
+  - "Modo prueba con reloj simulado entre 45 min antes del inicio y el fin de una charla del itinerario (app/lleno.py abierto: ABRE_ANTES_MIN = 45). Fuera de esa ventana no aparecen los botones y el servidor responde 409."
+  - "Hoy solo muestra avisos de «Ahora» y «Después»: que solo UNA de las dos esté en la ventana, si no los botones «Hay mucha cola» y «Está llena» aparecen dos veces."
+  - "Arrancar sin aviso propio en esa charla. Los avisos no van al schema de prueba: después de grabar, tocar de nuevo «Hay mucha cola» para retirarlo."
+  - "Tope: 20 avisos por hora por usuario (si se repite la toma muchas veces, responde 429)."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "AWS no publica cuántos lugares quedan. Lo cuenta la gente que está en la puerta."
+    subtitulo: "AWS no publica cuántos lugares quedan:\nlo cuenta la gente en la puerta"
+    duracion_s: 7
+  - id: 2
+    accion: "scroll #hoy-title"
+    narracion: "Desde un rato antes de que empiece, la tarjeta te pregunta si estás en la puerta."
+    subtitulo: "Desde un rato antes, te pregunta\nsi estás en la puerta"
+    duracion_s: 8
+  - id: 3
+    accion: "click role=button[name='Hay mucha cola']"
+    narracion: "Si hay mucha cola, lo avisás con un toque."
+    subtitulo: "¿Mucha cola? Lo avisás\ncon un toque"
+    duracion_s: 5
+  - id: 4
+    accion: "hover .ra-lleno-dato"
+    narracion: "El resto ve cuántas personas lo avisaron y hace cuánto. Nunca quién."
+    subtitulo: "El resto ve cuántos avisaron\ny hace cuánto. Nunca quién"
+    duracion_s: 6
+  - id: 5
+    accion: "wait 3"
+    narracion: "Así decidís si ir o buscar otra charla, antes de caminar hasta la sala."
+    subtitulo: "Decidís si ir o buscar otra,\nantes de caminar hasta la sala"
+    duracion_s: 7

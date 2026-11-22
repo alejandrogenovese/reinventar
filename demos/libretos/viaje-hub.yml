@@ -1,0 +1,38 @@
+feature: viaje-hub
+titulo: "Viaje: lo que pasa fuera de las charlas"
+beneficio: "Comida, gastos, ofertas y vuelos, todo en un mismo lugar"
+ruta: "#/viaje"
+notas:
+  - "No necesita estado previo: el hub son cuatro tarjetas fijas (web/js/viaje.js SECCIONES)."
+  - "La escena 6 entra a Gastos porque anda sin servicios externos (no depende de Google Places como Comer)."
+escenas:
+  - id: 1
+    accion: "goto #/viaje"
+    narracion: "El viaje no es solo charlas. En Viaje tenés lo demás, todo junto."
+    subtitulo: "El viaje no es solo charlas:\nlo demás, todo junto"
+    duracion_s: 7
+  - id: 2
+    accion: "hover a.ra-card[href='#/comer']"
+    narracion: "Dónde comer barato cerca de tu próxima charla, con precio y reseñas."
+    subtitulo: "Dónde comer barato cerca,\ncon precio y reseñas"
+    duracion_s: 6
+  - id: 3
+    accion: "hover a.ra-card[href='#/gastos']"
+    narracion: "Cuánto llevás gastado y qué te reintegran."
+    subtitulo: "Cuánto llevás gastado\ny qué se reintegra"
+    duracion_s: 4
+  - id: 4
+    accion: "hover a.ra-card[href='#/ofertas']"
+    narracion: "Bajas de precio en shows y promos de comida y compras, con aviso."
+    subtitulo: "Bajas de precio en shows y promos\nde comida y compras"
+    duracion_s: 7
+  - id: 5
+    accion: "hover a.ra-card[href='#/viajes']"
+    narracion: "Y tus vuelos y hoteles, con avisos de check-in, demoras y puerta."
+    subtitulo: "Vuelos y hoteles, con avisos de\ncheck-in, demoras y puerta"
+    duracion_s: 6
+  - id: 6
+    accion: "click a.ra-card[href='#/gastos']"
+    narracion: "Un toque y entrás. Por ejemplo, a tus gastos del viaje."
+    subtitulo: "Un toque y entrás:\npor ejemplo, a tus gastos"
+    duracion_s: 6

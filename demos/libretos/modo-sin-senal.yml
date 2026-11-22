@@ -1,0 +1,35 @@
+feature: modo-sin-senal
+titulo: "Sin señal, igual ves tu agenda"
+beneficio: "La última copia de Inicio e itinerario, aunque no haya red"
+ruta: "#/"
+notas:
+  - "Antes de grabar, con red: abrir #/ y #/itinerario con el tester para que queden guardadas las copias (lastgood.js). Si el tester está en modo prueba, también queda la copia del reloj simulado (sandbox.js)."
+  - "Pre-roll con red en #/itinerario y después en #/ (quedan las copias); cortar la red (context.setOffline(true)); recién ahí la escena 1 (goto #/ es solo cambio de hash si el pre-roll terminó en #/itinerario). No recargar la página durante la toma."
+  - "La vuelta de la señal se narra pero no se muestra: Inicio e Itinerario no escuchan el evento online, se actualizan al volver a entrar."
+  - "Se usa «text=Sin señal · datos de las» (lastgood.js:64) porque «text=Sin señal» también matchea el aviso de grabaciones y el medidor del grabador."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "En los centros de convenciones la señal se cae justo cuando más la necesitás."
+    subtitulo: "La señal se cae justo\ncuando más la necesitás"
+    duracion_s: 7
+  - id: 2
+    accion: "hover text=Sin señal · datos de las"
+    narracion: "Sin red, la app te muestra la última copia y te dice de qué hora son los datos."
+    subtitulo: "Sin red, ves la última copia\ny de qué hora son los datos"
+    duracion_s: 9
+  - id: 3
+    accion: "scroll #hoy-title"
+    narracion: "Tu día sigue ahí: la charla de ahora y lo que viene."
+    subtitulo: "Tu día sigue ahí:\nla charla de ahora y lo que viene"
+    duracion_s: 6
+  - id: 4
+    accion: "goto #/itinerario"
+    narracion: "El itinerario también, con lo que tenías la última vez que hubo señal."
+    subtitulo: "El itinerario también, como estaba\nla última vez que hubo señal"
+    duracion_s: 7
+  - id: 5
+    accion: "hover text=Sin señal · datos de las"
+    narracion: "Cuando vuelve la red, la próxima vez que entrás ya ves todo al día."
+    subtitulo: "Con red, al volver a entrar\nves todo al día"
+    duracion_s: 7

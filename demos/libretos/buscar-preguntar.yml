@@ -1,0 +1,44 @@
+feature: buscar-preguntar
+titulo: "Preguntar al catálogo"
+beneficio: "Preguntá con tus palabras y recibí las charlas citadas."
+ruta: "#/buscar?modo=preguntar"
+notas: >-
+  La respuesta la genera el LLM y varía en cada toma: la narración describe lo que hace la función, no el contenido.
+  El bloque «En tus grabaciones» solo aparece si el tester tiene grabaciones procesadas que vengan al caso. «Agregar»
+  suma una charla al itinerario del tester. Si la respuesta tarda más de 8 s, alargar el wait de la escena 4.
+escenas:
+  - id: 1
+    accion: "goto #/buscar?modo=preguntar"
+    narracion: "¿Tenés una duda puntual? En Preguntar le hablás al catálogo como a un colega."
+    subtitulo: "Preguntale al catálogo\ncomo le hablarías a un colega."
+    duracion_s: 7
+  - id: 2
+    accion: "fill [aria-label='Tu pregunta'] \"Bancos latinoamericanos usando IA generativa\""
+    narracion: "Escribís la pregunta con tus palabras, por ejemplo, bancos latinoamericanos usando IA generativa."
+    subtitulo: "Escribí la pregunta\ncon tus palabras."
+    duracion_s: 7
+  - id: 3
+    accion: "click [aria-label='Enviar pregunta']"
+    narracion: "La app busca en todo el catálogo y también en lo que grabaste."
+    subtitulo: "Busca en todo el catálogo\ny en lo que grabaste."
+    duracion_s: 7
+  - id: 4
+    accion: "wait 8"
+    narracion: "En unos segundos te responde y cita las charlas que sirven, con su código."
+    subtitulo: "Te responde citando\nlas charlas que sirven."
+    duracion_s: 9
+  - id: 5
+    accion: "scroll 600"
+    narracion: "Debajo de la respuesta aparecen las charlas citadas. Si algo salió de tus grabaciones, te lleva al minuto justo."
+    subtitulo: "Debajo, las charlas citadas\ny los momentos de tus grabaciones."
+    duracion_s: 9
+  - id: 6
+    accion: "click [aria-label='Agregar al itinerario']"
+    narracion: "La que te cierra, la agregás al itinerario sin salir de la conversación."
+    subtitulo: "La agregás al itinerario\nsin salir de la conversación."
+    duracion_s: 7
+  - id: 7
+    accion: "wait 2"
+    narracion: "Y la conversación queda: entrás a una charla, volvés y seguís preguntando."
+    subtitulo: "La conversación queda:\nvolvés y seguís preguntando."
+    duracion_s: 6

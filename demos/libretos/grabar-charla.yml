@@ -1,0 +1,73 @@
+feature: grabar-charla
+titulo: "Grabá una charla entera"
+beneficio: "Grabás, pausás y te llevás resumen y transcripción."
+ruta: "#/grabar/{id}"
+notas: >-
+  Marcar el tip de no molestar como visto antes de grabar (o tocar «Entendido» en el pre-roll; app.js:380-381).
+  Micrófono simulado: Chrome con --use-fake-ui-for-media-stream, --use-fake-device-for-media-stream y
+  --use-file-for-fake-audio-capture=<wav con 1–2 min de audio en inglés>, así el medidor se mueve y no salta
+  el aviso de silencio. STT y LLM en fake (modo prueba). La sesión se crea en las escenas 1–3 (no hay un id
+  fijo para #/grabar/{id}) y queda como grabación real del tester: borrarla después, fuera de cámara.
+  Escena 11: «Terminar y procesar» espera a que suban los pedazos (de a 10 s); si tarda, alargar el wait final.
+  No se muestra «Descartar» (abre un diálogo de confirmación).
+escenas:
+  - id: 1
+    accion: "goto #/nueva"
+    narracion: "Arranca el keynote y querés llevarte todo lo que se dice."
+    subtitulo: "Arranca el keynote y querés\nllevarte todo lo que se dice."
+    duracion_s: 6
+  - id: 2
+    accion: "fill #title \"Keynote de apertura\""
+    narracion: "Le ponés título a la grabación."
+    subtitulo: "Le ponés título a la grabación."
+    duracion_s: 4
+  - id: 3
+    accion: "click role=button[name='Preparar grabación']"
+    narracion: "Preparás el grabador y se abre el micrófono."
+    subtitulo: "Se abre el grabador con el micrófono."
+    duracion_s: 5
+  - id: 4
+    accion: "hover [aria-label='Entrada de audio']"
+    narracion: "El medidor te muestra si llega bien el sonido. Si no llega nada, te avisa."
+    subtitulo: "El medidor te muestra si llega el sonido.\nSi no llega nada, te avisa."
+    duracion_s: 7
+  - id: 5
+    accion: "click button.ra-rec[aria-label='Empezar a grabar']"
+    narracion: "Empezás a grabar y corre el contador."
+    subtitulo: "Empezás a grabar y corre el contador."
+    duracion_s: 4
+  - id: 6
+    accion: "wait 5"
+    narracion: "Dejá el celular cerca del parlante y con la pantalla prendida."
+    subtitulo: "Celular cerca del parlante\ny con la pantalla prendida."
+    duracion_s: 6
+  - id: 7
+    accion: "click button.ra-rec[aria-label='Pausar grabación']"
+    narracion: "Si hay un corte, pausás y el contador se frena."
+    subtitulo: "Si hay un corte, pausás\ny el contador se frena."
+    duracion_s: 5
+  - id: 8
+    accion: "click button.ra-rec[aria-label='Seguir grabando']"
+    narracion: "Y seguís cuando vuelve la charla. Todo queda en la misma grabación."
+    subtitulo: "Seguís cuando vuelve la charla,\nen la misma grabación."
+    duracion_s: 6
+  - id: 9
+    accion: "click role=button[name='Modo sala']"
+    narracion: "En modo sala la pantalla queda negra, con el contador: no molestás a nadie."
+    subtitulo: "Modo sala: pantalla negra con el contador.\nNo molestás a nadie."
+    duracion_s: 7
+  - id: 10
+    accion: "click [aria-label='Modo sala. Tocá para salir.']"
+    narracion: "La tocás y volvés al grabador."
+    subtitulo: "La tocás y volvés al grabador."
+    duracion_s: 4
+  - id: 11
+    accion: "click role=button[name='Terminar y procesar']"
+    narracion: "Al terminar, sube lo que falte y arranca el procesamiento."
+    subtitulo: "Al terminar, sube lo que falte\ny arranca el procesamiento."
+    duracion_s: 5
+  - id: 12
+    accion: "wait 5"
+    narracion: "Y te lleva a la grabación, donde aparecen la transcripción y el resumen cuando termina de procesar."
+    subtitulo: "Te lleva a la grabación: ahí aparecen\ntranscripción y resumen."
+    duracion_s: 8

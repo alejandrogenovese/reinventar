@@ -1,0 +1,38 @@
+feature: lista-de-grabaciones
+titulo: "Tus grabaciones, en Inicio"
+beneficio: "Las grabaciones del equipo, con su estado, en un solo lugar."
+ruta: "#/"
+notas: >-
+  Datos previos: varias grabaciones (la lista es compartida, /api/sessions no filtra por usuario) y la primera de Tus grabaciones en estado
+  ready. Si la primera está grabando o subiendo, el click abre el grabador en vez del detalle.
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "Grabaste varias charlas en el día y querés tenerlas a mano."
+    subtitulo: "Grabaste varias charlas\ny las querés a mano."
+    duracion_s: 6
+  - id: 2
+    accion: "scroll #grabaciones-title"
+    narracion: "En Inicio, Tus grabaciones junta lo que grabaste vos y el resto del equipo."
+    subtitulo: "Lo que grabaste vos\ny el resto del equipo."
+    duracion_s: 7
+  - id: 3
+    accion: "hover [aria-labelledby='grabaciones-title'] button.ra-reccard"
+    narracion: "Cada una muestra título, sala, duración y en qué está: grabando, procesando o lista."
+    subtitulo: "Título, sala, duración y estado:\ngrabando, procesando o lista."
+    duracion_s: 7
+  - id: 4
+    accion: "hover [aria-label='Nueva grabación']"
+    narracion: "Y si arranca otra charla, sumás una nueva desde acá mismo."
+    subtitulo: "Si arranca otra charla,\nsumás una nueva desde acá."
+    duracion_s: 6
+  - id: 5
+    accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard"
+    narracion: "Tocás una y abrís su resumen. Si todavía se está grabando, volvés al grabador."
+    subtitulo: "Tocás una y abrís su resumen.\nSi se está grabando, volvés al grabador."
+    duracion_s: 7
+  - id: 6
+    accion: "wait 2"
+    narracion: "Ahí tenés el resumen y la transcripción, listos para repasar."
+    subtitulo: "Resumen y transcripción,\nlistos para repasar."
+    duracion_s: 5

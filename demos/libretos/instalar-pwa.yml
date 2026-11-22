@@ -1,0 +1,36 @@
+feature: instalar-pwa
+titulo: "Instalá ReinventAR en el celular"
+beneficio: "Pantalla completa y a mano, aunque no haya señal."
+ruta: "#/"
+notas: >-
+  El diálogo nativo de instalación (Android) no se puede grabar en headless: Chrome no dispara
+  beforeinstallprompt, así que al tocar «Instalar app» la tarjeta muestra los pasos de Chrome
+  («menú ⋮ → Instalar app»). Eso es lo que se ve en la escena 5.
+  Precondición: user agent que no sea de iPhone (en iPhone no hay botón, solo los pasos), app no instalada
+  y sin la clave reinventar.installDismissed en localStorage (si no, la tarjeta no aparece en Inicio).
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "ReinventAR anda en el navegador, pero en el evento la querés a un toque."
+    subtitulo: "En el evento, la querés a un toque."
+    duracion_s: 7
+  - id: 2
+    accion: "hover text=Instalá ReinventAR en el celular"
+    narracion: "En Inicio te ofrece instalarla: queda como app en tu pantalla de inicio."
+    subtitulo: "Queda como app en tu pantalla de inicio."
+    duracion_s: 7
+  - id: 3
+    accion: "hover role=button[name='Instalar app']"
+    narracion: "Abre a pantalla completa y anda aunque no haya señal."
+    subtitulo: "Abre a pantalla completa\ny anda aunque no haya señal."
+    duracion_s: 5
+  - id: 4
+    accion: "click role=button[name='Instalar app']"
+    narracion: "Tocás Instalar: en Android sale el diálogo del sistema; si no, te explica los pasos."
+    subtitulo: "En Android sale el diálogo del sistema;\nsi no, te explica los pasos."
+    duracion_s: 7
+  - id: 5
+    accion: "wait 3"
+    narracion: "Acá, el camino es menú, Instalar app. En iPhone, Compartir y Agregar a inicio."
+    subtitulo: "Chrome: menú → Instalar app.\niPhone: Compartir → Agregar a inicio."
+    duracion_s: 7

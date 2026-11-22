@@ -1,0 +1,42 @@
+feature: inicio-hoy
+titulo: "Tu día de re:Invent, de un vistazo"
+beneficio: "Qué está pasando, qué sigue y cuándo salir, sin abrir la agenda"
+ruta: "#/"
+notas:
+  - "Usuario tester en modo prueba (Admin › Usuarios › Modo prueba): reloj simulado en Las Vegas dentro de una charla del itinerario (ej. 10 min después de que empezó) y con otra charla más tarde ese día, para que aparezcan «Ahora» y «Después»."
+  - "Ubicación simulada (sede) distinta de la sede de la próxima charla: así la tarjeta muestra «a X m · N min caminando · salí HH:MM» (GoThereParts usa sandboxLocation)."
+  - "Para que salga «Sin reserva: hacé la cola desde las…», la charla de «Después» no tiene que estar marcada como reservada."
+  - "Que ninguna charla de «Anuncios sin reserva» esté en curso: su tarjeta también tiene «Grabar esta charla» y el selector de la escena 5 dejaría de ser único."
+  - "Que nadie tenga una grabación con el código de la charla «Ahora» (la lista es compartida; si existe, el botón cambia, today.js:46-50)."
+  - "No tocar «Grabar esta charla»: abre el grabador y pide micrófono. Solo hover."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "En re:Invent el día vuela. Inicio te muestra tu día apenas abrís la app."
+    subtitulo: "Inicio te muestra tu día\napenas abrís la app"
+    duracion_s: 7
+  - id: 2
+    accion: "scroll #hoy-title"
+    narracion: "Arriba ves la charla que está pasando ahora, con la sala y el horario."
+    subtitulo: "La charla de ahora,\ncon sala y horario"
+    duracion_s: 7
+  - id: 3
+    accion: "scroll 300"
+    narracion: "Abajo aparece lo que sigue, con la cuenta regresiva y a qué hora salir para llegar."
+    subtitulo: "Lo que sigue, con cuenta regresiva\ny a qué hora salir"
+    duracion_s: 8
+  - id: 4
+    accion: "wait 2"
+    narracion: "Si no tenés reserva, te avisa desde qué hora hacer la cola."
+    subtitulo: "Sin reserva: te dice desde qué hora\nhacer la cola"
+    duracion_s: 6
+  - id: 5
+    accion: "hover role=button[name='Grabar esta charla']"
+    narracion: "Y con un toque grabás la charla, con el título, la sala y los speakers ya cargados."
+    subtitulo: "Un toque y grabás la charla,\ncon los datos ya cargados"
+    duracion_s: 8
+  - id: 6
+    accion: "scroll #hoy-title"
+    narracion: "Todo tu día en una pantalla: ahora, después y el resto, sin abrir la agenda."
+    subtitulo: "Ahora, después y el resto del día,\nen una sola pantalla"
+    duracion_s: 7

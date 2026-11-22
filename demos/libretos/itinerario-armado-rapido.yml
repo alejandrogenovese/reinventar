@@ -1,0 +1,50 @@
+feature: itinerario-armado-rapido
+titulo: "Armado rápido con IA"
+beneficio: "Un par de datos y la IA te arma la semana."
+ruta: "#/itinerario/nuevo"
+notas: >-
+  «Generar itinerario» rehace el itinerario del tester (lo fijado se mantiene): grabarla al final del lote o restaurar
+  después. Experiencia es un select y no hay acción para elegir opciones: queda la que tenga guardada el perfil (o
+  vacía, que es válido). #int0 es un checkbox: si el perfil ya lo tenía marcado, el click lo desmarca; arrancar con el
+  perfil sin intereses. El LLM tarda; si 12 s no alcanzan, alargar el wait de la escena 7.
+escenas:
+  - id: 1
+    accion: "goto #/itinerario/nuevo"
+    narracion: "¿Poco tiempo? Con el armado rápido, la IA te arma una agenda completa en un minuto."
+    subtitulo: "¿Poco tiempo? La IA te arma\nuna agenda completa en un minuto."
+    duracion_s: 8
+  - id: 2
+    accion: "click role=button[name='Armado rápido']"
+    narracion: "Entrás al armado rápido y contás quién sos y qué te interesa."
+    subtitulo: "Contás quién sos\ny qué te interesa."
+    duracion_s: 6
+  - id: 3
+    accion: "fill #role \"Architect Lead de Arquitectura de Datos\""
+    narracion: "Primero tu rol: con eso afina qué charlas te sirven."
+    subtitulo: "Primero tu rol, para afinar\nqué charlas te sirven."
+    duracion_s: 5
+  - id: 4
+    accion: "click #int0"
+    narracion: "Después marcás tus intereses entre los temas del catálogo."
+    subtitulo: "Marcás tus intereses\nentre los temas del catálogo."
+    duracion_s: 5
+  - id: 5
+    accion: "fill #prompt \"gobierno de datos, lakehouse y agentic AI aplicado a banca\""
+    narracion: "Y si querés, contás más con tus palabras."
+    subtitulo: "Y si querés, contás más\ncon tus palabras."
+    duracion_s: 5
+  - id: 6
+    accion: "click role=button[name='Generar itinerario']"
+    narracion: "Generás y la IA elige las sesiones y las ordena por día."
+    subtitulo: "La IA elige las sesiones\ny te arma la agenda por día."
+    duracion_s: 6
+  - id: 7
+    accion: "wait 12"
+    narracion: "Esperás unos segundos mientras la IA arma tu itinerario."
+    subtitulo: "Unos segundos y listo."
+    duracion_s: 13
+  - id: 8
+    accion: "hover .mapbox"
+    narracion: "Listo: tu itinerario aparece con el mapa y las charlas de cada día."
+    subtitulo: "Tu itinerario, con el mapa\ny las charlas de cada día."
+    duracion_s: 7
