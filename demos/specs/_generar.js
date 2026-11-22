@@ -1,12 +1,12 @@
-// Genera demos/specs/<feature>.spec.ts a partir de los libretos de demos/libretos/*.yml.
-// Uso (desde la raíz del repo; ruby trae YAML y JSON sin instalar nada):
-//   ruby -ryaml -rjson -e 'puts JSON.dump(Dir["demos/libretos/*.yml"].sort.to_h { |f| d = YAML.load_file(f); [d["feature"], d] })' > /tmp/libretos.json
-//   node demos/specs/_generar.js /tmp/libretos.json demos/specs
+// Genera demos/specs/<feature>.spec.ts a partir de los libretos de demos/libretos/*.yml (los lee con ruby, que trae YAML).
+// Uso, desde cualquier lado: node demos/specs/_generar.js. No recibe rutas: lee y escribe siempre en el repo.
 // OPCIONES agrega a cada demo lo que piden las notas del libreto (permisos, red, passkey, variables {x}).
-const fs = require("fs");
-const path = require("path");
-const [, , json, outDir] = process.argv;
-const libretos = JSON.parse(fs.readFileSync(json, "utf8"));
+const fs = require("node:fs");
+const path = require("node:path");
+const { leerLibretos } = require("../libretos.cjs");
+
+const outDir = __dirname;
+const libretos = leerLibretos();
 
 const TIP = `localStorage: { [CLAVE_TIP_NO_MOLESTAR]: "1" },`;
 const MIC = `contexto: { permissions: ["microphone"] },`;

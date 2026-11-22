@@ -11,6 +11,7 @@ const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("@playwright/test");
+const { FFMPEG, leerLibretos } = require("./libretos.cjs");
 
 const RAIZ = path.resolve(__dirname, "..");
 const OUT = path.join(__dirname, "out");
@@ -58,7 +59,7 @@ const LOGO = `<svg viewBox="0 0 512 512" width="64" height="64"><rect width="512
 
 const escapar = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 // En una sola línea: el corte lo decide el ancho de la caja, así todas las escenas se ven parejas.
-const enLinea = (s) => escapar(String(s).split(/\s+/).join(" "));
+const enLinea = (s) => escapar(String(s).replaceAll(/\s+/g, " "));
 
 function htmlPlaca(titulo, beneficio) {
   const { titulo: t, beneficio: b, margen: m } = F.placa;
@@ -79,9 +80,11 @@ function htmlPlaca(titulo, beneficio) {
 function htmlCapa(titulo, subtitulo) {
   const p = F.pantalla;
   const tx = F.texto;
-  const texto = !subtitulo ? "" : tx.modo === "debajo"
-    ? `<div class="caja"><span>${enLinea(subtitulo)}</span></div>`
-    : `<div class="costado"><div class="tit">${escapar(titulo)}</div><div class="sub">${enLinea(subtitulo)}</div></div>`;
+  let texto = "";
+  if (subtitulo && tx.modo === "debajo") texto = `<div class="caja"><span>${enLinea(subtitulo)}</span></div>`;
+  else if (subtitulo) {
+    texto = `<div class="costado"><div class="tit">${escapar(titulo)}</div><div class="sub">${enLinea(subtitulo)}</div></div>`;
+  }
   return `<!doctype html><meta charset="utf-8"><style>${CSS_BASE}
     .bisel { position: absolute; left: ${p.x - BISEL}px; top: ${p.y - BISEL}px; width: ${p.ancho + 2 * BISEL}px;
       height: ${p.alto + 2 * BISEL}px; border: ${BISEL}px solid #0d0d0d; border-radius: 48px; }
@@ -101,12 +104,7 @@ async function capturar(page, html, archivo) {
   await page.screenshot({ path: archivo, omitBackground: true });
 }
 
-function leerLibretos() {
-  const ruby = 'puts JSON.dump(Dir["demos/libretos/*.yml"].to_h { |f| d = YAML.load_file(f); [d["feature"], d] })';
-  return JSON.parse(execFileSync("ruby", ["-ryaml", "-rjson", "-e", ruby], { cwd: RAIZ, encoding: "utf8" }));
-}
-
-const ffmpeg = (args) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args], { stdio: "inherit" });
+const ffmpeg = (args) => execFileSync(FFMPEG, ["-v", "error", "-y", ...args], { stdio: "inherit" });
 
 function videoPrincipal(feature, timeline, capas, salida) {
   const recorte = (timeline.recorte_inicial_ms ?? 0) / 1000;
@@ -169,7 +167,7 @@ async function componer(page, feature, libreto) {
 async function main() {
   const libretos = leerLibretos();
   const pedidas = process.argv.slice(2);
-  const features = Object.keys(libretos).sort()
+  const features = Object.keys(libretos).sort((a, b) => a.localeCompare(b))
     .filter((f) => (!pedidas.length || pedidas.includes(f)) && fs.existsSync(path.join(OUT, `${f}.timeline.json`)));
   fs.mkdirSync(FINAL, { recursive: true });
   fs.mkdirSync(TMP, { recursive: true });

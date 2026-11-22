@@ -27,7 +27,7 @@ Deja `demos/out/final-<formato>/<feature>.mp4`; sin argumentos compone todas las
 
 Para publicarlos en la galería `/demos/` (bucket `demos`, compartido por staging y producción): `DEMOS_ADMIN_PASSWORD=… python scripts/subir_demos.py --entorno staging`.
 
-Si cambia un libreto, regenerá las specs con `demos/specs/_generar.js` (el uso está en su encabezado).
+Si cambia un libreto, regenerá las specs con `node demos/specs/_generar.js`.
 
 Cada demo necesita el reloj de `tester` en un momento distinto (se fija por `PUT /api/admin/users/tester/sandbox`):
 
