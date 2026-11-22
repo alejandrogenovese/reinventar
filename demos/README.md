@@ -8,7 +8,16 @@ Libretos para grabar videos demo de cada funcionalidad.
 | `libretos/<feature>.yml` | Un libreto por funcionalidad: `titulo` y `beneficio` para la placa, y escenas con `accion`, `narracion`, `subtitulo` y `duracion_s`. Las `notas:` dicen qué preparar antes de grabar. |
 | `diseno/placa-y-subtitulos.html` | Diseño aprobado de la placa de título y de los subtítulos (1920×1080, tokens de `web/css/tokens.css`). |
 
-Todavía no hay specs de Playwright (`specs/`): las genera el agente `director` a partir de los libretos.
+## Grabar
+
+`specs/<feature>.spec.ts` graba cada libreto con Playwright (celular 430×932, cursor visible, sin la franja de modo prueba) y deja en `out/` el video `.webm` y el `<feature>.timeline.json` con el inicio real de cada escena y su subtítulo. Playwright se instala fuera del repo (no hay `package.json`):
+
+```sh
+npm i --prefix ~/.cache/rx-pw @playwright/test && ~/.cache/rx-pw/node_modules/.bin/playwright install chromium
+TESTER_PASSWORD=… NODE_PATH=~/.cache/rx-pw/node_modules ~/.cache/rx-pw/node_modules/.bin/playwright test -c demos/playwright.config.ts demos/specs/viaje-hub.spec.ts
+```
+
+Si cambia un libreto, regenerá las specs con `demos/specs/_generar.js` (el uso está en su encabezado).
 
 ## Estado de staging para grabar
 
