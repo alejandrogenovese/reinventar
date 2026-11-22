@@ -1,0 +1,33 @@
+feature: cambio-de-tema
+titulo: "Tema claro u oscuro"
+beneficio: "Pantalla oscura en el keynote, clara al sol de Las Vegas."
+ruta: "#/"
+notas: >-
+  Arrancar en tema claro: contexto con colorScheme "light" y sin la clave reinventar.theme en localStorage.
+  Si arranca en oscuro, el primer click lo pasa a claro y la narración no coincide.
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "En un keynote a oscuras, una pantalla blanca encandila a todos."
+    subtitulo: "En un keynote a oscuras,\nuna pantalla blanca encandila."
+    duracion_s: 6
+  - id: 2
+    accion: "click #themeBtn"
+    narracion: "Con un toque arriba, pasás a tema oscuro."
+    subtitulo: "Con un toque arriba, pasás a oscuro."
+    duracion_s: 5
+  - id: 3
+    accion: "goto #/ajustes"
+    narracion: "Y se mantiene en toda la app, pantalla por pantalla."
+    subtitulo: "Se mantiene en toda la app."
+    duracion_s: 5
+  - id: 4
+    accion: "click #themeBtn"
+    narracion: "Afuera, con sol, volvés al claro con el mismo botón: ahora es un sol."
+    subtitulo: "Afuera, con sol, volvés al claro\ncon el mismo botón."
+    duracion_s: 7
+  - id: 5
+    accion: "wait 3"
+    narracion: "Y ReinventAR se acuerda de tu elección la próxima vez que la abras. Si nunca elegiste, sigue el tema de tu celular."
+    subtitulo: "Se acuerda de tu elección. Si no elegiste,\nsigue el tema de tu celular."
+    duracion_s: 10

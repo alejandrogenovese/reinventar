@@ -1,0 +1,45 @@
+feature: itinerario-ver
+titulo: "Tu itinerario"
+beneficio: "Tu semana en un mapa, día por día."
+ruta: "#/itinerario"
+notas: >-
+  «Marcar reservada» y «Fijar» cambian datos del tester (se revierten tocando de nuevo). «Quitar» no se graba para no
+  alterar el itinerario que usan las demás demos. Cada cambio repinta la vista y vuelve al primer día, por eso el cambio
+  de día va al final. «Marcar reservada» y «Fijar» matchean uno por ítem: tomar el primero. La escena 7 usa el selector de features.yml «.tabs [role=tab]» con :nth-child(2) para elegir el
+  segundo día: si no se acepta el modificador, falta un testid «itinerario-dia».
+escenas:
+  - id: 1
+    accion: "goto #/itinerario"
+    narracion: "Todo lo que elegiste para re:Invent queda en tu itinerario, ordenado por día."
+    subtitulo: "Todo lo que elegiste,\nordenado por día."
+    duracion_s: 7
+  - id: 2
+    accion: "hover .mapbox"
+    narracion: "Arriba, el mapa te muestra el recorrido del día."
+    subtitulo: "El mapa te muestra\nel recorrido del día."
+    duracion_s: 5
+  - id: 3
+    accion: "scroll 400"
+    narracion: "Cada charla tiene su hora, su sede y quién la da."
+    subtitulo: "Cada charla con su hora,\nsu sede y quién la da."
+    duracion_s: 6
+  - id: 4
+    accion: "click role=button[name='Marcar reservada']"
+    narracion: "Si ya la reservaste en el portal de AWS, la marcás reservada y la app deja de sumarte la media hora de cola."
+    subtitulo: "¿La reservaste en AWS? Marcala\ny no te suma la cola."
+    duracion_s: 11
+  - id: 5
+    accion: "click role=button[name='Fijar']"
+    narracion: "Lo que fijás queda aunque vuelvas a generar el itinerario."
+    subtitulo: "Lo que fijás queda aunque\nregeneres el itinerario."
+    duracion_s: 5
+  - id: 6
+    accion: "scroll .tabs [role=tab]"
+    narracion: "Volvés arriba para ver el resto de la semana."
+    subtitulo: "Volvés arriba para ver\nel resto de la semana."
+    duracion_s: 5
+  - id: 7
+    accion: "click .tabs [role=tab]:nth-child(2)"
+    narracion: "Pasás al día siguiente y el mapa dibuja el nuevo recorrido."
+    subtitulo: "Pasás al día siguiente\ny el mapa se redibuja."
+    duracion_s: 6

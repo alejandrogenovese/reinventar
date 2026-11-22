@@ -1,0 +1,41 @@
+feature: llevame
+titulo: "Llevame: cómo llegar caminando"
+beneficio: "El recorrido a pie hasta la sede, sin salir de la app"
+ruta: "#/"
+notas:
+  - "Modo prueba con ubicación simulada en una sede (ej. Venetian) y reloj simulado con una charla «Ahora» o «Próxima» en OTRA sede con coordenadas exactas. Si es la misma sede, la tarjeta dice «Estás en la sede»."
+  - "La hoja se abre dentro de la app solo con ubicación (real o simulada) y con red (llevamePuro.js decidirLlevame); si no, el botón abre Google Maps en otra pestaña y la toma se rompe."
+  - "Staging tiene que tener la clave de Google Maps con la Routes API habilitada; si falla, la hoja dice «No pudimos mostrar el mapa acá» y no hay recorrido."
+  - "En Hoy el botón es solo ícono: se usa la parte [title='Llevame'] del selector de features.yml. Si hay dos tarjetas (Ahora y Después) matchea dos: tomar el primero."
+  - "No hacer click en «Abrir en Google Maps» (abre otra pestaña): solo hover."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "Para moverte entre sedes no hace falta saber el camino."
+    subtitulo: "No hace falta saber el camino\nentre sedes"
+    duracion_s: 5
+  - id: 2
+    accion: "hover [title='Llevame']"
+    narracion: "Junto a cada charla de Hoy tenés Llevame."
+    subtitulo: "Junto a cada charla, Llevame"
+    duracion_s: 5
+  - id: 3
+    accion: "click [title='Llevame']"
+    narracion: "Lo tocás y ves el recorrido a pie desde donde estás hasta la sede."
+    subtitulo: "El recorrido a pie desde donde estás\nhasta la sede"
+    duracion_s: 7
+  - id: 4
+    accion: "wait 3"
+    narracion: "Con los minutos caminando y la distancia, en un mapa adentro de la app."
+    subtitulo: "Minutos caminando y distancia,\nen un mapa dentro de la app"
+    duracion_s: 7
+  - id: 5
+    accion: "hover role=link[name='Abrir en Google Maps']"
+    narracion: "Si querés indicaciones paso a paso, lo abrís en Google Maps."
+    subtitulo: "¿Paso a paso? Lo abrís\nen Google Maps"
+    duracion_s: 6
+  - id: 6
+    accion: "hover #llevame-titulo"
+    narracion: "Sabés cuánto te lleva y llegás sin dar vueltas."
+    subtitulo: "Sabés cuánto te lleva\ny llegás sin dar vueltas"
+    duracion_s: 5

@@ -1,0 +1,69 @@
+/* Gastos — pantalla de control de gastos y hoja de carga. Sobre los tokens (tokens.css) y los componentes de styles.css. */
+
+.ra-g { display: flex; flex-direction: column; gap: var(--space-6); }
+.ra-g-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+
+/* --- resumen ------------------------------------------------------------------ */
+.ra-g-resumen { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); }
+.ra-g-resumen-fila { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.ra-g-grande { font: var(--t-display); letter-spacing: var(--track-tight); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ra-g-grande small { font: var(--t-small); color: var(--ink-muted); margin-left: var(--space-1); }
+.ra-g-avance { height: 10px; background: var(--surface-3); border-radius: var(--radius-s); overflow: hidden; }
+.ra-g-avance > span { display: block; height: 100%; background: var(--brand); border-radius: var(--radius-s); }
+.ra-g-avance.is-warn > span { background: var(--warning); }
+.ra-g-avance.is-err > span { background: var(--error); }
+.ra-g-dato { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ra-g-dato-label { font: var(--t-micro); color: var(--ink-muted); }
+.ra-g-dato-valor { font: var(--t-heading); font-variant-numeric: tabular-nums; }
+
+/* --- cotizaciones ------------------------------------------------------------- */
+.ra-g-cotiz { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.ra-g-cotiz > div { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); background: var(--surface-3); border-radius: var(--radius-m); min-width: 0; }
+.ra-g-cotiz .ra-g-dato-valor { font: var(--t-body-strong); }
+
+/* --- lista -------------------------------------------------------------------- */
+.ra-g-dia { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-g-dia-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.ra-g-fila {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); align-items: center; width: 100%; min-height: 56px;
+  padding: var(--space-3) var(--space-4); text-align: left; cursor: pointer; border: 0; color: inherit;
+  background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge);
+  transition: box-shadow var(--ease), transform var(--ease);
+}
+.ra-g-fila:hover { box-shadow: var(--edge), var(--shadow-2); }
+.ra-g-fila:active { transform: scale(.995); }
+.ra-g-fila-titulo { font: var(--t-body-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ra-g-fila-monto { font: var(--t-body-strong); font-variant-numeric: tabular-nums; text-align: right; }
+.ra-g-fila-sub { font: var(--t-small); color: var(--ink-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.ra-g-marcas { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; min-width: 0; }
+.ra-g-marca { font: var(--t-micro); color: var(--on-info-soft); background: var(--info-soft); border-radius: var(--radius-s); padding: 3px 8px; white-space: nowrap; }
+.ra-g-marca.is-pendiente { color: var(--on-warning-soft); background: var(--warning-soft); }
+.ra-g-marca.is-rechazado { color: var(--on-error-soft); background: var(--error-soft); }
+.ra-g-fila-error { grid-column: 1 / -1; font: var(--t-small); color: var(--on-error-soft); }
+
+/* --- hoja de carga ------------------------------------------------------------ */
+.ra-g-form { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) 0; }
+.ra-g-monto-wrap { display: flex; align-items: center; gap: var(--space-3); }
+.ra-g-monto-wrap input {
+  flex: 1; min-width: 0; min-height: 64px; border: 0; border-bottom: 2px solid var(--line-strong); background: transparent; outline: none;
+  font: var(--t-display); font-variant-numeric: tabular-nums; color: var(--ink); padding: 0 var(--space-1);
+}
+.ra-g-monto-wrap input:focus-visible { border-bottom-color: var(--focus); }
+.ra-g-moneda { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); padding: var(--space-1); background: var(--surface-3); border-radius: var(--radius-m); min-width: 120px; }
+.ra-g-moneda button, .ra-g-dos button {
+  min-height: var(--touch); border: 0; border-radius: var(--radius-s); background: transparent; cursor: pointer; font: var(--t-small-strong); color: var(--ink-muted);
+}
+.ra-g-moneda button[aria-pressed="true"], .ra-g-dos button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand-ink); box-shadow: inset 0 0 0 1px var(--brand-ink); }
+.ra-g-dos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); padding: var(--space-1); background: var(--surface-3); border-radius: var(--radius-m); }
+.ra-g-fila-campo { display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-g-estimado { font: var(--t-small); color: var(--ink-muted); min-height: 20px; }
+.ra-g-foto { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.ra-g-foto img { width: 56px; height: 56px; object-fit: cover; border-radius: var(--radius-m); }
+
+/* --- presupuesto -------------------------------------------------------------- */
+.ra-g-presu { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ra-g-presu .is-wide { grid-column: 1 / -1; }
+
+@media (min-width: 768px) {
+  .ra-g { max-width: 640px; }
+}

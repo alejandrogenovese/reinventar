@@ -1,0 +1,40 @@
+feature: franja-cuenta-regresiva
+titulo: "La franja que te dice cuándo salir"
+beneficio: "Cuenta regresiva y hora de salida, en cualquier pantalla"
+ruta: "#/"
+notas:
+  - "Una charla FIJADA en el itinerario del tester (solo lo fijado entra en la franja: countdown.js loadPinned) y marcada como reservada (si no, suma 30 min de cola a la hora de salida)."
+  - "Modo prueba: reloj simulado ~40 min antes de esa charla y ubicación simulada en otra sede. La franja muestra «<charla> en MM:SS · salí HH:MM» cuando falta menos de 1 h y todavía no es hora de salir (salida = inicio − minutos caminando − margen de Ajustes, 10 por defecto)."
+  - "Antes de grabar, borrar de localStorage ra.countdown.hidden y ra.alerts.fired (la franja oculta con la ✕ y las alertas ya mostradas no vuelven)."
+  - "Que no haya otra charla fijada que haya terminado hace menos de 45 min: si no, la franja pregunta «¿Llegaste a…?» en lugar de la cuenta regresiva."
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "En re:Invent las sedes quedan lejos y caminar lleva tiempo."
+    subtitulo: "Las sedes quedan lejos\ny caminar lleva tiempo"
+    duracion_s: 5
+  - id: 2
+    accion: "hover #countdown-banner"
+    narracion: "Cuando falta menos de una hora para algo fijado, arriba aparece la cuenta regresiva."
+    subtitulo: "Falta menos de una hora:\narriba, la cuenta regresiva"
+    duracion_s: 7
+  - id: 3
+    accion: "hover #countdown-banner .countdown-text"
+    narracion: "Y te dice a qué hora salir, según cuánto caminás y tu margen."
+    subtitulo: "Te dice a qué hora salir,\nsegún lo que caminás y tu margen"
+    duracion_s: 7
+  - id: 4
+    accion: "goto #/itinerario"
+    narracion: "La franja te sigue en cualquier pantalla, así no se te pasa."
+    subtitulo: "Te sigue en cualquier pantalla"
+    duracion_s: 6
+  - id: 5
+    accion: "click #countdown-banner .countdown-text"
+    narracion: "La tocás y vas directo a la charla."
+    subtitulo: "La tocás y vas directo a la charla"
+    duracion_s: 5
+  - id: 6
+    accion: "wait 3"
+    narracion: "Ahí está la ficha de la charla, y la franja sigue contando."
+    subtitulo: "La ficha de la charla,\ny la franja sigue contando"
+    duracion_s: 6

@@ -1,0 +1,40 @@
+feature: passkey-ajustes
+titulo: "Activá Face ID o huella"
+beneficio: "Entrás de un toque, sin tipear la contraseña en el evento."
+ruta: "#/ajustes"
+notas: >-
+  Biometría simulada: agregar un autenticador virtual por CDP antes de cargar la página
+  (WebAuthn.enable + WebAuthn.addVirtualAuthenticator: protocol ctap2, transport internal, hasResidentKey,
+  hasUserVerification e isUserVerified en true). Sin él aparece «Este navegador no permite…» en lugar del botón.
+  La confirmación biométrica no se ve: si se quiere mostrar, sumarla en posproducción en la escena 3.
+  En Chrome de escritorio la sección dice «Huella o rostro»; en iPhone, «Face ID».
+  Precondición: el tester sin passkeys registradas (así hay un solo «Quitar»). «Quitar» no pide confirmación:
+  en el video va con hover; borrar la passkey fuera de cámara al terminar.
+  No se usa la oferta de Inicio («Activar» / «Ahora no»): «Ahora no» también existe en la tarjeta de instalar
+  la app y el selector queda ambiguo.
+escenas:
+  - id: 1
+    accion: "goto #/ajustes"
+    narracion: "Tipear la contraseña parado en un pasillo del evento es incómodo."
+    subtitulo: "Tipear la contraseña en un pasillo\ndel evento es incómodo."
+    duracion_s: 6
+  - id: 2
+    accion: "scroll role=button[name='Activar en este dispositivo']"
+    narracion: "En Ajustes tenés el ingreso con Face ID o huella para este celular."
+    subtitulo: "En Ajustes tenés el ingreso\ncon Face ID o huella."
+    duracion_s: 7
+  - id: 3
+    accion: "click role=button[name='Activar en este dispositivo']"
+    narracion: "Lo activás y confirmás con tu cara o tu dedo. No se guarda ningún dato biométrico."
+    subtitulo: "Lo activás y confirmás con tu cara o dedo.\nNo se guarda ningún dato biométrico."
+    duracion_s: 8
+  - id: 4
+    accion: "wait 2"
+    narracion: "Queda en la lista con el nombre del dispositivo. La próxima, entrás sin contraseña."
+    subtitulo: "Queda en la lista con tu dispositivo.\nLa próxima, sin contraseña."
+    duracion_s: 7
+  - id: 5
+    accion: "hover role=button[name='Quitar']"
+    narracion: "¿Cambiaste de celular? Lo quitás desde acá cuando quieras."
+    subtitulo: "¿Cambiaste de celular?\nLo quitás desde acá."
+    duracion_s: 5

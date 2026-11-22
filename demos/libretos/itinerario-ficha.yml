@@ -1,0 +1,44 @@
+feature: itinerario-ficha
+titulo: "Revisá tu ficha"
+beneficio: "Ajustá qué te importa antes de armar cada día."
+ruta: "#/itinerario/ficha"
+notas: >-
+  Requiere que el tester ya tenga la ficha creada (si no, la ruta redirige a la entrevista) con al menos dos
+  prioridades. Sacar una prioridad y cambiar el peso se guardan al tocar «Está bien, sigamos →»: modifica la ficha del
+  tester. El resumen editable no tiene selector propio (falta ficha-resumen), por eso solo se muestra.
+escenas:
+  - id: 1
+    accion: "goto #/itinerario/ficha"
+    narracion: "Después de la entrevista, la IA arma tu ficha. Acá la revisás."
+    subtitulo: "Después de la entrevista,\nla IA arma tu ficha."
+    duracion_s: 6
+  - id: 2
+    accion: "wait 3"
+    narracion: "Arriba, un resumen de quién sos, que podés editar."
+    subtitulo: "Un resumen de quién sos,\nque podés editar."
+    duracion_s: 5
+  - id: 3
+    accion: "hover button.ra-dots"
+    narracion: "Debajo, tus prioridades, cada una con su importancia de uno a tres."
+    subtitulo: "Tus prioridades, cada una\ncon su importancia de 1 a 3."
+    duracion_s: 6
+  - id: 4
+    accion: "click [aria-label^='Sacar ']"
+    narracion: "Lo que no va, lo sacás de la lista."
+    subtitulo: "Lo que no va,\nlo sacás de la lista."
+    duracion_s: 5
+  - id: 5
+    accion: "click button.ra-dots"
+    narracion: "Si algo te importa más o menos, lo tocás y cambia el peso."
+    subtitulo: "¿Te importa más o menos?\nLo tocás y cambia el peso."
+    duracion_s: 7
+  - id: 6
+    accion: "click role=button[name='Está bien, sigamos →']"
+    narracion: "Cuando te cierra, seguís y pasás a armar tu día con esa ficha."
+    subtitulo: "¿Te cierra? Seguís y pasás\na armar tu día."
+    duracion_s: 7
+  - id: 7
+    accion: "wait 3"
+    narracion: "Ahí te propone charlas según tu ficha, la distancia y la cola."
+    subtitulo: "Te propone charlas según tu ficha,\nla distancia y la cola."
+    duracion_s: 6

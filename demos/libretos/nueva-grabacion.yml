@@ -1,0 +1,57 @@
+feature: nueva-grabacion
+titulo: "Prepará una grabación"
+beneficio: "Cada grabación queda con su charla, sala y speakers."
+ruta: "#/nueva"
+notas: >-
+  Marcar el tip de no molestar como visto antes de grabar (o tocar «Entendido» en el pre-roll; app.js:380-381).
+  Crea una sesión real del tester en staging: descartarla después, fuera de cámara.
+  Micrófono simulado (Chrome con --use-fake-ui-for-media-stream y --use-fake-device-for-media-stream)
+  para que el grabador de la última escena abra el micrófono en vez de mostrar «Sin micrófono».
+  La búsqueda en el catálogo (#talkq) solo se señala con hover: el resultado del selector no tiene
+  selector estable (falta el testid talkpicker-resultado). Keynote (#k0) ya viene elegido: el click lo confirma.
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "Estás por entrar a una charla y la querés grabar."
+    subtitulo: "Estás por entrar a una charla\ny la querés grabar."
+    duracion_s: 5
+  - id: 2
+    accion: "click [aria-label='Nueva grabación']"
+    narracion: "Desde Inicio arrancás una grabación nueva."
+    subtitulo: "Desde Inicio arrancás una nueva."
+    duracion_s: 4
+  - id: 3
+    accion: "hover #talkq"
+    narracion: "Si la charla está en el catálogo, la buscás acá y se completan título, código, sala y speakers."
+    subtitulo: "Si está en el catálogo, la buscás\ny se completan sus datos."
+    duracion_s: 9
+  - id: 4
+    accion: "click #k0"
+    narracion: "Si no, elegís el tipo: keynote, chalk talk, workshop o breakout."
+    subtitulo: "Si no, elegís el tipo: keynote,\nchalk talk, workshop o breakout."
+    duracion_s: 6
+  - id: 5
+    accion: "fill #title \"Keynote de apertura\""
+    narracion: "Le ponés un título para encontrarla después."
+    subtitulo: "Le ponés un título."
+    duracion_s: 4
+  - id: 6
+    accion: "fill #code \"ANT301\""
+    narracion: "Sumás el código de agenda."
+    subtitulo: "Sumás el código de agenda."
+    duracion_s: 3
+  - id: 7
+    accion: "fill #venue \"Venetian · Hall A\""
+    narracion: "Y la sala, si querés tenerla anotada."
+    subtitulo: "Y la sala, si querés tenerla anotada."
+    duracion_s: 4
+  - id: 8
+    accion: "click role=button[name='Preparar grabación']"
+    narracion: "Preparás la grabación y se abre el grabador."
+    subtitulo: "Preparás la grabación\ny se abre el grabador."
+    duracion_s: 5
+  - id: 9
+    accion: "wait 3"
+    narracion: "Listo: el grabador te espera con el micrófono abierto y los datos de la charla arriba."
+    subtitulo: "El grabador te espera,\ncon los datos de la charla arriba."
+    duracion_s: 8

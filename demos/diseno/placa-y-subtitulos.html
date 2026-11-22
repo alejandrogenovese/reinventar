@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demos de reinventar — placa de título y subtítulos</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("../../web/fonts/inter-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; src: url("../../web/fonts/inter-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 800; src: url("../../web/fonts/inter-latin-800-normal.woff2") format("woff2"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("../../web/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
+  :root {
+    /* Tokens copiados de web/css/tokens.css */
+    --hero: #1a1a1a;
+    --on-hero: #f4f4f4;
+    --on-hero-muted: #bdbdbd;
+    --brand: #fa6400;
+    --bg: #f4f4f4;
+    --ink: #1f1f1f;
+    --ink-muted: #5f5f5f;
+    --font-ui: "Inter", system-ui, sans-serif;
+    --font-data: "JetBrains Mono", ui-monospace, monospace;
+    /* Escala: los frames se diseñan a 1920×1080 y se achican para verlos acá */
+    --frame-w: 1920px;
+    --frame-h: 1080px;
+    --scale: .5;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: var(--font-ui); background: #e9e9e9; color: var(--ink); padding: 40px; }
+  h1 { font: 700 28px/34px var(--font-ui); letter-spacing: -0.02em; }
+  h2 { font: 700 20px/26px var(--font-ui); margin: 48px 0 8px; }
+  p.lead { color: var(--ink-muted); max-width: 72ch; margin-top: 8px; line-height: 1.5; }
+  ul.spec { color: var(--ink-muted); line-height: 1.6; margin: 12px 0 16px 20px; max-width: 80ch; }
+  ul.spec code { font-family: var(--font-data); font-size: 13px; color: var(--ink); }
+
+  .viewport {
+    width: calc(var(--frame-w) * var(--scale));
+    height: calc(var(--frame-h) * var(--scale));
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 3px 5px -1px rgb(0 0 0 / .2), 0 6px 10px rgb(0 0 0 / .14);
+  }
+  .frame {
+    width: var(--frame-w);
+    height: var(--frame-h);
+    transform: scale(var(--scale));
+    transform-origin: 0 0;
+    position: relative;
+  }
+
+  /* ---------- Placa de título ---------- */
+  .placa { background: var(--hero); color: var(--on-hero); }
+  .placa .logo { position: absolute; top: 72px; left: 96px; display: flex; align-items: center; gap: 20px; }
+  .placa .logo svg { width: 64px; height: 64px; }
+  .placa .logo span { font: 600 32px/1 var(--font-ui); letter-spacing: -0.01em; }
+  .placa .centro { position: absolute; left: 96px; right: 96px; top: 50%; transform: translateY(-50%); }
+  .placa .acento { width: 96px; height: 10px; border-radius: 5px; background: var(--brand); margin-bottom: 48px; }
+  .placa .titulo { font: 800 112px/1.05 var(--font-ui); letter-spacing: -0.03em; max-width: 16ch; }
+  .placa .beneficio { font: 400 44px/1.3 var(--font-ui); color: var(--on-hero-muted); margin-top: 36px; max-width: 34ch; }
+  .placa .pie { position: absolute; bottom: 72px; left: 96px; font: 500 26px/1 var(--font-data); color: var(--on-hero-muted); }
+
+  /* ---------- Frame con app y subtítulo ---------- */
+  .escena { background: #2a2a2a; }
+  .escena .telefono {
+    position: absolute; left: 50%; top: 60px; transform: translateX(-50%);
+    width: 430px; height: 860px; border-radius: 48px; background: var(--bg);
+    border: 12px solid #0d0d0d; overflow: hidden;
+  }
+  .telefono .barra { height: 96px; background: #fff; border-bottom: 1px solid #e3e3e3; padding: 52px 20px 0; font: 700 20px/26px var(--font-ui); }
+  .telefono .tarjeta { margin: 16px; height: 120px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #e3e3e3; }
+  .telefono .tarjeta.ahora { background: #ffe8d9; }
+
+  .subtitulo {
+    position: absolute; left: 50%; bottom: calc(var(--frame-h) * .08);
+    transform: translateX(-50%);
+    max-width: 70%;
+    padding: 16px 28px;
+    border-radius: 12px;
+    background: rgb(17 17 17 / .82);
+    color: #fff;
+    font: 600 40px/1.3 var(--font-ui);
+    text-align: center;
+    white-space: pre-line;
+  }
+
+  .fila { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
+  .nota { font-size: 14px; color: var(--ink-muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h1>Demos de reinventar: placa de título y subtítulos</h1>
+  <p class="lead">Propuesta para los videos que va a grabar el director (1920×1080). Los colores y las fuentes salen de
+  <code>web/css/tokens.css</code>: fondo <em>hero</em> oscuro, naranja de marca como acento e Inter. Acá se ven a la mitad del tamaño real.</p>
+
+  <h2>1 · Placa de título (3 s al inicio)</h2>
+  <ul class="spec">
+    <li>Datos del libreto: <code>titulo</code> (≤ 40 caracteres) y <code>beneficio</code> (≤ 70).</li>
+    <li>Entra con fundido de 400 ms y sale con fundido de 300 ms. Mientras se lee, nada se mueve.</li>
+    <li>Abajo, en mono, la serie y el número de demo, para ordenarlas en una lista de reproducción.</li>
+  </ul>
+  <div class="viewport">
+    <div class="frame placa">
+      <div class="logo">
+        <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#2b2b2b"/><rect x="100" y="206" width="40" height="100" rx="20" fill="#fa6400"/><rect x="168" y="156" width="40" height="200" rx="20" fill="#fa6400"/><rect x="236" y="116" width="40" height="280" rx="20" fill="#f4f4f4"/><rect x="304" y="166" width="40" height="180" rx="20" fill="#fa6400"/><rect x="372" y="221" width="40" height="70" rx="20" fill="#fa6400"/></svg>
+        <span>reinventar</span>
+      </div>
+      <div class="centro">
+        <div class="acento"></div>
+        <div class="titulo">Gastos del viaje en segundos</div>
+        <div class="beneficio">Cargás, ves el total en dólares y separás lo que se reintegra</div>
+      </div>
+      <div class="pie">demos · gastos</div>
+    </div>
+  </div>
+  <p class="nota">Texto tomado de <code>demos/libretos/gastos.yml</code>.</p>
+
+  <h2>2 · Subtítulos</h2>
+  <ul class="spec">
+    <li>Abajo al centro, a un 8 % del borde inferior y con un ancho máximo del 70 %. No tapa el teléfono: la app ocupa el centro y el subtítulo queda debajo.</li>
+    <li>Inter 600, 40 px, blanco sobre caja <code>#111</code> al 82 %, con radio de 12 px. El contraste supera 15:1 sobre cualquier fondo.</li>
+    <li>Máximo 2 líneas de 42 caracteres. Se corta por frase (<code>\n</code> en el libreto) y cada texto queda al menos 1,2 s en pantalla.</li>
+    <li>Se toma el <code>subtitulo</code> de cada escena (o la <code>narracion</code> si falta) con los tiempos de <code>timeline.json</code>.</li>
+  </ul>
+  <div class="fila">
+    <div class="viewport">
+      <div class="frame escena">
+        <div class="telefono">
+          <div class="barra">Gastos</div>
+          <div class="tarjeta ahora"></div>
+          <div class="tarjeta"></div>
+          <div class="tarjeta"></div>
+        </div>
+        <div class="subtitulo">Cargar un gasto lleva segundos,
+y anda sin señal</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>3 · Pendiente de decidir</h2>
+  <ul class="spec">
+    <li><strong>Formato:</strong> la app es mobile-first. Opción A: 1920×1080 con el teléfono al centro (como arriba). Opción B: 1080×1920 vertical, ideal para redes, con el subtítulo dentro de la pantalla.</li>
+    <li><strong>Tema:</strong> grabar con la app en claro (como arriba) o en oscuro, para que haga juego con la placa.</li>
+    <li><strong>Placa final:</strong> repetir el logo con la URL <code>reinventar.app</code> durante 2 s.</li>
+  </ul>
+</body>
+</html>

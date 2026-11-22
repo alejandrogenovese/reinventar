@@ -1,0 +1,1158 @@
+# Mapa de funcionalidades de ReinventAR, sacado del código (no de suposiciones).
+#
+# Stack: backend FastAPI (app/*.py; los routers son app/*_api.py y app/main.py) y una SPA vanilla
+# (web/index.html + web/js/*.js) con router por hash en web/js/app.js. Las "rutas" son hashes (#/…).
+# Navegación principal (web/index.html, .navbar): Inicio #/, Buscar #/buscar, Itinerario #/itinerario,
+# Eventos #/eventos, Viaje #/viaje. Arriba a la derecha: tema (#themeBtn) y Ajustes (#/ajustes).
+# En el celular la .navbar pasa a ser la barra inferior.
+#
+# Referencia para grabar: staging (https://staging.reinventar.app) con el usuario de prueba «tester».
+# Nunca van contraseñas ni datos personales acá: el repo es público.
+#
+# Selectores: en el front no hay ningún data-testid (0 coincidencias en web/). Se anota el mejor
+# selector estable que existe (id > aria-label > rol+texto) con esta notación:
+#   - CSS normal:                       "#username", "[aria-label='Ajustes']"
+#   - rol + nombre accesible:           "role=button[name='Entrar']"
+#   - texto visible (último recurso):   "text=Tus grabaciones"
+# Donde haría falta un data-testid, va en faltan_testids con el nombre sugerido.
+#
+# Campos extra: audiencia (usuario|admin), complejidad (baja|media|alta) y requiere (dependencias
+# externas que afectan si se puede grabar en video: microfono, geolocalizacion, push, llm, stt,
+# red, google_maps, camara, biometria, catalogo, datos_previos, reloj_simulado).
+
+features:
+
+  # --- Cuenta y acceso ---------------------------------------------------------------------------
+
+  - id: login-con-contrasena
+    nombre: "Ingreso con usuario y contraseña"
+    audiencia: usuario
+    ruta: "#/login"
+    precondiciones: ["sin sesión (el router manda a #/login si no hay token)"]
+    pasos:
+      - "abrir la app sin sesión: redirige a #/login"
+      - "completar Usuario"
+      - "completar Contraseña (se puede mostrar con el ojo)"
+      - "tocar Entrar"
+      - "si la contraseña es temporal, va a #/password; si no, a Inicio"
+    selectores:
+      usuario: "#username"
+      contrasena: "#password"
+      mostrar_contrasena: ".ra-pass-eye"
+      entrar: "role=button[name='Entrar']"
+      error: ".notice.err"
+    faltan_testids: ["login-entrar", "login-error"]
+    datos_prueba: {usuario: "tester", contrasena: "<desde secreto local, nunca en el repo>"}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/app.js (viewLogin, finishLogin)", "web/js/ui.js (PasswordField)", "web/js/api.js (Auth.login)", "app/auth_api.py (/api/login)"]
+
+  - id: login-con-passkey
+    nombre: "Ingreso con Face ID / huella (passkey)"
+    audiencia: usuario
+    ruta: "#/login"
+    precondiciones: ["passkey ya registrada en este dispositivo (ver passkey-ajustes)", "dispositivo con WebAuthn"]
+    pasos: ["abrir #/login", "tocar «Entrar con Face ID» (o huella)", "confirmar con biometría del sistema"]
+    selectores:
+      entrar_passkey: "role=button[name^='Entrar con']"
+    faltan_testids: ["login-passkey"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [biometria, red]
+    fuentes: ["web/js/passkey.js (PasskeyLoginButton)", "app/passkey_api.py (/api/passkey/login/*)"]
+
+  - id: cambio-de-contrasena
+    nombre: "Cambio de contraseña (y elección obligatoria en el primer ingreso)"
+    audiencia: usuario
+    ruta: "#/password"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Ajustes → «Cambiar contraseña» (o forzado en el primer ingreso)"
+      - "completar contraseña actual, nueva y repetirla (mínimo 8)"
+      - "tocar Guardar"
+    selectores:
+      actual: "#current"
+      nueva: "#next"
+      repetir: "#repeat"
+      guardar: "role=button[name='Guardar']"
+      abrir_desde_ajustes: "role=button[name='Cambiar contraseña']"
+    faltan_testids: ["password-guardar"]
+    datos_prueba: {nota: "no grabar con la cuenta tester real: cierra sesiones en otros dispositivos"}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/account.js (viewPassword)", "app/auth_api.py (/api/password)"]
+
+  - id: cerrar-sesion
+    nombre: "Cerrar sesión"
+    audiencia: usuario
+    ruta: "#/ajustes"
+    precondiciones: ["usuario tester logueado"]
+    pasos: ["ir a Ajustes", "tocar «Cerrar sesión»", "vuelve a #/login (borra push, copias sin señal y gastos locales)"]
+    selectores:
+      ajustes: "[aria-label='Ajustes']"
+      cerrar_sesion: "role=button[name='Cerrar sesión']"
+    faltan_testids: ["ajustes-cerrar-sesion"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/app.js (viewSettings.logout)", "app/auth_api.py (/api/logout)"]
+
+  - id: cambio-de-tema
+    nombre: "Tema claro / oscuro"
+    audiencia: usuario
+    ruta: "cualquier pantalla (barra superior)"
+    precondiciones: []
+    pasos: ["tocar el botón de luna/sol arriba a la derecha", "la app cambia de tema y lo recuerda"]
+    selectores:
+      tema: "#themeBtn"
+    faltan_testids: []
+    datos_prueba: {}
+    complejidad: baja
+    requiere: []
+    fuentes: ["web/index.html (#themeBtn)", "web/js/app.js (applyTheme)"]
+
+  - id: ajustes-ubicacion-y-alertas
+    nombre: "Ajustes: usar mi ubicación y márgenes de alertas"
+    audiencia: usuario
+    ruta: "#/ajustes"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "ir a Ajustes"
+      - "prender «Usar mi ubicación» (distancias y minutos caminando)"
+      - "cambiar «Margen para salir (min)» y «Aviso de inicio (min antes)»"
+    selectores:
+      usar_ubicacion: "#use-location"
+      margen_salir: "#leave-margin"
+      aviso_inicio: "#start-notice"
+    faltan_testids: []
+    datos_prueba: {margen_salir: 10, aviso_inicio: 5}
+    complejidad: baja
+    requiere: [geolocalizacion]
+    fuentes: ["web/js/app.js (LocationSetting, AlertSettings)", "web/js/location.js"]
+
+  - id: notificaciones-push
+    nombre: "Notificaciones en el celular (activar, probar y elegir avisos)"
+    audiencia: usuario
+    ruta: "#/ajustes"
+    precondiciones: ["usuario tester logueado", "navegador con Web Push (en iPhone, app instalada en inicio)"]
+    pasos:
+      - "ir a Ajustes → «Notificaciones en el celular»"
+      - "prender «Activar notificaciones» y aceptar el permiso"
+      - "tocar «Probar una notificación»"
+      - "prender/apagar «Recordarme grabar», «Avisarme de eventos nuevos», «Usar en qué sede estoy para los avisos»"
+      - "prender los avisos de vuelos/hoteles y de ofertas (con categorías)"
+    selectores:
+      activar: "#push-on"
+      probar: "role=button[name='Probar una notificación']"
+      recordarme_grabar: "#push-grabar"
+      eventos_nuevos: "#push-eventos-nuevos"
+      usar_sede: "#push-sede"
+      ofertas_on: "#ofertas-on"
+      ofertas_categoria: "#ofertas-cat-shows, #ofertas-cat-comida, #ofertas-cat-compras, #ofertas-cat-otros"
+    faltan_testids: ["push-probar"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [push, red]
+    fuentes: ["web/js/notifications.js (PushSettings, ReminderSettings, ViajesSettings)", "web/js/ofertas.js (OfertasSettings)", "app/push_api.py", "app/ubicacion_api.py", "app/ofertas_api.py (/api/ofertas/preferencias)", "app/viajes_api.py (/api/viajes/preferencias)"]
+
+  - id: passkey-ajustes
+    nombre: "Activar / quitar Face ID o huella para entrar"
+    audiencia: usuario
+    ruta: "#/ajustes (y oferta en Inicio)"
+    precondiciones: ["usuario tester logueado", "dispositivo con WebAuthn"]
+    pasos:
+      - "en Inicio, tarjeta de oferta → «Activar» (o «Ahora no»)"
+      - "o en Ajustes → «Activar en este dispositivo»"
+      - "confirmar con biometría"
+      - "para quitar: «Quitar» en la fila de la passkey"
+    selectores:
+      activar_inicio: "role=button[name='Activar']"
+      ahora_no: "role=button[name='Ahora no']"
+      activar_ajustes: "role=button[name='Activar en este dispositivo']"
+      quitar: "role=button[name='Quitar']"
+    faltan_testids: ["passkey-activar", "passkey-quitar"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [biometria, red]
+    fuentes: ["web/js/passkey.js (PasskeyOffer, PasskeySettings)", "app/passkey_api.py"]
+
+  - id: instalar-pwa
+    nombre: "Instalar la app en el celular"
+    audiencia: usuario
+    ruta: "#/ (tarjeta en Inicio) y #/ajustes"
+    precondiciones: ["usuario tester logueado", "app abierta en el navegador (no instalada)"]
+    pasos: ["ver «Instalá ReinventAR en el celular»", "Android: tocar «Instalar app»; iPhone: seguir los pasos de Compartir → Agregar a inicio"]
+    selectores:
+      instalar: "role=button[name='Instalar app']"
+      titulo: "text=Instalá ReinventAR en el celular"
+    faltan_testids: ["instalar-app"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: []
+    fuentes: ["web/js/install.js (InstallPrompt)"]
+
+  # --- Inicio -----------------------------------------------------------------------------------
+
+  - id: inicio-hoy
+    nombre: "Inicio: panel Hoy (ahora, después y el resto del día)"
+    audiencia: usuario
+    ruta: "#/"
+    precondiciones: ["usuario tester logueado", "itinerario con charlas el día actual (o reloj simulado por modo prueba)"]
+    pasos:
+      - "abrir Inicio"
+      - "ver la tarjeta «Ahora» (con cuenta regresiva) y «Después/Próxima»"
+      - "ver avisos de cola sin reserva, «salí a las…» y llena/cola"
+      - "tocar «Grabar esta charla», «Ver evento/show» o Llevame"
+    selectores:
+      nav_inicio: "a.navitem[href='#/']"
+      seccion_hoy: "#hoy-title"
+      fecha_hoy: "#hoy-fecha"
+      grabar_esta_charla: "role=button[name='Grabar esta charla']"
+      ver_itinerario: "role=button[name='Ver itinerario']"
+    faltan_testids: ["hoy-ahora", "hoy-proxima", "hoy-grabar"]
+    datos_prueba: {itinerario: "2–3 charlas del día simulado", reloj: "modo prueba con hora de Las Vegas dentro de una charla"}
+    complejidad: media
+    requiere: [red, datos_previos, reloj_simulado, catalogo]
+    fuentes: ["web/js/today.js (TodayPanel, TalkCard, TalkAction)", "web/js/app.js (viewList)", "app/today.py", "app/itinerary_api.py (/api/today)"]
+
+  - id: anuncios-sin-reserva
+    nombre: "Inicio: anuncios sin reserva (keynotes y lanzamientos)"
+    audiencia: usuario
+    ruta: "#/"
+    precondiciones: ["usuario tester logueado", "catálogo con keynotes/lanzamientos ese día"]
+    pasos:
+      - "en Inicio, deslizar la fila «Anuncios sin reserva»"
+      - "usar las flechas Anterior/Siguiente"
+      - "tocar la tarjeta «+N · Ver todos» → Buscar con el filtro Anuncios"
+    selectores:
+      seccion: "#anuncios-title"
+      fila: "#anuncios-fila"
+      anterior: "[aria-controls='anuncios-fila'][aria-label='Anterior']"
+      siguiente: "[aria-controls='anuncios-fila'][aria-label='Siguiente']"
+      ver_todos: "a.ra-ann.is-more"
+    faltan_testids: ["anuncio-card"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red, catalogo, reloj_simulado]
+    fuentes: ["web/js/anuncios.js (AnunciosRail)", "app/anuncios.py", "app/itinerary_api.py (/api/anuncios)"]
+
+  - id: lista-de-grabaciones
+    nombre: "Inicio: tus grabaciones"
+    audiencia: usuario
+    ruta: "#/"
+    precondiciones: ["usuario tester logueado"]
+    pasos: ["abrir Inicio", "ver la lista «Tus grabaciones» con su estado", "tocar una para abrir el detalle (o seguir grabando si está viva)"]
+    selectores:
+      titulo: "#grabaciones-title"
+      nueva: "[aria-label='Nueva grabación']"
+      tarjeta: "button.ra-reccard"
+    faltan_testids: ["grabacion-card"]
+    datos_prueba: {grabaciones: "al menos una en estado ready"}
+    complejidad: baja
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/app.js (viewList)", "web/js/ui.js (SessionCard)", "app/main.py (/api/sessions)"]
+
+  - id: buscar-en-lo-grabado
+    nombre: "Buscar en lo que grabaste"
+    audiencia: usuario
+    ruta: "#/"
+    precondiciones: ["usuario tester logueado", "al menos una grabación procesada (ready)"]
+    pasos:
+      - "en Inicio, escribir en «Buscar en lo que grabaste»"
+      - "ver los momentos encontrados"
+      - "tocar uno: abre la transcripción en ese segundo con la marca «Desde la búsqueda»"
+    selectores:
+      campo: "[aria-label='Buscar en lo que grabaste']"
+      resultado: "a.ra-hit"
+      quitar_marca: "[aria-label='Quitar la marca de la búsqueda']"
+    faltan_testids: ["grabado-resultado"]
+    datos_prueba: {consulta: "agentes"}
+    complejidad: media
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/grabado.js (RecordingSearch, MomentCard)", "web/js/detail.js", "app/fragmentos.py", "app/main.py (/api/grabaciones/buscar)"]
+
+  # --- Grabación ---------------------------------------------------------------------------------
+
+  - id: nueva-grabacion
+    nombre: "Nueva grabación (manual o eligiendo la charla del catálogo)"
+    audiencia: usuario
+    ruta: "#/nueva"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Inicio → «Nueva»"
+      - "opcional: buscar la charla en el selector y elegirla (completa título, código, sala y speakers)"
+      - "elegir Tipo (Keynote / Chalk talk / Workshop / Breakout)"
+      - "completar Título (y opcionalmente Código, Sala, Speakers)"
+      - "tocar «Preparar grabación» → abre el grabador"
+    selectores:
+      nueva: "[aria-label='Nueva grabación']"
+      buscar_charla: "#talkq"
+      tipo_keynote: "#k0"
+      titulo: "#title"
+      codigo: "#code"
+      sala: "#venue"
+      speakers: "#speaker"
+      preparar: "role=button[name='Preparar grabación']"
+    faltan_testids: ["nueva-preparar", "talkpicker-resultado"]
+    datos_prueba: {titulo: "Keynote de apertura", codigo: "ANT301", sala: "Venetian · Hall A"}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/app.js (viewNew, fillFromTalk)", "web/js/talkpicker.js", "web/js/recorder.js (empezarSesion)", "app/main.py (POST /api/sessions)", "app/knowledge_api.py (/api/k/talks/pick)"]
+
+  - id: grabar-charla
+    nombre: "Grabar una charla (grabar, pausar, modo sala, terminar y procesar)"
+    audiencia: usuario
+    ruta: "#/grabar/{id}"
+    precondiciones: ["usuario tester logueado", "sesión de grabación creada (nueva-grabacion o «Grabar esta charla»)", "permiso de micrófono"]
+    pasos:
+      - "esperar «Abriendo el micrófono…» y elegir el micrófono"
+      - "tocar el botón grande para empezar (medidor de nivel y contador)"
+      - "pausar y seguir"
+      - "opcional: «Modo sala» (pantalla negra con contador; tocar para salir)"
+      - "tocar «Terminar y procesar» → espera la subida y abre el detalle"
+      - "alternativa: «Descartar» (pide confirmación)"
+    selectores:
+      microfono: "#mic"
+      entrada_audio: "[aria-label='Entrada de audio']"
+      grabar: "button.ra-rec[aria-label='Empezar a grabar']"
+      pausar: "button.ra-rec[aria-label='Pausar grabación']"
+      seguir: "button.ra-rec[aria-label='Seguir grabando']"
+      modo_sala: "role=button[name='Modo sala']"
+      salir_sala: "[aria-label='Modo sala. Tocá para salir.']"
+      terminar: "role=button[name='Terminar y procesar']"
+      descartar: "role=button[name='Descartar']"
+      contador: ".recorder .counter"
+    faltan_testids: ["grabador-terminar", "grabador-descartar", "grabador-estado"]
+    datos_prueba: {audio: "parlante cerca con un audio en inglés de 1–2 min", modo: "STT y LLM en fake (modo prueba) para no gastar"}
+    complejidad: alta
+    requiere: [microfono, red, stt, llm]
+    fuentes: ["web/js/app.js (viewRecord)", "web/js/recorder.js", "web/js/huecos.js", "web/js/store.js", "app/main.py (/api/sessions/{id}/chunks, /finish, /huecos)", "app/audio.py", "app/stt.py", "app/pipeline.py"]
+
+  - id: grabar-desde-charla
+    nombre: "«Grabar esta charla» desde Hoy, la ficha o el aviso «¿La grabás?»"
+    audiencia: usuario
+    ruta: "#/grabar-charla/{code} (también botones en #/ y #/charla/{base})"
+    precondiciones: ["usuario tester logueado", "la charla está en el itinerario (para #/grabar-charla)"]
+    pasos:
+      - "tocar «Grabar esta charla» en Hoy o en la ficha, o abrir el push «¿La grabás?»"
+      - "en #/grabar-charla tocar «Empezar a grabar»"
+      - "se crea la sesión con los datos de la charla y abre el grabador"
+    selectores:
+      empezar: "role=button[name='Empezar a grabar']"
+      grabar_esta: "role=button[name='Grabar esta charla']"
+      grabar_otra: "role=button[name='Grabar otra cosa']"
+    faltan_testids: ["grabar-charla-empezar"]
+    datos_prueba: {codigo: "código de una charla del itinerario del tester"}
+    complejidad: media
+    requiere: [microfono, red, datos_previos]
+    fuentes: ["web/js/grabarCharla.js", "web/js/today.js (recordTalk)", "web/js/knowledge.js (TalkRecordAction)", "app/recordatorio.py"]
+
+  - id: grabar-sin-senal
+    nombre: "Grabar sin señal (se guarda en el celular y se sube cuando vuelve la red)"
+    audiencia: usuario
+    ruta: "#/grabar/loc_… y #/ (bloque de grabaciones pendientes)"
+    precondiciones: ["usuario tester logueado", "red cortada (modo avión o DevTools offline)"]
+    pasos:
+      - "sin red, empezar una grabación: aviso «Sin señal: se graba en el celular…»"
+      - "terminar: queda «Terminando: se sube y se procesa en cuanto haya señal…»"
+      - "en Inicio aparece en el bloque de grabaciones locales pendientes"
+      - "volver a tener red: se sube sola y aparece en la lista"
+    selectores:
+      pendientes: "#locales-title"
+      subiendo: ".notice.upl"
+      reintentar: "role=button[name='Reintentar']"
+    faltan_testids: ["locales-pendientes", "subida-estado"]
+    datos_prueba: {}
+    complejidad: alta
+    requiere: [microfono, red]
+    fuentes: ["web/js/recorder.js (uploader)", "web/js/store.js", "web/js/locales.js", "web/js/app.js (finishLocal, diferirCierre)"]
+
+  - id: detalle-de-grabacion
+    nombre: "Detalle de una grabación: resumen, transcripción, voto, exportar y eliminar"
+    audiencia: usuario
+    ruta: "#/s/{id} (y #/s/{id}/t/{segundo}?q=…)"
+    precondiciones: ["usuario tester logueado", "grabación procesada (ready)"]
+    pasos:
+      - "abrir una grabación desde Inicio"
+      - "pestaña Resumen: leer el resumen y votar «¿Te sirvió este resumen?» 👍/👎"
+      - "pestaña Transcripción: bloques en castellano con el original, y tramos sin audio"
+      - "«Ver la ficha de la charla» si está vinculada"
+      - "barra superior: Compartir (.md) y menú «Más acciones» → Exportar .md / Eliminar"
+      - "si quedó en error: «Reintentar»; si sigue viva: «Seguir grabando»"
+    selectores:
+      volver: "#pagebar [aria-label='Volver']"
+      compartir: "[aria-label='Compartir el resumen (.md)']"
+      mas_acciones: "[aria-label='Más acciones']"
+      exportar: "role=menuitem[name='Exportar .md']"
+      eliminar: "role=menuitem[name='Eliminar']"
+      tab_resumen: "role=tab[name='Resumen']"
+      tab_transcripcion: "role=tab[name='Transcripción']"
+      voto_si: "role=button[name='Me sirvió']"
+      voto_no: "role=button[name='No me sirvió']"
+      ver_ficha: "a.ra-talklink"
+      reintentar: "role=button[name='Reintentar']"
+    faltan_testids: ["detalle-voto-si", "detalle-voto-no", "detalle-transcripcion-bloque"]
+    datos_prueba: {grabacion: "una grabación ready del tester, vinculada a una charla"}
+    complejidad: media
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/detail.js (viewDetail, VotoResumen)", "web/js/menu.js", "app/main.py (/api/sessions/{id}, /export.md, /retry, DELETE)", "app/voto_resumen_api.py"]
+
+  # --- Buscar ------------------------------------------------------------------------------------
+
+  - id: buscar-filtrar
+    nombre: "Buscar charlas con filtros (y «Convertir en filtros» en lenguaje natural)"
+    audiencia: usuario
+    ruta: "#/buscar"
+    precondiciones: ["usuario tester logueado", "catálogo de re:Invent cargado"]
+    pasos:
+      - "tocar Buscar en la barra"
+      - "escribir en el campo (ej. «bancos el martes»)"
+      - "tocar la sugerencia «Convertir «…» en filtros»"
+      - "abrir Filtros, marcar facetas (Día, Sector, Tipo, Nivel, Servicio de AWS…) y «Ver N charlas»"
+      - "opcional: «Agrupar por» una faceta"
+      - "en un resultado tocar «Agregar» (queda «Agregada») o abrir la ficha"
+      - "«Mostrar más» para paginar"
+    selectores:
+      nav_buscar: "a.navitem[href='#/buscar']"
+      modo_filtrar: "#tab-filtrar"
+      campo: "[aria-label='Buscar charlas']"
+      convertir: "button.ra-suggest"
+      filtros: "button.ra-infield-btn"
+      hoja_filtros: "dialog.ra-sheet[aria-labelledby='sheet-title']"
+      cerrar_filtros: "[aria-label='Cerrar filtros']"
+      agrupar: "[aria-label='Agrupar por']"
+      agregar: "role=button[name='Agregar']"
+      mostrar_mas: "role=button[name='Mostrar más']"
+    faltan_testids: ["buscar-resultado", "buscar-contador", "filtros-ver-charlas", "filtros-limpiar"]
+    datos_prueba: {consulta: "bancos el martes", alternativa: "agentes con Bedrock"}
+    complejidad: media
+    requiere: [red, catalogo, llm]
+    fuentes: ["web/js/search.js", "web/js/explore.js (ExplorePanel, FilterSheet)", "web/js/knowledge.js (EntityResults)", "web/js/itinerary.js (AddButton)", "app/explore.py", "app/nl_filters.py", "app/knowledge_api.py (/api/k/explore, /api/k/explore/parse, /api/k/search/entities)"]
+
+  - id: buscar-preguntar
+    nombre: "Preguntar (chat con citas al catálogo y a lo grabado)"
+    audiencia: usuario
+    ruta: "#/buscar?modo=preguntar"
+    precondiciones: ["usuario tester logueado", "catálogo cargado"]
+    pasos:
+      - "Buscar → pestaña Preguntar"
+      - "tocar un ejemplo o escribir la pregunta"
+      - "enviar y esperar «Buscando en el catálogo y en lo que grabaste…»"
+      - "ver la respuesta con charlas y momentos citados; tocar uno"
+    selectores:
+      modo_preguntar: "#tab-preguntar"
+      pregunta: "[aria-label='Tu pregunta']"
+      enviar: "[aria-label='Enviar pregunta']"
+      ejemplo: "role=button[name='Cómo bajar costos de inferencia']"
+    faltan_testids: ["preguntar-respuesta", "preguntar-ejemplo"]
+    datos_prueba: {pregunta: "Bancos latinoamericanos usando IA generativa"}
+    complejidad: media
+    requiere: [red, llm, catalogo]
+    fuentes: ["web/js/ask.js (AskPanel)", "web/js/grabado.js (MomentCard)", "app/ask.py", "app/knowledge_api.py (/api/k/ask)"]
+
+  - id: ficha-de-charla
+    nombre: "Ficha de una charla (horarios, agregar/cambiar, grabar, relacionadas)"
+    audiencia: usuario
+    ruta: "#/charla/{base}"
+    precondiciones: ["usuario tester logueado", "catálogo cargado"]
+    pasos:
+      - "abrir una charla desde Buscar, Hoy o el itinerario"
+      - "leer «De qué se trata» (alternar castellano / inglés)"
+      - "ver «Quién la da» con links a speaker y empresa"
+      - "en un horario: Agregar, Quitar o «Cambiar a este»"
+      - "avisar «Está llena» / «Hay mucha cola» si está por empezar"
+      - "«Grabar esta charla» o ver tu grabación"
+      - "bajar a «Charlas relacionadas»"
+    selectores:
+      titulo: "h1.title"
+      ver_original: "role=button[name='Ver original en inglés']"
+      agregar_horario: "[aria-label^='Agregar el horario']"
+      cambiar_horario: "[aria-label^='Cambiar al horario']"
+      quitar_horario: "[aria-label^='Quitar el horario']"
+      grabar: "role=button[name='Grabar esta charla']"
+      speaker: "a.ra-link[href^='#/speaker/']"
+    faltan_testids: ["charla-horario", "charla-relacionadas"]
+    datos_prueba: {base: "código base de una charla con más de un horario"}
+    complejidad: baja
+    requiere: [red, catalogo]
+    fuentes: ["web/js/knowledge.js (viewCharla, Slot)", "web/js/itinerary.js (Abstract, People)", "web/js/lleno.js", "app/knowledge.py", "app/knowledge_api.py (/api/k/speech/{base})"]
+
+  - id: ficha-de-speaker
+    nombre: "Ficha de speaker y «Preparar conversación»"
+    audiencia: usuario
+    ruta: "#/speaker/{id}"
+    precondiciones: ["usuario tester logueado", "catálogo con speakers enriquecidos", "idealmente ficha del itinerario guiado (cruza con tu perfil)"]
+    pasos:
+      - "desde una charla tocar el nombre del speaker"
+      - "ver cargo, empresa, trayectoria, educación y skills"
+      - "tocar «Preparar conversación» y esperar la ficha (Quién es, La empresa y AWS, Temas, Preguntas)"
+      - "opcional: «Regenerar»"
+      - "ver sus charlas y con quién comparte escenario"
+    selectores:
+      preparar: "role=button[name='Preparar conversación']"
+      cargando: "[aria-label='Preparando la ficha']"
+      regenerar: "role=button[name='Regenerar']"
+      empresa: "a.ra-link[href^='#/empresa/']"
+    faltan_testids: ["briefing-resultado"]
+    datos_prueba: {speaker: "un speaker de cliente (no Amazon) con perfil encontrado"}
+    complejidad: media
+    requiere: [red, llm, catalogo]
+    fuentes: ["web/js/knowledge.js (viewSpeaker, Profile)", "web/js/briefing.js", "app/briefing.py", "app/knowledge_api.py (/api/k/speaker, /api/k/briefing)"]
+
+  - id: ficha-de-empresa
+    nombre: "Ficha de empresa (quiénes vienen, charlas y conversación)"
+    audiencia: usuario
+    ruta: "#/empresa/{id}"
+    precondiciones: ["usuario tester logueado", "catálogo cargado"]
+    pasos: ["tocar una empresa desde un speaker o Buscar", "ver sector, gente que viene y sus charlas", "opcional: «Preparar conversación»"]
+    selectores:
+      preparar: "role=button[name='Preparar conversación']"
+      persona: "a.ra-link[href^='#/speaker/']"
+    faltan_testids: ["empresa-personas", "empresa-charlas"]
+    datos_prueba: {empresa: "una empresa cliente con varias charlas"}
+    complejidad: baja
+    requiere: [red, catalogo, llm]
+    fuentes: ["web/js/knowledge.js (viewEmpresa)", "web/js/briefing.js", "app/knowledge_api.py (/api/k/empresa)"]
+
+  # --- Itinerario --------------------------------------------------------------------------------
+
+  - id: itinerario-ver
+    nombre: "Ver tu itinerario (mapa, días, fijar, reservada y quitar con deshacer)"
+    audiencia: usuario
+    ruta: "#/itinerario"
+    precondiciones: ["usuario tester logueado", "itinerario con ítems"]
+    pasos:
+      - "tocar Itinerario en la barra"
+      - "ver el mapa con el recorrido del día"
+      - "cambiar de día con las pestañas"
+      - "en una charla: Fijar, «Marcar reservada», Quitar (con deshacer)"
+      - "si hay superposiciones, abrir el plegable de las que no entraron"
+    selectores:
+      nav_itinerario: "a.navitem[href='#/itinerario']"
+      mapa: ".mapbox"
+      pestana_dia: ".tabs [role=tab]"
+      fijar: "role=button[name='Fijar']"
+      reservada: "role=button[name='Marcar reservada']"
+      quitar: "role=button[name='Quitar']"
+      armar_dia: "role=button[name='Armar día por día']"
+      otras_formas: "role=button[name='Otras formas de armarlo']"
+      numeros: "a.ra-sec-action[href^='#/itinerario/numeros']"
+    faltan_testids: ["itinerario-item", "itinerario-dia", "itinerario-deshacer"]
+    datos_prueba: {itinerario: "3 días con 3–5 ítems, al menos un evento y una charla fijada"}
+    complejidad: media
+    requiere: [red, google_maps, datos_previos, catalogo]
+    fuentes: ["web/js/itinerary.js (viewItinerario, ItineraryItem, SessionMiniCard)", "web/js/map.js", "app/itinerary.py", "app/itinerary_api.py (/api/itinerary, /items, /lock)", "app/guided_api.py (/reservada)"]
+
+  - id: itinerario-armado-rapido
+    nombre: "Armado rápido del itinerario con IA (cuestionario)"
+    audiencia: usuario
+    ruta: "#/itinerario/cuestionario"
+    precondiciones: ["usuario tester logueado", "catálogo cargado"]
+    pasos:
+      - "Itinerario → «Armar itinerario» / «Otras formas de armarlo» → «Armado rápido»"
+      - "completar Tu rol, Experiencia e Intereses (chips)"
+      - "opcional: «Contanos más»"
+      - "tocar «Generar itinerario» y esperar «Armando tu itinerario…»"
+    selectores:
+      armado_rapido: "role=button[name='Armado rápido']"
+      rol: "#role"
+      experiencia: "select[name='experience']"
+      interes: "#int0"
+      prompt: "#prompt"
+      generar: "role=button[name='Generar itinerario']"
+    faltan_testids: ["cuestionario-experiencia", "cuestionario-generar"]
+    datos_prueba: {rol: "Architect Lead de Arquitectura de Datos", experiencia: "Senior", prompt: "gobierno de datos, lakehouse y agentic AI aplicado a banca"}
+    complejidad: media
+    requiere: [red, llm, catalogo]
+    fuentes: ["web/js/itinerary.js (viewCuestionario, viewNuevoItinerario)", "app/itinerary.py", "app/itinerary_api.py (/api/itinerary/profile, /generate)"]
+
+  - id: itinerario-entrevista
+    nombre: "Armado guiado, paso 1: entrevista (con respuesta por voz)"
+    audiencia: usuario
+    ruta: "#/itinerario/entrevista"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Itinerario → «Otras formas de armarlo» → «Empezar →»"
+      - "responder las 10 preguntas (rol e industria, día a día, equipo, desafío, trayectoria, nivel, tecnologías, objetivos, evitar, ritmo)"
+      - "opcional: «Responder con la voz» → grabar → terminar y pasar a texto"
+      - "contestar las repreguntas opcionales → «Armar mi ficha →»"
+    selectores:
+      empezar: "role=button[name^='Empezar']"
+      siguiente: "role=button[name='Siguiente →']"
+      atras: "role=button[name='← Atrás']"
+      terminar: "role=button[name='Terminar']"
+      progreso: "[role=progressbar]"
+      voz: "button.ra-voice-start"
+      voz_terminar: "[aria-label='Terminar y pasar a texto']"
+      almuerzo: "#almuerzo"
+      noche: "#noche"
+      armar_ficha: "role=button[name='Armar mi ficha →']"
+    faltan_testids: ["entrevista-rol", "entrevista-industria", "entrevista-opcion"]
+    datos_prueba:
+      rol: "Líder de Arquitectura de Datos"
+      dia_a_dia: "Lidero un equipo de arquitectos, definimos estándares y revisamos diseños de la migración al lakehouse."
+      desafio: "Migrar el DW a lakehouse sin frenar reportes"
+      tecnologias: "Amazon Neptune, Lake Formation, dbt, Iceberg"
+    complejidad: alta
+    requiere: [red, llm, microfono, stt]
+    fuentes: ["web/js/interview.js (viewEntrevista, VoiceButton, viewRepreguntas)", "app/interview.py", "app/interview_api.py"]
+
+  - id: itinerario-ficha
+    nombre: "Armado guiado: revisar y editar tu ficha"
+    audiencia: usuario
+    ruta: "#/itinerario/ficha"
+    precondiciones: ["usuario tester logueado", "entrevista completa (ficha creada)"]
+    pasos:
+      - "ver «¿Es así?» con resumen editable"
+      - "tocar ●●○ para cambiar la importancia de una prioridad o sacarla"
+      - "«Está bien, sigamos →» (o «✎ Cambiar respuestas»)"
+    selectores:
+      importancia: "button.ra-dots"
+      sacar: "[aria-label^='Sacar ']"
+      seguir: "role=button[name='Está bien, sigamos →']"
+      cambiar: "role=button[name='✎ Cambiar respuestas']"
+    faltan_testids: ["ficha-resumen", "ficha-prioridad"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [red, llm, datos_previos]
+    fuentes: ["web/js/interview.js (paintFicha, viewFicha)", "app/interview_api.py (/api/itinerary/ficha)"]
+
+  - id: itinerario-armar-dia
+    nombre: "Armado guiado, paso 2: armá tu día charla por charla"
+    audiencia: usuario
+    ruta: "#/itinerario/armar"
+    precondiciones: ["usuario tester logueado", "ficha creada", "catálogo cargado"]
+    pasos:
+      - "elegir el día en las pestañas"
+      - "ver «¿Con qué arrancás…?» con opciones y semáforo de traslado (a tiempo / justo / salí antes / se superpone)"
+      - "tocar «Elegir» en una opción; se propone lo que sigue"
+      - "opcional: «☆ Para otro día», «Hacer una pausa», «Arrancar más tarde»"
+      - "«Completá el resto del día por mí ✨»"
+      - "«Terminar el día» → cierre con personas para conocer y eventos de la noche"
+    selectores:
+      pestana_dia: ".tabs [role=tab]"
+      elegir: "role=button[name='Elegir']"
+      para_otro_dia: "role=button[name='☆ Para otro día']"
+      pausa: "role=button[name='Hacer una pausa']"
+      completar: "role=button[name='Completá el resto del día por mí ✨']"
+      terminar_dia: "role=button[name='Terminar el día']"
+      arrancar_tarde: "input[type=time]"
+    faltan_testids: ["armar-opcion", "armar-elegidas", "armar-cierre"]
+    datos_prueba: {dia: "primer día del evento", desde: "10:00"}
+    complejidad: alta
+    requiere: [red, llm, catalogo, datos_previos]
+    fuentes: ["web/js/dayBuilder.js (viewArmar, OptionCard, terminarDia, completar)", "app/guided.py", "app/guided_api.py", "app/leave.py"]
+
+  - id: mi-evento
+    nombre: "Mi evento: cargar una cena o reunión propia al itinerario"
+    audiencia: usuario
+    ruta: "#/mi-evento/nuevo (edición: #/mi-evento/{id})"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Itinerario → «Mi evento»"
+      - "completar Nombre, Día, Desde/Hasta"
+      - "Dónde: elegir sede, buscar en Google o escribir la dirección"
+      - "Nota opcional → «Agregar»"
+      - "para editar: tocar el evento → «Guardar» o «Borrar»"
+    selectores:
+      abrir: "role=button[name='Mi evento']"
+      agregar: "role=button[name='Agregar']"
+      guardar: "role=button[name='Guardar']"
+      borrar: "role=button[name='Borrar']"
+      sugerencia_lugar: "button.ra-suggestion"
+    faltan_testids: ["mievento-nombre", "mievento-dia", "mievento-desde", "mievento-modo-lugar", "mievento-lugar-busqueda"]
+    datos_prueba: {nombre: "Cena con Datadog", desde: "19:00", lugar_busqueda: "Topgolf"}
+    complejidad: media
+    requiere: [red, google_maps]
+    fuentes: ["web/js/myEvents.js (viewMiEvento, Autocomplete, MyEventCard)", "app/my_events.py", "app/my_events_api.py", "app/places.py"]
+
+  - id: exportar-calendario
+    nombre: "Pasar el itinerario al calendario (.ics)"
+    audiencia: usuario
+    ruta: "#/itinerario"
+    precondiciones: ["usuario tester logueado", "itinerario con ítems"]
+    pasos: ["Itinerario → «Pasar a mi calendario»", "compartir o descargar reinvent-itinerario.ics"]
+    selectores:
+      exportar: "role=button[name='Pasar a mi calendario']"
+    faltan_testids: ["itinerario-exportar-ics"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/itinerary.js (exportCalendar)", "app/ics.py", "app/itinerary_api.py (/api/itinerary/calendar.ics)"]
+
+  - id: importar-reservas-aws
+    nombre: "Importar reservas del portal de AWS (.ics)"
+    audiencia: usuario
+    ruta: "#/itinerario"
+    precondiciones: ["usuario tester logueado", "archivo .ics exportado del portal de re:Invent"]
+    pasos: ["Itinerario → «Importar reservas de AWS»", "elegir el .ics", "ver el resumen (importadas, cambiadas, ya estaban, no encontradas)"]
+    selectores:
+      importar: "role=button[name='Importar reservas de AWS']"
+    faltan_testids: ["itinerario-importar-ics"]
+    datos_prueba: {archivo: "un .ics de prueba con 3 códigos del catálogo (generarlo, no usar uno real)"}
+    complejidad: media
+    requiere: [red, catalogo]
+    fuentes: ["web/js/itinerary.js (importReservations)", "app/reservas_aws.py", "app/guided_api.py (/api/itinerary/import-ics)"]
+
+  - id: cruzar-con-excel
+    nombre: "Mis códigos de Excel: cruzar una lista con el itinerario"
+    audiencia: usuario
+    ruta: "#/itinerario/excel"
+    precondiciones: ["usuario tester logueado", "archivo .xlsx o .csv con códigos de charlas"]
+    pasos:
+      - "Itinerario → «Cruzar con mi Excel»"
+      - "«Elegir archivo» y subir la lista"
+      - "ver KPIs (Registradas, Te faltan, Choques, De más) y filtrar con los chips"
+      - "opcional: «Subir otra lista» o «Borrar mi lista»"
+    selectores:
+      abrir: "role=button[name='Cruzar con mi Excel']"
+      elegir: "role=button[name='Elegir archivo']"
+      filtros: "[aria-label='Filtrar el resultado']"
+      borrar: "role=button[name='Borrar mi lista']"
+    faltan_testids: ["excel-kpis", "excel-codigo"]
+    datos_prueba: {archivo: "codigos.csv con AIM301, DAT402-R, KEY001"}
+    complejidad: media
+    requiere: [red, catalogo]
+    fuentes: ["web/js/miExcel.js", "app/codigos_excel.py", "app/codigos_api.py (/api/codigos)"]
+
+  - id: numeros
+    nombre: "Tu re:Invent en números (tu semana y el catálogo en gráficos)"
+    audiencia: usuario
+    ruta: "#/itinerario/numeros (catálogo: ?modo=catalogo)"
+    precondiciones: ["usuario tester logueado", "catálogo cargado (la vista personal necesita itinerario)"]
+    pasos: ["Itinerario → «Tu semana en números»", "ver horas, choques y caminata", "pasar a la pestaña del catálogo", "tocar una barra para ir a Buscar filtrado"]
+    selectores:
+      abrir: "a.ra-sec-action[href^='#/itinerario/numeros']"
+      tabs: "[aria-label='Qué números ver']"
+      panel: "#numeros-panel"
+      tab_catalogo: "#num-catalogo"
+    faltan_testids: ["numeros-kpi", "numeros-barra"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red, catalogo, datos_previos]
+    fuentes: ["web/js/numeros.js", "web/js/charts.js", "app/numeros.py", "app/numeros_api.py"]
+
+  - id: me-la-perdi
+    nombre: "¿Te perdiste una charla? Otros horarios y parecidas"
+    audiencia: usuario
+    ruta: "#/perdida/{code}"
+    precondiciones: ["usuario tester logueado", "charla del itinerario ya terminada (reloj simulado ayuda)"]
+    pasos:
+      - "tocar la franja «¿Llegaste a …? Si te la perdiste…» o «Me la perdí» en el itinerario"
+      - "ver «Se repite» y tocar «Ir a esa» / «Ir igual»"
+      - "o agregar una de «Parecidas, pronto»"
+      - "opcional: «Quitarla del itinerario»"
+    selectores:
+      me_la_perdi: "role=button[name='Me la perdí']"
+      ir_a_esa: "role=button[name='Ir a esa']"
+      ir_igual: "role=button[name='Ir igual']"
+      quitar: "role=button[name='Quitarla del itinerario']"
+    faltan_testids: ["perdida-repeticion", "perdida-parecida"]
+    datos_prueba: {codigo: "charla repetida del itinerario, con reloj simulado después de su fin"}
+    complejidad: media
+    requiere: [red, reloj_simulado, datos_previos, catalogo]
+    fuentes: ["web/js/missed.js (viewPerdida)", "web/js/countdown.js", "app/missed.py", "app/itinerary_api.py (/api/itinerary/missed, /swap)"]
+
+  - id: avisos-lleno-cola
+    nombre: "Avisar y ver si una charla está llena o con mucha cola"
+    audiencia: usuario
+    ruta: "#/ (Hoy), #/itinerario y #/charla/{base}"
+    precondiciones: ["usuario tester logueado", "charla por empezar o en curso"]
+    pasos: ["en la tarjeta, «¿Estás en la puerta?» → «Está llena» o «Hay mucha cola»", "ver «Llena según N personas · hace X min»", "tocar otra vez para retirar el aviso"]
+    selectores:
+      llena: "role=button[name='Está llena']"
+      cola: "role=button[name='Hay mucha cola']"
+      resumen: ".ra-lleno-dato"
+    faltan_testids: ["lleno-avisar", "lleno-resumen"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [red, reloj_simulado, datos_previos]
+    fuentes: ["web/js/lleno.js (LlenoAvisos, AvisoBaja)", "app/lleno.py", "app/lleno_api.py"]
+
+  - id: franja-cuenta-regresiva
+    nombre: "Franja superior: cuenta regresiva y «salí ya»"
+    audiencia: usuario
+    ruta: "todas las pantallas (#countdown-banner)"
+    precondiciones: ["usuario tester logueado", "algo fijado en el itinerario dentro de la próxima hora"]
+    pasos: ["ver la franja con «X en H:MM · salí HH:MM» o «Salí ya»", "tocarla para abrir el ítem", "cerrarla con la ✕ (oculta hasta lo próximo)"]
+    selectores:
+      franja: "#countdown-banner"
+      texto: "#countdown-banner .countdown-text"
+      ocultar: "[aria-label='Ocultar hasta lo próximo']"
+      llegue: "[aria-label='Sí, llegué']"
+    faltan_testids: []
+    datos_prueba: {reloj: "modo prueba 20 min antes de una charla fijada"}
+    complejidad: media
+    requiere: [reloj_simulado, datos_previos, geolocalizacion]
+    fuentes: ["web/js/countdown.js", "web/js/location.js", "app/leave.py"]
+
+  - id: franja-cambios-itinerario
+    nombre: "Franja de cambios de AWS sobre tu itinerario"
+    audiencia: usuario
+    ruta: "todas las pantallas (#changes-banner)"
+    precondiciones: ["usuario tester logueado", "un cambio pendiente (charla movida, cancelada, evento lleno)"]
+    pasos: ["ver la franja con el aviso", "tocar «Entendido» para pasar al siguiente"]
+    selectores:
+      franja: "#changes-banner"
+      entendido: "#changes-banner >> role=button[name='Entendido']"
+    faltan_testids: []
+    datos_prueba: {cambio: "requiere generar un cambio en el catálogo de staging; difícil de forzar"}
+    complejidad: alta
+    requiere: [red, datos_previos, catalogo]
+    fuentes: ["web/js/changes.js", "app/changes.py", "app/itinerary_api.py (/api/itinerary/changes, /changes/ack)"]
+
+  - id: llevame
+    nombre: "Llevame: recorrido a pie dentro de la app"
+    audiencia: usuario
+    ruta: "botón Llevame en Hoy, fichas, eventos, shows y comer"
+    precondiciones: ["usuario tester logueado", "ubicación prendida (o simulada por modo prueba)", "destino con coordenadas"]
+    pasos: ["tocar Llevame", "ver la hoja «Llevame a …» con el mapa, minutos y distancia", "«Abrir en Google Maps» o Volver"]
+    selectores:
+      llevame: "[title='Llevame'], role=link[name*='Llevame']"
+      hoja: "dialog.ra-llevame"
+      titulo: "#llevame-titulo"
+      volver: "dialog.ra-llevame [aria-label='Volver']"
+      abrir_maps: "role=link[name='Abrir en Google Maps']"
+    faltan_testids: ["llevame-boton"]
+    datos_prueba: {ubicacion: "sede simulada por modo prueba (ej. Venetian)"}
+    complejidad: media
+    requiere: [geolocalizacion, google_maps, red]
+    fuentes: ["web/js/llevame.js", "web/js/llevamePuro.js", "web/js/location.js (GoThere, GoThereParts)", "web/js/map.js", "app/itinerary_api.py (/api/maps-key)"]
+
+  # --- Eventos -----------------------------------------------------------------------------------
+
+  - id: eventos-networking
+    nombre: "Eventos de networking: lista, filtros y ficha"
+    audiencia: usuario
+    ruta: "#/eventos (ficha: #/evento/{code})"
+    precondiciones: ["usuario tester logueado", "eventos cargados"]
+    pasos:
+      - "tocar Eventos en la barra"
+      - "filtrar por día, tipo, «Desde las …» y «↕ Más cerca»"
+      - "abrir un evento: de qué se trata, cuándo y dónde, organizadores"
+      - "«Agregar» al itinerario o ir al link de inscripción"
+    selectores:
+      nav_eventos: "a.navitem[href='#/eventos']"
+      tabs: "[aria-label='Qué eventos ver']"
+      dias: "[aria-label='Día']"
+      tipos: "[aria-label='Tipo de evento']"
+      mas_cerca: "role=button[name='↕ Más cerca']"
+      evento: "a.ra-link[href^='#/evento/']"
+      agregar: "role=button[name='+ Itinerario']"
+      volver: "role=link[name='← Eventos']"
+    faltan_testids: ["evento-card", "evento-inscripcion"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red, geolocalizacion]
+    fuentes: ["web/js/events.js (viewEventos, viewEvento, EventCard)", "web/js/eventosTodas.js", "app/events.py", "app/events_api.py", "app/eventos_auto.py"]
+
+  - id: shows
+    nombre: "Shows de Las Vegas: lista, funciones y «¿Cuándo nos conviene?»"
+    audiencia: usuario
+    ruta: "#/eventos/shows (ficha: #/show/{id})"
+    precondiciones: ["usuario tester logueado", "Ticketmaster habilitado en el entorno (si no, no aparece la pestaña)"]
+    pasos:
+      - "Eventos → pestaña Shows"
+      - "filtrar por día, tipo y cercanía"
+      - "abrir un show, elegir la función"
+      - "ver «¿Cuándo nos conviene?» según tu itinerario y «Ver esta función»"
+      - "agregar la función al itinerario o ir a Ticketmaster"
+    selectores:
+      tab_shows: "role=tab[name='Shows']"
+      tipos: "[aria-label='Tipo de show']"
+      funciones: "[aria-label='Función']"
+      ver_funcion: "role=button[name='Ver esta función']"
+      volver: "role=link[name='← Shows']"
+    faltan_testids: ["show-card", "show-agregar-funcion", "show-ticketmaster"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [red, geolocalizacion]
+    fuentes: ["web/js/shows.js (ShowsPanel, viewShow, CuandoSection)", "app/shows.py", "app/shows_api.py", "app/shows_recomendador.py", "app/ticketmaster.py"]
+
+  # --- Viaje -------------------------------------------------------------------------------------
+
+  - id: viaje-hub
+    nombre: "Viaje: entrada a comer, gastos, ofertas y vuelos/hoteles"
+    audiencia: usuario
+    ruta: "#/viaje"
+    precondiciones: ["usuario tester logueado"]
+    pasos: ["tocar Viaje en la barra", "elegir una de las cuatro tarjetas"]
+    selectores:
+      nav_viaje: "a.navitem[href='#/viaje']"
+      comer: "a.ra-card[href='#/comer']"
+      gastos: "a.ra-card[href='#/gastos']"
+      ofertas: "a.ra-card[href='#/ofertas']"
+      viajes: "a.ra-card[href='#/viajes']"
+    faltan_testids: []
+    datos_prueba: {}
+    complejidad: baja
+    requiere: []
+    fuentes: ["web/js/viaje.js"]
+
+  - id: comer-barato
+    nombre: "Dónde comer barato cerca"
+    audiencia: usuario
+    ruta: "#/comer"
+    precondiciones: ["usuario tester logueado", "ubicación prendida o una próxima sesión en el itinerario"]
+    pasos: ["Viaje → «Dónde comer barato»", "elegir precio ($ / $$) y minutos caminando (5/10/15)", "ver lugares con puntaje, reseñas y si está abierto", "tocar Llevame"]
+    selectores:
+      precio: "[aria-label='Precio'] button"
+      distancia: "[aria-label='Distancia caminando'] button"
+      hasta_10: "[aria-label='Hasta 10 minutos caminando']"
+      volver: "a.ra-back[href='#/viaje']"
+    faltan_testids: ["comer-lugar"]
+    datos_prueba: {precio: "$$", minutos: 10}
+    complejidad: baja
+    requiere: [red, geolocalizacion, google_maps]
+    fuentes: ["web/js/comer.js", "app/comer_api.py", "app/places.py"]
+
+  - id: gastos
+    nombre: "Gastos del viaje (carga rápida, presupuesto, cotización y reintegrables)"
+    audiencia: usuario
+    ruta: "#/gastos"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Viaje → Gastos"
+      - "«Cargar gasto»: monto, USD/ARS, categoría, nota, día, reintegrable, individual/compartido"
+      - "opcional: «Sacar foto del ticket» o «Elegir de la galería»"
+      - "«Guardar gasto» (anda sin señal y se sincroniza después)"
+      - "ver Hoy, Total del viaje, cotización (oficial, blue, tarjeta) y por categoría"
+      - "«Presupuesto» para fijar topes; «Exportar reintegrables» (CSV)"
+      - "tocar un gasto para editarlo o borrarlo"
+    selectores:
+      cargar: "role=button[name='Cargar gasto']"
+      monto: "#g-monto"
+      moneda: "[aria-label='Moneda'] button"
+      categoria: "[aria-label='Categoría'] button"
+      nota: "#g-nota"
+      fecha: "#g-fecha"
+      reintegrable: "[aria-label='Reintegrable'] button"
+      guardar: "role=button[name='Guardar gasto']"
+      presupuesto: "role=button[name='Presupuesto']"
+      presupuesto_total: "#p-total"
+      presupuesto_diario: "#p-diario"
+      exportar: "role=button[name='Exportar reintegrables']"
+      sincronizar: "role=button[name='Sincronizar ahora']"
+      fila: "button.ra-g-fila"
+    faltan_testids: ["gastos-resumen", "gastos-foto-camara", "gastos-foto-galeria"]
+    datos_prueba: {monto: "14,10", moneda: "USD", categoria: "comida", nota: "Almuerzo", presupuesto_total: 1500, presupuesto_diario: 150}
+    complejidad: media
+    requiere: [red, camara]
+    fuentes: ["web/js/gastos.js", "web/js/gastosCola.js", "web/css/gastos.css", "app/gastos.py", "app/gastos_api.py", "app/cotizacion.py"]
+
+  - id: ofertas
+    nombre: "Ofertas de la semana (lista, filtro y ficha)"
+    audiencia: usuario
+    ruta: "#/ofertas (ficha: #/ofertas/{id})"
+    precondiciones: ["usuario tester logueado", "ofertas vigentes cargadas"]
+    pasos: ["Viaje → Ofertas", "filtrar por categoría (Todas, Shows, Comida, Compras y outlets, Otros)", "abrir una oferta; «Ver el show» si es baja de precio"]
+    selectores:
+      categorias: "[aria-label='Categoría']"
+      categoria_comida: "button[data-valor='comida']"
+      oferta: "article[id^='oferta-']"
+      ver_show: "role=link[name='Ver el show']"
+    faltan_testids: []
+    datos_prueba: {oferta: "una oferta manual de prueba cargada por admin"}
+    complejidad: baja
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/ofertas.js (viewOfertas, viewOferta)", "app/ofertas.py", "app/ofertas_api.py", "app/ofertas_avisos.py"]
+
+  - id: vuelos-y-hoteles
+    nombre: "Vuelos y hoteles con avisos de check-in, demora y puerta"
+    audiencia: usuario
+    ruta: "#/viajes (foco: #/viajes/vuelo/{id}, #/viajes/hotel/{id})"
+    precondiciones: ["usuario tester logueado"]
+    pasos:
+      - "Viaje → «Vuelos y hoteles»"
+      - "«Agregar un vuelo»: número, aerolínea, fecha, hora, sale de → «Agregar vuelo»"
+      - "«Agregar un hotel»: nombre, dirección, check-in, check-out → «Agregar hotel»"
+      - "tocar un vuelo: «Hacer check-in» o «Quitar»"
+    selectores:
+      agregar_vuelo_plegable: "text=Agregar un vuelo"
+      agregar_vuelo: "role=button[name='Agregar vuelo']"
+      agregar_hotel_plegable: "text=Agregar un hotel"
+      agregar_hotel: "role=button[name='Agregar hotel']"
+      vuelo: "article[id^='vuelo-']"
+      hotel: "article[id^='hotel-']"
+      checkin: "role=link[name='Hacer check-in']"
+    faltan_testids: ["vuelo-numero", "vuelo-fecha", "vuelo-origen", "hotel-nombre", "hotel-checkin", "hotel-checkout"]
+    datos_prueba: {vuelo: "AR1302", fecha: "2026-11-29", hotel: "Hotel de prueba", nota: "los inputs tienen id autogenerado viajes-campo-N (no estable)"}
+    complejidad: media
+    requiere: [red, push]
+    fuentes: ["web/js/viajes.js", "app/travel.py", "app/vuelos.py", "app/viajes_api.py", "app/viajes_avisos.py"]
+
+  # --- Transversales -----------------------------------------------------------------------------
+
+  - id: modo-sin-senal
+    nombre: "Sin señal: la app muestra la última copia (Hoy, itinerario, grabaciones, ajustes)"
+    audiencia: usuario
+    ruta: "#/, #/itinerario, #/ajustes"
+    precondiciones: ["usuario tester logueado", "haber abierto esas pantallas con red antes"]
+    pasos: ["cortar la red", "abrir Inicio o Itinerario: aparece «Sin señal · datos de las HH:MM»", "volver a tener red: se actualiza sola"]
+    selectores:
+      aviso: "text=Sin señal"
+    faltan_testids: ["sin-senal-aviso"]
+    datos_prueba: {}
+    complejidad: media
+    requiere: [red, datos_previos]
+    fuentes: ["web/js/sinSenal.js", "web/js/lastgood.js", "web/js/api.js (apiConUltimaCopia)", "web/sw.js"]
+
+  # --- Administración ----------------------------------------------------------------------------
+
+  - id: admin-estado
+    nombre: "Admin › Estado: requiere atención, KPIs, chequeo funcional y catálogo"
+    audiencia: admin
+    ruta: "#/admin"
+    precondiciones: ["usuario admin logueado (tester no es admin salvo que se lo den)"]
+    pasos:
+      - "Ajustes → «Administración»"
+      - "ver «Requiere atención» y los KPIs (usuarios activos, grabaciones, charlas nuevas 24 h, costo LLM 7 días)"
+      - "«Correr todo» en el chequeo funcional"
+      - "«Recargar catálogo»"
+      - "Herramientas → «Borrar datos de prueba» (con confirmación)"
+    selectores:
+      abrir: "role=button[name='Administración']"
+      tabs: "[aria-label='Secciones de administración']"
+      atencion: "#adm-atencion"
+      kpis: "[aria-label='Resumen de actividad']"
+      chequeo: "#adm-chequeo"
+      correr: "role=button[name='Correr todo']"
+      catalogo: "#adm-catalogo"
+      recargar_catalogo: "role=button[name='Recargar catálogo']"
+      borrar_prueba: "role=button[name='Borrar datos de prueba']"
+    faltan_testids: ["admin-kpi", "admin-chequeo-fila"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/adminEstado.js", "web/js/adminAtencion.js", "web/js/adminUi.js", "web/js/adminTextos.js", "web/css/admin.css", "app/admin_api.py (/api/admin/usage, /check, /catalog/reload, /sandbox/data)", "app/healthcheck.py"]
+
+  - id: admin-usuarios
+    nombre: "Admin › Usuarios: alta, reseteo, cierre de sesiones y desactivar"
+    audiencia: admin
+    ruta: "#/admin/usuarios"
+    precondiciones: ["usuario admin logueado"]
+    pasos:
+      - "pestaña Usuarios"
+      - "«Nuevo usuario»: usuario y contraseña temporal → «Crear usuario»"
+      - "abrir la fila de un usuario"
+      - "«Resetear contraseña» (diálogo), «Cerrar sesiones», «Desactivar/Activar» (con confirmación)"
+    selectores:
+      tab: "a.ra-segtab[href='#/admin/usuarios']"
+      nuevo_form: "form[aria-label='Nuevo usuario']"
+      nuevo_usuario: "#new-username"
+      nuevo_password: "#new-password"
+      crear: "role=button[name='Crear usuario']"
+      fila: "details.ra-adm-usuario"
+      resetear: "[data-accion='reset']"
+      revocar: "[data-accion='revocar']"
+      activo: "[data-accion='activo']"
+      dialogo_input: "#dlg-input"
+    faltan_testids: ["admin-usuario-fila (data-accion ya sirve para las acciones)"]
+    datos_prueba: {usuario_nuevo: "demo-usuario", contrasena_temporal: "<generada en el momento, no en el repo>"}
+    complejidad: media
+    requiere: [red]
+    fuentes: ["web/js/adminUsuarios.js (UserRow, NewUserForm)", "web/js/dialog.js", "app/admin_api.py (/api/admin/users…)"]
+
+  - id: admin-modo-prueba
+    nombre: "Admin › Usuarios › Modo prueba (STT/LLM fake, reloj y ubicación simulados)"
+    audiencia: admin
+    ruta: "#/admin/usuarios"
+    precondiciones: ["usuario admin logueado", "catálogo con sedes (para la ubicación simulada)"]
+    pasos:
+      - "abrir la fila del usuario tester"
+      - "marcar «Modo prueba activo», STT y LLM en fake"
+      - "«Simular la hora (Las Vegas)» con fecha/hora y elegir Ubicación"
+      - "«Guardar»; después «+15 min» / «+1 h» para adelantar el reloj"
+      - "el usuario ve la franja «MODO PRUEBA · …» arriba"
+    selectores:
+      activo: "#sb-on-tester"
+      stt: "#sb-stt-tester"
+      llm: "#sb-llm-tester"
+      usar_reloj: "#sb-clk-tester"
+      reloj: "#sb-time-tester"
+      ubicacion: "#sb-venue-tester"
+      guardar: "[data-accion='sb-guardar']"
+      mas_15: "[data-accion='sb-15']"
+      mas_60: "[data-accion='sb-60']"
+      franja_usuario: "#sandbox-banner"
+    faltan_testids: []
+    datos_prueba: {reloj: "2026-12-01T09:00", ubicacion: "Venetian", stt: "fake", llm: "fake"}
+    complejidad: media
+    requiere: [red]
+    fuentes: ["web/js/adminUsuarios.js (SandboxPanel)", "web/js/sandbox.js", "app/sandbox.py", "app/admin_api.py (/sandbox, /sandbox/advance, /api/admin/venues)"]
+
+  - id: admin-eventos
+    nombre: "Admin › Eventos: fuentes, revisar ahora, agregar por link y charlas nuevas"
+    audiencia: admin
+    ruta: "#/admin/eventos"
+    precondiciones: ["usuario admin logueado", "EVENTOS_AUTO activo en el entorno (si no, se ve apagado)"]
+    pasos:
+      - "pestaña Eventos: ver el estado de cada fuente"
+      - "«Revisar ahora» (queda «Revisando…» hasta que termina)"
+      - "«Agregar evento por link»: pegar URL → «Ver cómo queda» → revisar fecha/hora → «Guardar evento»"
+      - "buscar y filtrar por track las charlas nuevas del catálogo oficial"
+      - "abrir «Cargados por link»"
+    selectores:
+      tab: "a.ra-segtab[href='#/admin/eventos']"
+      fuentes: "#ev-fuentes-h"
+      revisar: "role=button[name='Revisar ahora']"
+      link: "#ev-link"
+      ver_como_queda: "role=button[name='Ver cómo queda']"
+      fecha: "#ev-fecha"
+      inicio: "#ev-inicio"
+      resumen: "#ev-resumen"
+      guardar: "role=button[name='Guardar evento']"
+      charlas_nuevas: "#ev-charlas-h"
+      buscar_charlas: "#ev-q"
+      tracks: "[aria-label='Filtrar por track']"
+    faltan_testids: ["admin-eventos-fuente", "admin-eventos-charla-nueva"]
+    datos_prueba: {link: "URL pública de un evento de prueba (no Luma)"}
+    complejidad: media
+    requiere: [red, llm]
+    fuentes: ["web/js/adminEventos.js", "web/js/adminCharlas.js", "web/js/adminAtencion.js (estadoFuente)", "app/admin_api.py (/api/admin/eventos…)", "app/eventos_auto.py", "app/eventos_link.py", "app/eventos_fuentes.py", "app/charlas_auto.py"]
+
+  - id: admin-ofertas
+    nombre: "Admin › Ofertas: cargar y dar de baja"
+    audiencia: admin
+    ruta: "#/admin/ofertas"
+    precondiciones: ["usuario admin logueado"]
+    pasos:
+      - "pestaña Ofertas (o «Cargar ofertas» desde #/ofertas)"
+      - "abrir «Cargar oferta»: título, categoría, lugar, desde/hasta, link, nota → «Guardar oferta»"
+      - "«Mostrar también las vencidas»"
+      - "«Dar de baja» con confirmación"
+    selectores:
+      tab: "a.ra-segtab[href='#/admin/ofertas']"
+      form: "form[aria-label='Cargar oferta']"
+      titulo: "#of-titulo"
+      categoria: "#of-categoria"
+      lugar: "#of-lugar"
+      desde: "#of-desde"
+      hasta: "#of-hasta"
+      link: "#of-link"
+      nota: "#of-nota"
+      guardar: "role=button[name='Guardar oferta']"
+      vencidas: "#of-pasadas"
+      dar_de_baja: "[aria-label^='Dar de baja ']"
+    faltan_testids: []
+    datos_prueba: {titulo: "2x1 en tragos", categoria: "comida", lugar: "Bar del lobby, Venetian"}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/adminOfertas.js", "app/ofertas_api.py (/api/ofertas/admin…)", "app/ofertas_avisos.py"]
+
+  - id: admin-llm
+    nombre: "Admin › LLM: costo, demora, errores y calidad (Langfuse)"
+    audiencia: admin
+    ruta: "#/admin/llm"
+    precondiciones: ["usuario admin logueado", "Langfuse configurado en el entorno (si no, avisa que no está disponible)"]
+    pasos: ["pestaña LLM", "ver KPIs, costo por tarea y por día, latencia/errores y scores", "«Actualizar»", "«Abrir en Langfuse»"]
+    selectores:
+      tab: "a.ra-segtab[href='#/admin/llm']"
+      resumen: "[aria-label='Resumen del LLM']"
+      actualizar: "role=button[name='Actualizar']"
+      langfuse: "role=link[name='Abrir en Langfuse']"
+    faltan_testids: ["admin-llm-kpi", "admin-llm-tarea"]
+    datos_prueba: {}
+    complejidad: baja
+    requiere: [red]
+    fuentes: ["web/js/adminLlm.js", "app/langfuse_metricas.py", "app/langfuse_scores.py", "app/admin_api.py (/api/admin/llm)"]

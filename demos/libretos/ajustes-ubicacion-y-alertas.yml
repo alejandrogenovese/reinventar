@@ -1,0 +1,36 @@
+feature: ajustes-ubicacion-y-alertas
+titulo: "Ubicación y alertas a tu medida"
+beneficio: "Sabés a cuánto queda cada charla y cuándo salir."
+ruta: "#/ajustes"
+notas: >-
+  Geolocalización simulada: conceder el permiso "geolocation" y fijar coordenadas en el contexto
+  (por ejemplo, el Venetian). Arrancar con «Usar mi ubicación» apagada (sin la preferencia en localStorage):
+  si ya está prendida, el click de la escena 4 la apaga.
+  Los campos de minutos guardan en el evento change (al perder el foco): el fill de la escena 3 y el click
+  de la 4 sacan el foco del campo anterior; ahí sale el aviso «Alertas guardadas».
+escenas:
+  - id: 1
+    accion: "goto #/ajustes"
+    narracion: "En Ajustes decidís cuánto margen querés para moverte entre charlas."
+    subtitulo: "En Ajustes decidís cuánto margen querés\npara moverte entre charlas."
+    duracion_s: 6
+  - id: 2
+    accion: "fill #leave-margin \"10\""
+    narracion: "Fijás tu margen para salir: diez minutos, por ejemplo."
+    subtitulo: "Fijás tu margen para salir:\ndiez minutos, por ejemplo."
+    duracion_s: 5
+  - id: 3
+    accion: "fill #start-notice \"5\""
+    narracion: "Y cuántos minutos antes querés el aviso de que algo empieza."
+    subtitulo: "Y cuántos minutos antes querés\nel aviso de que algo empieza."
+    duracion_s: 6
+  - id: 4
+    accion: "click #use-location"
+    narracion: "Prendés tu ubicación y ves a cuánto queda cada charla y cuándo salir."
+    subtitulo: "Con tu ubicación ves a cuánto queda\ncada charla y cuándo salir."
+    duracion_s: 7
+  - id: 5
+    accion: "wait 3"
+    narracion: "Las alertas son para lo que fijaste en el itinerario. Y tus coordenadas nunca salen del celular."
+    subtitulo: "Tus coordenadas nunca\nsalen del celular."
+    duracion_s: 8

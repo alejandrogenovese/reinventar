@@ -89,6 +89,11 @@ VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")
 VAPID_PRIVATE_KEY = _env("VAPID_PRIVATE_KEY")
 VAPID_SUBJECT = _env("VAPID_SUBJECT", "mailto:admin@example.com")
 
+# Estado de vuelos (app/vuelos.py), vía AeroDataBox en api.market. Sin la clave no hay alertas de demora ni de puerta:
+# el resto de los avisos de viajes anda igual. El tope corta las consultas del día (cuidan la cuota del plan).
+AERODATABOX_API_KEY = _env("AERODATABOX_API_KEY")
+AERODATABOX_TOPE_DIARIO = int(_env("AERODATABOX_TOPE_DIARIO", "150"))
+
 # Entorno de Railway: "production" en producción. Va como tag (prod/dev) en las trazas de Langfuse (app/trazas.py).
 RAILWAY_ENVIRONMENT_NAME = _env("RAILWAY_ENVIRONMENT_NAME")
 # Pisa el tag de entorno de las trazas y los scores: el servicio de staging vive en el mismo entorno de Railway que
@@ -110,7 +115,43 @@ EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
 EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
 EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima
 
+# Control de gastos del viaje (app/gastos.py, app/cotizacion.py, app/tickets_almacen.py).
+# Dólar tarjeta = dólar oficial (venta) × este factor. Es el recargo de percepciones sobre los consumos en dólares con
+# tarjeta (hoy 30 %): si cambia, se ajusta acá sin tocar código. Los gastos ya cargados conservan su cotización congelada.
+TARJETA_FACTOR = float(_env("TARJETA_FACTOR", "1.30"))
+# Hay entorno de Railway (producción y staging): ahí se exige bucket para las fotos y se avisa si falta FOTOS_LINK_SECRET.
+EN_PRODUCCION = bool(RAILWAY_ENVIRONMENT_NAME)
+# Actualización de la cotización cada tanto en segundo plano (y una al arrancar). Prendida salvo COTIZACION_AUTO=0;
+# tests/conftest.py la apaga para que los tests no peguen a la red. No depende de ningún proveedor de STT/LLM.
+COTIZACION_AUTO = _env("COTIZACION_AUTO", "1") == "1"
+COTIZACION_MINUTOS = float(_env("COTIZACION_MINUTOS", "30"))
+# Fotos de ticket: bucket S3-compatible (el de Railway) si están las cinco variables; si no, disco local (dev y tests).
+TICKETS_S3_ENDPOINT = _env("TICKETS_S3_ENDPOINT")
+TICKETS_S3_BUCKET = _env("TICKETS_S3_BUCKET")
+TICKETS_S3_KEY_ID = _env("TICKETS_S3_KEY_ID")
+TICKETS_S3_SECRET = _env("TICKETS_S3_SECRET")
+TICKETS_S3_REGION = _env("TICKETS_S3_REGION")
+# Videos demo (galería pública /demos/, app/demos.py): su propio bucket. Sin las cinco variables, la galería dice que no
+# hay demos (así está en producción hasta que se carguen).
+DEMOS_S3_ENDPOINT = _env("DEMOS_S3_ENDPOINT")
+DEMOS_S3_BUCKET = _env("DEMOS_S3_BUCKET")
+DEMOS_S3_KEY_ID = _env("DEMOS_S3_KEY_ID")
+DEMOS_S3_SECRET = _env("DEMOS_S3_SECRET")
+DEMOS_S3_REGION = _env("DEMOS_S3_REGION")
+DEMOS_LINK_HORAS = float(_env("DEMOS_LINK_HORAS", "6"))  # cuánto vale un link firmado a un video
+# Links firmados a las fotos del CSV de reintegros (app/gastos_links.py). Sin FOTOS_LINK_SECRET se deriva de DATABASE_URL.
+FOTOS_LINK_SECRET = _env("FOTOS_LINK_SECRET")
+FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "30"))
+TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
+
 # Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de
 # la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
 # se loguea (ver app/ticketmaster.py).
 TICKETMASTER_API_KEY = _env("TICKETMASTER_API_KEY")
+
+# Alertas de ofertas por push (app/ofertas.py y app/ofertas_avisos.py).
+OFERTAS_MAX_POR_DIA = int(_env("OFERTAS_MAX_POR_DIA", "3"))        # push de ofertas por persona y por día (Las Vegas)
+OFERTAS_VENTANA_HORAS = float(_env("OFERTAS_VENTANA_HORAS", "12"))  # una oferta que arrancó hace más que esto ya no se avisa
+OFERTAS_SNAPSHOT_HORAS = float(_env("OFERTAS_SNAPSHOT_HORAS", "6"))  # cada cuánto se miran los precios de los shows
+OFERTAS_BAJA_PORCENTAJE = float(_env("OFERTAS_BAJA_PORCENTAJE", "15"))  # una baja de precio es oferta desde este %...
+OFERTAS_BAJA_USD = float(_env("OFERTAS_BAJA_USD", "20"))           # ...o desde estos dólares

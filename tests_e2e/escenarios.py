@@ -2,6 +2,7 @@
 contexto y falla con AssertionError diciendo qué no pasó. Van en orden: el 3 sigue lo que dejó el 2."""
 import asyncio
 import json
+import math
 import time
 from dataclasses import dataclass
 
@@ -210,6 +211,111 @@ async def escenario_6_cierre_diferido(c: Contexto) -> None:
     await p.esperar("!document.body.innerText.includes('Grabadas en este celular')", "la tarjeta local desapareció", 20)
 
 
+# La API de gastos (PR del backend) no está en esta rama: el escenario 7 la simula en la página (fetch) con la forma real
+# de sus respuestas (app/gastos.py: aplicados, cambios con el gasto completo y ahora) y solo comprueba lo que hace el front.
+STUB_GASTOS = """(() => {
+  window.__sync = [];
+  const original = window.fetch.bind(window);
+  const json = (cuerpo) => new Response(JSON.stringify(cuerpo), { status: 200, headers: { "content-type": "application/json" } });
+  const delServidor = (c) => ({ ...c, cotizacion_oficial: 1000, cotizacion_blue: 1200, cotizacion_tarjeta: 1300,
+    monto_usd: c.moneda === 'USD' ? c.monto : Math.round(c.monto / 13) / 100, foto_url: null });
+  window.fetch = async (url, init = {}) => {
+    const ruta = String(url);
+    if (!ruta.startsWith('/api/gastos')) return original(url, init);
+    if (!navigator.onLine) throw new TypeError('Failed to fetch');
+    if (ruta.startsWith('/api/gastos/cotizacion')) return json({ oficial: 1000, blue: 1200, tarjeta: 1300, at: new Date().toISOString() });
+    if (ruta.startsWith('/api/gastos/sync')) {
+      const cuerpo = JSON.parse(init.body);
+      const ahora = new Date().toISOString();
+      window.__sync.push({ ...cuerpo, ahora });
+      return json({ aplicados: cuerpo.cambios.map((c) => c.client_id), cambios: cuerpo.cambios.map(delServidor), ahora });
+    }
+    return json({ gastos: [], totales: { usd: 0, por_categoria: {}, por_dia: {} }, presupuesto: { total_usd: 1000, diario_usd: 100, por_categoria: {} } });
+  };
+})()"""
+BOTON_POR_TEXTO = "[...document.querySelectorAll('button')].find(b => b.textContent.trim() === {texto})"
+ESPERA_SYNC_GASTOS_S = 30
+ESPERA_ANIMACION_HOJA_S = 1
+
+
+async def escenario_9_gasto_sin_red(c: Contexto) -> None:
+    """Un gasto cargado sin señal queda en el celular como «Sin sincronizar» y viaja una sola vez al volver la red."""
+    p = c.pagina
+    await p.offline(False)
+    await _ir_a(p, "#/ajustes")
+    await p.esperar("document.body.innerText.includes('Conectado como')", "Ajustes cargado")
+    await p.evaluar(STUB_GASTOS)
+    await _ir_a(p, "#/gastos")
+    await p.esperar("document.body.innerText.includes('Todavía no cargaste gastos')", "la pantalla de Gastos vacía")
+    await p.offline(True)
+    await p.tocar(BOTON_POR_TEXTO.format(texto=json.dumps("Cargar gasto")))
+    await p.esperar("!!document.querySelector('dialog[open] #g-monto')", "la hoja de carga")
+    await asyncio.sleep(ESPERA_ANIMACION_HOJA_S)  # la hoja sube con animación: el toque real calcula el centro del botón antes
+    await p.evaluar("(() => { const m = document.querySelector('#g-monto'); m.value = '14,10'; m.dispatchEvent(new Event('input')); document.querySelector('#g-nota').value = 'Café E2E'; })()")
+    await p.tocar(BOTON_POR_TEXTO.format(texto=json.dumps("Guardar gasto")))
+    await p.esperar("!document.querySelector('dialog[open]')", "la hoja cerrada tras guardar")
+    await p.esperar("document.body.innerText.includes('Café E2E') && document.body.innerText.includes('Sin sincronizar')",
+                    "el gasto en la lista, marcado «Sin sincronizar»")
+    enviados = "window.__sync.flatMap((s) => s.cambios).length"  # el sync al abrir la pantalla (con red) iba con la lista vacía
+    assert await p.evaluar(enviados) == 0, "sin señal no debía haber salido ningún gasto"
+    await p.offline(False)
+    await p.esperar(f"{enviados} > 0", "el gasto sale al volver la red", ESPERA_SYNC_GASTOS_S)
+    await p.esperar("!document.body.innerText.includes('Sin sincronizar')", "el gasto ya sin la marca «Sin sincronizar»", ESPERA_SYNC_GASTOS_S)
+    cambios = await p.evaluar("window.__sync.flatMap((s) => s.cambios)")
+    assert len(cambios) == 1, f"el gasto debía viajar una sola vez y viajó {len(cambios)}: {cambios}"
+    assert math.isclose(cambios[0]["monto"], 14.1, abs_tol=0.005), cambios[0]
+    assert cambios[0]["moneda"] == "USD" and cambios[0]["nota"] == "Café E2E", cambios[0]
+    assert len(cambios[0]["client_id"]) == 36, f"el client_id debía ser un UUID: {cambios[0]['client_id']}"
+    # El cursor del próximo sync es el `ahora` que devolvió el servidor, no el reloj del teléfono.
+    await p.evaluar("document.dispatchEvent(new Event('visibilitychange'))")
+    await p.esperar("window.__sync.length >= 2", "otro sync al volver a primer plano", ESPERA_SYNC_GASTOS_S)
+    syncs = await p.evaluar("window.__sync")
+    assert syncs[-1]["desde"] == syncs[-2]["ahora"], f"el desde debía ser el ahora del servidor: {syncs[-2:]}"
+# ---------- alertas de ofertas (app/ofertas.py) ----------
+
+TEXTO_BLOQUEADAS = "Las notificaciones están bloqueadas"
+ESPERA_NOTIFICACION_S = 15
+
+
+async def _permiso_notificaciones(p: Pagina, valor: str) -> None:
+    await p.cdp.enviar("Browser.setPermission", {"permission": {"name": "notifications"}, "setting": valor, "origin": p.origen})
+
+
+async def escenario_7_ofertas_con_permiso_denegado(c: Contexto) -> None:
+    """Con las notificaciones bloqueadas, activar las alertas explica cómo habilitarlas y deja el interruptor apagado."""
+    p = c.pagina
+    await _permiso_notificaciones(p, "denied")
+    await _ir_a(p, "#/ajustes")
+    await p.esperar("(() => { const i = document.getElementById('ofertas-on'); return !!i && !i.disabled; })()", "el interruptor de ofertas listo")
+    await p.tocar("document.getElementById('ofertas-on')")
+    await p.esperar(f"document.body.innerText.includes({json.dumps(TEXTO_BLOQUEADAS)})", "la explicación de cómo habilitar las notificaciones")
+    assert not await p.evaluar("document.getElementById('ofertas-on').checked"), "con el permiso denegado el interruptor debía quedar apagado"
+    assert c.servidor.pedir("/api/ofertas/preferencias")["activas"] is False, "no debía guardarse la preferencia"  # type: ignore[index]
+
+
+async def escenario_8_push_de_oferta_abre_la_oferta(c: Contexto) -> None:
+    """Llega un push de oferta (simulado con ServiceWorker.deliverPushMessage): el service worker muestra la notificación
+    con la ruta de la oferta y esa ruta abre la pantalla dentro de la app. El toque sobre la notificación en sí no se puede
+    simular en Chromium sin cabeza: se verifica `data.url`, que es lo que abre notificationclick (web/sw.js)."""
+    p = c.pagina
+    await _permiso_notificaciones(p, "granted")
+    await _ir_a(p, "#/ofertas")
+    await p.esperar("document.body.innerText.includes('Ofertas')", "la pantalla Ofertas")
+    registro = asyncio.get_running_loop().create_future()
+    p.cdp.en("ServiceWorker.workerRegistrationUpdated",
+             lambda r: registro.done() or (r["registrations"] and registro.set_result(r["registrations"][0]["registrationId"])), p.sesion)
+    await p._enviar("ServiceWorker.enable")
+    async with asyncio.timeout(ESPERA_NOTIFICACION_S):
+        id_registro = await registro
+    mensaje = {"title": "2x1 en tragos", "body": "Venetian", "url": "/#/ofertas/no-existe", "tag": "oferta:no-existe"}
+    await p._enviar("ServiceWorker.deliverPushMessage", {"origin": p.origen, "registrationId": id_registro, "data": json.dumps(mensaje)})
+    url = await p.esperar("navigator.serviceWorker.ready.then(r => r.getNotifications()).then(n => n[0]?.data?.url || null)",
+                          "la notificación de la oferta", ESPERA_NOTIFICACION_S)
+    assert url == "/#/ofertas/no-existe", f"la notificación debía abrir la oferta y trae {url!r}"
+    await _ir_a(p, url.removeprefix("/"))
+    await p.esperar("document.body.innerText.includes('Esta oferta ya no está disponible')", "la ruta de la oferta abre dentro de la app")
+
+
 ESCENARIOS = (
     ("1 · franja «Sin señal» al recargar sin red", escenario_1_franja_sin_senal),
     ("2 · grabar sin red y terminar", escenario_2_grabar_sin_red),
@@ -217,4 +323,7 @@ ESCENARIOS = (
     ("4 · portal cautivo en /api/", escenario_4_portal_cautivo),
     ("5 · ver y ocultar la contraseña en el login", escenario_5_ver_contrasena_en_el_login),
     ("6 · terminar sin red una sesión ya creada y cerrarla al volver", escenario_6_cierre_diferido),
+    ("7 · alertas de ofertas con el permiso denegado", escenario_7_ofertas_con_permiso_denegado),
+    ("8 · el push de una oferta abre la oferta", escenario_8_push_de_oferta_abre_la_oferta),
+    ("9 · cargar un gasto sin red y sincronizarlo al volver", escenario_9_gasto_sin_red),
 )

@@ -36,6 +36,11 @@ export const shortDay = (iso) => (iso
   ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" }).replace(/[.,]/g, "")
   : "");
 
+/** "2026-11-30" → "lunes 30 de noviembre" (a mediodía, para que la zona horaria no corra el día). */
+export const longDay = (iso) => (iso
+  ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" }).replace(",", "")
+  : "");
+
 // Idioma del resumen que eligió la persona ("es" traducido, "en" original); queda guardado en este celular.
 const ABSTRACT_LANG = "ra.abstract-lang";
 const abstractLang = () => { try { return localStorage.getItem(ABSTRACT_LANG) || "es"; } catch { return "es"; } };
@@ -293,6 +298,7 @@ export async function viewItinerario(view) {
         Button(IconText("agregar", "Mi evento"), { onclick: () => (location.hash = "#/mi-evento/nuevo") }),
         Button("Pasar a mi calendario", { onclick: () => toastOnError(exportCalendar()) }),
         Button("Importar reservas de AWS", { title: "El calendario (.ics) que exportás desde tu agenda del portal de re:Invent", onclick: () => importReservations(paint) }),
+        Button("Cruzar con mi Excel", { title: "Subí un Excel o CSV con los códigos que querés y mirá cuáles te faltan registrar", onclick: () => (location.hash = "#/itinerario/excel") }),
         Button("Buscar sesiones", { onclick: () => (location.hash = "#/buscar") })),
       data.notes ? h("p", { class: "caption" }, data.notes) : null,
       mapEl, tabs, dayHeading, list,
@@ -309,11 +315,11 @@ export async function viewItinerario(view) {
 
     function paintTabs() {
       tabs.replaceChildren(...data.days.map((d, i) =>
-        h("button", { class: "ra-tab", role: "tab", "aria-selected": String(i === dayIndex), onclick: () => { dayIndex = i; paintTabs(); paintList(); mapEl._api?.update(dayIndex); } }, d.day)));
+        h("button", { class: "ra-tab", role: "tab", "aria-selected": String(i === dayIndex), onclick: () => { dayIndex = i; paintTabs(); paintList(); mapEl._api?.update(dayIndex); } }, shortDay(d.day))));
     }
     function paintList() {
       const day = data.days[dayIndex];
-      dayHeading.textContent = day ? `Tu agenda del ${day.day}` : "";
+      dayHeading.textContent = day ? `Tu agenda del ${longDay(day.day)}` : "";
       const sessions = day?.sessions || [];
       // Los avisos de «llena» llegan después: la lista se pinta ya y cada tarjeta los suma cuando están.
       const lugares = new Map(codigosDeCharlas(sessions).map((code) => [code, h("div", { hidden: true })]));

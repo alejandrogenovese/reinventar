@@ -1,0 +1,49 @@
+feature: buscar-filtrar
+titulo: "Buscar charlas con filtros"
+beneficio: "Pedí lo que buscás con tus palabras y la app lo filtra."
+ruta: "#/buscar"
+notas: >-
+  «Convertir en filtros» llama a /api/k/explore/parse: si no devuelve filtros, la app muestra un aviso y hay que
+  regrabar. «Agregar» suma una charla al itinerario del tester (otro toque la quita). Las facetas de la hoja de
+  Filtros no tienen selector propio (faltan_testids), por eso solo se abre y se cierra.
+escenas:
+  - id: 1
+    accion: "goto #/buscar"
+    narracion: "Hay miles de charlas en re:Invent. Buscar te ayuda a encontrar las tuyas en segundos."
+    subtitulo: "Miles de charlas en re:Invent:\nencontrá las tuyas en segundos."
+    duracion_s: 7
+  - id: 2
+    accion: "fill [aria-label='Buscar charlas'] \"bancos el martes\""
+    narracion: "Escribís lo que buscás como lo dirías vos: bancos el martes."
+    subtitulo: "Escribí lo que buscás,\ncomo lo dirías vos."
+    duracion_s: 6
+  - id: 3
+    accion: "click button.ra-suggest"
+    narracion: "Con Convertir en filtros, la app entiende tu pedido y lo traduce en filtros."
+    subtitulo: "La app entiende tu pedido\ny lo traduce en filtros."
+    duracion_s: 7
+  - id: 4
+    accion: "wait 3"
+    narracion: "Si no era lo que querías, lo deshacés con un toque."
+    subtitulo: "¿No era eso? Lo deshacés\ncon un toque."
+    duracion_s: 6
+  - id: 5
+    accion: "click button.ra-infield-btn"
+    narracion: "En Filtros afinás por día, sector, tipo, nivel o servicio de AWS, y ves cuántas charlas quedan."
+    subtitulo: "Afinás por día, sector, tipo,\nnivel o servicio de AWS."
+    duracion_s: 8
+  - id: 6
+    accion: "click [aria-label='Cerrar filtros']"
+    narracion: "Cerrás y seguís con la lista ya acotada."
+    subtitulo: "Cerrás y seguís con\nla lista ya acotada."
+    duracion_s: 5
+  - id: 7
+    accion: "click role=button[name='Agregar']"
+    narracion: "La que te interesa, la sumás a tu itinerario con Agregar. Queda marcada como Agregada."
+    subtitulo: "La que te interesa,\nla sumás a tu itinerario."
+    duracion_s: 7
+  - id: 8
+    accion: "wait 2"
+    narracion: "Listo: la charla ya está en tu agenda, y seguís buscando sin perder los filtros."
+    subtitulo: "Listo: ya está en tu agenda,\ny los filtros siguen ahí."
+    duracion_s: 7

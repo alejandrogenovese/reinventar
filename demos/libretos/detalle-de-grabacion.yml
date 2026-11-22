@@ -1,0 +1,58 @@
+feature: detalle-de-grabacion
+titulo: "Resumen y transcripción de tu charla"
+beneficio: "Lo importante de cada charla, en castellano y para llevártelo."
+ruta: "#/s/{id}"
+notas: >-
+  Datos previos: en staging se abre «CEO Keynote» (KEY002, ready y vinculada al catálogo). Si no, la primera grabación de Tus grabaciones ([aria-labelledby='grabaciones-title'] button.ra-reccard; no tiene que haber «Grabadas en este celular» antes) tiene que estar ready, vinculada a una
+  charla del catálogo (si no, no aparece «Ver la ficha de la charla») e idealmente con algún tramo sin audio.
+  Exportar .md descarga un archivo: habilitar acceptDownloads; no se ve ningún aviso en pantalla.
+  El voto se muestra con hover sobre role=button[name='Me sirvió'] (detail.js:18) y no se toca, para no
+  dejar un voto del tester. features.yml tenía mal voto_si/voto_no; ya están corregidos.
+  Compartir no se muestra: solo aparece donde el navegador puede compartir archivos (celular).
+  Eliminar no se toca (abre confirmación y borra de verdad). Los scroll en px son relativos a la posición actual.
+escenas:
+  - id: 1
+    accion: "goto #/"
+    narracion: "Saliste de una charla de una hora y querés lo importante, ya."
+    subtitulo: "Saliste de una charla de una hora\ny querés lo importante, ya."
+    duracion_s: 6
+  - id: 2
+    accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard:has-text('CEO Keynote')"
+    narracion: "Abrís la grabación y arrancás por el resumen."
+    subtitulo: "Abrís la grabación\ny arrancás por el resumen."
+    duracion_s: 5
+  - id: 3
+    accion: "scroll 400"
+    narracion: "TL;DR, anuncios, puntos clave y servicios en castellano, y las frases textuales del speaker."
+    subtitulo: "TL;DR y puntos clave en castellano;\nlas frases del speaker, textuales."
+    duracion_s: 7
+  - id: 4
+    accion: "hover role=button[name='Me sirvió']"
+    narracion: "Al final votás si te sirvió el resumen: nos ayuda a mejorarlos."
+    subtitulo: "Votás si te sirvió el resumen:\nnos ayuda a mejorarlos."
+    duracion_s: 6
+  - id: 5
+    accion: "click role=tab[name='Transcripción']"
+    narracion: "En Transcripción tenés cada bloque en castellano, con el original en inglés abajo."
+    subtitulo: "Cada bloque en castellano,\ncon el original en inglés abajo."
+    duracion_s: 7
+  - id: 6
+    accion: "scroll 600"
+    narracion: "Los tramos sin audio quedan marcados en su lugar, para que sepas dónde hubo un corte."
+    subtitulo: "Los tramos sin audio quedan marcados:\nsabés dónde hubo un corte."
+    duracion_s: 8
+  - id: 7
+    accion: "click [aria-label='Más acciones']"
+    narracion: "En el menú de arriba exportás el resumen en Markdown o borrás la grabación."
+    subtitulo: "Desde el menú exportás en Markdown\no borrás la grabación."
+    duracion_s: 7
+  - id: 8
+    accion: "click role=menuitem[name='Exportar .md']"
+    narracion: "Lo exportás y te queda el archivo para tus notas o para el equipo."
+    subtitulo: "Te queda el archivo para tus notas\no para el equipo."
+    duracion_s: 7
+  - id: 9
+    accion: "click a.ra-talklink"
+    narracion: "Y si está vinculada a una charla del catálogo, saltás a su ficha con un toque."
+    subtitulo: "Si está vinculada a una charla,\nsaltás a su ficha con un toque."
+    duracion_s: 8

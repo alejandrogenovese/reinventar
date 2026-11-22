@@ -1,0 +1,40 @@
+feature: vuelos-y-hoteles
+titulo: "Vuelos y hoteles, con avisos"
+beneficio: "Check-in, demoras y puerta de embarque, sin estar pendiente"
+ruta: "#/viajes"
+notas:
+  - "Antes de grabar, cargar a mano con el tester un vuelo (ej. AR1302, 2026-11-29, con hora y aerolínea conocida para que haya link de check-in) y un hotel de prueba. En pantalla no se completa el formulario: los campos tienen id autogenerado (viajes-campo-N) y faltan testids (vuelo-numero, vuelo-fecha, vuelo-origen, hotel-*)."
+  - "Reemplazar {id} de la escena 5 por el id de ese vuelo (#/viajes/vuelo/{id} abre la tarjeta con «Hacer check-in» y «Quitar»)."
+  - "«Hacer check-in» solo aparece si el servidor conoce la URL de check-in de la aerolínea. Las alertas de demora y puerta dependen de que el servidor tenga el estado de vuelos activo; si no, la pantalla lo avisa."
+  - "No hacer click en «Hacer check-in» (abre la web de la aerolínea en otra pestaña): solo hover."
+escenas:
+  - id: 1
+    accion: "goto #/viajes"
+    narracion: "Cargás tus vuelos y hoteles una vez, y la app se ocupa de avisarte."
+    subtitulo: "Cargás vuelos y hoteles una vez\ny la app te avisa"
+    duracion_s: 7
+  - id: 2
+    accion: "hover article[id^='vuelo-']"
+    narracion: "En cada vuelo ves la salida y desde cuándo podés hacer el check-in web."
+    subtitulo: "La salida y desde cuándo\nhacés el check-in web"
+    duracion_s: 7
+  - id: 3
+    accion: "hover article[id^='hotel-']"
+    narracion: "En el hotel, las fechas de check-in y check-out, en hora de Las Vegas."
+    subtitulo: "Check-in y check-out del hotel,\nen hora de Las Vegas"
+    duracion_s: 7
+  - id: 4
+    accion: "click text=Agregar un vuelo"
+    narracion: "Sumar otro es poner número, fecha y de dónde sale."
+    subtitulo: "Sumar otro: número, fecha\ny de dónde sale"
+    duracion_s: 5
+  - id: 5
+    accion: "goto #/viajes/vuelo/{id}"
+    narracion: "La app te avisa cuando abre el check-in, y si el vuelo se demora o cambia de puerta."
+    subtitulo: "Te avisa cuando abre el check-in\ny si hay demora o cambio de puerta"
+    duracion_s: 9
+  - id: 6
+    accion: "hover role=link[name='Hacer check-in']"
+    narracion: "Y el check-in lo hacés desde acá, con un toque."
+    subtitulo: "El check-in, desde acá\ncon un toque"
+    duracion_s: 5

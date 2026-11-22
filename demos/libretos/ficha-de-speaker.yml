@@ -1,0 +1,51 @@
+feature: ficha-de-speaker
+titulo: "Ficha de speaker"
+beneficio: "Llegá a cada charla sabiendo con quién vas a hablar."
+ruta: "#/buscar"
+notas: >-
+  Se entra por Buscar porque features.yml no trae un id de speaker concreto: se abre el primer
+  a.ra-link[href^='#/speaker/'] de los resultados de «bancos el martes». Antes de grabar, verificar que ese primer
+  speaker sea de un cliente con perfil encontrado; si no, el bloque de trayectoria muestra «No encontramos su perfil
+  profesional». «Preparar conversación» usa el LLM: el contenido varía y no se narra. Si ya estaba generada, sale más
+  rápido.
+escenas:
+  - id: 1
+    accion: "goto #/buscar"
+    narracion: "Detrás de cada charla hay gente que vale la pena conocer."
+    subtitulo: "Detrás de cada charla hay gente\nque vale la pena conocer."
+    duracion_s: 6
+  - id: 2
+    accion: "fill [aria-label='Buscar charlas'] \"bancos el martes\""
+    narracion: "Por ejemplo, charlas de bancos el martes."
+    subtitulo: "Por ejemplo, charlas\nde bancos el martes."
+    duracion_s: 4
+  - id: 3
+    accion: "click button.ra-suggest"
+    narracion: "La app lo pasa a filtros y te muestra quién da cada charla."
+    subtitulo: "Ves quién da cada charla."
+    duracion_s: 7
+  - id: 4
+    accion: "click a.ra-link[href^='#/speaker/']"
+    narracion: "Tocás el nombre de un speaker y se abre su ficha."
+    subtitulo: "Tocás un nombre\ny se abre su ficha."
+    duracion_s: 5
+  - id: 5
+    accion: "wait 2"
+    narracion: "Ves su cargo y su empresa, y si encontramos su perfil, su trayectoria, educación y skills."
+    subtitulo: "Cargo, empresa y, si hay perfil,\ntrayectoria, educación y skills."
+    duracion_s: 8
+  - id: 6
+    accion: "click role=button[name='Preparar conversación']"
+    narracion: "Con Preparar conversación, la IA te arma una ficha cruzada con tu perfil del itinerario."
+    subtitulo: "La IA te arma una ficha\ncruzada con tu perfil."
+    duracion_s: 7
+  - id: 7
+    accion: "wait 8"
+    narracion: "Tarda unos segundos la primera vez. Después queda guardada."
+    subtitulo: "Tarda unos segundos\nla primera vez."
+    duracion_s: 9
+  - id: 8
+    accion: "scroll 300"
+    narracion: "Tenés quién es, qué hace su empresa con AWS, temas para abrir y preguntas para hacerle."
+    subtitulo: "Quién es, su empresa y AWS,\ntemas y preguntas para charlar."
+    duracion_s: 8

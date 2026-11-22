@@ -1,6 +1,6 @@
 // ReinventAR — router y pantallas.
 import { ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
-import { viewAdmin, viewPassword } from "./account.js";
+import { viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
@@ -28,7 +28,19 @@ import * as it from "./itinerary.js";
 import { viewArmar } from "./dayBuilder.js";
 import { viewEntrevista, viewFicha } from "./interview.js";
 import { viewMiEvento } from "./myEvents.js";
+import { viewMiExcel } from "./miExcel.js";
 import { viewNumeros } from "./numeros.js";
+import { viewGastos } from "./gastos.js";
+import { borrarBaseLocal as borrarGastosLocales } from "./gastosCola.js";
+import { viewAdminEstado } from "./adminEstado.js";
+import { viewAdminEventos } from "./adminEventos.js";
+import { viewAdminLlm } from "./adminLlm.js";
+import { viewAdminOfertas } from "./adminOfertas.js";
+import { viewAdminUsuarios } from "./adminUsuarios.js";
+import { viewOfertas } from "./ofertas.js";
+import { viewViajes } from "./viajes.js";
+import { viewComer } from "./comer.js";
+import { viewViaje } from "./viaje.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -74,8 +86,14 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
-  [/^#\/admin$/, () => viewAdmin(view)],
+  [/^#\/admin$/, () => viewAdminEstado(view)],
+  [/^#\/admin\/usuarios$/, () => viewAdminUsuarios(view)],
+  [/^#\/admin\/eventos$/, () => viewAdminEventos(view, { setCleanup: (fn) => { cleanup = fn; } })],
+  [/^#\/admin\/ofertas$/, () => viewAdminOfertas(view)],
+  [/^#\/admin\/llm$/, () => viewAdminLlm(view)],
+  [/^#\/ofertas(?:\/([\w-]+))?$/, (id) => viewOfertas(view, id)],
   [/^#\/grabar\/([\w-]+)$/, viewRecord],
   [/^#\/grabar-charla\/([^/?#]+)$/, (code) => viewGrabarCharla(view, code)],
   [/^#\/s\/([\w-]+)(?:\/t\/(\d+)(?:\?q=([^&#]*))?)?$/, (id, at, q) => store.esLocal(id) ? abrirSesionLocal(id) : viewDetail(view, id, {
@@ -92,6 +110,11 @@ const routes = [
   [/^#\/itinerario\/ficha$/, () => viewFicha(view)],
   [/^#\/itinerario\/armar$/, () => viewArmar(view)],
   [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
+  [/^#\/itinerario\/excel$/, () => viewMiExcel(view)],
+  [/^#\/viajes$/, () => viewViajes(view)],
+  [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
+  [/^#\/comer$/, () => viewComer(view)],
+  [/^#\/viaje$/, () => viewViaje(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
@@ -656,6 +679,7 @@ async function viewSettings() {
     try { await disablePush(); } catch {}  // antes de borrar el token: la baja necesita la sesión
     try { await Auth.logout(); } catch {}
     setToken("");
+    try { await borrarGastosLocales(); } catch {}  // los gastos del celular son de esa persona: no quedan para la próxima
     location.hash = "#/login";
   }
 

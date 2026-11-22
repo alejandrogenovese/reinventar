@@ -28,13 +28,18 @@ from . import (
     cabeceras,
     catalog,
     charlas_auto,
+    codigos_api,
+    comer_api,
     config,
+    cotizacion,
     cuerpo,
     db,
+    demos_api,
     eventos_auto,
     events,
     events_api,
     fragmentos,
+    gastos_api,
     guided_api,
     huecos,
     interview_api,
@@ -43,6 +48,7 @@ from . import (
     lleno_api,
     my_events_api,
     numeros_api,
+    ofertas_api,
     passkey_api,
     pg,
     pipeline,
@@ -54,6 +60,7 @@ from . import (
     shows_api,
     talks,
     ubicacion_api,
+    viajes_api,
     voto_resumen_api,
 )
 from .auth import auth, bearer, context_for_token
@@ -82,6 +89,8 @@ async def lifespan(_app):
     push.start_worker()
     eventos_auto.start_worker()
     charlas_auto.start_worker()
+    cotizacion.start_worker()
+    gastos_api.al_arrancar()
     yield
     pg.close()
 
@@ -150,11 +159,18 @@ app.include_router(my_events_api.router)
 app.include_router(events_api.router)
 app.include_router(shows_api.router)
 app.include_router(push_api.router)
+app.include_router(ofertas_api.router)
+app.include_router(viajes_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)
 app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
+app.include_router(gastos_api.router)
+app.include_router(gastos_api.router_publico)
 app.include_router(huecos.router)
+app.include_router(codigos_api.router)
+app.include_router(demos_api.router)
+app.include_router(comer_api.router)
 
 
 @app.exception_handler(RequestValidationError)

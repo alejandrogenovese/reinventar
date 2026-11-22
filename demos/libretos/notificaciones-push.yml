@@ -1,0 +1,55 @@
+feature: notificaciones-push
+titulo: "Avisos en el celular"
+beneficio: "Te enterás cuándo salir aunque tengas la app cerrada."
+ruta: "#/ajustes"
+notas: >-
+  Push simulado/condicionado: conceder el permiso "notifications" en el contexto. La suscripción Web Push
+  puede fallar en headless (sin servicio de push): si pasa, grabar con Chrome con ventana y perfil limpio.
+  La notificación de prueba (escena 4) la dibuja el sistema operativo y no sale en la captura de la página:
+  se ve el aviso «Enviada a N dispositivo(s)»; si se quiere mostrar la notificación, sumarla en posproducción.
+  Precondición: push apagado en ese navegador y «Avisarme de ofertas» apagado en las preferencias del tester
+  (si ya están prendidos, los clicks los apagan). Al terminar, volver ofertas a como estaban.
+  #push-grabar, #push-eventos-nuevos y #ofertas-cat-shows van con hover a propósito: un click cambia las
+  preferencias guardadas del tester. «Usar en qué sede estoy» no se muestra (pide geolocalización).
+  En iPhone solo anda con la app instalada en la pantalla de inicio.
+escenas:
+  - id: 1
+    accion: "goto #/ajustes"
+    narracion: "Con el celular en el bolsillo, igual te enterás de lo importante."
+    subtitulo: "Con el celular en el bolsillo,\nigual te enterás de lo importante."
+    duracion_s: 6
+  - id: 2
+    accion: "scroll #push-on"
+    narracion: "Bajás a Notificaciones en el celular."
+    subtitulo: "Notificaciones en el celular."
+    duracion_s: 4
+  - id: 3
+    accion: "click #push-on"
+    narracion: "Las prendés y te avisamos cuándo salir, cuándo empieza lo que fijaste y si AWS cambia algo de tu itinerario."
+    subtitulo: "Te avisamos cuándo salir, cuándo empieza\ny si AWS cambia algo de tu itinerario."
+    duracion_s: 9
+  - id: 4
+    accion: "click role=button[name='Probar una notificación']"
+    narracion: "Con una prueba confirmás que llegan de verdad."
+    subtitulo: "Con una prueba confirmás que llegan."
+    duracion_s: 5
+  - id: 5
+    accion: "hover #push-grabar"
+    narracion: "Si empieza una charla de tu itinerario y nadie la está grabando, te lo recordamos."
+    subtitulo: "Si empieza una charla y nadie la graba,\nte lo recordamos."
+    duracion_s: 7
+  - id: 6
+    accion: "hover #push-eventos-nuevos"
+    narracion: "También te contamos cuando aparecen eventos nuevos, nunca de noche."
+    subtitulo: "También, eventos nuevos.\nNunca de noche."
+    duracion_s: 5
+  - id: 7
+    accion: "click #ofertas-on"
+    narracion: "Y si querés, sumás ofertas de shows, comida y compras: pocos avisos por día."
+    subtitulo: "Sumás ofertas de shows, comida y compras:\npocos avisos por día."
+    duracion_s: 7
+  - id: 8
+    accion: "hover #ofertas-cat-shows"
+    narracion: "Elegís qué tipo de ofertas te interesan, y listo: ReinventAR te avisa aunque esté cerrada."
+    subtitulo: "Elegís qué ofertas te interesan, y listo:\nte avisa aunque la app esté cerrada."
+    duracion_s: 7

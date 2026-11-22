@@ -1,0 +1,44 @@
+feature: me-la-perdi
+titulo: "¿Te perdiste una charla?"
+beneficio: "Otro horario o una parecida, a un toque, sin buscar de nuevo"
+ruta: "#/itinerario"
+notas:
+  - "Modo prueba con reloj simulado poco después del fin de una charla del itinerario del tester: «Me la perdí» solo aparece en ítems que ya terminaron según la hora simulada (itinerary.js isOver)."
+  - "Que haya UNA sola charla terminada en el día que muestra el itinerario; si hay varias, el selector de la escena 2 matchea más de un botón (tomar el primero)."
+  - "La charla tiene que repetirse más adelante en un horario libre en el itinerario: así el botón dice «Ir a esa» (si choca, dice «Ir igual»). Confirmar antes en #/perdida/{code} que haya repetición libre y parecidas en las próximas 4 horas."
+  - "El reloj simulado tiene que caer en el PRIMER día del itinerario (itinerary.js:287 abre siempre la pestaña 1)."
+  - "Elegir una charla cuya repetición libre sea el mismo (primer) día: al elegirla vuelve a #/itinerario en el primer día (missed.js:26)."
+  - "role=button[name='Ir a esa'] puede matchear varios (uno por repetición libre): tomar el primero (primero van las que no chocan, app/missed.py:46)."
+  - "En staging: reloj lun 30/11 10:05; terminó IND374-R (9:00) y su repetición es el martes 13:00, libre. La escena 6 pasa al martes para mostrarla."
+  - "El cambio queda en el schema de prueba (modo prueba): no toca el itinerario real."
+escenas:
+  - id: 1
+    accion: "goto #/itinerario"
+    narracion: "A veces la cola o una reunión te dejan afuera de una charla."
+    subtitulo: "A veces te quedás afuera\nde una charla"
+    duracion_s: 7
+  - id: 2
+    accion: "hover role=button[name='Me la perdí']"
+    narracion: "Cuando ya terminó, en tu itinerario aparece «Me la perdí»."
+    subtitulo: "Cuando termina, aparece\n«Me la perdí»"
+    duracion_s: 5
+  - id: 3
+    accion: "click role=button[name='Me la perdí']"
+    narracion: "Te muestra si se repite, primero los horarios que no chocan con tu agenda."
+    subtitulo: "Si se repite, primero los horarios\nque no chocan"
+    duracion_s: 7
+  - id: 4
+    accion: "scroll 400"
+    narracion: "Y también charlas parecidas que empiezan en las próximas horas."
+    subtitulo: "Y charlas parecidas que empiezan\nen las próximas horas"
+    duracion_s: 5
+  - id: 5
+    accion: "click role=button[name='Ir a esa']"
+    narracion: "Elegís otro horario y queda cambiado en tu itinerario."
+    subtitulo: "Elegís otro horario y queda\ncambiado en tu itinerario"
+    duracion_s: 5
+  - id: 6
+    accion: "click .tabs [role=tab]:nth-child(2)"
+    narracion: "Listo: la charla vuelve a tu agenda, en el nuevo horario."
+    subtitulo: "Listo: la charla vuelve a tu agenda\nen el nuevo horario"
+    duracion_s: 6

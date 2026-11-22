@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Videos demo en `/demos/`.** Una página pública, sin login, con un video corto por funcionalidad (placa de título,
+  la app en el celular y subtítulos), buscador y reproductor. Cada video se puede compartir con su link
+  (`/demos/#gastos`). Los videos viven en un bucket propio y se ven con links que vencen; sin ese bucket configurado la
+  página dice que todavía no hay videos.
+
 ## [1.0.0] - 2026-11-15
 
 La versión que va a re:Invent 2026: la app se puede usar entera sin señal en los salones (grabar, ver Hoy y el

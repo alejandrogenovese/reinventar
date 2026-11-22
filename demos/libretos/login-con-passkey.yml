@@ -1,0 +1,38 @@
+feature: login-con-passkey
+titulo: "Entrá con Face ID o huella"
+beneficio: "Sin tipear la contraseña en medio del evento."
+ruta: "#/login"
+notas: >-
+  Biometría simulada: en headless no hay Face ID ni huella. Antes de grabar, agregar un autenticador
+  virtual por CDP (WebAuthn.enable + WebAuthn.addVirtualAuthenticator: protocol ctap2, transport internal,
+  hasResidentKey, hasUserVerification e isUserVerified en true). Sin él, isSupported() da false y el botón
+  no aparece. En ese mismo contexto, registrar la passkey del tester fuera de cámara (flujo de
+  passkey-ajustes) y cerrar sesión. La confirmación biométrica la resuelve el autenticador sin mostrar
+  nada: si se quiere ver el diálogo del sistema, agregarlo en posproducción en la escena 3.
+  En Chrome de escritorio el botón dice «Entrar con huella o rostro»; en iPhone, «Entrar con Face ID».
+escenas:
+  - id: 1
+    accion: "goto #/login"
+    narracion: "En el evento no querés andar tipeando contraseñas con el celular en la mano."
+    subtitulo: "En el evento no querés andar\ntipeando contraseñas."
+    duracion_s: 7
+  - id: 2
+    accion: "hover role=button[name^='Entrar con']"
+    narracion: "Si tu celular tiene Face ID o huella, tenés este atajo."
+    subtitulo: "Si tu celular tiene Face ID o huella,\ntenés este atajo."
+    duracion_s: 6
+  - id: 3
+    accion: "click role=button[name^='Entrar con']"
+    narracion: "Lo tocás, confirmás con tu cara o tu dedo, y adentro."
+    subtitulo: "Lo tocás, confirmás con tu cara\no tu dedo, y adentro."
+    duracion_s: 6
+  - id: 4
+    accion: "wait 3"
+    narracion: "Entrás directo a Inicio, sin escribir nada. Y tranqui: no se guarda ningún dato biométrico."
+    subtitulo: "Entrás directo a Inicio, sin escribir.\nNo se guarda ningún dato biométrico."
+    duracion_s: 7
+  - id: 5
+    accion: "hover [aria-label='Ajustes']"
+    narracion: "Si todavía no lo activaste, entrás con contraseña y lo prendés en Ajustes."
+    subtitulo: "¿No lo activaste? Entrás con contraseña\ny lo prendés en Ajustes."
+    duracion_s: 7
