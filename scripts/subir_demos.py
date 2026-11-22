@@ -2,7 +2,7 @@
 
 La app de staging tiene las credenciales del bucket (variables DEMOS_S3_*): el script entra con un usuario admin y usa
 PUT /api/admin/demos/archivos/<nombre> e /api/admin/demos/indice. Por cada video saca una portada con ffmpeg
-(un cuadro con el celular, sin la franja de subtítulos). El orden de la galería es el de demos/features.yml; las de admin no se publican.
+(el teléfono centrado sobre el fondo de la placa). El orden de la galería es el de demos/features.yml; las de admin no se publican.
 
 Uso:
   DEMOS_ADMIN_PASSWORD=... python scripts/subir_demos.py [--entorno staging|local] [--usuario tester]
@@ -20,8 +20,9 @@ import yaml
 RAIZ = Path(__file__).resolve().parent.parent
 PORTADA_SEGUNDO = "8"  # ya pasó la placa (3 s): se ve el celular con la app, que es lo que se recorta bien en la tarjeta
 TIMEOUT_SUBIDA_S = 120
-# 16:9 de la parte de arriba del cuadro (el celular entero), sin la franja de los subtítulos.
-RECORTE_PORTADA = "crop=1493:840:213:0"
+# El teléfono del video (a la izquierda en el formato 16:9 lateral) centrado sobre el fondo de la placa: se ve bien en la
+# tarjeta ancha de escritorio y en la angosta del celular, que recorta al centro.
+FILTRO_PORTADA = "crop=560:1080:162:0,scale=-2:540,pad=960:540:(ow-iw)/2:0:color=0x1a1a1a"
 # La contraseña de admin solo viaja a estas URLs: no se acepta una URL suelta por línea de comandos.
 ENTORNOS = {"staging": "https://staging.reinventar.app", "local": "http://localhost:8000"}
 
@@ -56,7 +57,7 @@ def duracion_s(video: Path) -> int:
 
 def portada(video: Path, destino: Path) -> None:
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", PORTADA_SEGUNDO, "-i", str(video), "-frames:v", "1",
-                    "-vf", f"{RECORTE_PORTADA},scale=960:-2", "-q:v", "4", str(destino)], check=True)
+                    "-vf", FILTRO_PORTADA, "-q:v", "4", str(destino)], check=True)
 
 
 def login(cliente: httpx.Client, usuario: str, password: str) -> None:
@@ -76,7 +77,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--entorno", choices=sorted(ENTORNOS), default="staging")
     p.add_argument("--usuario", default=os.environ.get("DEMOS_ADMIN_USUARIO", "tester"))
-    p.add_argument("--videos", type=Path, default=RAIZ / "demos" / "out" / "final")
+    p.add_argument("--videos", type=Path, default=RAIZ / "demos" / "out" / "final-16x9")
     args = p.parse_args()
     base_url = ENTORNOS[args.entorno]
     password = os.environ.get("DEMOS_ADMIN_PASSWORD")
