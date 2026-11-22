@@ -10,7 +10,7 @@ definirDemo({
     { id: 3, accion: "click [aria-label='Enviar pregunta']", subtitulo: "Busca en todo el catálogo\ny en lo que grabaste.", duracion_s: 7 },
     { id: 4, accion: "wait 8", subtitulo: "Te responde citando\nlas charlas que sirven.", duracion_s: 9 },
     { id: 5, accion: "scroll 600", subtitulo: "Debajo, las charlas citadas\ny los momentos de tus grabaciones.", duracion_s: 9 },
-    { id: 6, accion: "click [aria-label='Agregar al itinerario']", subtitulo: "La agregás al itinerario\nsin salir de la conversación.", duracion_s: 7 },
+    { id: 6, accion: "click role=button[name='Agregar']", subtitulo: "La agregás al itinerario\nsin salir de la conversación.", duracion_s: 7 },
     { id: 7, accion: "wait 2", subtitulo: "La conversación queda:\nvolvés y seguís preguntando.", duracion_s: 6 },
   ],
 });

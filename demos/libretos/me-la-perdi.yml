@@ -9,6 +9,7 @@ notas:
   - "El reloj simulado tiene que caer en el PRIMER día del itinerario (itinerary.js:287 abre siempre la pestaña 1)."
   - "Elegir una charla cuya repetición libre sea el mismo (primer) día: al elegirla vuelve a #/itinerario en el primer día (missed.js:26)."
   - "role=button[name='Ir a esa'] puede matchear varios (uno por repetición libre): tomar el primero (primero van las que no chocan, app/missed.py:46)."
+  - "En staging: reloj lun 30/11 10:05; terminó IND374-R (9:00) y su repetición es el martes 13:00, libre. La escena 6 pasa al martes para mostrarla."
   - "El cambio queda en el schema de prueba (modo prueba): no toca el itinerario real."
 escenas:
   - id: 1
@@ -37,7 +38,7 @@ escenas:
     subtitulo: "Elegís otro horario y queda\ncambiado en tu itinerario"
     duracion_s: 5
   - id: 6
-    accion: "wait 3"
+    accion: "click .tabs [role=tab]:nth-child(2)"
     narracion: "Listo: la charla vuelve a tu agenda, en el nuevo horario."
     subtitulo: "Listo: la charla vuelve a tu agenda\nen el nuevo horario"
     duracion_s: 6

@@ -135,6 +135,18 @@ export function localizar(page: Page, selector: string): Locator {
 }
 
 /** Lleva el cursor hasta el elemento con un movimiento visible (si no, Playwright lo teletransporta). */
+/** Los radios y checkboxes con estilo propio están ocultos: el toque va a su label, que es lo que se ve. */
+async function objetivoVisible(page: Page, loc: Locator): Promise<Locator> {
+  const esCasilla = await loc.evaluate((el) => el instanceof HTMLInputElement && ["radio", "checkbox"].includes(el.type))
+    .catch(() => false);
+  if (!esCasilla) return loc;
+  const id = await loc.getAttribute("id");
+  const porFor = id ? page.locator(`label[for="${id}"]`) : null;
+  if (porFor && (await porFor.count())) return porFor.first();
+  const envolvente = loc.locator("xpath=ancestor::label[1]");
+  return (await envolvente.count()) ? envolvente : loc;
+}
+
 async function acercarCursor(page: Page, loc: Locator): Promise<void> {
   await loc.scrollIntoViewIfNeeded();
   const caja = await loc.boundingBox();
@@ -185,7 +197,7 @@ export async function ejecutarAccion(page: Page, accion: string): Promise<void> 
       return;
     case "click":
     case "hover": {
-      const loc = localizar(page, resto);
+      const loc = await objetivoVisible(page, localizar(page, resto));
       await acercarCursor(page, loc);
       await (verbo === "click" ? loc.click() : loc.hover());
       return;

@@ -9,7 +9,7 @@ definirDemo({
     { id: 1, accion: "goto #/itinerario/armar", subtitulo: "Armás cada día charla por charla,\nsin correr entre sedes.", duracion_s: 7 },
     { id: 2, accion: "click .tabs [role=tab]:nth-child(6)", subtitulo: "Elegís el día:\n¿con qué arrancás?", duracion_s: 6 },
     { id: 3, accion: "wait 3", subtitulo: "Cada opción: por qué te sirve\ny desde qué hora hacer la cola.", duracion_s: 7 },
-    { id: 4, accion: "click role=button[name='Elegir']", subtitulo: "Elegís una y te propone\nlo que sigue.", duracion_s: 6 },
+    { id: 4, accion: "hover role=button[name='Elegir']", subtitulo: "Elegís una y te propone\nlo que sigue.", duracion_s: 6 },
     { id: 5, accion: "wait 3", subtitulo: "A tiempo, justo, salí antes\no se superpone: el semáforo avisa.", duracion_s: 9 },
     { id: 6, accion: "click role=button[name='Completá el resto del día por mí ✨']", subtitulo: "¿Sin tiempo? Que complete\nel resto del día por vos.", duracion_s: 6 },
     { id: 7, accion: "wait 10", subtitulo: "Elige charlas a las que llegás,\nhasta el ritmo que pediste.", duracion_s: 11 },

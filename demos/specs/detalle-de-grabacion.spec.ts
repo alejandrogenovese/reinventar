@@ -7,7 +7,7 @@ definirDemo({
   titulo: "Resumen y transcripción de tu charla",
   escenas: [
     { id: 1, accion: "goto #/", subtitulo: "Saliste de una charla de una hora\ny querés lo importante, ya.", duracion_s: 6 },
-    { id: 2, accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard", subtitulo: "Abrís la grabación\ny arrancás por el resumen.", duracion_s: 5 },
+    { id: 2, accion: "click [aria-labelledby='grabaciones-title'] button.ra-reccard:has-text('CEO Keynote')", subtitulo: "Abrís la grabación\ny arrancás por el resumen.", duracion_s: 5 },
     { id: 3, accion: "scroll 400", subtitulo: "TL;DR y puntos clave en castellano;\nlas frases del speaker, textuales.", duracion_s: 7 },
     { id: 4, accion: "hover role=button[name='Me sirvió']", subtitulo: "Votás si te sirvió el resumen:\nnos ayuda a mejorarlos.", duracion_s: 6 },
     { id: 5, accion: "click role=tab[name='Transcripción']", subtitulo: "Cada bloque en castellano,\ncon el original en inglés abajo.", duracion_s: 7 },

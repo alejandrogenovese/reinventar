@@ -421,7 +421,7 @@ features:
       hoja_filtros: "dialog.ra-sheet[aria-labelledby='sheet-title']"
       cerrar_filtros: "[aria-label='Cerrar filtros']"
       agrupar: "[aria-label='Agrupar por']"
-      agregar: "[aria-label='Agregar al itinerario']"
+      agregar: "role=button[name='Agregar']"
       mostrar_mas: "role=button[name='Mostrar más']"
     faltan_testids: ["buscar-resultado", "buscar-contador", "filtros-ver-charlas", "filtros-limpiar"]
     datos_prueba: {consulta: "bancos el martes", alternativa: "agentes con Bedrock"}

@@ -28,8 +28,8 @@ escenas:
     subtitulo: "Cada opción: por qué te sirve\ny desde qué hora hacer la cola."
     duracion_s: 7
   - id: 4
-    accion: "click role=button[name='Elegir']"
-    narracion: "Elegís una y te propone lo que sigue, contando el traslado."
+    accion: "hover role=button[name='Elegir']"
+    narracion: "Podés elegir una y te propone lo que sigue, contando el traslado."
     subtitulo: "Elegís una y te propone\nlo que sigue."
     duracion_s: 6
   - id: 5

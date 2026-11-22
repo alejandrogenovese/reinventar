@@ -47,12 +47,13 @@ const OPCIONES = {
   },`,
   },
   "modo-sin-senal": {
-    nota: "Pre-roll con red en #/itinerario y #/ (quedan las copias de lastgood.js); se corta la red antes de la escena 1.",
+    nota: "Pre-roll con red en #/ y #/itinerario (quedan las copias de lastgood.js); se corta la red y la escena 1 vuelve a #/ por hash, así la app pide datos sin red y muestra la copia. Sin service worker: el corte de red de Playwright no lo alcanza.",
     imports: ["PAUSA_PREROLL_MS"],
-    cuerpo: `preparar: async ({ page, context, ejecutar }) => {
-    await ejecutar("goto #/itinerario");
-    await page.waitForTimeout(PAUSA_PREROLL_MS);
+    cuerpo: `contexto: { serviceWorkers: "block" },
+  preparar: async ({ page, context, ejecutar }) => {
     await ejecutar("goto #/");
+    await page.waitForTimeout(PAUSA_PREROLL_MS);
+    await ejecutar("goto #/itinerario");
     await page.waitForTimeout(PAUSA_PREROLL_MS);
     await context.setOffline(true);
   },`,
