@@ -203,6 +203,13 @@ def confirmar(username: str, clave: str) -> None:
         db.unmark_push_sent(username, clave)
 
 
+def olvidar_vuelo(username: str, id_: str) -> None:
+    """El vuelo se editó y su salida cambió: los avisos de estado que esperaban confirmación eran del vuelo viejo. Si
+    llegaran después, confirmar guardaría demora/puerta viejas sobre el vuelo nuevo."""
+    for clave in [k for (u, k), (vid, _) in _pendientes.items() if u == username and vid == id_]:
+        del _pendientes[(username, clave)]
+
+
 def descartar(username: str, clave: str) -> None:
     """El aviso no llegó: el estado no se guarda y la próxima vuelta vuelve a consultar sin esperar el intervalo."""
     pendiente = _pendientes.pop((username, clave), None)

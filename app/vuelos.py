@@ -332,6 +332,45 @@ def quitar_vuelo(username: str, id_: str) -> bool:
 
 CAMPOS_ESTADO = ("salida_utc", "demora_min", "puerta", "terminal", "estado", "consultado_en")
 
+# Qué se resetea al editar (app/viajes_avisos.py arma los avisos con estas marcas):
+# - Vuelo: si cambia número, fecha, hora o zona es otro vuelo (u otra salida). Se borra el estado que trajo AeroDataBox
+#   (CAMPOS_ESTADO: salida_utc pisaría la hora nueva y demora/puerta/estado son la base contra la que se compara, así que
+#   se compararía contra el vuelo viejo) y las claves de push_sent del vuelo: vcheckin (la ventana de check-in es otra),
+#   vdemora/vpuerta (pendientes de confirmar) y vcancel (si el vuelo viejo se canceló, el nuevo tiene que poder avisarlo).
+#   Cambiar solo la aerolínea o el nombre de la ciudad (misma zona) no toca nada: la salida es la misma.
+# - Hotel: el aviso de check-in (hin) se vuelve a habilitar si cambia el check-in o la zona; el de check-out (hout) si
+#   cambia el check-out, el check-in (la ventana nunca empieza antes de entrar) o la zona. Cambiar el nombre o la
+#   dirección no repite avisos ya mandados.
+CAMPOS_SALIDA_VUELO = ("numero", "fecha", "hora", "zona")
+CLAVES_AVISO_VUELO = ("vcheckin:{id}", "vcancel:{id}", "vdemora:{id}:%", "vpuerta:{id}:%")
+
+
+def cambio_de_salida(previo: dict, nuevo: dict) -> bool:
+    return any(previo[k] != nuevo[k] for k in CAMPOS_SALIDA_VUELO)
+
+
+def _borrar_claves(c, username: str, patrones: list[str], id_: str) -> None:
+    """Borra de push_sent las claves de aviso de este vuelo u hotel (el id es hex: no trae comodines de LIKE)."""
+    for patron in patrones:
+        c.execute("DELETE FROM push_sent WHERE username=%s AND key LIKE %s", (username, patron.format(id=id_)))
+
+
+def actualizar_vuelo(username: str, id_: str, numero: str, aerolinea: str, fecha: str, hora: str | None, zona_: str,
+                     ciudad: str = "") -> dict | None:
+    """None si no existe o no es de esta persona. Si cambió la salida, resetea el estado y los avisos (ver arriba)."""
+    nuevo = {"numero": numero, "fecha": fecha, "hora": hora, "zona": zona_}
+    with db.conn() as c:
+        previo = c.execute("SELECT * FROM viajes_vuelos WHERE username=%s AND id=%s FOR UPDATE", (username, id_)).fetchone()
+        if not previo:
+            return None
+        cambio_salida = cambio_de_salida(previo, nuevo)
+        reseteo = "".join(f", {k}=NULL" for k in CAMPOS_ESTADO) if cambio_salida else ""
+        c.execute(f"UPDATE viajes_vuelos SET numero=%s, aerolinea=%s, fecha=%s, hora=%s, zona=%s, ciudad=%s{reseteo} "
+                  "WHERE username=%s AND id=%s", (numero, aerolinea, fecha, hora, zona_, ciudad, username, id_))
+        if cambio_salida:
+            _borrar_claves(c, username, list(CLAVES_AVISO_VUELO), id_)
+    return get_vuelo(username, id_)
+
 
 def guardar_estado(username: str, id_: str, campos: dict) -> None:
     columnas = [k for k in campos if k in CAMPOS_ESTADO]
@@ -361,6 +400,30 @@ def agregar_hotel(username: str, nombre: str, direccion: str, checkin: str, chec
             return None
         c.execute("INSERT INTO viajes_hoteles (username,id,nombre,direccion,checkin,checkout,zona,creado) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                   (username, id_, nombre, direccion, checkin, checkout, zona_, time.time()))
+    return get_hotel(username, id_)
+
+
+def _claves_hotel_a_resetear(previo: dict, nuevo: dict) -> list[str]:
+    cambio = {k for k in ("checkin", "checkout", "zona") if previo[k] != nuevo[k]}
+    claves = []
+    if cambio & {"checkin", "zona"}:
+        claves.append("hin:{id}")
+    if cambio:
+        claves.append("hout:{id}")
+    return claves
+
+
+def actualizar_hotel(username: str, id_: str, nombre: str, direccion: str, checkin: str, checkout: str,
+                     zona_: str) -> dict | None:
+    """None si no existe o no es de esta persona. Si cambian las fechas o la zona, sus avisos se vuelven a mandar."""
+    with db.conn() as c:
+        previo = c.execute("SELECT * FROM viajes_hoteles WHERE username=%s AND id=%s FOR UPDATE", (username, id_)).fetchone()
+        if not previo:
+            return None
+        c.execute("UPDATE viajes_hoteles SET nombre=%s, direccion=%s, checkin=%s, checkout=%s, zona=%s "
+                  "WHERE username=%s AND id=%s", (nombre, direccion, checkin, checkout, zona_, username, id_))
+        claves = _claves_hotel_a_resetear(previo, {"checkin": checkin, "checkout": checkout, "zona": zona_})
+        _borrar_claves(c, username, claves, id_)
     return get_hotel(username, id_)
 
 
