@@ -5,11 +5,49 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.1.0] - 2026-11-22
+
+El viaje además de la agenda: gastos, vuelos y hoteles, dónde comer, shows y ofertas, todo desde la pestaña Viaje.
+Y una galería pública con un video corto por funcionalidad.
+
 ### Agregado
-- **Videos demo en `/demos/`.** Una página pública, sin login, con un video corto por funcionalidad (placa de título,
-  la app en el celular y subtítulos), buscador y reproductor. Cada video se puede compartir con su link
-  (`/demos/#gastos`). Los videos viven en un bucket propio y se ven con links que vencen; sin ese bucket configurado la
-  página dice que todavía no hay videos.
+- **Pestaña Viaje** en la barra de abajo, con Dónde comer barato, Gastos, Ofertas y Vuelos y hoteles.
+- **Gastos del viaje** (`#/gastos`). Cargás un gasto en segundos, en dólares o en pesos, con categoría, nota, día,
+  Reintegrable, Individual o Compartido y foto del ticket. Ves lo gastado hoy y en todo el viaje contra tu
+  presupuesto, las tres cotizaciones (oficial, blue y tarjeta) y el gasto por categoría. Cada gasto guarda la
+  cotización del día en que lo hiciste, así que si el dólar se mueve después no cambia. Anda sin señal: se guarda en
+  el celular y se sincroniza solo, también entre dos teléfonos tuyos. «Exportar reintegrables» baja un CSV con links
+  a las fotos de los tickets.
+- **Vuelos y hoteles** (`#/viajes`). Cargás tus vuelos y hoteles y te llega un aviso cuando abre el check-in de la
+  aerolínea, unas horas antes del check-in del hotel y la noche anterior al check-out. Desde 24 h antes del vuelo
+  también avisa si se demora, si cambia la puerta o si se cancela.
+- **Dónde comer barato** (`#/comer`): lugares cerca de donde estás o de la sede de tu próxima charla, con puntaje,
+  reseñas, precio, minutos caminando y Llevame. Se filtra por precio y por distancia.
+- **Ofertas** (`#/ofertas`): bajas de precio de shows y ofertas de comida, compras y outlets, con filtro por
+  categoría. En Ajustes, «Avisarme de ofertas» manda un push por las categorías que elijas.
+- **¿Cuándo nos conviene ir a un show?** En la ficha de un show, las funciones de la semana ordenadas según tu
+  itinerario: libre, justa (llegás con poco margen) o choca, con el motivo.
+- **Eventos en todas las fechas.** En Eventos › Networking, «Todas las fechas» lista los eventos de toda la semana
+  agrupados por día, y el filtro «Desde las 17» deja solo los que empiezan a las 17 o después.
+- **Cruzar con mi Excel** (Itinerario): subís un `.xlsx` o `.csv` con los códigos de charla que querés y la app te
+  dice cuáles ya registraste, cuáles te faltan, cuáles chocan entre sí, cuáles tenés de más y cuáles no existen.
+- **Videos demo en `/demos/`.** Una página pública, sin login, con un video corto por funcionalidad: la app en el
+  celular y, al costado, qué hace cada paso. Tiene buscador, secciones y reproductor, y cada video se comparte con su
+  link (`/demos/#gastos`). Los videos no tienen sonido; debajo de cada uno, «Qué muestra el video» lo cuenta en texto.
+
+### Cambiado
+- **Administración por pestañas** (Estado, Usuarios, Eventos, Ofertas y LLM), cada una con su carga, su error con
+  «Reintentar» y su estado vacío. Desactivar un usuario, cerrar sus sesiones o dar de baja una oferta piden
+  confirmación. Estado muestra arriba lo que requiere atención, o «Todo en orden».
+- **Itinerario:** las pestañas de día dicen «lun 30 nov» en vez de la fecha cruda.
+
+### Corregido
+- Los avisos push ya no se cortan para todos si falla el de una persona o la fuente de precios de shows, y una
+  demora o un cambio de puerta que no llegó se vuelve a intentar.
+- Gastos: tocar «Guardar» o «Borrar» dos veces ya no duplica el gasto ni apila dos confirmaciones, y la lista ya no
+  queda en blanco en iPhone con iOS 16 o 17 viejo.
+- Subir un Excel o CSV armado a propósito ya no puede tirar la app.
+- Viajes, Ofertas y Dónde comer ya no se pisan si navegás antes de que termine de cargar una pantalla.
 
 ## [1.0.0] - 2026-11-15
 

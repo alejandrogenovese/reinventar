@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from app import __version__
+
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
 CSS = (WEB / "css" / "admin.css").read_text(encoding="utf-8") if (WEB / "css" / "admin.css").exists() else ""
@@ -27,7 +29,8 @@ def test_el_css_existe_esta_enlazado_y_precacheado():
 
 
 def test_no_se_toca_la_version_del_service_worker():
-    assert 'const VERSION = "reinventar-v1.0.0";' in SW
+    # La versión del service worker sigue a la de la app (app/__init__.py): este cambio no la sube por su cuenta.
+    assert f'const VERSION = "reinventar-v{__version__}";' in SW
 
 
 def test_solo_usa_tokens_que_existen():

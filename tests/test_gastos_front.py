@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from app import __version__
+
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
 PANTALLA = (WEB / "js" / "gastos.js").read_text()
@@ -54,7 +56,8 @@ def test_el_service_worker_y_el_index_cargan_los_archivos_nuevos():
 
 
 def test_no_se_toca_la_version_del_service_worker():
-    assert 'const VERSION = "reinventar-v1.0.0";' in SW
+    # La versión del service worker sigue a la de la app (app/__init__.py): este cambio no la sube por su cuenta.
+    assert f'const VERSION = "reinventar-v{__version__}";' in SW
 
 
 def test_usa_el_contrato_de_la_api():
