@@ -1,7 +1,7 @@
 """Shows de Ticketmaster (Discovery API v2): conciertos, espectáculos, deportes y actividades en Las Vegas durante
 re:Invent. Los pide la revisión automática (app/eventos_auto.py) y quedan en reinvent.show_funcion.
 
-- Un pedido paginado por revisión: toda el área de Las Vegas (dmaId 319), del 29/11 al 4/12 en hora de Las Vegas. Si
+- Un pedido paginado por revisión: toda el área de Las Vegas (dmaId 319), del 29/11 al 7/12 13:00 (app/estadia.py). Si
   Ticketmaster dice que hay 1000 o más (lo máximo que deja paginar), se pide un día por vez.
 - Limpieza: afuera estacionamiento, upgrades, paquetes, vouchers, lo que no tiene sala u hora, los pases de varios días
   y la reventa. Cada función guarda su show (artista o nombre + sala) para agruparlas en la lista.
@@ -23,6 +23,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from .estadia import FIN_DE_LA_ESTADIA, INICIO_DE_LA_ESTADIA
+
 log = logging.getLogger("reinventar.ticketmaster")
 # httpx loguea "HTTP Request: GET <url completa>" en INFO, y la URL lleva la key.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -31,8 +33,8 @@ FUENTE = "ticketmaster"
 URL_EVENTOS = "https://app.ticketmaster.com/discovery/v2/events.json"
 URL_EVENTO = "https://app.ticketmaster.com/discovery/v2/events/{}.json"
 DMA_LAS_VEGAS = 319
-DESDE = dt.datetime(2026, 11, 29, 8, tzinfo=dt.UTC)          # 29/11 00:00 en Las Vegas
-HASTA = dt.datetime(2026, 12, 5, 7, 59, 59, tzinfo=dt.UTC)   # 4/12 23:59:59 en Las Vegas
+DESDE = INICIO_DE_LA_ESTADIA.astimezone(dt.UTC)   # 29/11 00:00 en Las Vegas
+HASTA = FIN_DE_LA_ESTADIA.astimezone(dt.UTC)      # 7/12 13:00 en Las Vegas (fin de la estadía, app/estadia.py)
 SEGMENTOS = {  # ids públicos de la Discovery API [verificar con la key]
     "KZFzniwnSyZfZ7v7nJ": "Music",
     "KZFzniwnSyZfZ7v7nE": "Sports",

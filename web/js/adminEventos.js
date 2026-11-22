@@ -9,6 +9,9 @@ import { AdminShell, Cargable, Plegable, avisar, hace } from "./adminUi.js";
 import { icon } from "./icons.js";
 import { Button, Hint, Tag, h, mensajeError } from "./ui.js";
 
+// Fechas que acepta «Agregar evento por link»: hasta el fin de la estadía (lun 7/12, ver app/estadia.py).
+const FECHA_MIN = "2026-11-28";
+const FECHA_MAX = "2026-12-07";
 const ESPERA_MS = 5000;
 const GRACIA_CICLOS = 2; // tras «Revisar ahora» se sigue sondeando aunque el servidor todavía diga ocupado=false
 const TODOS = ""; // el chip «Todos» no filtra por track
@@ -37,7 +40,7 @@ const input = (id, label, value, attrs = {}) => {
 /** La vista previa editable: lo que sacó el LLM, para corregir antes de guardar. */
 function Preview(p, onSaved) {
   const nombre = input("ev-nombre", "Nombre", p.nombre, { required: true, maxlength: 200 });
-  const fecha = input("ev-fecha", "Fecha", p.fecha, { type: "date", required: true, min: "2026-11-28", max: "2026-12-06" });
+  const fecha = input("ev-fecha", "Fecha", p.fecha, { type: "date", required: true, min: FECHA_MIN, max: FECHA_MAX });
   const inicio = input("ev-inicio", "Empieza", p.inicio, { type: "time", required: true });
   const fin = input("ev-fin", "Termina", p.fin, { type: "time" });
   const lugar = input("ev-lugar", "Lugar", p.lugar, { maxlength: 120 });

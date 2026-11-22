@@ -89,7 +89,7 @@ def get(code: str) -> dict | None:
     return _funciones.get(code)
 
 
-def _de_la_semana(c: dict) -> bool:
+def _de_la_estadia(c: dict) -> bool:
     desde, hasta = (m.astimezone(EVENT_TZ).strftime("%Y-%m-%d") for m in (ticketmaster.DESDE, ticketmaster.HASTA))
     return desde <= c["day"] <= hasta
 
@@ -108,7 +108,7 @@ def by_day() -> list[dict]:
     """[{day, shows}]: por día, los shows con sus funciones de ese día (las canceladas al final)."""
     dias: dict[str, dict[str, list[dict]]] = {}
     for f in sorted(_funciones.values(), key=lambda f: (f["day"], f["start"], f["title"])):
-        if _de_la_semana(f):
+        if _de_la_estadia(f):
             dias.setdefault(f["day"], {}).setdefault(f["show"], []).append(f)
     return [{"day": d, "shows": sorted((_resumen(fs) for fs in dias[d].values()), key=lambda s: s["cancelled"])}
             for d in sorted(dias)]
@@ -116,6 +116,6 @@ def by_day() -> list[dict]:
 
 def show(id_show: str) -> dict | None:
     """Un show con todas sus funciones de la semana."""
-    funciones = sorted((f for f in _funciones.values() if f["show"] == id_show and _de_la_semana(f)),
+    funciones = sorted((f for f in _funciones.values() if f["show"] == id_show and _de_la_estadia(f)),
                        key=lambda f: (f["day"], f["start"]))
     return _resumen(funciones) if funciones else None
