@@ -10,7 +10,7 @@ import unicodedata
 from functools import cache
 from pathlib import Path
 
-ARCHIVO = Path(__file__).parent / "datos" / "ciudades.json.gz"
+ARCHIVO = Path(__file__).parent / "recursos" / "ciudades.json.gz"
 LIMITE = 10
 LARGO_MAX_CONSULTA = 60
 
