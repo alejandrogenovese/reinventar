@@ -8,7 +8,8 @@ const SALIDA_INICIAL = { nombre: "Buenos Aires", pais: "AR", zona: "America/Arge
 const BUSCAR_CIUDAD_MS = 200;
 const MIN_LETRAS_CIUDAD = 2;
 const paises = (() => { try { return new Intl.DisplayNames(["es"], { type: "region" }); } catch { return null; } })();
-const etiquetaCiudad = (c) => `${c.nombre}, ${paises?.of(c.pais) ?? c.pais}`;
+// Una ciudad guardada en un vuelo no trae el país: se muestra solo el nombre.
+const etiquetaCiudad = (c) => (c.pais ? `${c.nombre}, ${paises?.of(c.pais) ?? c.pais}` : c.nombre);
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const dia = (iso) => { const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`; };
 // El link viene del servidor (aerolínea): solo https, como el resto de la app.
@@ -21,7 +22,7 @@ function estadoDelVuelo(v) {
   return null;
 }
 
-function VueloCard(v, { detalle = false, onQuitar }) {
+function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
   const sale = v.salida ? `${cuando(v.salida)} (${v.zona_nombre})` : `${dia(v.fecha)} · sin hora`;
   const puerta = v.puerta ? `Puerta ${v.puerta}${v.terminal ? ` · Terminal ${v.terminal}` : ""}` : "";
   return h("article", { class: "ra-card", id: `vuelo-${v.id}` },
@@ -32,15 +33,17 @@ function VueloCard(v, { detalle = false, onQuitar }) {
     v.checkin_abre ? h("p", { class: "caption" }, `Check-in web desde el ${cuando(v.checkin_abre)} (${v.checkin_horas} h antes)`) : null,
     detalle ? h("div", { class: "actions" },
       linkSeguro(v.checkin_url) ? h("a", { class: "ra-btn ra-btn-secondary", href: linkSeguro(v.checkin_url), target: "_blank", rel: "noopener" }, "Hacer check-in") : null,
+      Button("Editar", { onclick: onEditar }),
       Button("Quitar", { variant: "danger", onclick: onQuitar })) : null);
 }
 
-function HotelCard(x, { detalle = false, onQuitar }) {
+function HotelCard(x, { detalle = false, onQuitar, onEditar }) {
   return h("article", { class: "ra-card", id: `hotel-${x.id}` },
     h("div", { class: "ra-card-top" }, h("a", { class: "ra-card-title ra-link", href: `#/viajes/hotel/${x.id}` }, x.nombre)),
     x.direccion ? h("div", { class: "ra-card-meta" }, h("span", {}, x.direccion)) : null,
     h("p", { class: "caption" }, `Check-in ${cuando(x.checkin)} · Check-out ${cuando(x.checkout)}`),
-    detalle ? h("div", { class: "actions" }, Button("Quitar", { variant: "danger", onclick: onQuitar })) : null);
+    detalle ? h("div", { class: "actions" }, Button("Editar", { onclick: onEditar }),
+      Button("Quitar", { variant: "danger", onclick: onQuitar })) : null);
 }
 
 let _campos = 0;
@@ -56,11 +59,13 @@ async function alGuardar(mensaje, onGuardado, btn) {
   try { await onGuardado(); } catch (err) { toast(mensajeError(err)); btn.disabled = false; }
 }
 
-/** «Sale de»: escribís y aparecen las ciudades del mundo (GET /api/viajes/ciudades); se guarda su zona horaria. */
-function CampoCiudad() {
-  const lista = h("datalist", { id: "viajes-ciudades" });
-  const conocidas = new Map([[etiquetaCiudad(SALIDA_INICIAL), SALIDA_INICIAL]]);
-  const input = h("input", { list: "viajes-ciudades", value: etiquetaCiudad(SALIDA_INICIAL), autocomplete: "off",
+/** «Sale de»: escribís y aparecen las ciudades del mundo (GET /api/viajes/ciudades); se guarda su zona horaria.
+ * `inicial` es la ciudad con la que arranca (al editar, la del vuelo: no hay que volver a buscarla). */
+function CampoCiudad(inicial = SALIDA_INICIAL) {
+  const idLista = `viajes-ciudades-${++_campos}`; // único: el alta y la edición pueden estar a la vez en pantalla
+  const lista = h("datalist", { id: idLista });
+  const conocidas = new Map([[etiquetaCiudad(inicial), inicial]]);
+  const input = h("input", { list: idLista, value: etiquetaCiudad(inicial), autocomplete: "off",
     required: true, placeholder: "Escribí la ciudad: Houston, Madrid…", maxlength: 60 });
   let timer;
   let ultimo = 0;
@@ -86,12 +91,13 @@ function CampoCiudad() {
   return { input, lista, elegida };
 }
 
-function FormVuelo(onGuardado) {
-  const numero = h("input", { placeholder: "AR1302", maxlength: 12, required: true, autocapitalize: "characters" });
-  const fecha = h("input", { type: "date", required: true });
-  const hora = h("input", { type: "time" });
-  const aerolinea = h("input", { placeholder: "Opcional", maxlength: 60 });
-  const salida = CampoCiudad();
+/** Alta (sin `vuelo`) o edición (con el vuelo a editar, precargado). */
+function FormVuelo(onGuardado, vuelo = null) {
+  const numero = h("input", { placeholder: "AR1302", maxlength: 12, required: true, autocapitalize: "characters", value: vuelo?.numero ?? "" });
+  const fecha = h("input", { type: "date", required: true, value: vuelo?.fecha ?? "" });
+  const hora = h("input", { type: "time", value: vuelo?.hora ?? "" });
+  const aerolinea = h("input", { placeholder: "Opcional", maxlength: 60, value: vuelo?.aerolinea ?? "" });
+  const salida = CampoCiudad(vuelo ? { nombre: vuelo.zona_nombre, zona: vuelo.zona } : SALIDA_INICIAL);
   const form = h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
     const ciudad = salida.elegida();
@@ -103,37 +109,49 @@ function FormVuelo(onGuardado) {
     const btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
     try {
-      await Viajes.agregarVuelo({ numero: numero.value, aerolinea: aerolinea.value, fecha: fecha.value, hora: hora.value || null,
-        zona: ciudad.zona, ciudad: ciudad.nombre });
+      const datos = { numero: numero.value, aerolinea: aerolinea.value, fecha: fecha.value, hora: hora.value || null,
+        zona: ciudad.zona, ciudad: ciudad.nombre };
+      await (vuelo ? Viajes.editarVuelo(vuelo.id, datos) : Viajes.agregarVuelo(datos));
     } catch (err) { toast(mensajeError(err)); btn.disabled = false; return; }
-    await alGuardar("Vuelo agregado.", onGuardado, btn);
+    await alGuardar(vuelo ? "Vuelo actualizado." : "Vuelo agregado.", onGuardado, btn);
   } },
   Campo("Número de vuelo", numero), Campo("Aerolínea", aerolinea),
   h("div", { class: "actions" }, Campo("Fecha de salida", fecha), Campo("Hora de salida", hora)),
   Campo("Sale de", salida.input), salida.lista,
-  h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Agregar vuelo"));
+  h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, vuelo ? "Guardar cambios" : "Agregar vuelo"));
   return form;
 }
 
-function FormHotel(onGuardado) {
-  const nombre = h("input", { maxlength: 120, required: true });
-  const direccion = h("input", { maxlength: 200 });
-  const checkin = h("input", { type: "datetime-local", required: true });
-  const checkout = h("input", { type: "datetime-local", required: true });
+/** Alta (sin `hotel`) o edición (con el hotel a editar, precargado). */
+function FormHotel(onGuardado, hotel = null) {
+  const nombre = h("input", { maxlength: 120, required: true, value: hotel?.nombre ?? "" });
+  const direccion = h("input", { maxlength: 200, value: hotel?.direccion ?? "" });
+  const checkin = h("input", { type: "datetime-local", required: true, value: hotel?.checkin ?? "" });
+  const checkout = h("input", { type: "datetime-local", required: true, value: hotel?.checkout ?? "" });
   const form = h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
     const btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
     try {
-      await Viajes.agregarHotel({ nombre: nombre.value, direccion: direccion.value, checkin: checkin.value, checkout: checkout.value, zona: ZONA_HOTEL });
+      const datos = { nombre: nombre.value, direccion: direccion.value, checkin: checkin.value, checkout: checkout.value,
+        zona: hotel?.zona ?? ZONA_HOTEL };
+      await (hotel ? Viajes.editarHotel(hotel.id, datos) : Viajes.agregarHotel(datos));
     } catch (err) { toast(mensajeError(err)); btn.disabled = false; return; }
-    await alGuardar("Hotel agregado.", onGuardado, btn);
+    await alGuardar(hotel ? "Hotel actualizado." : "Hotel agregado.", onGuardado, btn);
   } },
   Campo("Nombre", nombre), Campo("Dirección", direccion),
   h("div", { class: "actions" }, Campo("Check-in", checkin), Campo("Check-out", checkout)),
   h("p", { class: "caption" }, "Las horas son las del hotel (Las Vegas)."),
-  h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Agregar hotel"));
+  h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, hotel ? "Guardar cambios" : "Agregar hotel"));
   return form;
+}
+
+/** La tarjeta en modo edición: el mismo formulario del alta, precargado, con «Cancelar» para volver a la ficha. */
+function EdicionCard(tipo, x, alTerminar) {
+  const form = tipo === "vuelo" ? FormVuelo(alTerminar, x) : FormHotel(alTerminar, x);
+  const titulo = tipo === "vuelo" ? `Editar vuelo ${x.numero}` : `Editar ${x.nombre}`;
+  form.append(Button("Cancelar", { onclick: () => alTerminar().catch((err) => toast(mensajeError(err))) }));
+  return h("article", { class: "ra-card stack", id: `${tipo}-${x.id}` }, h("h2", { class: "label" }, titulo), form);
 }
 
 /** `foco`: { tipo: "vuelo" | "hotel", id } cuando se llega desde un aviso o una tarjeta. */
@@ -152,9 +170,15 @@ export async function viewViajes(view, focoInicial = null) {
       location.hash = "#/viajes";
       await paint();
     };
+    // Cambia la tarjeta por el formulario precargado; guardar o cancelar repinta todo y vuelve a la ficha.
+    const editar = (tipo, x) => () => {
+      const card = EdicionCard(tipo, x, paint);
+      document.getElementById(`${tipo}-${x.id}`)?.replaceWith(card);
+      card.querySelector("input")?.focus();
+    };
     const elegido = foco && (foco.tipo === "vuelo" ? data.vuelos : data.hoteles).find((x) => x.id === foco.id);
-    const vuelos = data.vuelos.map((v) => VueloCard(v, { detalle: elegido === v, onQuitar: quitar("vuelo", v.id) }));
-    const hoteles = data.hoteles.map((x) => HotelCard(x, { detalle: elegido === x, onQuitar: quitar("hotel", x.id) }));
+    const vuelos = data.vuelos.map((v) => VueloCard(v, { detalle: elegido === v, onQuitar: quitar("vuelo", v.id), onEditar: editar("vuelo", v) }));
+    const hoteles = data.hoteles.map((x) => HotelCard(x, { detalle: elegido === x, onQuitar: quitar("hotel", x.id), onEditar: editar("hotel", x) }));
     raiz.replaceChildren(h("div", { class: "stack-lg" },
       h("h1", { class: "title" }, "Viajes"),
       foco && !elegido ? Hint("No encontramos ese vuelo u hotel: puede que ya lo hayas quitado.", { tone: "warn" }) : null,

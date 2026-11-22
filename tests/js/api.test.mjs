@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 
-const { api, ApiError, MSG_PORTAL_CAUTIVO, MSG_RESPUESTA_INVALIDA, MSG_SIN_CONEXION } = await import("../../web/js/api.js");
+const { api, ApiError, MSG_PORTAL_CAUTIVO, MSG_RESPUESTA_INVALIDA, MSG_SIN_CONEXION, Viajes } = await import("../../web/js/api.js");
 
 // Una respuesta 200 cuyo cuerpo no es JSON, como la de un portal cautivo (Wi-Fi del hotel) o un proxy.
 const respuestaNoJson = ({ tipo = "text/html; charset=utf-8", cuerpo = "<html><body>Aceptá los términos</body></html>", extra = {} } = {}) => ({
@@ -78,4 +78,13 @@ test("un JSON válido y raw:true no cambian", async () => {
 test("los errores del servidor no cambian", async () => {
   globalThis.fetch = async () => ({ ok: false, status: 500, statusText: "Internal", json: async () => ({ detail: "se rompió" }) });
   await assert.rejects(api("/api/me"), (e) => e instanceof ApiError && e.status === 500 && e.message === "se rompió");
+});
+
+test("editar un vuelo o un hotel manda un PUT con la ficha a /api/viajes/{tipo}/{id}", async () => {
+  const pedidos = [];
+  globalThis.fetch = async (url, opts) => { pedidos.push({ url, metodo: opts?.method, cuerpo: opts?.body }); return { ok: true, status: 200, json: async () => ({ ok: 1 }) }; };
+  await Viajes.editarVuelo("abc123", { numero: "AR1302" });
+  await Viajes.editarHotel("x/y", { nombre: "Wynn" });
+  assert.deepEqual(pedidos.map((p) => [p.url, p.metodo]), [["/api/viajes/vuelos/abc123", "PUT"], ["/api/viajes/hoteles/x%2Fy", "PUT"]]);
+  assert.deepEqual(JSON.parse(pedidos[0].cuerpo), { numero: "AR1302" });
 });
