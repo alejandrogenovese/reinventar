@@ -1,11 +1,10 @@
 feature: grabar-desde-charla
 titulo: "Grabá la charla de tu itinerario"
 beneficio: "Un toque y la grabación ya sabe qué charla es."
-ruta: "#/grabar-charla/{{CODIGO_CHARLA_ITINERARIO}}"
+ruta: "#/grabar-charla/IND302-R"
 notas: >-
   Marcar el tip de no molestar como visto antes de grabar (o tocar «Entendido» en el pre-roll; app.js:380-381).
-  Falta un dato concreto: {{CODIGO_CHARLA_ITINERARIO}} es el código de una charla que esté en el itinerario
-  del tester (features.yml no fija uno). Si no está en el itinerario, la pantalla dice «… ya no está en tu
+  IND302-R es una charla del itinerario de tester en staging (martes 14:30, Caesars Palace; ver demos/README.md). Si no está en el itinerario, la pantalla dice «… ya no está en tu
   itinerario»; si ya hay una grabación viva con ese código, salta directo al grabador.
   El push «¿La grabás?» no se graba: se entra directo a la ruta a la que lleva el aviso.
   Micrófono simulado (Chrome con --use-fake-ui-for-media-stream y --use-fake-device-for-media-stream).
@@ -13,7 +12,7 @@ notas: >-
   («Grabar esta charla») solo se narra: necesita reloj simulado dentro de la charla.
 escenas:
   - id: 1
-    accion: "goto #/grabar-charla/{{CODIGO_CHARLA_ITINERARIO}}"
+    accion: "goto #/grabar-charla/IND302-R"
     narracion: "Empieza una charla de tu itinerario y nadie la está grabando: te llega el aviso ¿La grabás?"
     subtitulo: "Empieza una charla y nadie la graba:\nte llega «¿La grabás?»."
     duracion_s: 8

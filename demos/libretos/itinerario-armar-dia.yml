@@ -8,6 +8,9 @@ notas: >-
   Las opciones, los motivos y los estados del semáforo dependen del catálogo y del LLM: no se narra ninguna charla en
   particular. Las personas y eventos del cierre aparecen solo si hay speakers en las charlas del día y eventos desde
   las 17 h. .tabs [role=tab] y role=button[name='Elegir'] matchean varios (dayBuilder.js:56,130): tomar el primero.
+  La primera pestaña es el domingo 29/11, que no tiene opciones: se usa la sexta (vie 4/12, una sola charla en el
+  itinerario armado para tester en staging). Las opciones las arma el LLM y tardan unos 15 s en aparecer: el
+  runner tiene que esperar role=button[name='Elegir'] antes de la escena 4, no solo el wait de la escena 3.
 escenas:
   - id: 1
     accion: "goto #/itinerario/armar"
@@ -15,7 +18,7 @@ escenas:
     subtitulo: "Armás cada día charla por charla,\nsin correr entre sedes."
     duracion_s: 7
   - id: 2
-    accion: "click .tabs [role=tab]"
+    accion: "click .tabs [role=tab]:nth-child(6)"
     narracion: "Elegís el día y la app te pregunta con qué arrancás."
     subtitulo: "Elegís el día:\n¿con qué arrancás?"
     duracion_s: 6
