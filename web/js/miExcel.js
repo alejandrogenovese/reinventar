@@ -15,7 +15,32 @@ const Codigos = {
   subir: (file) => api(`/api/codigos?nombre=${encodeURIComponent(file.name)}`, { method: "POST", body: file,
     headers: { "Content-Type": file.type || "application/octet-stream" } }),
   borrar: () => api("/api/codigos", { method: "DELETE" }),
+  ejemplo: () => api("/api/codigos/ejemplo.xlsx", { raw: true }).then((r) => r.blob()),
 };
+const EJEMPLO = "reinventar-codigos-ejemplo.xlsx";
+const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/** Baja el Excel de ejemplo (con el token: un <a href> no lo mandaría). Como en gastos.js: en la app instalada de
+ *  iPhone un enlace de descarga deja la pantalla trabada en el archivo, así que si se puede se comparte. */
+async function bajarEjemplo() {
+  try {
+    const blob = await Codigos.ejemplo();
+    const archivo = typeof File === "function" ? new File([blob], EJEMPLO, { type: MIME_XLSX }) : null;
+    if (archivo && navigator.canShare?.({ files: [archivo] })) {
+      try { await navigator.share({ files: [archivo], title: "Excel de ejemplo" }); return; } catch (e) {
+        if (e?.name === "AbortError") return; // cerró la hoja de compartir: no es un error
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const enlace = h("a", { href: url, download: EJEMPLO });
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch (err) {
+    toast(mensajeError(err));
+  }
+}
 
 const Rail = (dia, inicio) => h("div", { class: "ra-rail" },
   h("span", { class: "ra-rail-time" }, inicio || "—"), h("span", { class: "ra-rail-day" }, dia ? dayShort(dia) : ""));
@@ -102,7 +127,10 @@ export async function viewMiExcel(view) {
     return h("div", { class: "stack" },
       error ? Hint(error, { tone: "error" }) : null,
       h("p", { class: "caption" }, "Un .xlsx o .csv de hasta 1 MB con los códigos que querés (AIM301, DAT402-R, KEY001). Busco sola la columna de códigos; lo demás se ignora."),
-      Button(data.lista ? "Subir otra lista" : "Elegir archivo", { variant: data.lista ? "secondary" : "primary", onclick: elegirArchivo }));
+      h("div", { class: "actions" },
+        Button(data.lista ? "Subir otra lista" : "Elegir archivo", { variant: data.lista ? "secondary" : "primary", onclick: elegirArchivo }),
+        Button("Bajar un Excel de ejemplo", { variant: "ghost", onclick: bajarEjemplo })),
+      h("p", { class: "caption" }, "¿No sabés cómo armarlo? Bajá el ejemplo, completá la columna Código con las charlas que querés y subilo acá."));
   }
 
   function Resultado() {
