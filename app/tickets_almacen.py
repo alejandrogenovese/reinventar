@@ -75,12 +75,31 @@ def firmar(metodo: str, host: str, ruta: str, headers: dict[str, str], payload_s
     lista = ";".join(nombres)
     canonico = "\n".join([metodo, quote(ruta, safe="/-_.~"), "", canonico_headers, lista, payload_sha256])
     alcance = f"{dia}/{region}/s3/aws4_request"
-    a_firmar = "\n".join(["AWS4-HMAC-SHA256", marca, alcance, hashlib.sha256(canonico.encode()).hexdigest()])
-    k = _hmac(_hmac(_hmac(_hmac(("AWS4" + secret).encode(), dia), region), "s3"), "aws4_request")
-    firma = hmac.new(k, a_firmar.encode(), hashlib.sha256).hexdigest()
+    firma = _firma(canonico, marca, alcance, secret, dia, region)
     firmados["authorization"] = (f"AWS4-HMAC-SHA256 Credential={key_id}/{alcance}, SignedHeaders={lista}, "
                                  f"Signature={firma}")
     return firmados
+
+
+def _firma(canonico: str, marca: str, alcance: str, secret: str, dia: str, region: str) -> str:
+    a_firmar = "\n".join(["AWS4-HMAC-SHA256", marca, alcance, hashlib.sha256(canonico.encode()).hexdigest()])
+    k = _hmac(_hmac(_hmac(_hmac(("AWS4" + secret).encode(), dia), region), "s3"), "aws4_request")
+    return hmac.new(k, a_firmar.encode(), hashlib.sha256).hexdigest()
+
+
+def url_firmada(host: str, ruta: str, key_id: str, secret: str, region: str, ahora: datetime, segundos: int) -> str:
+    """Link GET con la firma SigV4 en la query (presigned URL): el navegador baja el archivo directo del bucket, que
+    sigue privado, y el link vence a los `segundos`."""
+    marca = ahora.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+    dia = marca[:8]
+    alcance = f"{dia}/{region}/s3/aws4_request"
+    parametros = {"X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": f"{key_id}/{alcance}",
+                  "X-Amz-Date": marca, "X-Amz-Expires": str(segundos), "X-Amz-SignedHeaders": "host"}
+    query = "&".join(f"{quote(k, safe='-_.~')}={quote(v, safe='-_.~')}" for k, v in sorted(parametros.items()))
+    ruta_codificada = quote(ruta, safe="/-_.~")
+    canonico = "\n".join(["GET", ruta_codificada, query, f"host:{host}\n", "host", "UNSIGNED-PAYLOAD"])
+    firma = _firma(canonico, marca, alcance, secret, dia, region)
+    return f"https://{host}{ruta_codificada}?{query}&X-Amz-Signature={firma}"
 
 
 class AlmacenS3:
@@ -118,6 +137,10 @@ class AlmacenS3:
         r = self._pedir("DELETE", clave)
         if r.status_code != 404:
             r.raise_for_status()
+
+    def url_firmada(self, clave: str, segundos: int, ahora: datetime | None = None) -> str:
+        return url_firmada(self.host, "/" + clave, self.key_id, self.secret, self.region, ahora or datetime.now(UTC),
+                           segundos)
 
 
 _VARIABLES_S3 = (("TICKETS_S3_ENDPOINT", "ENDPOINT"), ("TICKETS_S3_BUCKET", "BUCKET"), ("TICKETS_S3_KEY_ID", "KEY_ID"),

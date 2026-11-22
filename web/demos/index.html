@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Videos de ReinventAR: cómo se usa</title>
+  <meta name="description" content="Cada cosa que hace ReinventAR, la app para recorrer re:Invent, en un video corto.">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <script src="/demos/tema.js"></script>
+  <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/demos/demos.css">
+  <script type="module" src="/demos/demos.js"></script>
+</head>
+<body>
+  <header class="dm-hero">
+    <div class="dm-ancho">
+      <a class="dm-marca" href="/">
+        <img src="/icons/icon.svg" alt="" width="40" height="40">
+        <span>reinventar</span>
+      </a>
+      <h1>Cómo se usa ReinventAR</h1>
+      <p class="dm-bajada">Cada cosa que hace la app en un video corto, sin sonido y con subtítulos: tu agenda, grabar
+        charlas, moverte entre sedes y organizar el viaje.</p>
+      <a class="ra-btn ra-btn-primary dm-cta" href="/">Abrir la app</a>
+    </div>
+  </header>
+
+  <main class="dm-ancho">
+    <search class="dm-filtros">
+      <label class="ra-searchfield dm-buscar">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">Buscar un video</span>
+        <input id="buscar" type="search" placeholder="Buscar: grabar, itinerario, gastos…" autocomplete="off" disabled>
+      </label>
+      <p id="conteo" class="dm-conteo" aria-live="polite"></p>
+    </search>
+    <nav id="saltos" class="dm-saltos" aria-label="Secciones" hidden></nav>
+
+    <output id="estado" class="dm-estado"></output>
+    <div id="secciones" aria-busy="true"></div>
+  </main>
+
+  <dialog id="reproductor" class="dm-reproductor" aria-labelledby="rep-titulo" aria-describedby="rep-beneficio">
+    <div class="ra-sheet-head dm-rep-cabecera">
+      <h2 id="rep-titulo">Video</h2>
+      <button id="cerrar" class="ra-btn ra-btn-ghost ra-btn-icon dm-cerrar" type="button" aria-label="Cerrar el video"
+        autofocus>✕</button>
+    </div>
+    <video id="video" controls playsinline muted preload="metadata"></video>
+    <p class="dm-girar">Girá el celular para verlo más grande.</p>
+    <p id="rep-beneficio" class="dm-rep-beneficio"></p>
+    <details class="dm-pasos" id="rep-detalle">
+      <summary>Qué muestra el video</summary>
+      <ol id="rep-pasos"></ol>
+    </details>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,82 @@
+/* Galería pública de videos demo (/demos/). Va después de tokens.css, base.css y styles.css (botones, buscador, sheets,
+   esqueletos y foco de la SPA) y sin @layer, para poder ajustar sobre ellos. Lo oscuro de la página (hero, portadas y
+   reproductor) es el fondo de la placa de los videos en los dos temas, así no se ve un corte alrededor del video. */
+:root { --dm-ancho: 1120px; --dm-placa: #1a1a1a; --dm-sobre-placa: #f4f4f4; --dm-sobre-placa-suave: #bdbdbd; }
+
+body { background: var(--bg); color: var(--ink); }
+.dm-ancho { width: min(100% - 2 * var(--space-6), var(--dm-ancho)); margin-inline: auto; }
+
+/* Hero: que en el celular entre la primera fila de videos sin scrollear. */
+.dm-hero { background: var(--dm-placa); color: var(--dm-sobre-placa); padding-block: var(--space-8) var(--space-6); }
+.dm-marca { display: inline-flex; align-items: center; gap: var(--space-3); color: inherit; text-decoration: none;
+  font: var(--t-title); }
+.dm-hero h1 { margin: var(--space-8) 0 0; font: 700 clamp(28px, 5vw, 44px)/1.1 var(--font-ui);
+  letter-spacing: var(--track-tight); }
+.dm-bajada { margin: var(--space-3) 0 0; max-width: 60ch; color: var(--dm-sobre-placa-suave); font: var(--t-body); }
+.dm-cta { margin-top: var(--space-6); text-decoration: none; }
+
+.dm-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4);
+  margin-block: var(--space-6) var(--space-3); }
+.dm-buscar { flex: 1 1 280px; max-width: 420px; }
+.dm-conteo { margin: 0; color: var(--ink-muted); font: var(--t-small); }
+
+.dm-saltos { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-2); }
+.dm-saltos a { min-height: var(--touch); display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); color: var(--ink);
+  text-decoration: none; white-space: nowrap; font: var(--t-small-strong); }
+.dm-saltos a span { color: var(--ink-muted); font: var(--t-data); }
+
+.dm-estado:empty { display: none; }
+.dm-estado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-6);
+  color: var(--ink-muted); }
+
+.dm-seccion h2 { font: var(--t-title); margin: var(--space-8) 0 var(--space-4); scroll-margin-top: var(--space-4); }
+.dm-grilla { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.dm-skel { aspect-ratio: 16 / 13; border-radius: var(--radius-m); list-style: none; }
+
+/* Tarjeta: el patrón de .ra-card (radio de tarjeta, sombra al hover, apenas se achica al tocar). */
+.dm-tarjeta { display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0; border: 0; text-align: left;
+  background: var(--surface-1); color: inherit; border-radius: var(--radius-m); overflow: hidden; cursor: pointer;
+  box-shadow: var(--edge), var(--shadow-1); transition: box-shadow var(--ease), transform var(--ease); font: inherit; }
+.dm-tarjeta:hover { box-shadow: var(--edge), var(--shadow-2); }
+.dm-tarjeta:active { transform: scale(.995); }
+.dm-portada { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--dm-placa); }
+.dm-portada img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dm-duracion { position: absolute; right: var(--space-2); bottom: var(--space-2); padding: 2px var(--space-2);
+  border-radius: var(--radius-s); background: rgb(17 17 17 / .82); color: #fff; font: var(--t-data); }
+.dm-texto { display: grid; gap: var(--space-1); padding: var(--space-4); }
+.dm-texto strong { font: var(--t-heading); }
+.dm-texto > span { color: var(--ink-muted); font: var(--t-small); }
+
+/* En el celular, una tarjeta horizontal por fila: 37 videos en una columna de tarjetas altas era demasiado scroll. */
+@media (max-width: 599px) {
+  .dm-grilla { grid-template-columns: 1fr; gap: var(--space-3); }
+  .dm-tarjeta { flex-direction: row; }
+  .dm-portada { flex: 0 0 128px; align-self: stretch; aspect-ratio: auto; }
+  .dm-texto { padding: var(--space-3); }
+}
+
+.dm-reproductor { width: min(100% - 2 * var(--space-4), 1100px); padding: 0; border: 0; border-radius: var(--radius-l);
+  background: var(--dm-placa); color: var(--dm-sobre-placa); }
+.dm-reproductor::backdrop { background: rgb(0 0 0 / .72); }
+.dm-rep-cabecera { padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); }
+.dm-rep-cabecera h2 { margin: 0; font: var(--t-title); }
+.dm-cerrar { color: inherit; }
+.dm-reproductor :focus-visible { outline-color: #6bb8f0; } /* el foco de oscuro: 8,7:1 sobre la placa */
+.dm-reproductor video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+.dm-rep-beneficio { margin: 0; padding: var(--space-3) var(--space-4) 0; color: var(--dm-sobre-placa-suave); }
+.dm-pasos { padding: var(--space-3) var(--space-4) var(--space-4); color: var(--dm-sobre-placa-suave); }
+.dm-pasos summary { min-height: var(--touch); display: flex; align-items: center; cursor: pointer; color: var(--dm-sobre-placa);
+  font: var(--t-body-strong); }
+.dm-pasos ol { margin: var(--space-2) 0 0; padding-left: var(--space-6); display: grid; gap: var(--space-1); }
+.dm-girar { display: none; margin: 0; padding: var(--space-3) var(--space-4) 0; color: var(--dm-sobre-placa-suave);
+  font: var(--t-small); text-align: center; }
+
+/* En el celular el video ocupa toda la pantalla: los subtítulos van quemados y achicado no se leen. */
+@media (max-width: 767px) {
+  .dm-reproductor { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .dm-reproductor[open] { display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }
+  .dm-rep-cabecera { padding-top: max(var(--space-2), env(safe-area-inset-top)); }
+}
+@media (max-width: 767px) and (orientation: portrait) { .dm-girar { display: block; } }
