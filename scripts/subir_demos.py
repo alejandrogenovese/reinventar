@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import yaml
@@ -20,6 +21,7 @@ import yaml
 RAIZ = Path(__file__).resolve().parent.parent
 PORTADA_SEGUNDO = "1.5"  # mitad de la placa de título: ya terminó el fundido de entrada
 TIMEOUT_SUBIDA_S = 120
+DOMINIO = "reinventar.app"
 
 
 def orden_de_features(features_yml: Path) -> list[str]:
@@ -50,6 +52,17 @@ def portada(video: Path, destino: Path) -> None:
                     "-vf", "scale=960:-2", "-q:v", "4", str(destino)], check=True)
 
 
+def base_url_permitida(url: str) -> str:
+    """La contraseña de admin solo viaja a ReinventAR: https en reinventar.app (o un subdominio) o la app local."""
+    partes = urlparse(url)
+    host = partes.hostname or ""
+    if partes.scheme == "https" and (host == DOMINIO or host.endswith(f".{DOMINIO}")):
+        return url.rstrip("/")
+    if partes.scheme == "http" and host in ("localhost", "127.0.0.1"):
+        return url.rstrip("/")
+    raise ValueError(f"--base-url tiene que ser https://*.{DOMINIO} o http://localhost: {url}")
+
+
 def login(cliente: httpx.Client, usuario: str, password: str) -> None:
     r = cliente.post("/api/login", json={"username": usuario, "password": password})
     if r.status_code != 200:
@@ -69,6 +82,10 @@ def main() -> None:
     p.add_argument("--usuario", default=os.environ.get("DEMOS_ADMIN_USUARIO", "tester"))
     p.add_argument("--videos", type=Path, default=RAIZ / "demos" / "out" / "final")
     args = p.parse_args()
+    try:
+        base_url = base_url_permitida(args.base_url)
+    except ValueError as e:
+        sys.exit(str(e))
     password = os.environ.get("DEMOS_ADMIN_PASSWORD")
     if not password:
         sys.exit("Falta DEMOS_ADMIN_PASSWORD (la contraseña del usuario admin)")
@@ -76,7 +93,7 @@ def main() -> None:
     if not videos:
         sys.exit(f"No hay videos en {args.videos}")
 
-    with httpx.Client(base_url=args.base_url, timeout=30) as cliente, tempfile.TemporaryDirectory() as tmp:
+    with httpx.Client(base_url=base_url, timeout=30) as cliente, tempfile.TemporaryDirectory() as tmp:
         login(cliente, args.usuario, password)
         duraciones = {}
         for feature, video in videos.items():

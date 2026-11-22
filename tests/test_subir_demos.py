@@ -1,7 +1,9 @@
 """El índice de la galería: orden de features.yml, sin admin y solo con los videos que existen."""
 from pathlib import Path
 
-from scripts.subir_demos import armar_indice, orden_de_features
+import pytest
+
+from scripts.subir_demos import armar_indice, base_url_permitida, orden_de_features
 
 LIBRETOS = {
     "gastos": {"titulo": "Gastos", "beneficio": "Cargás y listo"},
@@ -26,3 +28,15 @@ def test_las_features_de_admin_no_se_publican(tmp_path: Path):
     yml.write_text("features:\n  - id: gastos\n    audiencia: usuario\n  - id: admin-llm\n    audiencia: admin\n"
                    "  - id: shows\n", encoding="utf-8")
     assert orden_de_features(yml) == ["gastos", "shows"]
+
+
+@pytest.mark.parametrize("url", ["https://staging.reinventar.app", "https://reinventar.app/", "http://localhost:8000"])
+def test_la_contrasena_solo_viaja_a_reinventar(url):
+    assert base_url_permitida(url) == url.rstrip("/")
+
+
+@pytest.mark.parametrize("url", ["https://reinventar.app.evil.com", "http://staging.reinventar.app", "https://otro.com",
+                                 "file:///etc/passwd"])
+def test_otra_base_url_se_rechaza(url):
+    with pytest.raises(ValueError):
+        base_url_permitida(url)

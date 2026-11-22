@@ -149,4 +149,5 @@ def test_el_bucket_se_arma_con_las_variables_de_demos(monkeypatch):
     assert demos.origen_publico() == "https://demos-x.t3.storageapi.dev"
     monkeypatch.setattr(config, "DEMOS_S3_SECRET", "")
     monkeypatch.setattr(demos, "_s3", None)
-    assert demos.obtener() is None and demos.origen_publico() is None
+    assert demos.obtener() is None
+    assert demos.origen_publico() is None

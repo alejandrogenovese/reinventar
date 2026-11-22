@@ -81,4 +81,4 @@ buscar.addEventListener("input", pintar);
 $("cerrar").addEventListener("click", () => reproductor.close());
 reproductor.addEventListener("close", cerrar);
 reproductor.addEventListener("click", (e) => { if (e.target === reproductor) reproductor.close(); }); // click afuera
-cargar();
+await cargar();
