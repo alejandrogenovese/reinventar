@@ -57,6 +57,19 @@ def test_un_dia_devuelve_solo_ese_grupo():
 
 
 @necesita_node
+def test_los_dias_despues_de_la_conferencia_se_filtran_como_cualquier_otro():
+    finde = [{"day": d, "events": [{"code": d[-2:], "type": "party", "start": "20:00"}]}
+             for d in ("2026-12-05", "2026-12-06", "2026-12-07")]
+    expresion = f"[m.filtrarEventos({json.dumps(finde)}, {{ day: m.TODAS }}), " \
+                f"m.filtrarEventos({json.dumps(finde)}, {{ day: \"2026-12-07\" }})]"
+
+    todas, lunes = correr(expresion)
+
+    assert [g["day"] for g in todas] == ["2026-12-05", "2026-12-06", "2026-12-07"]
+    assert codigos(lunes) == [["07"]]
+
+
+@necesita_node
 def test_los_cancelados_van_al_final_del_dia():
     grupos = correr('m.filtrarEventos(dias, { day: "2026-12-02", type: "todos", near: true, here: { lat: 0, lng: 0 }, distance: dist })')
     assert codigos(grupos) == [["c", "d", "e", "f"]]
