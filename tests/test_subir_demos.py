@@ -6,7 +6,8 @@ import pytest
 from scripts.subir_demos import armar_indice, base_url_permitida, orden_de_features
 
 LIBRETOS = {
-    "gastos": {"titulo": "Gastos", "beneficio": "Cargás y listo"},
+    "gastos": {"titulo": "Gastos", "beneficio": "Cargás y listo",
+               "escenas": [{"subtitulo": "Dólares, pesos…\nes fácil perder la cuenta"}, {"accion": "wait 2"}]},
     "inicio-hoy": {"titulo": "Tu día", "beneficio": "De un vistazo"},
     "shows": {"titulo": "Shows"},
 }
@@ -16,7 +17,8 @@ def test_respeta_el_orden_y_saltea_lo_que_no_tiene_video():
     indice = armar_indice(["inicio-hoy", "ofertas", "gastos", "shows"], LIBRETOS, {"gastos": 51, "inicio-hoy": 46})
     assert [d["feature"] for d in indice] == ["inicio-hoy", "gastos"]
     assert indice[1] == {"feature": "gastos", "titulo": "Gastos", "beneficio": "Cargás y listo", "duracion_s": 51,
-                         "video": "gastos.mp4", "poster": "gastos.jpg"}
+                         "video": "gastos.mp4", "poster": "gastos.jpg",
+                         "pasos": ["Dólares, pesos… es fácil perder la cuenta"]}
 
 
 def test_sin_beneficio_queda_vacio():

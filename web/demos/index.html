@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#1a1a1a">
-  <title>Cómo se usa ReinventAR · videos demo</title>
-  <meta name="description" content="Videos cortos que muestran cada funcionalidad de ReinventAR, la app para recorrer re:Invent.">
+  <title>Videos de ReinventAR: cómo se usa</title>
+  <meta name="description" content="Cada cosa que hace ReinventAR, la app para recorrer re:Invent, en un video corto.">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <script src="/demos/tema.js"></script>
+  <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/demos/demos.css">
   <script type="module" src="/demos/demos.js"></script>
 </head>
@@ -19,37 +25,41 @@
         <img src="/icons/icon.svg" alt="" width="40" height="40">
         <span>reinventar</span>
       </a>
-      <div class="dm-acento" aria-hidden="true"></div>
       <h1>Cómo se usa ReinventAR</h1>
-      <p class="dm-bajada">Videos cortos, de menos de un minuto, con cada cosa que hace la app: tu agenda, grabar
+      <p class="dm-bajada">Cada cosa que hace la app en un video corto, sin sonido y con subtítulos: tu agenda, grabar
         charlas, moverte entre sedes y organizar el viaje.</p>
+      <a class="ra-btn ra-btn-primary dm-cta" href="/">Abrir la app</a>
     </div>
   </header>
 
   <main class="dm-ancho">
-    <div class="dm-filtros" role="search">
-      <label class="dm-buscar">
-        <span class="dm-oculto">Buscar un video</span>
-        <input id="buscar" type="search" placeholder="Buscar: grabar, itinerario, gastos…" autocomplete="off">
+    <search class="dm-filtros">
+      <label class="ra-searchfield dm-buscar">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">Buscar un video</span>
+        <input id="buscar" type="search" placeholder="Buscar: grabar, itinerario, gastos…" autocomplete="off" disabled>
       </label>
       <p id="conteo" class="dm-conteo" aria-live="polite"></p>
-    </div>
+    </search>
+    <nav id="saltos" class="dm-saltos" aria-label="Secciones" hidden></nav>
 
-    <p id="estado" class="dm-estado">Cargando los videos…</p>
-    <ul id="grilla" class="dm-grilla" aria-label="Videos demo"></ul>
+    <div id="estado" class="dm-estado" role="status"></div>
+    <div id="secciones" aria-busy="true"></div>
   </main>
 
-  <dialog id="reproductor" class="dm-reproductor" aria-labelledby="rep-titulo">
-    <div class="dm-rep-cabecera">
-      <h2 id="rep-titulo">Video demo</h2>
-      <button id="cerrar" class="dm-cerrar" type="button" aria-label="Cerrar el video">✕</button>
+  <dialog id="reproductor" class="dm-reproductor" aria-labelledby="rep-titulo" aria-describedby="rep-beneficio">
+    <div class="ra-sheet-head dm-rep-cabecera">
+      <h2 id="rep-titulo"></h2>
+      <button id="cerrar" class="ra-btn ra-btn-ghost ra-btn-icon dm-cerrar" type="button" aria-label="Cerrar el video"
+        autofocus>✕</button>
     </div>
-    <video id="video" controls playsinline preload="metadata"></video>
+    <video id="video" controls playsinline muted preload="metadata"></video>
+    <p class="dm-girar">Girá el celular para verlo más grande.</p>
     <p id="rep-beneficio" class="dm-rep-beneficio"></p>
+    <details class="dm-pasos" id="rep-detalle">
+      <summary>Qué muestra el video</summary>
+      <ol id="rep-pasos"></ol>
+    </details>
   </dialog>
-
-  <footer class="dm-pie dm-ancho">
-    <a href="/">Abrir ReinventAR</a>
-  </footer>
 </body>
 </html>

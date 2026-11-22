@@ -1,8 +1,8 @@
 """Sube los videos demo compuestos (demos/out/final/<feature>.mp4) al bucket de demos, a través de la app.
 
 La app de staging tiene las credenciales del bucket (variables DEMOS_S3_*): el script entra con un usuario admin y usa
-PUT /api/admin/demos/archivos/<nombre> e /api/admin/demos/indice. Por cada video saca una portada (el cuadro de la placa
-de título) con ffmpeg. El orden de la galería es el de demos/features.yml; las de admin no se publican.
+PUT /api/admin/demos/archivos/<nombre> e /api/admin/demos/indice. Por cada video saca una portada con ffmpeg
+(un cuadro con el celular, sin la franja de subtítulos). El orden de la galería es el de demos/features.yml; las de admin no se publican.
 
 Uso:
   DEMOS_ADMIN_PASSWORD=... python scripts/subir_demos.py [--base-url https://staging.reinventar.app] [--usuario tester]
@@ -19,8 +19,10 @@ import httpx
 import yaml
 
 RAIZ = Path(__file__).resolve().parent.parent
-PORTADA_SEGUNDO = "1.5"  # mitad de la placa de título: ya terminó el fundido de entrada
+PORTADA_SEGUNDO = "8"  # ya pasó la placa (3 s): se ve el celular con la app, que es lo que se recorta bien en la tarjeta
 TIMEOUT_SUBIDA_S = 120
+# 16:9 de la parte de arriba del cuadro (el celular entero), sin la franja de los subtítulos.
+RECORTE_PORTADA = "crop=1493:840:213:0"
 DOMINIO = "reinventar.app"
 
 
@@ -33,8 +35,13 @@ def orden_de_features(features_yml: Path) -> list[str]:
 def armar_indice(orden: list[str], libretos: dict[str, dict], duraciones: dict[str, int]) -> list[dict]:
     """Una entrada por video que exista, en el orden de features.yml; las que no tienen video se saltean."""
     return [{"feature": f, "titulo": libretos[f]["titulo"], "beneficio": libretos[f].get("beneficio", ""),
-             "duracion_s": duraciones[f], "video": f"{f}.mp4", "poster": f"{f}.jpg"}
+             "duracion_s": duraciones[f], "video": f"{f}.mp4", "poster": f"{f}.jpg", "pasos": pasos(libretos[f])}
             for f in orden if f in duraciones and f in libretos]
+
+
+def pasos(libreto: dict) -> list[str]:
+    """Lo que muestra el video en texto (no tiene audio): el subtítulo de cada escena, en una línea."""
+    return [" ".join(e["subtitulo"].split()) for e in libreto.get("escenas", []) if e.get("subtitulo")]
 
 
 def leer_libretos(carpeta: Path) -> dict[str, dict]:
@@ -49,7 +56,7 @@ def duracion_s(video: Path) -> int:
 
 def portada(video: Path, destino: Path) -> None:
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", PORTADA_SEGUNDO, "-i", str(video), "-frames:v", "1",
-                    "-vf", "scale=960:-2", "-q:v", "4", str(destino)], check=True)
+                    "-vf", f"{RECORTE_PORTADA},scale=960:-2", "-q:v", "4", str(destino)], check=True)
 
 
 def base_url_permitida(url: str) -> str:

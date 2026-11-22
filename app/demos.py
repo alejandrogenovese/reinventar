@@ -8,6 +8,7 @@ import json
 import re
 import time
 from datetime import UTC, datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
@@ -29,6 +30,8 @@ class Demo(BaseModel):
     duracion_s: int = Field(ge=1, le=600)
     video: str
     poster: str
+    # Alternativa en texto del video (no tiene audio): lo que muestra cada escena, en orden.
+    pasos: list[Annotated[str, Field(min_length=1, max_length=140)]] = Field(default_factory=list, max_length=15)
 
     @field_validator("video", "poster")
     @classmethod
