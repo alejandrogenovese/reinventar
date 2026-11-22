@@ -17,13 +17,15 @@ npm i --prefix ~/.cache/rx-pw @playwright/test && ~/.cache/rx-pw/node_modules/.b
 TESTER_PASSWORD=… NODE_PATH=~/.cache/rx-pw/node_modules ~/.cache/rx-pw/node_modules/.bin/playwright test -c demos/playwright.config.ts demos/specs/viaje-hub.spec.ts
 ```
 
-Para el video final (1920×1080: placa de 3 s, el celular al centro y los subtítulos de cada escena, según el diseño aprobado) hace falta además `ffmpeg`:
+Para el video final hace falta además `ffmpeg`. Por defecto sale en 16:9 (1920×1080): placa de 3 s y después el teléfono a la izquierda con el texto de cada escena grande a la derecha, sin caja. Con `FORMATO=9x16` o `FORMATO=1x1` sale vertical o cuadrado, con el subtítulo debajo del teléfono:
 
 ```sh
 NODE_PATH=~/.cache/rx-pw/node_modules node demos/componer.cjs [feature ...]
 ```
 
-Deja `demos/out/final/<feature>.mp4`; sin argumentos compone todas las que tengan un timeline completo.
+Deja `demos/out/final-<formato>/<feature>.mp4`; sin argumentos compone todas las que tengan un timeline completo.
+
+Para publicarlos en la galería `/demos/` (bucket `demos`, compartido por staging y producción): `DEMOS_ADMIN_PASSWORD=… python scripts/subir_demos.py --entorno staging`.
 
 Si cambia un libreto, regenerá las specs con `demos/specs/_generar.js` (el uso está en su encabezado).
 
