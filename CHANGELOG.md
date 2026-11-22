@@ -5,6 +5,19 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.1.2] - 2026-11-22
+
+### Agregado
+- **Editar vuelos y hoteles.** En Viajes, cada vuelo y cada hotel tiene «Editar» en su ficha: el formulario se abre
+  con los datos cargados (también la ciudad de salida). Si cambiás la fecha, la hora o el vuelo, los avisos de
+  check-in, demora y puerta se recalculan para el nuevo; cambiar solo la aerolínea o el nombre no repite avisos.
+- **Excel de ejemplo para cruzar tus códigos.** En Itinerario › Cruzar con mi Excel, «Bajar un Excel de ejemplo» te da
+  una planilla con la columna Código y unas instrucciones: la completás con las charlas que querés y la subís tal cual.
+
+### Cambiado
+- **Eventos y Shows llegan hasta el lunes 7/12 a las 13:00.** Podés encontrar fiestas, actividades y shows del sábado
+  5, el domingo 6 y la mañana del lunes 7, y el admin puede cargar eventos por link hasta el 7/12.
+
 ## [1.1.1] - 2026-11-22
 
 ### Cambiado
