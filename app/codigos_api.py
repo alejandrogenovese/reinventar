@@ -7,7 +7,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from . import catalog, codigos_ejemplo, codigos_excel, cuerpo, db, limites
+from . import catalog, codigos_ejemplo, codigos_excel, cuerpo, db, itinerary, limites
 from .auth import auth
 from .codigos_excel import ArchivoInvalido, Codigo
 
@@ -42,6 +42,17 @@ def _registrados(username: str) -> list[dict]:
             if it.get("kind", "talk") == "talk" and it.get("reservada")]
 
 
+def _bases_en_itinerario(username: str) -> set[str]:
+    return {it["base"] for it in db.list_itinerary_items(username) if it.get("kind", "talk") == "talk"}
+
+
+def _con_itinerario(cruce: dict, en_itinerario: set[str]) -> dict:
+    """Marca qué charlas de la lista ya están en el itinerario y cuántas se pueden agregar (las que existen y no están)."""
+    codigos = [{**e, "en_itinerario": e["base"] in en_itinerario} for e in cruce["codigos"]]
+    para_agregar = sum(e["estado"] != "inexistente" and not e["en_itinerario"] for e in codigos)
+    return {**cruce, "codigos": codigos, "resumen": {**cruce["resumen"], "para_agregar": para_agregar}}
+
+
 def _resultado(username: str) -> dict:
     filas = _leer(username)
     if not filas:
@@ -51,8 +62,20 @@ def _resultado(username: str) -> dict:
     except catalog.CatalogUnavailable as e:
         raise HTTPException(503, "El catálogo no está disponible ahora. Probá de nuevo en un rato.") from e
     deseados = [Codigo(f["base"], f["codigo"]) for f in filas]
+    cruce = codigos_excel.cruzar(deseados, sesiones, _registrados(username))
     return {"lista": True, "archivo": filas[0]["archivo"], "subido_en": filas[0]["subido_en"],
-            **codigos_excel.cruzar(deseados, sesiones, _registrados(username))}
+            **_con_itinerario(cruce, _bases_en_itinerario(username))}
+
+
+def _agregar_al_itinerario(username: str) -> dict:
+    """Las charlas de la lista que existen y no están en el itinerario, en el horario que muestra el cruce."""
+    actual = _resultado(username)
+    if not actual["lista"]:
+        raise HTTPException(404, "Todavía no subiste una lista de códigos.")
+    faltan = [e for e in actual["codigos"] if e["estado"] != "inexistente" and not e["en_itinerario"] and e["instancia"]]
+    for e in faltan:
+        itinerary.agregar_charla(username, e["instancia"], reason="De tu lista de Excel")
+    return {**_resultado(username), "agregadas": len(faltan)}
 
 
 def _procesar(username: str, datos: bytes, nombre: str) -> dict:
@@ -70,6 +93,12 @@ async def subir(request: Request, nombre: str = Query("", max_length=255), usern
     limites.exigir_cupo(_subidas, username, "subida de listas de códigos")
     datos = await cuerpo.leer_con_tope(request, codigos_excel.MAX_BYTES, "El archivo es demasiado grande (máximo 1 MB).")
     return await run_in_threadpool(_procesar, username, datos, nombre)
+
+
+@router.post("/al-itinerario")
+def al_itinerario(username: str = Depends(auth)):
+    """«Agregar al itinerario»: suma las charlas de la lista que todavía no están, fijadas. No marca la reserva."""
+    return _agregar_al_itinerario(username)
 
 
 @router.get("/ejemplo.xlsx")

@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **«Agregar al itinerario» en Mis códigos de Excel.** Un botón suma al itinerario, fijadas, las charlas de tu lista
+  que todavía no están, en el horario que muestra el cruce (si pediste una repetición, esa). Cada charla dice si ya
+  está en tu itinerario. Cuando no hay ninguna registrada, la pantalla explica que «Registradas» sale de las
+  reservas marcadas y que se cargan con «Importar reservas de AWS».
+
 ### Corregido
 - **Códigos de 4 dígitos y con sufijo.** «Cruzar con mi Excel» salteaba sin avisar los códigos de 4 dígitos
   (IND3313) y daba por inexistentes las charlas cuyo código lleva -S, -SC o -D (AIM121-S, SVC003-D0). Ahora los
