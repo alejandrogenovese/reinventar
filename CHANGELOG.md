@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.2.0] - 2026-11-23
+
 ### Agregado
 - **Más datos de tu vuelo.** La ficha del vuelo muestra a dónde va y a qué hora llega («A Houston (IAH) · llega
   16:40», en hora del destino), el avión y su matrícula, el mostrador de check-in, la terminal de llegada y la cinta
