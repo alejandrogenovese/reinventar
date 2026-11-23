@@ -98,7 +98,7 @@ export function CargarDesdeExcel({ alGuardar } = {}) {
       input.remove();
       if (!file) return;
       archivo = file;
-      subir(false);
+      void subir(false); // subir() atrapa sus propios errores y los muestra en pantalla
     });
     document.body.append(input);
     input.click();

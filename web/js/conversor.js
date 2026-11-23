@@ -117,7 +117,13 @@ function Talles() {
     campo.pintar();
   }
   const genero = Chips("Para quién", [["hombre", "Hombre"], ["mujer", "Mujer"]], (g) => g === estado.genero,
-    (g) => { estado.genero = g; if (!TALLES[g][estado.tipo]) estado.tipo = "calzado"; repintar(); });
+    (g) => {
+      estado.genero = g;
+      if (!TALLES[g][estado.tipo]) {
+        estado.tipo = "calzado";
+      }
+      repintar();
+    });
   repintar();
   return h("div", { class: "stack" }, genero, tipos, campo.el,
     h("div", { class: "actions" }, Invertir(() => { estado.desdeUs = !estado.desdeUs; repintar(); })),
