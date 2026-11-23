@@ -5,8 +5,6 @@ python-multipart: es un solo campo y no vale una dependencia nueva.
 """
 import logging
 from datetime import date
-from email.message import Message
-from email.parser import BytesParser
 from uuid import UUID
 
 import httpx
@@ -15,6 +13,7 @@ from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
 from . import cotizacion, gastos, gastos_links, limites, tickets_almacen
+from . import cuerpo as cuerpo_mod
 from .auth import auth
 
 log = logging.getLogger("reinventar.gastos")
@@ -60,21 +59,7 @@ async def _leer_cuerpo(request: Request, tope: int) -> bytes:
 
 def extraer_foto(content_type: str, cuerpo: bytes) -> tuple[str, bytes] | None:
     """(Content-Type declarado, bytes) de la parte "foto" de un multipart/form-data, o None si no está."""
-    cabecera = Message()
-    cabecera["content-type"] = content_type
-    if cabecera.get_content_type() != "multipart/form-data" or not cabecera.get_param("boundary"):
-        return None
-    delimitador = b"--" + str(cabecera.get_param("boundary")).encode()
-    for parte in cuerpo.split(delimitador)[1:]:
-        parte = parte.removeprefix(b"\r\n")
-        corte = parte.find(b"\r\n\r\n")
-        if corte < 0:
-            continue
-        encabezados = BytesParser().parsebytes(parte[: corte + 4])
-        if encabezados.get_param("name", header="content-disposition") != "foto":
-            continue
-        return encabezados.get_content_type(), parte[corte + 4:].removesuffix(b"\r\n")
-    return None
+    return (cuerpo_mod.partes_multipart(content_type, cuerpo) or {}).get("foto")
 
 
 def al_arrancar() -> None:

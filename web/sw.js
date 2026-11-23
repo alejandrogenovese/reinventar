@@ -3,7 +3,7 @@ const VERSION = "reinventar-v1.1.3";
 // Datos chicos para el SW (el token de sesión, que la página guarda al activar las notificaciones): el SW no ve localStorage.
 const DATOS = "sw-datos";
 const SHELL = [
-  "/css/gastos.css", "/css/admin.css", "/js/gastos.js", "/js/gastosCola.js",
+  "/css/gastos.css", "/css/admin.css", "/js/gastos.js", "/js/gastosCola.js", "/js/documentos.js", "/js/docsLocal.js",
   "/", "/index.html", "/css/tokens.css", "/css/base.css", "/styles.css", "/manifest.webmanifest",
   "/js/app.js", "/js/api.js", "/js/store.js", "/js/recorder.js", "/js/ui.js", "/js/itinerary.js", "/js/map.js", "/js/account.js", "/js/adminLlm.js", "/js/adminEventos.js", "/js/install.js", "/js/passkey.js", "/js/knowledge.js", "/js/lleno.js", "/js/explore.js", "/js/ask.js", "/js/talkpicker.js", "/js/briefing.js", "/js/icons.js", "/js/today.js", "/js/dialog.js", "/js/search.js", "/js/interview.js", "/js/dayBuilder.js", "/js/myEvents.js", "/js/grabado.js", "/js/detail.js", "/js/menu.js", "/js/numeros.js", "/js/viajes.js", "/js/comer.js", "/js/viaje.js", "/js/charts.js", "/js/miExcel.js",
   "/js/changes.js", "/js/countdown.js", "/js/events.js", "/js/eventosTodas.js","/js/shows.js", "/js/location.js", "/js/llevame.js", "/js/llevamePuro.js","/js/missed.js", "/js/notifications.js", "/js/lastgood.js", "/js/sinSenal.js", "/js/estado.js", "/js/estadoBanner.js", "/js/version.js", "/js/dia.js", "/js/locales.js", "/js/sandbox.js", "/js/anuncios.js", "/js/grabarCharla.js", "/js/huecos.js", "/js/ofertas.js", "/js/adminOfertas.js", "/js/adminUi.js", "/js/adminTextos.js", "/js/adminUsuarios.js", "/js/adminEstado.js", "/js/adminAtencion.js", "/js/adminCharlas.js",

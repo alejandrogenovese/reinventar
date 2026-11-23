@@ -1,4 +1,5 @@
 // Cliente de la API. El token de sesión (lo da /api/login) vive en localStorage de este celular.
+import { borrarDocsLocales } from "./docsLocal.js";
 import { clearLast, loadLast, markStale, saveLast } from "./lastgood.js";
 
 const KEY = "reinventar.token";
@@ -8,7 +9,10 @@ const MUST_CHANGE = "reinventar.mustChangePassword";
 export function getToken() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } }
 export function setToken(t) {
   try { localStorage.setItem(KEY, t); } catch {}
-  if (!t) clearLast(); // cerrar sesión: las copias sin señal son de esa persona y no se quedan en el celular
+  if (!t) { // cerrar sesión: las copias sin señal y los documentos guardados son de esa persona y no se quedan en el celular
+    clearLast();
+    void borrarDocsLocales();
+  }
   // Avisa que hay un token nuevo: notifications.js se lo deja al service worker (pushsubscriptionchange con la app cerrada).
   try { globalThis.window?.dispatchEvent(new Event("reinventar:token")); } catch {}
 }
@@ -160,6 +164,19 @@ export const Viajes = {
   quitarHotel: (id) => api(`/api/viajes/hoteles/${encodeURIComponent(id)}`, { method: "DELETE" }),
   prefs: () => api("/api/viajes/preferencias"),
   savePrefs: (prefs) => api("/api/viajes/preferencias", { method: "PUT", json: prefs }),
+};
+
+// Documentos de viaje (app/documentos_api.py). La lista (solo metadatos) tiene copia sin señal; el archivo nunca: sin
+// señal se ve solo si la persona lo guardó en el teléfono (docsLocal.js).
+const RUTA_DOCS = "/api/viajes/documentos";
+export const Documentos = {
+  list: () => apiConUltimaCopia(RUTA_DOCS),
+  create: (form) => api(RUTA_DOCS, { method: "POST", body: form }),
+  edit: (id, json) => api(`${RUTA_DOCS}/${enc(id)}`, { method: "PUT", json }),
+  replaceFile: (form, id) => api(`${RUTA_DOCS}/${enc(id)}/archivo`, { method: "PUT", body: form }),
+  file: (id) => api(`${RUTA_DOCS}/${enc(id)}/archivo`, { raw: true }).then((r) => r.blob()),
+  remove: (id) => api(`${RUTA_DOCS}/${enc(id)}`, { method: "DELETE" }),
+  removeAll: () => api(RUTA_DOCS, { method: "DELETE" }),
 };
 
 export const Today = {

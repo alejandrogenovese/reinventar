@@ -7,7 +7,8 @@ const PREFIX = "reinventar.last.";
 // hash y con datos que sean un objeto o una lista y no pasen del tope. Todo lo demás se ignora, al guardar y al leer.
 // «/api/me/sandbox» y «/api/me/cuenta» no son rutas del servidor: son las claves de las copias del modo prueba y de quién es
 // la persona (usuario e is_admin) que trae /api/me.
-const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox", "/api/me/cuenta"]);
+const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox", "/api/me/cuenta",
+  "/api/viajes/documentos"]); // documentos: solo la lista de metadatos, nunca un archivo
 const DUENO_VALIDO = /^[0-9a-f]{12}$/;
 const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope es para que no llene el almacenamiento
 
