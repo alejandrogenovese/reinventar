@@ -4,7 +4,6 @@ import { CountdownBadge } from "./countdown.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
-import { decidirPorYoutube } from "./avisoYoutube.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
@@ -23,9 +22,11 @@ export const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).jo
 export async function recordTalk(s, btn) {
   btn.disabled = true;
   try {
-    if (!(await decidirPorYoutube(s))) { btn.disabled = false; return; } // la sube AWS: antes de grabar, lo avisa
-    const decision = await decidirGrabar(s.code);
-    if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
+    const decision = await decidirGrabar(s.code, { talk: s });
+    if (!decision.grabar) {
+      if (decision.ver) location.hash = `#/s/${decision.ver}`; else btn.disabled = false; // «No grabar»: queda como estaba
+      return;
+    }
     // Sin señal también se puede grabar: empezarSesion arma una sesión local que se sube cuando vuelva la red.
     const rec = await empezarSesion({
       title: s.title.slice(0, 200), kind: s.recording_kind, code: s.code,

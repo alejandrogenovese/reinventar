@@ -49,7 +49,6 @@ import { viewViaje } from "./viaje.js";
 import { viewFicha as viewMiFicha } from "./ficha.js";
 import { viewConversor } from "./conversor.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
-import { decidirPorYoutube } from "./avisoYoutube.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -304,9 +303,12 @@ function viewNew() {
     btn.disabled = true;
     try {
       const code = fd.get("code").trim() || null;
-      if (!(await decidirPorYoutube(elegida?.code === code ? elegida : null))) { btn.disabled = false; return; }
-      const decision = await decidirGrabar(code); // si otra persona ya graba esa charla, lo avisa antes
-      if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
+      // si AWS la sube a YouTube o si otra persona ya graba esa charla, lo avisa antes
+      const decision = await decidirGrabar(code, { talk: elegida?.code === code ? elegida : null });
+      if (!decision.grabar) {
+        if (decision.ver) location.hash = `#/s/${decision.ver}`; else btn.disabled = false;
+        return;
+      }
       const s = await empezarSesion({
         title: fd.get("title").trim(), kind: fd.get("kind"),
         code, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,

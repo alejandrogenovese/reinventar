@@ -7,7 +7,7 @@ import { h } from "./ui.js";
  *           input?: { label: string, type?: string, minlength?: number } }} opts
  * @returns {Promise<boolean|string|null>} confirm: true/false; con input: el texto o null si se cancela.
  */
-function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Cancelar", danger = false, input }) {
+function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Cancelar", danger = false, input, crudo = false }) {
   return new Promise((resolve) => {
     const opener = document.activeElement; // al cerrar, el foco vuelve al botón que abrió el diálogo
     const field = input ? h("input", { id: "dlg-input", type: input.type || "text", minlength: input.minlength, required: true, autocomplete: "off" }) : null;
@@ -24,7 +24,8 @@ function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Canc
       const ok = dlg.returnValue === "ok";
       dlg.remove();
       if (opener?.isConnected) opener.focus();
-      resolve(input ? (ok ? field.value : null) : ok);
+      // crudo: "ok", "cancel" o "" (Esc o cierre sin tocar un botón), para distinguir una elección de un descarte
+      resolve(input ? (ok ? field.value : null) : crudo ? dlg.returnValue : ok);
     });
     document.body.append(dlg);
     dlg.showModal();
@@ -33,4 +34,6 @@ function openDialog({ title, text, confirmLabel = "Aceptar", cancelLabel = "Canc
 }
 
 export const confirmDialog = (title, opts = {}) => openDialog({ title, ...opts });
+/** Como confirmDialog, pero resuelve "ok", "cancel" o "" si se cerró sin elegir (Esc). */
+export const choiceDialog = (title, opts = {}) => openDialog({ title, ...opts, crudo: true });
 export const promptDialog = (title, input, opts = {}) => openDialog({ title, input, ...opts });

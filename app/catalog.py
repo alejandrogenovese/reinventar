@@ -141,14 +141,16 @@ def get_instance(code: str) -> tuple[dict, dict] | None:
 
 
 # Lo que AWS graba y sube al canal de YouTube AWS Events (entre 24 y 48 h o unos días después). Chalk talks,
-# workshops, builders' sessions, code talks, lightning talks, labs y el resto no se graban.
-TIPOS_EN_YOUTUBE = frozenset({"Keynote", "Mainstage", "Breakout session"})
+# workshops, builders' sessions, code talks, lightning talks, labs y el resto no se graban. En minúsculas: se compara
+# con casefold() para que «Breakout Session» también cuente.
+TIPOS_EN_YOUTUBE = frozenset({"keynote", "mainstage", "breakout session"})
 
 
-def se_publica_en_youtube(tipo: str | None, livestream: bool = False) -> bool:
-    """¿AWS publica la charla en YouTube? Por tipo, o si el catálogo oficial la marca con Livestream.
-    Tipo vacío o desconocido: no (mejor no desalentar a grabar algo que quizás no se sube)."""
-    return bool(livestream) or (tipo or "").strip() in TIPOS_EN_YOUTUBE
+def se_publica_en_youtube(tipo: str | None) -> bool:
+    """¿AWS publica la charla en YouTube? Solo por tipo. Tipo vacío o desconocido: no (mejor no desalentar a grabar
+    algo que quizás no se sube). Pendiente: el catálogo oficial marca además unas pocas charlas con el atributo
+    «Livestream?» (3 labs y 2 chalk talks que el tipo no cubre), pero no se carga en la base."""
+    return (tipo or "").strip().casefold() in TIPOS_EN_YOUTUBE
 
 
 def card(session: dict, instance: dict) -> dict:

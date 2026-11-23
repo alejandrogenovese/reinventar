@@ -10,21 +10,17 @@ from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, login_headers
 DIA = "2026-12-01"
 
 
-@pytest.mark.parametrize("tipo", ["Keynote", "Mainstage", "Breakout session", " Breakout session "])
+@pytest.mark.parametrize("tipo", ["Keynote", "Mainstage", "Breakout session", " Breakout session ", "Breakout Session",
+                                  "KEYNOTE"])
 def test_keynotes_mainstage_y_breakouts_salen_en_youtube(tipo):
     assert catalog.se_publica_en_youtube(tipo) is True
 
 
 @pytest.mark.parametrize("tipo", ["Chalk talk", "Code talk", "Lightning talk", "Workshop", "Builders' session", "Lab",
                                   "Meetup", "Gamified learning", "Bootcamp", "Exam prep", "Featured experience",
-                                  "", None, "Tipo nuevo", "breakout"])
+                                  "", "   ", None, "Tipo nuevo", "breakout"])
 def test_el_resto_y_lo_vacio_o_desconocido_no(tipo):
     assert catalog.se_publica_en_youtube(tipo) is False
-
-
-@pytest.mark.parametrize("tipo", ["Chalk talk", "Lab", None])
-def test_con_livestream_sale_en_youtube_aunque_el_tipo_no(tipo):
-    assert catalog.se_publica_en_youtube(tipo, livestream=True) is True
 
 
 def _s(base, tipo):
