@@ -53,6 +53,7 @@ from . import (
     numeros_api,
     ofertas_api,
     passkey_api,
+    pendientes_api,
     pg,
     pipeline,
     push,
@@ -163,6 +164,7 @@ app.include_router(events_api.router)
 app.include_router(shows_api.router)
 app.include_router(push_api.router)
 app.include_router(ofertas_api.router)
+app.include_router(pendientes_api.router)
 app.include_router(viajes_api.router)
 app.include_router(ubicacion_api.router)
 app.include_router(numeros_api.router)

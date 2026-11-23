@@ -6,6 +6,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Pendientes del viaje.** En Viaje, una checklist de lo que conviene tener resuelto antes de salir (ESTA o visa,
+  pasaporte, seguro, eSIM, check-in de United, entrada de re:Invent, avisar al banco, dólares, documentos…). Tildás
+  lo que ya hiciste, sumás lo tuyo con fecha límite si querés, y editás o borrás cualquiera (un sugerido que borrás
+  no vuelve). La tarjeta de Viaje muestra cuántos llevás listos. Te avisamos 3 días antes y el mismo día de cada
+  fecha límite, y los 3 días previos al viaje, a la mañana, cuántos te faltan. Se apaga en Ajustes.
 - **Aviso si alguien ya está grabando la charla.** Al empezar a grabar una charla que otra persona ya está grabando,
   la app avisa «Ana ya está grabando esta charla» y deja elegir entre «Grabar igual» o «Ver la suya». Sin señal no
   pregunta: graba igual.
