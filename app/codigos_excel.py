@@ -1,16 +1,13 @@
 """«Mis códigos de sesión»: leer los códigos de un Excel o CSV y cruzarlos con el catálogo y con lo registrado.
 
 Todo son funciones puras: el catálogo y el itinerario entran como datos (ver app/codigos_api.py), así se prueban sin
-el schema reinvent. El archivo se lee solo como datos: openpyxl en modo solo lectura y con los valores ya calculados
-(`data_only`), sin evaluar fórmulas ni macros.
+el schema reinvent. La lectura segura del archivo (sin fórmulas ni macros, con topes) está en app/planilla.py.
 """
-import csv
-import io
 import re
-import zipfile
 from dataclasses import dataclass
 
-from . import itinerary
+from . import itinerary, planilla
+from .planilla import ArchivoInvalido  # noqa: F401  (se reexporta: codigos_api y los tests la importan de acá)
 
 MAX_BYTES = 1024 * 1024
 MAX_DESCOMPRIMIDO = 50 * 1024 * 1024  # un .xlsx es un zip: se corta antes de abrir uno que se infla de más
@@ -20,14 +17,9 @@ MAX_HOJAS = 10
 MAX_CELDAS = 250_000  # celdas con algo, entre todas las hojas
 MAX_CODIGOS = 500
 EXTENSIONES = (".xlsx", ".csv")
-_MAGIC_XLSX = b"PK\x03\x04"
 _GUIONES = str.maketrans({c: "-" for c in "–—‑−"})
 # Igual que el patrón de nl_filters, pero con -R sin número (DAT402-R) y bordes de palabra para no tomar pedazos de otras cosas.
 _CODIGO = re.compile(r"(?<![A-Z0-9])([A-Z]{3}\d{3})(?:-(R\d*|S))?(?![A-Z0-9])")
-
-
-class ArchivoInvalido(ValueError):
-    """El archivo no sirve; el mensaje se le muestra tal cual a la persona."""
 
 
 @dataclass(frozen=True)
@@ -53,68 +45,19 @@ def normalizar(texto: str) -> list[Codigo]:
 
 # ---------- lectura del archivo ----------
 
-def _sin_vacias_al_final(fila: tuple) -> list:
-    """La fila sin las celdas vacías del final (el relleno hasta el ancho declarado no cuenta ni se guarda)."""
-    fila = list(fila)
-    while fila and fila[-1] is None:
-        fila.pop()
-    return fila
+def _topes() -> planilla.Topes:
+    """Los topes se leen al usar (y no al importar), así un test puede achicarlos con monkeypatch."""
+    return planilla.Topes(filas=MAX_FILAS, columnas=MAX_COLUMNAS, hojas=MAX_HOJAS, celdas=MAX_CELDAS,
+                          descomprimido=MAX_DESCOMPRIMIDO,
+                          aviso_celdas="El Excel tiene demasiadas celdas: subí solo la hoja con los códigos.")
 
 
 def _filas_xlsx(datos: bytes) -> list[list[list]]:
-    """Por hoja, las filas con los valores de las celdas (las fórmulas sin calcular quedan vacías)."""
-    import openpyxl  # diferido: solo hace falta al subir un Excel
-
-    if not datos.startswith(_MAGIC_XLSX):
-        raise ArchivoInvalido("El archivo no es un Excel .xlsx válido.")
-    try:
-        if sum(i.file_size for i in zipfile.ZipFile(io.BytesIO(datos)).infolist()) > MAX_DESCOMPRIMIDO:
-            raise ArchivoInvalido("El Excel es demasiado grande por dentro.")
-        libro = openpyxl.load_workbook(io.BytesIO(datos), read_only=True, data_only=True)
-        try:
-            if len(libro.worksheets) > MAX_HOJAS:
-                raise ArchivoInvalido(f"El Excel tiene demasiadas hojas (máximo {MAX_HOJAS}).")
-            hojas, celdas = [], 0
-            for hoja in libro.worksheets:
-                filas = []
-                for fila in hoja.iter_rows(max_col=MAX_COLUMNAS, values_only=True):
-                    if len(filas) >= MAX_FILAS:
-                        raise ArchivoInvalido(f"El archivo tiene demasiadas filas (máximo {MAX_FILAS}).")
-                    fila = _sin_vacias_al_final(fila)
-                    celdas += len(fila)
-                    if celdas > MAX_CELDAS:
-                        raise ArchivoInvalido("El Excel tiene demasiadas celdas: subí solo la hoja con los códigos.")
-                    filas.append(fila)
-                hojas.append(filas)
-            return hojas
-        finally:
-            libro.close()
-    except ArchivoInvalido:
-        raise
-    except Exception as e:  # openpyxl/zipfile levantan de todo con un archivo roto o armado a propósito
-        raise ArchivoInvalido("No pude leer el archivo como un Excel .xlsx.") from e
+    return planilla.filas_xlsx(datos, _topes())
 
 
 def _filas_csv(datos: bytes) -> list[list[list]]:
-    if b"\x00" in datos:
-        raise ArchivoInvalido("El archivo no es un CSV de texto.")
-    try:
-        texto = datos.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        texto = datos.decode("latin-1")
-    try:
-        delimitador = csv.Sniffer().sniff(texto[:4096], delimiters=",;\t|").delimiter
-    except csv.Error:
-        delimitador = ","
-    filas = []
-    try:
-        for fila in csv.reader(io.StringIO(texto), delimiter=delimitador):
-            if len(filas) >= MAX_FILAS:
-                raise ArchivoInvalido(f"El archivo tiene demasiadas filas (máximo {MAX_FILAS}).")
-            filas.append(fila[:MAX_COLUMNAS])
-    except csv.Error as e:  # p. ej. un campo de más de 128 KB
-        raise ArchivoInvalido("No pude leer el archivo como un CSV: tiene un campo demasiado largo o está mal armado.") from e
-    return [filas]
+    return planilla.filas_csv(datos, _topes())
 
 
 @dataclass(frozen=True)
@@ -163,7 +106,7 @@ def leer_codigos(datos: bytes, nombre: str) -> Lectura:
         raise ArchivoInvalido("El archivo está vacío.")
     if len(datos) > MAX_BYTES:
         raise ArchivoInvalido(f"El archivo es demasiado grande (máximo {MAX_BYTES // 1024 // 1024} MB).")
-    extension = ("." + nombre.rsplit(".", 1)[-1]).lower() if "." in nombre else ""
+    extension = planilla.extension(nombre)
     if extension not in EXTENSIONES:
         raise ArchivoInvalido("Subí un archivo .xlsx o .csv.")
     hojas = _filas_xlsx(datos) if extension == ".xlsx" else _filas_csv(datos)

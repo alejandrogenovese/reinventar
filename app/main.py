@@ -38,6 +38,7 @@ from . import (
     documentos_api,
     estado_api,
     eventos_auto,
+    eventos_excel_api,
     events,
     events_api,
     fragmentos,
@@ -162,6 +163,7 @@ app.include_router(itinerary_api.router)
 app.include_router(interview_api.router)
 app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
+app.include_router(eventos_excel_api.router)
 app.include_router(events_api.router)
 app.include_router(shows_api.router)
 app.include_router(push_api.router)
