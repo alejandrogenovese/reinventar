@@ -38,6 +38,8 @@ MAX_PAGINAS = 4                                # 200 excursiones alcanzan para u
 TIMEOUT_S = 15
 TTL_BUSQUEDA_S = 3600                          # los términos permiten cachear una búsqueda hasta 1 h
 TTL_TAGS_S = 7 * 24 * 3600                     # y los tags una semana
+TTL_FALLO_S = 60                               # un error o una lista vacía se recuerdan un minuto: sin ráfagas
+TTL_TAGS_FALLO_S = 10 * 60                     # si los tags fallan, se lista sin agrupar diez minutos
 ANCHO_FOTO = 480                               # la variante de foto más chica que llegue a este ancho
 HOSTS_VIATOR = ("viator.com", "www.viator.com")
 
@@ -59,7 +61,8 @@ class SinClave(ViatorNoDisponible):
     """Falta VIATOR_API_KEY: la pestaña no se muestra."""
 
 
-_cache_busqueda: dict[int, tuple[float, dict]] = {}
+# Cada entrada es (vence, valor); en la búsqueda el valor puede ser el error, que se vuelve a levantar hasta que vence.
+_cache_busqueda: dict[int, tuple[float, dict | ViatorNoDisponible]] = {}
 _cache_tags: dict[str, tuple[float, dict[int, dict]]] = {}
 _lock = threading.Lock()
 
@@ -139,20 +142,29 @@ def leer_producto(p: dict) -> dict | None:
 
 
 def leer_busqueda(data: dict) -> dict:
-    productos = [x for p in data.get("products") or [] if (x := leer_producto(p))]
-    return {"productos": productos, "total": int(data.get("totalCount") or 0)}
+    """Levanta ViatorNoDisponible si la respuesta no tiene la forma documentada (así no termina en un 500)."""
+    try:
+        crudos = data.get("products") or []
+        if not isinstance(crudos, list):
+            raise TypeError("products no es una lista")
+        productos = [x for p in crudos if isinstance(p, dict) and (x := leer_producto(p))]
+        return {"productos": productos, "total": int(data.get("totalCount") or 0)}
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ViatorNoDisponible(f"Viator respondió con un formato inesperado ({type(e).__name__})") from e
 
 
 def leer_tags(data: dict | list) -> dict[int, dict]:
     """{tagId: {nombre (en inglés, para clasificar), padres}}. Acepta la lista sola o {"tags": [...]}."""
     tags = data.get("tags") if isinstance(data, dict) else data
     out = {}
-    for t in tags or []:
-        if not isinstance(t.get("tagId"), int):
+    for t in tags if isinstance(tags, list) else []:
+        if not isinstance(t, dict) or not isinstance(t.get("tagId"), int):
             continue
-        nombres = t.get("allNamesByLocale") or {}
-        out[t["tagId"]] = {"nombre": (nombres.get("en") or next(iter(nombres.values()), "")).lower(),
-                           "padres": [x for x in t.get("parentTagIds") or [] if isinstance(x, int)]}
+        nombres = t.get("allNamesByLocale") if isinstance(t.get("allNamesByLocale"), dict) else {}
+        nombre = nombres.get("en") or next(iter(nombres.values()), "")
+        padres = t.get("parentTagIds") if isinstance(t.get("parentTagIds"), list) else []
+        out[t["tagId"]] = {"nombre": nombre.lower() if isinstance(nombre, str) else "",
+                           "padres": [x for x in padres if isinstance(x, int)]}
     return out
 
 
@@ -222,15 +234,15 @@ def _arbol_de_tags(reloj: Callable[[], float]) -> dict[int, dict]:
     """Si los tags fallan, la lista va sin agrupar: no es motivo para no mostrar excursiones."""
     with _lock:
         hit = _cache_tags.get("arbol")
-    if hit and reloj() - hit[0] < TTL_TAGS_S:
+    if hit and reloj() < hit[0]:
         return hit[1]
     try:
-        arbol = leer_tags(_get(URL_TAGS))
+        arbol, ttl = leer_tags(_get(URL_TAGS)), TTL_TAGS_S
     except ViatorNoDisponible as e:
         log.info("Viator: sin tags para agrupar (%s)", e)
-        return {}
+        arbol, ttl = {}, TTL_TAGS_FALLO_S
     with _lock:
-        _cache_tags["arbol"] = (reloj(), arbol)
+        _cache_tags["arbol"] = (reloj() + ttl, arbol)
     return arbol
 
 
@@ -241,14 +253,26 @@ def excursiones(pagina: int = 1, reloj: Callable[[], float] = time.monotonic,
         raise ValueError("página fuera de rango")
     with _lock:
         hit = _cache_busqueda.get(pagina)
-    if hit and reloj() - hit[0] < TTL_BUSQUEDA_S:
+    if hit and reloj() < hit[0]:
+        if isinstance(hit[1], ViatorNoDisponible):
+            raise ViatorNoDisponible(f"{hit[1]} (reciente, no se vuelve a pedir todavía)")
         return hit[1]
     hoy = hoy or dt.datetime.now(TZ_VEGAS).date()
-    busqueda = leer_busqueda(_post(URL_BUSQUEDA, cuerpo_busqueda(pagina, hoy)))
+    try:
+        busqueda = leer_busqueda(_post(URL_BUSQUEDA, cuerpo_busqueda(pagina, hoy)))
+    except SinClave:
+        raise
+    except ViatorNoDisponible as e:
+        _guardar(pagina, e, reloj() + TTL_FALLO_S)
+        raise
     hay_mas = pagina < MAX_PAGINAS and pagina * POR_PAGINA < busqueda["total"]
     resultado = {**busqueda, "pagina": pagina, "hay_mas": hay_mas,
                  "grupos": agrupar(busqueda["productos"], _arbol_de_tags(reloj))}
-    if busqueda["productos"]:  # una respuesta vacía puede ser un hipo: no se queda una hora
-        with _lock:
-            _cache_busqueda[pagina] = (reloj(), resultado)
+    # Una respuesta vacía puede ser un hipo: no se queda una hora, solo lo justo para no repetir el pedido en ráfaga.
+    _guardar(pagina, resultado, reloj() + (TTL_BUSQUEDA_S if busqueda["productos"] else TTL_FALLO_S))
     return resultado
+
+
+def _guardar(pagina: int, valor: dict | ViatorNoDisponible, vence: float) -> None:
+    with _lock:
+        _cache_busqueda[pagina] = (vence, valor)

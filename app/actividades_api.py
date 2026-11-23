@@ -44,13 +44,25 @@ def reiniciar() -> None:
 
 
 # ---- Excursiones (Viator) -----------------------------------------------------------------------------------------
+def _viator_habilitado() -> bool:
+    if viator.habilitado():
+        return True
+    if not _avisado_sin_clave.is_set():
+        _avisado_sin_clave.set()
+        log.info("Sin VIATOR_API_KEY: la pestaña Excursiones no se muestra")
+    return False
+
+
+@router.get("/estado")
+def estado(username: str = Depends(auth)):
+    """Barato (no le pega a nadie): la pantalla lo usa para decidir si muestra la pestaña Excursiones."""
+    return {"excursiones": _viator_habilitado()}
+
+
 @router.get("/excursiones")
 def excursiones(pagina: int = Query(1, ge=1, le=viator.MAX_PAGINAS), username: str = Depends(auth)):
     """Una página de excursiones de Viator. Sin clave, `habilitado: false`; si Viator falla, 503 con un mensaje."""
-    if not viator.habilitado():
-        if not _avisado_sin_clave.is_set():
-            _avisado_sin_clave.set()
-            log.info("Sin VIATOR_API_KEY: la pestaña Excursiones no se muestra")
+    if not _viator_habilitado():
         return {"habilitado": False}
     try:
         return {"habilitado": True, **viator.excursiones(pagina)}

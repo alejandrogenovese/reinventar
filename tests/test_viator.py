@@ -163,11 +163,80 @@ def test_cada_pagina_se_cachea_aparte_y_hay_mas_hasta_el_tope(api_viator):
         viator.excursiones(viator.MAX_PAGINAS + 1)
 
 
-def test_una_respuesta_vacia_no_se_cachea(api_viator):
+def _posts(api_viator):
+    return sum(p["metodo"] == "POST" for p in api_viator.pedidos)
+
+
+def test_una_respuesta_vacia_se_recuerda_solo_un_minuto(api_viator):
+    reloj = Reloj()
     api_viator.busqueda = Resp(200, {"products": [], "totalCount": 0})
-    viator.excursiones(1, hoy=ANTES_DEL_VIAJE)
-    viator.excursiones(1, hoy=ANTES_DEL_VIAJE)
-    assert sum(p["metodo"] == "POST" for p in api_viator.pedidos) == 2
+    viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    assert _posts(api_viator) == 1
+    reloj.t += viator.TTL_FALLO_S + 1
+    viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    assert _posts(api_viator) == 2
+
+
+def test_un_error_se_recuerda_un_minuto_sin_rafagas_contra_viator(api_viator):
+    reloj = Reloj()
+    api_viator.busqueda = Resp(500, {})
+    for _ in range(5):
+        with pytest.raises(viator.ViatorNoDisponible):
+            viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    assert _posts(api_viator) == 1
+    reloj.t += viator.TTL_FALLO_S + 1
+    api_viator.busqueda = Resp(200, BUSQUEDA)
+    assert len(viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)["productos"]) == 3
+    assert _posts(api_viator) == 2
+
+
+@pytest.mark.parametrize("data", [
+    ["no", "es", "un", "objeto"],
+    {"products": "texto", "totalCount": 3},
+    {"products": [{"productCode": "X", "title": "T", "productUrl": "https://www.viator.com/x", "pricing": "gratis"}]},
+    {"products": [], "totalCount": "muchos"},
+])
+def test_json_inesperado_es_viator_no_disponible_y_no_un_500(api_viator, data):
+    api_viator.busqueda = Resp(200, data)
+    with pytest.raises(viator.ViatorNoDisponible):
+        viator.excursiones(1, hoy=ANTES_DEL_VIAJE)
+
+
+def test_elementos_que_no_son_objetos_se_saltean():
+    data = {"products": ["texto", None, 3, *BUSQUEDA["products"]], "totalCount": 3}
+    assert len(viator.leer_busqueda(data)["productos"]) == 3
+
+
+@pytest.mark.parametrize("data", [
+    "texto", None, {"tags": "x"}, [None, "x", {"tagId": "1"}, {"tagId": 5, "allNamesByLocale": "x", "parentTagIds": "y"}],
+])
+def test_tags_con_forma_rara_no_rompen(data):
+    arbol = viator.leer_tags(data)
+    assert arbol in ({}, {5: {"nombre": "", "padres": []}})
+
+
+def test_si_fallan_los_tags_no_se_reintentan_por_unos_minutos(api_viator):
+    reloj = Reloj()
+    api_viator.tags = Resp(500, {})
+    viator.excursiones(1, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    viator.excursiones(2, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    assert sum(p["metodo"] == "GET" for p in api_viator.pedidos) == 1
+    reloj.t += viator.TTL_TAGS_FALLO_S + 1
+    viator.excursiones(3, reloj=reloj, hoy=ANTES_DEL_VIAJE)
+    assert sum(p["metodo"] == "GET" for p in api_viator.pedidos) == 2
+
+
+def test_la_clave_nunca_aparece_en_los_logs(client, api_viator, caplog):
+    with caplog.at_level(logging.DEBUG):
+        api_viator.tags = Resp(401, {"message": f"invalid key {CLAVE}"})
+        client.get("/api/actividades/excursiones")
+        actividades_api.reiniciar()
+        api_viator.busqueda = Resp(403, {"message": f"invalid key {CLAVE}"})
+        client.get("/api/actividades/excursiones")
+        api_viator.busqueda = httpx.ConnectError(f"fallo con {CLAVE}")
+        client.get("/api/actividades/excursiones", params={"pagina": 2})
+    assert caplog.records and CLAVE not in caplog.text
 
 
 def test_sin_clave_no_pide_nada(api_viator, monkeypatch):
@@ -226,6 +295,18 @@ def test_endpoint_con_viator_caido_da_503_con_mensaje(client, api_viator):
 def test_endpoint_valida_la_pagina(client, api_viator):
     assert client.get("/api/actividades/excursiones", params={"pagina": 0}).status_code == 422
     assert client.get("/api/actividades/excursiones", params={"pagina": viator.MAX_PAGINAS + 1}).status_code == 422
+
+
+def test_estado_dice_si_hay_excursiones_sin_pedirle_nada_a_viator(client, api_viator, monkeypatch):
+    assert client.get("/api/actividades/estado").json() == {"excursiones": True}
+    monkeypatch.setattr(config, "VIATOR_API_KEY", None)
+    assert client.get("/api/actividades/estado").json() == {"excursiones": False}
+    assert api_viator.pedidos == []
+
+
+def test_endpoint_con_json_inesperado_da_503(client, api_viator):
+    api_viator.busqueda = Resp(200, ["no", "es", "un", "objeto"])
+    assert client.get("/api/actividades/excursiones").status_code == 503
 
 
 def test_endpoint_pide_login():

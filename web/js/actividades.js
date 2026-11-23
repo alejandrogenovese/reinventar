@@ -70,33 +70,41 @@ export function ExcursionCard(p) {
       h("a", { class: "ra-btn ra-btn-primary", href: link, target: "_blank", rel: "noopener" }, "Reservar en Viator", icon("externo", 16))) : null);
 }
 
-function pintarExcursiones(r, acumulados) {
+/**
+ * Nodos de una página de excursiones. Con «Ver más» las páginas se suman: los grupos de la primera quedan y lo nuevo va
+ * abajo, sin agrupar. Devuelve también la lista acumulada (nueva, sin tocar `acumulados`).
+ */
+export function pintarExcursiones(r, acumulados = []) {
   const productos = [...acumulados, ...r.productos];
   if (!productos.length) return { productos, nodos: [Hint("No encontramos excursiones para tus días en Las Vegas. Probá más tarde.")] };
-  // Con «Ver más» las páginas se suman: los grupos de la primera página quedan y lo nuevo va abajo, sin agrupar.
   const nodos = r.grupos && !acumulados.length
     ? r.grupos.flatMap((g) => [h("h2", { class: "label" }, `${g.titulo} · ${g.productos.length}`), ...g.productos.map(ExcursionCard)])
     : r.productos.map(ExcursionCard);
   return { productos, nodos };
 }
 
-async function panelExcursiones(cont) {
+const pedirExcursiones = (pagina) => api(`/api/actividades/excursiones?pagina=${pagina}`);
+
+/** Pestaña Excursiones. `pedir` se reemplaza en los tests. Si una página falla, el error queda con «Reintentar». */
+export async function panelExcursiones(cont, pedir = pedirExcursiones) {
   const lista = h("div", { class: "stack", "aria-live": "polite" });
-  const pie = h("div", { class: "actions" });
+  const pie = h("div", { class: "stack" });
   cont.append(h("p", { class: "caption" }, "Excursiones y entradas para tus días en Las Vegas. Se reservan y pagan en Viator."),
     lista, pie,
     h("p", { class: "caption" }, "Puntajes de reseñas de Viator y Tripadvisor."));
   let acumulados = [];
+  const boton = (texto, pagina) => h("button", { type: "button", class: "ra-btn ra-btn-secondary", onclick: () => cargar(pagina) }, texto);
   async function cargar(pagina) {
     pie.replaceChildren(h("p", { class: "caption", role: "status" }, "Buscando excursiones…"));
     try {
-      const r = await api(`/api/actividades/excursiones?pagina=${pagina}`);
+      const r = await pedir(pagina);
       const { productos, nodos } = pintarExcursiones(r, acumulados);
       if (pagina === 1) lista.replaceChildren(...nodos); else lista.append(...nodos);
       acumulados = productos;
-      pie.replaceChildren(r.hay_mas ? h("button", { type: "button", class: "ra-btn ra-btn-secondary", onclick: () => void cargar(pagina + 1) }, "Ver más") : "");
+      pie.replaceChildren(...(r.hay_mas ? [h("div", { class: "actions" }, boton("Ver más", pagina + 1))] : []));
     } catch (e) {
-      pie.replaceChildren(Hint(mensajeError(e, "No pudimos traer las excursiones."), { tone: "error" }));
+      pie.replaceChildren(Hint(mensajeError(e, "No pudimos traer las excursiones."), { tone: "error" }),
+        h("div", { class: "actions" }, boton("Reintentar", pagina)));
     }
   }
   await cargar(1);
@@ -127,17 +135,29 @@ async function panelCerca(cont) {
   }
 }
 
-/** Actividades: Excursiones (si el servidor tiene la clave de Viator) y Cerca. Sin Viator, solo Cerca y sin pestañas. */
+/** Pestaña que se muestra: sin Viator siempre Cerca; con Viator, la de la ruta. */
+export const pestanaInicial = (tab, conViator) => (conViator ? tab : "cerca");
+
+/** Actividades: Excursiones (si el servidor tiene la clave de Viator) y Cerca. Sin Viator, solo Cerca y sin pestañas.
+ * Cerca no espera a saber si hay Viator: arranca ya y las pestañas aparecen cuando llega /estado. */
 export async function viewActividades(view, tab = "excursiones") {
-  const estado = await api("/api/actividades/excursiones").catch(() => ({ habilitado: true }));
-  const conViator = estado.habilitado !== false;
-  const actual = conViator ? tab : "cerca";
+  const estado = api("/api/actividades/estado").catch(() => ({ excursiones: true }));
+  const tabs = h("div", {});
   const cont = h("div", { class: "stack" });
   view.append(h("div", { class: "stack-lg" },
     h("header", { class: "stack" },
       h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/viaje" }, icon("volver", 16), h("span", {}, "Viaje")),
       h("h1", { class: "title" }, "Actividades"),
-      conViator ? SegTabs(actual, TABS) : null),
+      tabs),
     cont));
+  const mostrarTabs = (conViator, actual) => { if (conViator) tabs.replaceChildren(SegTabs(actual, TABS)); };
+  if (tab === "cerca") {
+    void estado.then((e) => mostrarTabs(e.excursiones !== false, "cerca"));
+    await panelCerca(cont);
+    return;
+  }
+  const conViator = (await estado).excursiones !== false;
+  const actual = pestanaInicial(tab, conViator);
+  mostrarTabs(conViator, actual);
   await (actual === "excursiones" ? panelExcursiones(cont) : panelCerca(cont));
 }
