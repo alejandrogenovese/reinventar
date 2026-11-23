@@ -278,3 +278,77 @@ def test_con_clave_consulta_guarda_la_base_y_no_repite(cli, monkeypatch):
     assert not any(k.startswith(("vdemora", "vpuerta")) for k in _claves(TEST_USER, _ahora("2026-11-28T08:01")))
     assert llamadas == ["AR1302"]
     assert time.time() - vuelos.get_vuelo(TEST_USER, v["id"])["consultado_en"] < 60
+
+
+# ---------- llegada: datos nuevos, ventana hasta aterrizar y cinta ----------
+
+SALE = dt.datetime(2026, 11, 29, 0, 5, tzinfo=dt.UTC)    # 16:05 del 28 en Las Vegas
+LLEGA = dt.datetime(2026, 11, 29, 8, 30, tzinfo=dt.UTC)  # 00:30 del 29 en Las Vegas (de noche)
+
+
+def _con_llegada(cinta=None, demora=0, **kw):
+    return {**_estado(demora, "B12"), "destino_iata": "MIA", "destino_nombre": "Miami", "llegada_utc": LLEGA.timestamp(),
+            "llegada_local": "2026-11-29T03:30", "llegada_terminal": "N", "llegada_cinta": cinta, "checkin_desk": "12",
+            "aeronave": "Boeing 737", "matricula": "LV-KAY", **kw}
+
+
+def _en_vuelo(**kw):
+    return _vuelo(salida_utc=SALE.timestamp(), demora_min=0, puerta="B12", llegada_utc=LLEGA.timestamp(), **kw)
+
+
+def test_guarda_destino_llegada_y_avion_al_consultar():
+    _, updates, _ = _correr(_vuelo(), _ahora("2026-11-28T08:00"), _con_llegada())
+
+    assert {k: updates["v1"][k] for k in ("destino_iata", "llegada_utc", "llegada_terminal", "checkin_desk", "matricula")} == {
+        "destino_iata": "MIA", "llegada_utc": LLEGA.timestamp(), "llegada_terminal": "N", "checkin_desk": "12",
+        "matricula": "LV-KAY"}
+
+
+def test_con_la_llegada_conocida_sigue_consultando_hasta_aterrizar():
+    en_el_aire = _ahora("2026-11-28T20:00")
+    assert _correr(_en_vuelo(), en_el_aire, _con_llegada())[2] == [("AR1302", "2026-11-28")]
+    assert _correr(_en_vuelo(), _ahora("2026-11-29T00:31"), _con_llegada())[2] == []   # ya aterrizó
+    assert _correr(_vuelo(salida_utc=SALE.timestamp()), en_el_aire, _con_llegada())[2] == []   # sin llegada: corta al salir
+
+
+def test_en_el_aire_consulta_cada_30_min_y_cerca_de_aterrizar_cada_15():
+    ts = 1_000_000.0
+    en_el_aire = _ahora("2026-11-28T20:00")   # faltan 4 h 30 min para aterrizar
+    assert _correr(_en_vuelo(consultado_en=ts - 20 * 60), en_el_aire, _con_llegada(), ts=ts)[2] == []
+    assert _correr(_en_vuelo(consultado_en=ts - 31 * 60), en_el_aire, _con_llegada(), ts=ts)[2] != []
+
+    llegando = _ahora("2026-11-29T00:00")     # faltan 30 min
+    assert _correr(_en_vuelo(consultado_en=ts - 16 * 60), llegando, _con_llegada(), ts=ts)[2] != []
+
+
+def test_avisa_la_cinta_cuando_aparece_aunque_sea_de_noche():
+    [(key, msg)], updates, _ = _correr(_en_vuelo(), _ahora("2026-11-29T00:10"), _con_llegada(cinta="7"))
+
+    assert key == "vcinta:v1:7"
+    assert msg["title"] == "AR1302: el equipaje sale por la cinta 7"
+    assert msg["body"] == "Llegás a Miami · terminal N." and msg["url"] == "/#/viajes/vuelo/v1"
+    assert updates["v1"]["llegada_cinta"] == "7"
+
+
+def test_en_el_aire_no_avisa_demora_ni_puerta():
+    avisos, _, _ = _correr(_en_vuelo(), _ahora("2026-11-28T20:00"), _con_llegada(demora=40, puerta="C3"))
+
+    assert avisos == []
+
+
+def test_la_cinta_sale_una_sola_vez_por_el_hilo_de_push(cli, monkeypatch):
+    monkeypatch.setattr(config, "AERODATABOX_API_KEY", "clave-de-prueba")
+    monkeypatch.setattr(vuelos, "consultar", lambda *a, **k: _con_llegada(cinta="7"))
+    v = vuelos.agregar_vuelo(TEST_USER, "AR1302", "", "2026-11-28", "21:05", BUE)
+    vuelos.guardar_estado(TEST_USER, v["id"], {"salida_utc": SALE.timestamp(), "llegada_utc": LLEGA.timestamp()})
+    enviados = []
+    monkeypatch.setattr(db, "push_usernames", lambda: [TEST_USER])
+    monkeypatch.setattr(push, "notify", lambda u, m: enviados.append(m) or 1)
+    monkeypatch.setattr(sandbox, "ahora", lambda tz=LV: _ahora("2026-11-29T00:10").astimezone(tz))
+
+    push.tick()
+    vuelos.guardar_estado(TEST_USER, v["id"], {"consultado_en": None})   # aunque se vuelva a consultar enseguida
+    push.tick()
+
+    assert [m["title"] for m in enviados] == ["AR1302: el equipaje sale por la cinta 7"]
+    assert vuelos.get_vuelo(TEST_USER, v["id"])["llegada_cinta"] == "7"

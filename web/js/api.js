@@ -160,6 +160,7 @@ export const Viajes = {
   quitarHotel: (id) => api(`/api/viajes/hoteles/${encodeURIComponent(id)}`, { method: "DELETE" }),
   prefs: () => api("/api/viajes/preferencias"),
   savePrefs: (prefs) => api("/api/viajes/preferencias", { method: "PUT", json: prefs }),
+  proximo: () => api("/api/viajes/proximo"),  // «Próximo» del banner de estado (o null)
 };
 
 export const Today = {

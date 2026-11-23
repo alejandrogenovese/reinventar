@@ -234,6 +234,17 @@ COLUMNAS_DATOS_USUARIO = (
     ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("gastos", "foto_at", "TIMESTAMPTZ"),
     ("viajes_vuelos", "ciudad", "TEXT NOT NULL DEFAULT ''"),  # de dónde sale, como la eligió la persona
+    # Lo que trae AeroDataBox además de la salida (app/vuelos.py): a dónde va, cuándo llega (llegada_local es la hora del
+    # aeropuerto de destino, «YYYY-MM-DDTHH:MM»), terminal y cinta de llegada, mostrador de check-in y el avión.
+    ("viajes_vuelos", "destino_iata", "TEXT"),
+    ("viajes_vuelos", "destino_nombre", "TEXT"),
+    ("viajes_vuelos", "llegada_utc", "DOUBLE PRECISION"),
+    ("viajes_vuelos", "llegada_local", "TEXT"),
+    ("viajes_vuelos", "llegada_terminal", "TEXT"),
+    ("viajes_vuelos", "llegada_cinta", "TEXT"),
+    ("viajes_vuelos", "checkin_desk", "TEXT"),
+    ("viajes_vuelos", "aeronave", "TEXT"),
+    ("viajes_vuelos", "matricula", "TEXT"),
 )
 
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",

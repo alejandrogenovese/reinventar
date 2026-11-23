@@ -4,7 +4,8 @@
 import { horaCorta } from "./lastgood.js";
 
 // Prioridad (1 es la más alta), según la tabla del mock.
-export const PRIORIDAD = { sinSenal: 1, caido: 2, fallidos: 3, subiendo: 4, demorado: 5, version: 6, listo: 7 };
+// «Próximo» (vuelo, hotel o charla) es lo último: nunca tapa un aviso de servicio, de señal ni de versión.
+export const PRIORIDAD = { sinSenal: 1, caido: 2, fallidos: 3, subiendo: 4, demorado: 5, version: 6, listo: 7, proximo: 8 };
 // Con «Salí ya» (countdown urgente) solo se muestran las prioridades 1 a 3.
 export const PRIORIDAD_MAXIMA_URGENTE = 3;
 export const CIERRE_SERVICIO_MS = 6 * 3_600_000;  // un aviso de servicio cerrado vuelve a las 6 h (o antes si cambia el nivel)
@@ -143,6 +144,41 @@ function avisoActualizada(version) {
   };
 }
 
+// ---------- «Próximo» (/api/viajes/proximo, app/proximo.py) ----------
+
+const TIPOS_PROXIMO = { vuelo: ["viaje", "Ver vuelo"], hotel: ["viaje", "Ver hotel"], charla: ["reloj", "Ver"] };
+const texto = (x) => (typeof x === "string" && x.trim() ? x.trim() : null);
+
+/**
+ * El aviso de lo próximo, o null si no hay, vino con una forma rara o ya empezó (`inicio`, ISO, ya pasó: la respuesta
+ * puede tener hasta 5 min). Vuelo: «Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12»; hotel y charla:
+ * «Próximo: {título} · 14:30 · {sala}». Se omite lo que falte. El destino solo puede ser una ruta de la app (#/…).
+ */
+export function avisoProximo(p, ahora) {
+  const tipo = TIPOS_PROXIMO[p?.tipo] ? p.tipo : null;
+  const titulo = texto(p?.titulo);
+  if (!tipo || !titulo) return null;
+  const inicio = Date.parse(p.inicio ?? "");
+  if (Number.isFinite(inicio) && Number.isFinite(ahora) && inicio <= ahora) return null;
+  const hora = texto(p.hora);
+  const detalle = texto(p.detalle);
+  const cancelado = tipo === "vuelo" && p.cancelado === true;
+  const demora = tipo === "vuelo" && Number.isInteger(p.demora_min) && p.demora_min > 0 ? ` (+${p.demora_min} min)` : "";
+  const conHora = hora ? (tipo === "vuelo" ? [" · sale ", dato(hora), demora] : [" · ", dato(hora)]) : [];
+  const partes = cancelado ? [" · cancelado"] : [...conHora, detalle ? ` · ${detalle}` : ""].filter((x) => x !== "");
+  const plano = partes.map((x) => (typeof x === "string" ? x : x.dato)).join("");
+  const [icono, verTexto] = TIPOS_PROXIMO[tipo];
+  const destino = typeof p.url === "string" && p.url.startsWith("#/") ? p.url : null;
+  return {
+    id: `proximo:${tipo}:${destino ?? titulo}:${p.inicio ?? ""}`,  // con el inicio: si cambia lo próximo, vuelve a aparecer
+    prioridad: PRIORIDAD.proximo, tono: cancelado ? "error" : "info", icono: cancelado ? "error" : icono,
+    titulo: ["Próximo: ", titulo, ...partes], detalle: null,
+    accion: destino ? { texto: verTexto, tipo: "ir", destino } : null,
+    cierre: CIERRE.sesion, nombre: "próximo",
+    hoja: { titulo: `Próximo: ${titulo}`, texto: plano.replace(/^ · /, "") || "Empieza pronto." },
+  };
+}
+
 /**
  * Los avisos a mostrar, del más importante al menos. Entrada (todo opcional salvo `ahora`, en ms):
  * - online: hay red y la API contesta (false también cuando una pantalla cayó a la última copia).
@@ -151,11 +187,12 @@ function avisoActualizada(version) {
  * - servicio: la lista de /api/estado. versionLocal / versionRemota. actualizadaA: versión recién instalada o null.
  * - descartados { id: hasta (ms; Infinity = no vuelve) }. ruta: location.hash. countdownUrgente: «Salí ya» a la vista.
  * - datosDe: hora (ms) de la última copia que se está mostrando. ultimaSync: hora (ms) de la última subida buena.
+ * - proximo: lo de /api/viajes/proximo (o null): siempre va último.
  */
 export function elegirAvisos({
   online = true, pendientes = {}, subiendo = null, subidoEn = null, fallidos = {}, servicio = [], versionLocal = null,
   versionRemota = null, actualizadaA = null, descartados = {}, ruta = "", countdownUrgente = false, datosDe = null,
-  ultimaSync = null, ahora,
+  ultimaSync = null, proximo = null, ahora,
 }) {
   const avisos = [];
   if (!online) avisos.push(avisoSinSenal({ pendientes, datosDe }));
@@ -169,6 +206,8 @@ export function elegirAvisos({
   if (versionRemota && compararVersiones(versionRemota, versionLocal) > 0 && !enGrabar) avisos.push(avisoVersion({ versionRemota, online }));
   if (online && !subiendo && Number.isFinite(subidoEn) && ahora - subidoEn < TODO_SUBIDO_MS) avisos.push(avisoTodoSubido(ultimaSync ?? subidoEn));
   if (actualizadaA) avisos.push(avisoActualizada(actualizadaA));
+  const deProximo = proximo ? avisoProximo(proximo, ahora) : null;
+  if (deProximo) avisos.push(deProximo);
   return avisos
     .filter((a) => !(a.cierre && descartados?.[a.id] > ahora))
     .filter((a) => !countdownUrgente || a.prioridad <= PRIORIDAD_MAXIMA_URGENTE)

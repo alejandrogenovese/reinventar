@@ -1,13 +1,15 @@
 """API de Viajes: vuelos y hoteles cargados a mano y las preferencias de sus avisos (app/vuelos.py, app/viajes_avisos.py)."""
 import datetime as dt
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from . import ciudades, viajes_avisos, vuelos
+from . import ciudades, itinerary, proximo, sandbox, today, viajes_avisos, vuelos
 from .auth import auth
 
+log = logging.getLogger("reinventar.viajes")
 router = APIRouter(prefix="/api/viajes", dependencies=[Depends(auth)])
 
 _HORA = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -80,7 +82,19 @@ def _vuelo_publico(v: dict) -> dict:
             "salida": sale.astimezone(vuelos.zona(v["zona"])).strftime("%Y-%m-%dT%H:%M") if sale else None,
             "checkin_abre": abre.astimezone(vuelos.zona(v["zona"])).strftime("%Y-%m-%dT%H:%M") if abre else None,
             "checkin_horas": vuelos.horas_checkin(v["numero"]), "checkin_url": vuelos.url_checkin(v["numero"]),
-            "demora_min": v["demora_min"], "puerta": v["puerta"], "terminal": v["terminal"], "estado": v["estado"]}
+            "demora_min": v["demora_min"], "puerta": v["puerta"], "terminal": v["terminal"], "estado": v["estado"],
+            **{k: v.get(k) for k in vuelos.CAMPOS_LLEGADA if k != "llegada_utc"},
+            "llegada": _llegada_local(v)}
+
+
+def _llegada_local(v: dict) -> str | None:
+    """«YYYY-MM-DDTHH:MM» de la llegada en la hora del destino (la que trae AeroDataBox). Si no vino con su desfase, en la
+    zona del vuelo (la de salida): es la única zona que se conoce y la ficha lo aclara."""
+    if v.get("llegada_local"):
+        return v["llegada_local"]
+    if not v.get("llegada_utc"):
+        return None
+    return dt.datetime.fromtimestamp(v["llegada_utc"], dt.UTC).astimezone(vuelos.zona(v["zona"])).strftime("%Y-%m-%dT%H:%M")
 
 
 def _nombre_de_salida(v: dict) -> str:
@@ -100,6 +114,23 @@ def listar(username: str = Depends(auth)):
             "estado_disponible": vuelos.estado_disponible(),
             "zonas": [{"id": k, "nombre": n} for k, n in vuelos.ZONAS.items()],
             "preferencias": vuelos.get_prefs(username)}
+
+
+def _plan_hoy(username: str, now: dt.datetime) -> dict | None:
+    """El plan del día del itinerario; si no se puede armar (p. ej. sin catálogo), «Próximo» sigue con vuelos y hoteles."""
+    try:
+        return today.plan(itinerary.get_current(username)["days"], now.astimezone(today.EVENT_TZ))
+    except Exception:  # noqa: BLE001 — el itinerario no frena lo de viajes
+        log.warning("no se pudo armar el plan del día de %s para «Próximo»", username, exc_info=True)
+        return None
+
+
+@router.get("/proximo")
+def get_proximo(username: str = Depends(auth)):
+    """Lo próximo para el banner de estado (app/proximo.py), o null. Solo lee la base: nunca consulta AeroDataBox. Usa la
+    hora de la app (el reloj simulado en modo prueba). Por usuario: no va en /api/estado, que se cachea compartido."""
+    now = sandbox.ahora(dt.UTC)
+    return proximo.elegir(vuelos.listar_vuelos(username), vuelos.listar_hoteles(username), _plan_hoy(username, now), now)
 
 
 @router.get("/ciudades")

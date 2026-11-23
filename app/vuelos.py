@@ -2,8 +2,11 @@
 estado a AeroDataBox (api.market) y las consultas SQL. Los avisos los arma app/viajes_avisos.py.
 
 AeroDataBox: GET {BASE}/flights/number/{número}/{fecha local} con el header x-api-market-key; devuelve una lista de vuelos
-con departure.{scheduledTime,revisedTime}.utc, departure.gate/terminal y status (204 = sin datos todavía). Sin
-AERODATABOX_API_KEY no se consulta nada y el resto de los avisos anda igual.
+con departure.{scheduledTime,revisedTime}.utc, departure.gate/terminal y status (204 = sin datos todavía). De la misma
+respuesta (sin costo extra) se toman, si vienen, el destino y la llegada (arrival.airport, scheduledTime/revisedTime,
+terminal, baggageBelt), el mostrador de check-in (departure.checkInDesk) y el avión (aircraft.model/reg): todo eso es
+opcional, la forma no está verificada contra una respuesta real. Sin AERODATABOX_API_KEY no se consulta nada y el resto de
+los avisos anda igual.
 """
 import datetime as dt
 import functools
@@ -28,6 +31,7 @@ HORAS_CHECKIN_DEFECTO = 24
 FALLO_CACHE_S = 8 * 60     # un fallo (401, 429, 5xx, red) no se reintenta antes de esto
 USUARIO_CONTADOR = "_aerodatabox"  # el contador diario vive en push_sent bajo este usuario (adb:<día>:<n>)
 TOPE_DIARIO_POR_USUARIO = 40  # consultas por persona y por día: una persona con vuelos falsos no agota el cupo de todos
+LARGO_MAX_TEXTO = 80       # los textos opcionales de la respuesta (aeropuerto, avión, cinta) se recortan a esto
 
 # Cuántas horas antes de la salida abre el check-in web, por código de aerolínea (IATA), y dónde se hace.
 # Editable: si una aerolínea cambia su ventana, se corrige acá y listo. Fuentes:
@@ -141,8 +145,44 @@ def _leer_estado(respuesta, fecha: str) -> dict | None:
     dep = vuelo["departure"]
     programada, revisada = _hora(dep, "scheduledTime"), _hora(dep, "revisedTime")
     demora = round((revisada - programada).total_seconds() / 60) if revisada else 0
+    avion = _dict(vuelo.get("aircraft"))
     return {"salida_utc": programada.timestamp(), "demora_min": demora, "puerta": dep.get("gate") or None,
-            "terminal": dep.get("terminal") or None, "estado": vuelo.get("status")}
+            "terminal": dep.get("terminal") or None, "estado": vuelo.get("status"),
+            "checkin_desk": _texto(dep.get("checkInDesk")), "aeronave": _texto(avion.get("model")),
+            "matricula": _texto(avion.get("reg")), **_llegada(_dict(vuelo.get("arrival")))}
+
+
+def _dict(x) -> dict:
+    return x if isinstance(x, dict) else {}
+
+
+def _texto(x) -> str | None:
+    """Un texto de la respuesta, recortado; None si no viene o no es texto (todo lo que no es la salida es opcional)."""
+    return (x.strip()[:LARGO_MAX_TEXTO] or None) if isinstance(x, str) else None
+
+
+def _desfase(movimiento: dict, campo: str) -> dt.timedelta | None:
+    """La diferencia con UTC del aeropuerto, de la hora local que manda AeroDataBox («2026-12-01 16:40-06:00»)."""
+    texto = _dict(movimiento.get(campo)).get("local")
+    if not isinstance(texto, str):
+        return None
+    try:
+        return dt.datetime.fromisoformat(texto).utcoffset()
+    except ValueError:
+        return None
+
+
+def _llegada(arr: dict) -> dict:
+    """Destino y llegada: la hora revisada si la hay, si no la programada. La hora local del destino sale del desfase que
+    trae la hora local de la respuesta; sin él queda None (la ficha muestra entonces la hora en la zona del vuelo)."""
+    aeropuerto = _dict(arr.get("airport"))
+    llega = _hora(arr, "revisedTime") or _hora(arr, "scheduledTime")
+    desfase = next((d for d in (_desfase(arr, "revisedTime"), _desfase(arr, "scheduledTime")) if d is not None), None)
+    local = (llega + desfase).strftime("%Y-%m-%dT%H:%M") if llega and desfase is not None else None
+    return {"destino_iata": _texto(aeropuerto.get("iata")),
+            "destino_nombre": _texto(aeropuerto.get("municipalityName")) or _texto(aeropuerto.get("name")),
+            "llegada_utc": llega.timestamp() if llega else None, "llegada_local": local,
+            "llegada_terminal": _texto(arr.get("terminal")), "llegada_cinta": _texto(arr.get("baggageBelt"))}
 
 
 def cambios(v: dict, nuevo: dict) -> list[tuple[str, int | str | None]]:
@@ -330,19 +370,22 @@ def quitar_vuelo(username: str, id_: str) -> bool:
         return c.execute("DELETE FROM viajes_vuelos WHERE username=%s AND id=%s", (username, id_)).rowcount == 1
 
 
-CAMPOS_ESTADO = ("salida_utc", "demora_min", "puerta", "terminal", "estado", "consultado_en")
+CAMPOS_LLEGADA = ("destino_iata", "destino_nombre", "llegada_utc", "llegada_local", "llegada_terminal", "llegada_cinta",
+                  "checkin_desk", "aeronave", "matricula")
+CAMPOS_ESTADO = ("salida_utc", "demora_min", "puerta", "terminal", "estado", "consultado_en", *CAMPOS_LLEGADA)
 
 # Qué se resetea al editar (app/viajes_avisos.py arma los avisos con estas marcas):
 # - Vuelo: si cambia número, fecha, hora o zona es otro vuelo (u otra salida). Se borra el estado que trajo AeroDataBox
-#   (CAMPOS_ESTADO: salida_utc pisaría la hora nueva y demora/puerta/estado son la base contra la que se compara, así que
-#   se compararía contra el vuelo viejo) y las claves de push_sent del vuelo: vcheckin (la ventana de check-in es otra),
-#   vdemora/vpuerta (pendientes de confirmar) y vcancel (si el vuelo viejo se canceló, el nuevo tiene que poder avisarlo).
+#   (CAMPOS_ESTADO, con destino, llegada y avión: salida_utc pisaría la hora nueva y demora/puerta/estado son la base
+#   contra la que se compara, así que se compararía contra el vuelo viejo) y las claves de push_sent del vuelo: vcheckin (la ventana de check-in es otra),
+#   vdemora/vpuerta (pendientes de confirmar), vcinta (la cinta es de otra llegada) y vcancel (si el vuelo viejo se
+#   canceló, el nuevo tiene que poder avisarlo).
 #   Cambiar solo la aerolínea o el nombre de la ciudad (misma zona) no toca nada: la salida es la misma.
 # - Hotel: el aviso de check-in (hin) se vuelve a habilitar si cambia el check-in o la zona; el de check-out (hout) si
 #   cambia el check-out, el check-in (la ventana nunca empieza antes de entrar) o la zona. Cambiar el nombre o la
 #   dirección no repite avisos ya mandados.
 CAMPOS_SALIDA_VUELO = ("numero", "fecha", "hora", "zona")
-CLAVES_AVISO_VUELO = ("vcheckin:{id}", "vcancel:{id}", "vdemora:{id}:%", "vpuerta:{id}:%")
+CLAVES_AVISO_VUELO = ("vcheckin:{id}", "vcancel:{id}", "vdemora:{id}:%", "vpuerta:{id}:%", "vcinta:{id}:%")
 
 
 def cambio_de_salida(previo: dict, nuevo: dict) -> bool:

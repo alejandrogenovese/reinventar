@@ -58,3 +58,19 @@ def test_la_franja_va_arriba_de_hoy_con_la_hora_de_la_app():
 def test_la_ultima_sincronizacion_la_marcan_las_dos_colas():
     assert "marcarUltimaSync();" in _js("recorder.js")
     assert "marcarUltimaSync();" in _js("gastos.js")
+
+
+def test_el_banner_pide_proximo_aparte_y_como_mucho_cada_5_min():
+    banner = _js("estadoBanner.js")
+    assert "const PROXIMO_CADA_MS = 5 * 60_000;" in banner
+    assert "void consultarProximo();" in banner   # en cada recálculo (también al volver a primer plano)
+    assert "proximo: mundo.proximo" in banner
+    assert 'proximo: () => api("/api/viajes/proximo")' in _js("api.js")
+    assert "proximo" not in (WEB.parent / "app" / "estado.py").read_text(encoding="utf-8")   # /api/estado es compartido
+
+
+def test_la_ficha_del_vuelo_muestra_destino_llegada_y_avion():
+    viajes = _js("viajes.js")
+    assert "`A ${destino}`" in viajes and "llega " in viajes
+    assert "v.llegada_cinta ?" in viajes   # la cinta, solo si ya está
+    assert "Mostrador de check-in" in viajes and "matrícula" in viajes
