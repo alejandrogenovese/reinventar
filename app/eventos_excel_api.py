@@ -8,7 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from . import cuerpo, db, eventos_ejemplo, eventos_excel, limites, my_events, venues
 from .auth import auth
-from .eventos_excel import ACTUALIZA, ERROR, NUEVA, SIN_CAMBIOS, ArchivoInvalido
+from .eventos_excel import A_GUARDAR, ESTADOS, ArchivoInvalido
 
 router = APIRouter(prefix="/api/my-events/excel", dependencies=[Depends(auth)])
 SUBIDAS_POR_HORA = 20  # cuentan la vista previa y la confirmación
@@ -21,12 +21,14 @@ def _procesar(username: str, datos: bytes, nombre: str, confirmar: bool) -> dict
         filas = eventos_excel.leer_eventos(datos, nombre, venues.all_venues())
     except ArchivoInvalido as e:
         raise HTTPException(422, str(e)) from e
-    estados = [eventos_excel.estado(f, db.get_user_event(username, f.id) if f.id else None) for f in filas]
+    fijados = {it["code"] for it in db.list_itinerary_items(username)}
+    estados = [eventos_excel.estado(f, db.get_user_event(username, f.id) if f.id else None,
+                                    my_events.PREFIJO + (f.id or "") in fijados) for f in filas]
     if confirmar:
         for fila, estado in zip(filas, estados, strict=True):
-            if estado in (NUEVA, ACTUALIZA):
+            if estado in A_GUARDAR:  # guardar también vuelve a fijar el ítem en el itinerario
                 my_events.guardar_con_id(username, fila.id, fila.evento)
-    resumen = {k: estados.count(k) for k in (NUEVA, ACTUALIZA, SIN_CAMBIOS, ERROR)}
+    resumen = {k: estados.count(k) for k in ESTADOS}
     return {"guardado": confirmar, "resumen": resumen,
             "filas": [eventos_excel.vista(f, e) for f, e in zip(filas, estados, strict=True)]}
 

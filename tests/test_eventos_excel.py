@@ -52,7 +52,7 @@ def test_un_dia_fuera_de_la_estadia_es_error(valor):
         leer_dia(valor)
 
 
-@pytest.mark.parametrize("valor", ["mañana", "31/02/2026", "12/01"])
+@pytest.mark.parametrize("valor", ["mañana", "31/02/2026", "12/01", 1e20, float("inf"), float("nan"), -1e10, 0])
 def test_un_dia_que_no_se_entiende_es_error(valor):
     with pytest.raises(ValueError, match="día"):
         leer_dia(valor)
@@ -67,7 +67,7 @@ def test_lee_la_hora_en_todas_sus_formas(valor, esperado):
     assert leer_hora(valor) == esperado
 
 
-@pytest.mark.parametrize("valor", ["25:00", "19:75", "13 PM", "a la tarde", ""])
+@pytest.mark.parametrize("valor", ["25:00", "19:75", "13 PM", "a la tarde", "", "7m", "7:30 m", float("inf")])
 def test_una_hora_que_no_se_entiende_es_error(valor):
     with pytest.raises(ValueError, match="hora"):
         leer_hora(valor)
@@ -158,10 +158,33 @@ def test_una_fila_repetida_en_el_mismo_archivo_es_error():
     assert "fila 2" in filas[1].error
 
 
-def test_el_id_no_depende_de_mayusculas_tildes_ni_espacios():
+def test_una_hora_sin_minutos_ni_am_pm_es_ambigua():
+    with pytest.raises(ValueError, match="ambigua: escribí 07:00, 19:00 o 7 PM"):
+        leer_hora("7")
+    assert (leer_hora("19"), leer_hora("0"), leer_hora("7 PM")) == ("19:00", "00:00", "19:00")
+
+
+def test_un_dia_numerico_enorme_es_un_error_de_la_fila_y_no_rompe():
+    fila = _una(dia=1e20)
+    assert fila.evento is None
+    assert "No entiendo el día" in fila.error
+
+
+def test_el_id_no_depende_de_mayusculas_ni_espacios():
     assert eventos_excel.id_de("Cena  Bienvenida", "2026-12-01", "19:30") == eventos_excel.id_de(
-        "cena bienvenída", "2026-12-01", "19:30")
+        " cena bienvenida", "2026-12-01", "19:30")
     assert eventos_excel.id_de("Cena", "2026-12-01", "19:30") != eventos_excel.id_de("Cena", "2026-12-01", "20:00")
+
+
+def test_el_id_distingue_nombres_que_no_son_ascii():
+    assert eventos_excel.id_de("会議", "2026-12-01", "19:30") != eventos_excel.id_de("夕食", "2026-12-01", "19:30")
+    assert eventos_excel.id_de("Cena", "2026-12-01", "19:30") != eventos_excel.id_de("Céna", "2026-12-01", "19:30")
+    assert eventos_excel.id_de("ＣＥＮＡ", "2026-12-01", "19:30") == eventos_excel.id_de("cena", "2026-12-01", "19:30")
+
+
+def test_dos_filas_con_nombres_en_otro_alfabeto_no_chocan():
+    filas = leer_eventos(_xlsx(_fila(nombre="会議"), _fila(nombre="夕食")), "e.xlsx", SEDES)
+    assert [f.error for f in filas] == [None, None]
 
 
 @pytest.mark.parametrize(("datos", "nombre", "motivo"), [
@@ -193,6 +216,7 @@ def test_estado_nueva_sin_cambios_y_actualiza():
     assert eventos_excel.estado(fila, None) == "nueva"
     assert eventos_excel.estado(fila, guardado) == "sin_cambios"
     assert eventos_excel.estado(fila, {**guardado, "nota": "Otra"}) == "actualiza"
+    assert eventos_excel.estado(fila, guardado, en_itinerario=False) == "vuelve"
     assert eventos_excel.estado(_una(lugar="tarde", inicio="x"), None) == "error"
 
 
@@ -261,7 +285,7 @@ def test_la_vista_previa_no_guarda_y_confirmar_si(client, H):
     previa = _subir(client, H, datos)
     assert previa.status_code == 200, previa.text
     assert previa.json()["guardado"] is False
-    assert previa.json()["resumen"] == {"nueva": 6, "actualiza": 0, "sin_cambios": 0, "error": 0}
+    assert previa.json()["resumen"] == {"nueva": 6, "actualiza": 0, "vuelve": 0, "sin_cambios": 0, "error": 0}
     assert db.list_user_events(TEST_USER) == []
 
     confirmado = _subir(client, H, datos, confirmar=True)
@@ -284,6 +308,22 @@ def test_el_mismo_archivo_dos_veces_no_duplica_y_una_fila_editada_actualiza(clie
     eventos = db.list_user_events(TEST_USER)
     assert len(eventos) == 2
     assert next(e for e in eventos if e["nombre"] == "Desayuno")["nota"] == "Cambió"
+
+
+def test_si_lo_sacaron_del_itinerario_se_vuelve_a_fijar_al_confirmar(client, H):
+    datos = _xlsx(_fila())
+    _subir(client, H, datos, confirmar=True)
+    [ev] = db.list_user_events(TEST_USER)
+    db.remove_item(TEST_USER, "mine-" + ev["id"])
+
+    previa = _subir(client, H, datos).json()
+    assert previa["filas"][0]["estado"] == "vuelve"
+    assert previa["resumen"]["vuelve"] == 1
+    assert db.list_itinerary_items(TEST_USER) == []
+
+    _subir(client, H, datos, confirmar=True)
+    assert [it["code"] for it in db.list_itinerary_items(TEST_USER)] == ["mine-" + ev["id"]]
+    assert _subir(client, H, datos).json()["filas"][0]["estado"] == "sin_cambios"
 
 
 def test_lo_que_ya_no_esta_en_un_archivo_posterior_se_conserva_y_las_filas_con_error_no_se_guardan(client, H):

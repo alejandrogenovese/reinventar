@@ -8,7 +8,7 @@ import { Button, Hint, IconText, h, mensajeError, toast } from "./ui.js";
 const ACCEPT = ".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const EJEMPLO = "reinventar-eventos-ejemplo.xlsx";
 const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const ESTADOS = { nueva: "Nueva", actualiza: "Actualiza", sin_cambios: "Sin cambios", error: "Error" };
+const ESTADOS = { nueva: "Nueva", actualiza: "Actualiza", vuelve: "Se vuelve a agregar", sin_cambios: "Sin cambios", error: "Error" };
 
 const EventosExcel = {
   subir: (file, confirmar) => api(`/api/my-events/excel?nombre=${encodeURIComponent(file.name)}${confirmar ? "&confirmar=1" : ""}`,
@@ -41,13 +41,14 @@ async function bajarEjemplo() {
 /** Texto del resumen de la vista previa: «3 nuevos · 1 actualiza · 2 con error». */
 export function textoResumen(r) {
   const partes = [[r.nueva, "nuevo", "nuevos"], [r.actualiza, "actualiza", "actualizan"],
+    [r.vuelve || 0, "vuelve al itinerario", "vuelven al itinerario"],
     [r.sin_cambios, "sin cambios", "sin cambios"], [r.error, "con error", "con error"]]
     .filter(([n]) => n > 0).map(([n, uno, varios]) => `${n} ${n === 1 ? uno : varios}`);
   return partes.join(" · ") || "Nada para cargar";
 }
 
 /** Cuántas filas se guardarían al confirmar. */
-export const aGuardar = (r) => r.nueva + r.actualiza;
+export const aGuardar = (r) => r.nueva + r.actualiza + (r.vuelve || 0);
 
 /** Una fila de la vista previa, con las clases de las tarjetas de Mis eventos (ra-minicard). */
 function FilaPrevia(f) {

@@ -18,6 +18,11 @@ test("sin filas que sirvan, lo dice", () => {
   assert.equal(textoResumen({ nueva: 0, actualiza: 0, sin_cambios: 0, error: 0 }), "Nada para cargar");
 });
 
+test("lo que vuelve al itinerario se nombra y se guarda al confirmar", () => {
+  assert.equal(textoResumen({ nueva: 0, actualiza: 0, vuelve: 2, sin_cambios: 1, error: 0 }), "2 vuelven al itinerario · 1 sin cambios");
+  assert.equal(aGuardar({ nueva: 1, actualiza: 0, vuelve: 2, sin_cambios: 1, error: 0 }), 3);
+});
+
 test("al confirmar se guardan las nuevas y las que cambian, no las sin cambios ni las con error", () => {
   assert.equal(aGuardar({ nueva: 2, actualiza: 3, sin_cambios: 4, error: 5 }), 5);
 });

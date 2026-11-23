@@ -10,6 +10,7 @@ actualiza los mismos eventos.
 """
 import datetime as dt
 import hashlib
+import math
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -32,7 +33,8 @@ FILAS_PARA_CABECERA = 20  # la cabecera tiene que estar entre las primeras filas
 FIN_DEL_DIA = "23:59"     # un evento que termina al día siguiente ocupa hasta el final de su día
 _TOPES = planilla.Topes(filas=1000, aviso_celdas="El Excel tiene demasiadas celdas: subí solo la hoja de eventos.")
 _EPOCA_EXCEL = dt.date(1899, 12, 30)
-_HORA = re.compile(r"^(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?\s*([ap])?\.?\s*m?\.?$")
+_HORA = re.compile(r"^(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?\s*(?:([ap])\.?\s*m\.?)?$")
+_SERIE_MAXIMA = 2_958_465  # 31/12/9999 en Excel: un número de serie más grande no es una fecha
 
 # Cabecera normalizada -> campo. Además de los nombres del ejemplo, algunos sinónimos razonables.
 _COLUMNAS = {
@@ -91,6 +93,8 @@ def leer_dia(valor) -> str:
     elif isinstance(valor, dt.date):
         fecha = valor
     elif isinstance(valor, int | float) and not isinstance(valor, bool):
+        if not (math.isfinite(valor) and 1 <= valor <= _SERIE_MAXIMA):  # 1e20 o inf harían desbordar la suma
+            raise ValueError(f"No entiendo el día «{_texto(valor)}»: usá dd/mm/aaaa")
         fecha = _EPOCA_EXCEL + dt.timedelta(days=int(valor))
     else:
         fecha = _dia_de_texto(_texto(valor))
@@ -128,6 +132,8 @@ def leer_hora(valor) -> str:
     if not m:
         raise ValueError(f"No entiendo la hora «{texto}»: usá 19:30 o 7:30 PM")
     hora, minutos, ampm = int(m[1]), int(m[2] or 0), m[3]
+    if not ampm and m[2] is None and 1 <= hora <= 12:
+        raise ValueError(f"La hora «{texto}» es ambigua: escribí {hora:02d}:00, {hora + 12:02d}:00 o {hora} PM")
     if ampm:
         if not 1 <= hora <= 12:
             raise ValueError(f"No entiendo la hora «{texto}»: usá 19:30 o 7:30 PM")
@@ -158,9 +164,15 @@ def leer_tipo(valor) -> str:
     return tipo
 
 
+def _clave_nombre(nombre: str) -> str:
+    """El nombre para el id: NFKC, sin mayúsculas y con los espacios colapsados. A diferencia de _plano, no borra lo
+    que no es ASCII: «会議» y «夕食» a la misma hora son dos eventos distintos."""
+    return " ".join(unicodedata.normalize("NFKC", nombre).casefold().split())
+
+
 def id_de(nombre: str, dia: str, inicio: str) -> str:
-    """Id determinístico: el mismo nombre (sin importar mayúsculas ni tildes), día e inicio dan el mismo evento."""
-    clave = f"{_plano(nombre)}|{dia}|{inicio}"
+    """Id determinístico: el mismo nombre (sin importar mayúsculas ni espacios), día e inicio dan el mismo evento."""
+    clave = f"{_clave_nombre(nombre)}|{dia}|{inicio}"
     return PREFIJO_ID + hashlib.sha256(clave.encode()).hexdigest()[:10]
 
 
@@ -264,8 +276,8 @@ def _fila(numero: int, celdas: dict, sedes: list[dict], vistos: dict[str, int]) 
         evento, sede = _evento(celdas, sedes)
     except ValidationError as e:
         return Fila(numero, error=e.errors()[0]["msg"])
-    except ValueError as e:
-        return Fila(numero, error=str(e))
+    except (ValueError, OverflowError) as e:
+        return Fila(numero, error=str(e) if isinstance(e, ValueError) else "Hay un número fuera de rango en la fila")
     id_ = id_de(evento.nombre, evento.dia, evento.inicio)
     if id_ in vistos:
         return Fila(numero, error=f"Repite el evento de la fila {vistos[id_]} (mismo nombre, día e inicio)")
@@ -290,12 +302,15 @@ def leer_eventos(datos: bytes, nombre: str, sedes: list[dict]) -> list[Fila]:
 
 # ---------- comparación con lo guardado ----------
 
-NUEVA, ACTUALIZA, SIN_CAMBIOS, ERROR = "nueva", "actualiza", "sin_cambios", "error"
+NUEVA, ACTUALIZA, VUELVE, SIN_CAMBIOS, ERROR = "nueva", "actualiza", "vuelve", "sin_cambios", "error"
+ESTADOS = (NUEVA, ACTUALIZA, VUELVE, SIN_CAMBIOS, ERROR)
+A_GUARDAR = (NUEVA, ACTUALIZA, VUELVE)
 _COMPARABLES = ("nombre", "dia", "inicio", "fin", "nota", "id_sede", "lugar")
 
 
-def estado(fila: Fila, anterior: dict | None) -> str:
-    """nueva, actualiza o sin_cambios contra lo que ya está en user_events (error si la fila no sirve)."""
+def estado(fila: Fila, anterior: dict | None, en_itinerario: bool = True) -> str:
+    """nueva, actualiza o sin_cambios contra lo que ya está en user_events (error si la fila no sirve). vuelve: el
+    evento está igual pero lo sacaron del itinerario, así que al confirmar se vuelve a fijar."""
     if fila.error:
         return ERROR
     if anterior is None:
@@ -303,7 +318,9 @@ def estado(fila: Fila, anterior: dict | None) -> str:
     ev = fila.evento
     nuevo = {"nombre": ev.nombre, "dia": ev.dia, "inicio": ev.inicio, "fin": ev.fin, "nota": ev.nota,
              "id_sede": ev.id_sede, "lugar": fila.lugar}
-    return SIN_CAMBIOS if all(anterior.get(k) == nuevo[k] for k in _COMPARABLES) else ACTUALIZA
+    if any(anterior.get(k) != nuevo[k] for k in _COMPARABLES):
+        return ACTUALIZA
+    return SIN_CAMBIOS if en_itinerario else VUELVE
 
 
 def vista(fila: Fila, estado_: str) -> dict:
