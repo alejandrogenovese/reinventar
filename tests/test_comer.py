@@ -201,8 +201,10 @@ def test_sin_origen_ni_sesion_con_coordenadas(client, google, monkeypatch):
     assert r.status_code == 404 and "ubicación" in r.json()["detail"] and not google.pedidos
 
 
-@pytest.mark.parametrize("params", [{"lat": 91, "lng": 0}, {"lat": 10}, {"lat": 36, "lng": -115, "precio": 3},
-                                    {"lat": 36, "lng": -115, "minutos": 99}])
+@pytest.mark.parametrize("params", [{"lat": 91, "lng": 0}, {"lat": 10}, {"lat": 36, "lng": -115, "precio": 5},
+                                    {"lat": 36, "lng": -115, "minutos": 99},
+                                    {"lat": 36, "lng": -115, "puntaje": 6},
+                                    {"lat": 36, "lng": -115, "orden": "precio"}])
 def test_valida_parametros(client, google, params):
     assert client.get("/api/comer", params=params).status_code == 422
 
@@ -259,3 +261,81 @@ def test_cada_lugar_dice_que_tipo_de_lugar_es(client, google):
     [lugar] = _pedir(client, tipo="dulces").json()["lugares"]
     assert lugar["tipo"] == "Tienda de chocolate"
     assert "places.primaryTypeDisplayName" in places.NEARBY_FIELDS.split(",")
+
+
+# ---------- filtros flexibles: hasta $$$$, hasta 30 min, abierto ahora, puntaje mínimo y orden ----------
+
+def test_precio_llega_hasta_cuatro_signos(client, google):
+    google.respuesta = _respuesta(
+        _lugar("barato", "Barato", 36.1150, -115.1728),
+        _lugar("caro", "Caro", 36.1151, -115.1728, precio="PRICE_LEVEL_EXPENSIVE"),
+        _lugar("carisimo", "Carísimo", 36.1152, -115.1728, precio="PRICE_LEVEL_VERY_EXPENSIVE"))
+    ids = lambda r: {lugar["place_id"] for lugar in r.json()["lugares"]}  # noqa: E731
+
+    assert ids(_pedir(client, precio=3)) == {"barato", "caro"}
+    assert ids(_pedir(client, precio=4)) == {"barato", "caro", "carisimo"}
+
+
+def test_mas_de_15_minutos_busca_en_un_radio_mas_grande_y_suma_lo_cercano(client, google):
+    google.respuesta = _respuesta(_lugar("cerca", "Cerca", 36.1150, -115.1728),
+                                  _lugar("lejos", "A 23 min", 36.1260, -115.1728))  # ~1,25 km: ~23 min
+
+    a_15 = {lugar["place_id"] for lugar in _pedir(client, minutos=15).json()["lugares"]}
+    a_30 = {lugar["place_id"] for lugar in _pedir(client, minutos=30).json()["lugares"]}
+
+    assert a_15 == {"cerca"}
+    assert a_30 == {"cerca", "lejos"}
+    radios = [p["json"]["locationRestriction"]["circle"]["radius"] for p in google.pedidos]
+    assert radios == [comer_api.RADIO_BUSQUEDA_M, comer_api.RADIO_LEJOS_M]  # el cercano salió de la cache
+
+
+def test_lo_cercano_y_lo_lejano_no_se_repiten(client, google):
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1150, -115.1728))
+
+    lugares = _pedir(client, minutos=30).json()["lugares"]
+
+    assert [lugar["place_id"] for lugar in lugares] == ["a"]
+
+
+def test_solo_abiertos(client, google):
+    google.respuesta = _respuesta(_lugar("abierto", "Abierto", 36.1150, -115.1728),
+                                  _lugar("cerrado", "Cerrado", 36.1151, -115.1728,
+                                         currentOpeningHours={"openNow": False}),
+                                  _lugar("sindato", "Sin horario", 36.1152, -115.1728, currentOpeningHours=None))
+
+    lugares = _pedir(client, abierto="true").json()["lugares"]
+
+    assert [lugar["place_id"] for lugar in lugares] == ["abierto"]
+
+
+def test_solo_abiertos_con_cache_vieja_vuelve_a_preguntar(client, google, monkeypatch):
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1150, -115.1728))
+    t = [1000.0]
+    monkeypatch.setattr(comer_api.time, "monotonic", lambda: t[0])
+    _pedir(client)
+    t[0] += comer_api.TTL_ABIERTO_S + 1
+
+    assert len(_pedir(client).json()["lugares"]) == 1  # sin el filtro, la cache sirve
+    assert len(_pedir(client, abierto="true").json()["lugares"]) == 1  # con el filtro, dato fresco
+
+    assert len(google.pedidos) == 2
+
+
+def test_puntaje_minimo(client, google):
+    google.respuesta = _respuesta(_lugar("alto", "Alto", 36.1150, -115.1728, rating=4.7),
+                                  _lugar("medio", "Medio", 36.1151, -115.1728, rating=4.2),
+                                  _lugar("sin", "Sin puntaje", 36.1152, -115.1728, rating=None, n=0))
+
+    assert {lugar["place_id"] for lugar in _pedir(client, puntaje=4).json()["lugares"]} == {"alto", "medio"}
+    assert {lugar["place_id"] for lugar in _pedir(client, puntaje=4.5).json()["lugares"]} == {"alto"}
+
+
+@pytest.mark.parametrize(("orden", "esperado"), [("recomendado", ["bueno", "cerca"]), ("cerca", ["cerca", "bueno"]),
+                                                 ("puntaje", ["bueno", "cerca"])])
+def test_orden(client, google, orden, esperado):
+    google.respuesta = _respuesta(_lugar("cerca", "Cerca", 36.1148, -115.1728, rating=4.0, n=1000),
+                                  _lugar("bueno", "Bueno", 36.1170, -115.1728, rating=4.9, n=1000))
+
+    lugares = _pedir(client, minutos=15, orden=orden).json()["lugares"]
+
+    assert [lugar["place_id"] for lugar in lugares] == esperado
