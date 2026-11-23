@@ -5,29 +5,24 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
-### Cambiado
-- **Ofertas ya no queda en blanco.** Si todavía no hay ofertas vigentes, la pantalla explica de dónde salen
-  (bajas de precio de shows cuando Ticketmaster publica precios, y ofertas de comida y outlets que carga el equipo) y
-  lleva a Shows. Quien es admin ve además «Cargar una oferta».
+## [1.3.0] - 2026-11-23
+
 ### Agregado
 - **Actividades.** En Viaje › Actividades hay dos pestañas: *Excursiones*, con tours, excursiones de un día y entradas de
   Viator para tus días en Las Vegas (precio desde, puntaje, duración y el botón «Reservar en Viator»), agrupadas por
   tipo; y *Cerca*, con museos, parques y atracciones ordenadas por distancia a donde estás o a tu próxima sesión.
   Excursiones aparece cuando el servidor tiene la clave de Viator.
-### Agregado
 - **Mi ficha.** En Ajustes › Mi ficha ves todo lo tuyo en una pantalla: perfil (rol, industria e intereses), vuelos y
   hotel, notificaciones, entrar con huella o cara, documentos, pendientes y charlas en tu agenda, con una barra de
   cuánto completaste. Cada bloque dice si le falta algo y te lleva a la pantalla donde se completa. Si falta algo
   importante (vuelo, hotel, notificaciones, documentos, perfil), el aviso de arriba te lo recuerda cuando no hay nada
   más urgente («Cargá tu hotel · Completar»); si lo cerrás vuelve en 24 h. Durante el viaje solo insiste con lo que
   sirve allá: el vuelo de vuelta y las notificaciones.
-### Agregado
 - **Cargar tus eventos desde Excel.** En Eventos › Mis eventos › Cargar desde Excel subís un .xlsx o .csv con hasta
   100 eventos (Nombre, Día, Inicio y Lugar; opcionales Fin, Tipo, Dirección, Link, Precio y Notas). Antes de guardar
   ves una vista previa con lo nuevo, lo que cambia y los errores de cada fila; las filas con error no se guardan. Si
   subís el mismo archivo otra vez no se duplica. Si el lugar es una sede de re:Invent, queda ubicado en el mapa. Hay
   un Excel de ejemplo para bajar y completar.
-### Agregado
 - **Conversor de unidades.** En Viaje › Conversor pasás °F a °C (con una tira de referencia de 60 a 95 °F), onzas,
   libras, tazas, pintas y galones a gramos y litros (con atajos como «16 oz steak = 454 g»), libras a kilos con los
   discos del gym, millas, pies y pulgadas a km, m y cm, mph a km/h, talles de ropa y calzado US ↔ AR/EU (de hombre y de
@@ -35,11 +30,15 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   cotización tarjeta y su antigüedad. Convierte mientras escribís, con coma o punto, ⇄ invierte y anda sin señal.
 - **Leer con la cámara** (cuando esté habilitada). Dentro del conversor, sacale una foto a una carta o un cartel: te
   traduce lo que dice y pasa las unidades y los precios. Necesita señal; la foto no se guarda.
-### Agregado
 - **Charlas nuevas.** Cuando AWS suma charlas al catálogo, aparecen en Itinerario › Charlas nuevas (y en una tarjeta en
   Inicio): las de los últimos 7 días que todavía no pasaron, primero las que coinciden con tus intereses. Cada una se
   agrega a tu agenda con un toque (te avisamos si se superpone con algo) o se descarta, y no vuelve a aparecer. Te
   llega un solo aviso por tanda («3 charlas nuevas»), nunca de noche ni repetido; se apaga en Ajustes.
+
+### Cambiado
+- **Ofertas ya no queda en blanco.** Si todavía no hay ofertas vigentes, la pantalla explica de dónde salen
+  (bajas de precio de shows cuando Ticketmaster publica precios, y ofertas de comida y outlets que carga el equipo) y
+  lleva a Shows. Quien es admin ve además «Cargar una oferta».
 
 ## [1.2.0] - 2026-11-23
 
@@ -554,7 +553,13 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.0.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.3...v1.2.0
+[1.1.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.22.0...v1.0.0
 [0.22.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/alejandrogenovese/reinventar/compare/v0.20.0...v0.21.0
