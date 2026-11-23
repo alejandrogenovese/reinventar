@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.1] - 2026-11-23
+
 ### Agregado
 - **Charlas que AWS sube a YouTube.** Las keynotes, las mainstage y las breakout sessions llevan la etiqueta «Se
   publica en YouTube» en la ficha y en las tarjetas (itinerario, búsqueda, explorar). Al tocar «Grabar» en una de
@@ -560,7 +562,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.3...v1.2.0
 [1.1.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.2...v1.1.3
