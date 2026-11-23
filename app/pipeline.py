@@ -179,21 +179,60 @@ def _etapas(sid: str, s: dict):
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
 
 
+def _textos(valor) -> list[str]:
+    return [str(x) for x in valor if isinstance(x, str | int | float)] if isinstance(valor, list) else []
+
+
+def _pares(valor, *claves) -> list[dict]:
+    return [{k: str(x.get(k) or "") for k in claves} for x in valor if isinstance(x, dict)] if isinstance(valor, list) else []
+
+
+def resumen_publico(s: dict) -> dict:
+    """Lo que se puede compartir de una grabación fuera de la app (texto para WhatsApp y el link /c/<token>): título,
+    charla y resumen. Lista blanca: sin vs_abstract ni takeaways (son para quien grabó), ni votos, transcripción,
+    usuario o id. El resumen viene de un LLM: acá solo se normalizan los tipos; escapar es tarea de quien lo muestre."""
+    sm = s.get("summary") if isinstance(s.get("summary"), dict) else {}
+    return {
+        "title": str(s.get("title") or ""), "kind": str(s.get("kind") or ""), "code": s.get("code") or None,
+        "speaker": s.get("speaker") or None,
+        "tldr": str(sm.get("tldr") or ""),
+        "announcements": _pares(sm.get("announcements"), "service", "text"),
+        "key_points": _textos(sm.get("key_points")),
+        "services": _textos(sm.get("services")),
+        "quotes": _pares(sm.get("quotes"), "time", "text"),
+    }
+
+
+def _md_resumen(sm: dict) -> list[str]:
+    out = ["## TL;DR", "", sm.get("tldr", ""), ""]
+    if sm.get("announcements"):
+        out += ["## Anuncios", ""] + [f"- **{a['service']}** — {a['text']}" for a in sm["announcements"]] + [""]
+    if sm.get("key_points"):
+        out += ["## Puntos clave", ""] + [f"- {p}" for p in sm["key_points"]] + [""]
+    if sm.get("services"):
+        out += ["## Servicios mencionados", "", ", ".join(f"`{x}`" for x in sm["services"]), ""]
+    if sm.get("quotes"):
+        out += ["## Frases", ""] + [f"- `{q.get('time', '')}` “{q['text']}”" for q in sm["quotes"]] + [""]
+    return out
+
+
+def to_markdown_publico(s: dict) -> str:
+    """El resumen para compartir (WhatsApp, copiar): solo lo de resumen_publico, sin transcripción."""
+    p = resumen_publico(s)
+    meta = " · ".join(x for x in [p["kind"], p["code"], p["speaker"]] if x)
+    out = [f"# {p['title']}", "", f"_{meta}_", ""] if meta else [f"# {p['title']}", ""]
+    if s.get("summary"):
+        out += _md_resumen(p)
+    return "\n".join(out).strip() + "\n"
+
+
 def to_markdown(s: dict, blocks: list[dict]) -> str:
     sm = s.get("summary") or {}
     meta = " · ".join(x for x in [s["kind"], s.get("code"), s.get("venue"), s.get("speaker"),
                                   hms(s["duration_s"]) if s.get("duration_s") else None] if x)
     out = [f"# {s['title']}", "", f"_{meta}_", ""]
     if sm:
-        out += ["## TL;DR", "", sm.get("tldr", ""), ""]
-        if sm.get("announcements"):
-            out += ["## Anuncios", ""] + [f"- **{a['service']}** — {a['text']}" for a in sm["announcements"]] + [""]
-        if sm.get("key_points"):
-            out += ["## Puntos clave", ""] + [f"- {p}" for p in sm["key_points"]] + [""]
-        if sm.get("services"):
-            out += ["## Servicios mencionados", "", ", ".join(f"`{x}`" for x in sm["services"]), ""]
-        if sm.get("quotes"):
-            out += ["## Frases", ""] + [f"- `{q.get('time', '')}` “{q['text']}”" for q in sm["quotes"]] + [""]
+        out += _md_resumen(sm)
         if sm.get("vs_abstract"):
             out += ["## Versus lo prometido", "", sm["vs_abstract"], ""]
         if sm.get("takeaways"):

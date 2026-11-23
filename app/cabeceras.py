@@ -23,7 +23,7 @@ def _hashes_inline() -> str:
     except OSError:
         return ""
     bloques = re.findall(r"<script>(.*?)</script>", html, re.S)
-    return " ".join(f"'sha256-{base64.b64encode(hashlib.sha256(b.encode()).digest()).decode()}'" for b in bloques)
+    return " ".join(hash_csp(b) for b in bloques)
 
 
 def politica() -> str:
@@ -41,6 +41,25 @@ def politica() -> str:
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'self'",
+        "frame-ancestors 'none'",
+    ])
+
+
+def hash_csp(bloque: str) -> str:
+    return f"'sha256-{base64.b64encode(hashlib.sha256(bloque.encode()).digest()).decode()}'"
+
+
+def politica_pagina_publica(estilo: str) -> str:
+    """CSP de las páginas públicas sin sesión (el resumen compartido, /c/<token>): nada de afuera, ningún script inline,
+    solo el <style> de la página (por su hash) y scripts propios. El contenido viene de un LLM: aunque se escapara mal,
+    no podría correr nada."""
+    return "; ".join([
+        "default-src 'none'",
+        "script-src 'self'",
+        f"style-src {hash_csp(estilo)}",
+        "img-src 'self'",
+        "base-uri 'none'",
+        "form-action 'none'",
         "frame-ancestors 'none'",
     ])
 

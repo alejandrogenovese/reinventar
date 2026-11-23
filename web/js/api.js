@@ -133,6 +133,9 @@ export const Sessions = {
   retry: (id, fromScratch = false) => api(`/api/sessions/${id}/retry?from_scratch=${fromScratch}`, { method: "POST" }),
   remove: (id) => api(`/api/sessions/${id}`, { method: "DELETE" }).then(refrescarLista),
   exportMd: (id) => api(`/api/sessions/${id}/export.md`, { raw: true }).then((r) => r.text()),
+  resumenMd: (id) => api(`/api/sessions/${id}/resumen.md`, { raw: true }).then((r) => r.text()), // sin lo personal: para compartir
+  compartir: (id) => api(`/api/sessions/${id}/compartir`, { method: "POST" }), // {url, vence}: link público de solo lectura
+  activa: (code, signal) => api(`/api/sessions/activa?code=${encodeURIComponent(code)}`, { signal }), // ¿alguien más ya la graba?
   search: (q, signal) => api(`/api/grabaciones/buscar?q=${encodeURIComponent(q)}`, { signal }),
   votar: (id, util) => api(`/api/sessions/${id}/voto`, { method: "PUT", json: { util } }),
   retirarVoto: (id) => api(`/api/sessions/${id}/voto`, { method: "DELETE" }),

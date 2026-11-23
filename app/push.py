@@ -193,12 +193,18 @@ def day_notices(cards: list[dict], now: dt.datetime, grabar: bool = False) -> li
     return out
 
 
-def _alguien_graba(username: str, code: str) -> bool:
-    """Si ya hay una grabación de esa charla (las grabaciones son compartidas: alcanza con que la grabe alguien)."""
-    # cuando exista sessions.created_by: filtrar por usuario
+def grabacion_en_curso(code: str, excluir: str | None = None) -> dict | None:
+    """{id, created_by, status} de una grabación de esa charla creada hace poco o que sigue subiendo audio (las mismas
+    ventanas que el recordatorio). La usan el recordatorio y el aviso de grabación duplicada (GET /api/sessions/activa)."""
     ahora = time.time()
     return db.grabacion_activa(code, ahora - recordatorio.GRABACION_RECIENTE_MIN * 60,
-                               ahora - recordatorio.CHUNK_ACTIVO_MIN * 60)
+                               ahora - recordatorio.CHUNK_ACTIVO_MIN * 60, excluir=excluir)
+
+
+def _alguien_graba(username: str, code: str) -> bool:
+    """Si ya hay una grabación de esa charla, de quien sea: las grabaciones se comparten entre todos en la app, así que
+    alcanza con que la grabe alguien (también cuenta la propia: si ya la está grabando, no hace falta recordárselo)."""
+    return grabacion_en_curso(code) is not None
 
 
 def _sede_reciente(username: str, prefs: recordatorio.Preferencias) -> recordatorio.Sede | None:
