@@ -44,6 +44,8 @@ const ICONS = {
   ok: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.5 2.5L16 9.5\"/></g>",
   error: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z\"/><path d=\"M12 8v4M12 16h.01\"/></g>",
   nuevo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"/></g>",
+  // Invertir (⇄): el botón del conversor y la tarjeta Conversor de Viaje.
+  invertir: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7\"/></g>",
 };
 
 /** <svg> del ícono `name` (de ICONS), 24×24 salvo que se pida otro tamaño. */

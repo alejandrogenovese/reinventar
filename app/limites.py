@@ -74,6 +74,7 @@ FICHAS_POR_USUARIO = 40            # /api/k/briefing (en caché por usuario; sol
 ENTREVISTA_POR_USUARIO = 60        # repreguntas, ficha y audio de la entrevista: ~12 audios + ajustes
 ITINERARIOS_POR_USUARIO = 10       # /api/itinerary/generate: cada uno es una llamada grande al LLM
 ADMIN_LINKS_POR_USUARIO = 30       # vista previa y guardado de eventos por link (admin)
+FOTOS_CONVERSOR_POR_USUARIO = 30   # /api/conversor/foto: una llamada con imagen al LLM por foto
 
 busquedas_nl = Limite(BUSQUEDAS_NL_POR_USUARIO, VENTANA_CORTA)
 preguntas = Limite(PREGUNTAS_POR_USUARIO, VENTANA_CORTA)
@@ -81,6 +82,7 @@ briefings = Limite(FICHAS_POR_USUARIO, VENTANA_LARGA)
 entrevista = Limite(ENTREVISTA_POR_USUARIO, VENTANA_LARGA)
 itinerarios = Limite(ITINERARIOS_POR_USUARIO, VENTANA_LARGA)
 admin_links = Limite(ADMIN_LINKS_POR_USUARIO, VENTANA_LARGA)
+fotos_conversor = Limite(FOTOS_CONVERSOR_POR_USUARIO, VENTANA_LARGA)
 
 # Páginas públicas del resumen de una grabación (/c/<token>), por IP: alcanza para que un grupo abra el link desde la misma
 # red del evento y frena a quien pruebe tokens al azar (igual no puede fabricar uno sin la clave).
@@ -112,7 +114,7 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
-         admin_links, links_grabacion)
+         admin_links, links_grabacion, fotos_conversor)
 
 
 def reiniciar_todo() -> None:

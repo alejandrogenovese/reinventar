@@ -27,6 +27,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   ves una vista previa con lo nuevo, lo que cambia y los errores de cada fila; las filas con error no se guardan. Si
   subís el mismo archivo otra vez no se duplica. Si el lugar es una sede de re:Invent, queda ubicado en el mapa. Hay
   un Excel de ejemplo para bajar y completar.
+### Agregado
+- **Conversor de unidades.** En Viaje › Conversor pasás °F a °C (con una tira de referencia de 60 a 95 °F), onzas,
+  libras, tazas, pintas y galones a gramos y litros (con atajos como «16 oz steak = 454 g»), libras a kilos con los
+  discos del gym, millas, pies y pulgadas a km, m y cm, mph a km/h, talles de ropa y calzado US ↔ AR/EU (de hombre y de
+  mujer, aproximados), la propina con el impuesto de Las Vegas (8,375 %) y el total en pesos, y dólares a pesos con la
+  cotización tarjeta y su antigüedad. Convierte mientras escribís, con coma o punto, ⇄ invierte y anda sin señal.
+- **Leer con la cámara** (cuando esté habilitada). Dentro del conversor, sacale una foto a una carta o un cartel: te
+  traduce lo que dice y pasa las unidades y los precios. Necesita señal; la foto no se guarda.
 
 ## [1.2.0] - 2026-11-23
 

@@ -177,8 +177,9 @@ if (yaUsado) activarSync();
 
 // ---------- foto del ticket ----------
 
-/** Achica la foto en el celular: lado mayor 1600 px, JPEG ~0,7; si todavía pasa de 2 MB baja la calidad de a poco. */
-async function achicarFoto(archivo) {
+/** Achica la foto en el celular: lado mayor 1600 px, JPEG ~0,7; si todavía pasa de 2 MB baja la calidad de a poco.
+ * La usa también el conversor (conversorFoto.js) para «Leer con la cámara». */
+export async function achicarFoto(archivo) {
   const imagen = await createImageBitmap(archivo);
   const { ancho, alto } = escalarLado(imagen.width, imagen.height);
   const lienzo = document.createElement("canvas");
