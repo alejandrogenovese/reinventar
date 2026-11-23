@@ -19,7 +19,8 @@ MAX_CODIGOS = 500
 EXTENSIONES = (".xlsx", ".csv")
 _GUIONES = str.maketrans({c: "-" for c in "–—‑−"})
 # Igual que el patrón de nl_filters, pero con -R sin número (DAT402-R) y bordes de palabra para no tomar pedazos de otras cosas.
-_CODIGO = re.compile(r"(?<![A-Z0-9])([A-Z]{3}\d{3})(?:-(R\d*|S))?(?![A-Z0-9])")
+# Hay códigos de 3 y de 4 dígitos (IND3313). Solo -R y -R<n> son repeticiones; -S, -SC2 o -D0 son parte del código de la charla.
+_CODIGO = re.compile(r"(?<![A-Z0-9])([A-Z]{3}\d{3,4})(?:-(R\d*|SC\d*|S|D\d+))?(?![A-Z0-9])")
 
 
 @dataclass(frozen=True)
@@ -29,7 +30,9 @@ class Codigo:
 
 
 def _armar(m: re.Match) -> Codigo:
-    return Codigo(m.group(1), m.group(1) + (f"-{m.group(2)}" if m.group(2) else ""))
+    completo = m.group(1) + (f"-{m.group(2)}" if m.group(2) else "")
+    es_repeticion = (m.group(2) or "").startswith("R")
+    return Codigo(m.group(1) if es_repeticion else completo, completo)
 
 
 def normalizar(texto: str) -> list[Codigo]:
