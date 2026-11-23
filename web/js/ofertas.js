@@ -32,6 +32,26 @@ export function decisionActivacion({ estado, permiso }) {
 
 export const TEXTO_DENEGADO = "Las notificaciones están bloqueadas en este dispositivo. Habilitalas en los ajustes del navegador (iPhone: Ajustes → Notificaciones → ReinventAR; Android: ícono del candado → Permisos → Notificaciones) y volvé a activar. Mientras tanto podés ver las ofertas en la pantalla Ofertas.";
 
+/**
+ * Qué mostrar cuando no hay ofertas vigentes: el texto y los enlaces ({ texto, href, primario }). Con todas las categorías
+ * se explica de dónde salen las ofertas (así la pantalla no parece rota) y, si es admin, se ofrece cargar una.
+ */
+export function estadoVacio({ categoria = TODAS, esAdmin = false } = {}) {
+  if (categoria !== TODAS) return { texto: "No hay ofertas vigentes en esta categoría.", enlaces: [] };
+  return {
+    texto: "Todavía no hay ofertas. Las bajas de precio de shows aparecen cuando Ticketmaster publica precios, y el equipo carga ofertas de comida y outlets durante la semana.",
+    enlaces: [
+      { texto: "Ver los shows", href: "#/eventos/shows", primario: false },
+      ...(esAdmin ? [{ texto: "Cargar una oferta", href: "#/admin/ofertas", primario: true }] : []),
+    ],
+  };
+}
+
+function Vacio(estado) {
+  return h("div", { class: "stack" }, h("p", { class: "caption" }, estado.texto),
+    estado.enlaces.length ? h("div", { class: "actions" }, estado.enlaces.map((e) => h("a", { class: e.primario ? "ra-btn ra-btn-primary" : "ra-btn", href: e.href }, e.texto))) : null);
+}
+
 // --- tarjetas --------------------------------------------------------------------
 function Precio(o) {
   if (o.precio_ahora == null) return null;
@@ -80,9 +100,10 @@ export async function viewOfertas(view, id = null) {
     const nombres = d.categorias || CATEGORIAS_FALLBACK;
     if (!filtros.firstChild) filtros.replaceChildren(Filtros(nombres, categoria, (c) => { categoria = c; marcar(); void pintar(); }));
     marcar();
-    admin.replaceChildren(...(d.es_admin ? [h("a", { class: "ra-btn", href: "#/admin/ofertas" }, "Cargar ofertas")] : []));
-    lista.replaceChildren(...(d.ofertas.length ? d.ofertas.map((o) => Tarjeta(o, nombres))
-      : [h("p", { class: "caption" }, categoria === TODAS ? "Todavía no hay ofertas vigentes." : "No hay ofertas vigentes en esta categoría.")]));
+    const vacio = !d.ofertas.length;
+    const vacioConAdmin = vacio && categoria === TODAS; // el estado vacío ya trae «Cargar una oferta»: no se repite abajo
+    admin.replaceChildren(...(d.es_admin && !vacioConAdmin ? [h("a", { class: "ra-btn", href: "#/admin/ofertas" }, "Cargar ofertas")] : []));
+    lista.replaceChildren(...(vacio ? [Vacio(estadoVacio({ categoria, esAdmin: d.es_admin }))] : d.ofertas.map((o) => Tarjeta(o, nombres))));
   }
   view.append(h("div", { class: "stack-lg" }, h("h1", { class: "title" }, "Ofertas"),
     h("p", { class: "caption" }, "Bajas de precio de shows y ofertas de comida y compras en Las Vegas. Podés recibir avisos desde Ajustes."),

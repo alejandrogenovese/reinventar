@@ -7,7 +7,7 @@ globalThis.window = { dispatchEvent() {}, addEventListener() {} };
 globalThis.location = { hash: "" };
 globalThis.document = { createElement: () => ({ append() {}, setAttribute() {}, addEventListener() {}, classList: { add() {} } }) };
 
-const { decisionActivacion, porcentajeBaja, TEXTO_DENEGADO } = await import("../../web/js/ofertas.js");
+const { decisionActivacion, estadoVacio, porcentajeBaja, TEXTO_DENEGADO } = await import("../../web/js/ofertas.js");
 
 test("iPhone sin instalar: se muestran los pasos de instalación, no se pide permiso", () => {
   assert.equal(decisionActivacion({ estado: "ios_sin_instalar", permiso: "default" }), "instalar");
@@ -32,4 +32,24 @@ test("porcentajeBaja redondea y solo habla de bajas", () => {
   assert.equal(porcentajeBaja({ precio_antes: 89, precio_ahora: 62 }), "-30 %");
   assert.equal(porcentajeBaja({ precio_antes: null, precio_ahora: null }), "");
   assert.equal(porcentajeBaja({ precio_antes: 50, precio_ahora: 60 }), "");
+});
+
+test("sin ofertas: se explica de dónde salen y se lleva a Shows", () => {
+  const vacio = estadoVacio({ categoria: "todas", esAdmin: false });
+  assert.match(vacio.texto, /Ticketmaster publica precios/);
+  assert.match(vacio.texto, /comida y outlets/);
+  assert.deepEqual(vacio.enlaces.map((e) => e.href), ["#/eventos/shows"]);
+});
+
+test("sin ofertas y es admin: se ofrece «Cargar una oferta» en Admin › Ofertas", () => {
+  const vacio = estadoVacio({ categoria: "todas", esAdmin: true });
+  const cargar = vacio.enlaces.find((e) => e.texto === "Cargar una oferta");
+  assert.equal(cargar?.href, "#/admin/ofertas");
+  assert.equal(cargar?.primario, true);
+});
+
+test("sin ofertas en una categoría filtrada: texto corto y sin enlaces", () => {
+  const vacio = estadoVacio({ categoria: "comida", esAdmin: true });
+  assert.equal(vacio.texto, "No hay ofertas vigentes en esta categoría.");
+  assert.deepEqual(vacio.enlaces, []);
 });
