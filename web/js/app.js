@@ -49,6 +49,7 @@ import { viewViaje } from "./viaje.js";
 import { viewFicha as viewMiFicha } from "./ficha.js";
 import { viewConversor } from "./conversor.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
+import { decidirPorYoutube } from "./avisoYoutube.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
@@ -295,6 +296,7 @@ function viewNew() {
     h("label", { for: `k${i}` }, k),
   ]);
   const field = (label, input) => h("div", { class: "field" }, h("label", { class: "label", for: input.id }, label), input);
+  let elegida = null; // la charla elegida en el buscador (trae en_youtube); un código escrito a mano no avisa
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
@@ -302,6 +304,7 @@ function viewNew() {
     btn.disabled = true;
     try {
       const code = fd.get("code").trim() || null;
+      if (!(await decidirPorYoutube(elegida?.code === code ? elegida : null))) { btn.disabled = false; return; }
       const decision = await decidirGrabar(code); // si otra persona ya graba esa charla, lo avisa antes
       if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
       const s = await empezarSesion({
@@ -312,7 +315,7 @@ function viewNew() {
     } catch (err) { toast(mensajeError(err, "No pude crear la sesión. Probá de nuevo.")); btn.disabled = false; }
   } },
     h("h1", { class: "title" }, "Nueva sesión"),
-    TalkPicker({ onPick: (talk) => fillFromTalk(form, talk) }),
+    TalkPicker({ onPick: (talk) => { elegida = talk; fillFromTalk(form, talk); } }),
     h("fieldset", { class: "fieldset-plain" }, h("legend", { class: "label" }, "Tipo"), h("div", { class: "segmented" }, radios)),
     field("Título", h("input", { id: "title", name: "title", required: true, maxlength: "200", placeholder: "Keynote de apertura", autocomplete: "off" })),
     field("Código de agenda", h("input", { id: "code", name: "code", maxlength: "40", placeholder: "ANT301", autocapitalize: "characters", autocomplete: "off" })),

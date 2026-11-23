@@ -2,6 +2,7 @@
 import { Itinerary, Knowledge } from "./api.js";
 import { AvisoBaja, LlenoAvisos, avisosDe } from "./lleno.js";
 import { BriefingPanel } from "./briefing.js";
+import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
@@ -102,8 +103,9 @@ export async function viewCharla(view, base) {
     h("header", { class: "stack" },
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h1", { class: "title" }, s.title),
-      s.newlaunch || s.topic?.length || s.aoi?.length ? h("div", { class: "ra-chips" },
+      s.newlaunch || s.en_youtube || s.topic?.length || s.aoi?.length ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
+        EtiquetaYoutube(s),
         [...(s.topic || []), ...(s.aoi || [])].map(Tag)) : null,
       h("div", { class: "actions" }, TalkRecordAction(s))),
     s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,

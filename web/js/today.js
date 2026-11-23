@@ -4,6 +4,7 @@ import { CountdownBadge } from "./countdown.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
+import { decidirPorYoutube } from "./avisoYoutube.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
@@ -18,10 +19,11 @@ const dayLabel = (iso) =>
 export const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
 
 /** Crea la sesión de grabación con los datos de la charla y abre el grabador. Si otra persona ya la está grabando,
- *  antes lo avisa y deja elegir entre grabar igual o ver la suya. */
+ *  antes lo avisa y deja elegir entre grabar igual o ver la suya. Si AWS la publica en YouTube, también lo avisa. */
 export async function recordTalk(s, btn) {
   btn.disabled = true;
   try {
+    if (!(await decidirPorYoutube(s))) { btn.disabled = false; return; } // la sube AWS: antes de grabar, lo avisa
     const decision = await decidirGrabar(s.code);
     if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
     // Sin señal también se puede grabar: empezarSesion arma una sesión local que se sube cuando vuelva la red.

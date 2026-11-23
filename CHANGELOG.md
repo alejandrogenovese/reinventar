@@ -5,6 +5,13 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Charlas que AWS sube a YouTube.** Las keynotes, las mainstage y las breakout sessions llevan la etiqueta «Se
+  publica en YouTube» en la ficha y en las tarjetas (itinerario, búsqueda, explorar). Al tocar «Grabar» en una de
+  ellas, antes de empezar te avisa que AWS la publica en el canal AWS Events entre 24 y 48 h después y que no hace
+  falta grabarla, con «Grabar igual» o «No grabar». Avisa una sola vez por charla y funciona sin señal. En «¿Te
+  perdiste…?» ahora dice si esa charla sale en YouTube o no.
+
 ## [1.3.0] - 2026-11-23
 
 ### Agregado
