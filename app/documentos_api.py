@@ -115,6 +115,14 @@ def _subir(username: str, datos: bytes, tipo: str) -> dict:
     return {"clave": clave, "tipo": tipo, "bytes": len(datos), "sha256": hashlib.sha256(datos).hexdigest()}
 
 
+def _deshacer_subida(clave: str, e: Exception) -> None:
+    """La base no anotó el archivo: se borra el objeto recién subido. Se loguea solo el tipo de error (el detalle de un
+    error de Postgres puede traer la fila, con título y notas) y no se encadena la excepción."""
+    documentos.borrar_objeto(clave)
+    log.error("No se pudo anotar un documento de viaje (%s)", type(e).__name__)
+    raise HTTPException(500, "No se pudo guardar el documento. Probá de nuevo en un rato.") from None
+
+
 @router.get("")
 def listar(username: str = Depends(auth)):
     return {"documentos": [_vista(d) for d in documentos.listar(username)], "max": documentos.MAX_POR_USUARIO,
@@ -142,9 +150,8 @@ def _crear(username: str, meta: Meta, tipo: str, datos: bytes) -> dict:
     archivo = _subir(username, datos, tipo)
     try:
         doc = documentos.insertar(username, datos_meta, archivo)
-    except Exception:
-        documentos.borrar_objeto(archivo["clave"])
-        raise
+    except Exception as e:  # noqa: BLE001 — se deshace la subida y se corta con un error genérico
+        _deshacer_subida(archivo["clave"], e)
     if doc is None:  # otro pedido llenó el cupo entre el chequeo y el alta
         documentos.borrar_objeto(archivo["clave"])
         raise HTTPException(409, f"Ya tenés {documentos.MAX_POR_USUARIO} documentos: borrá alguno para subir otro.")
@@ -172,9 +179,8 @@ def _reemplazar(username: str, id_: UUID, tipo: str, datos: bytes) -> dict:
     archivo = _subir(username, datos, tipo)
     try:
         anterior = documentos.reemplazar_archivo(username, id_, archivo)
-    except Exception:
-        documentos.borrar_objeto(archivo["clave"])
-        raise
+    except Exception as e:  # noqa: BLE001 — se deshace la subida y se corta con un error genérico
+        _deshacer_subida(archivo["clave"], e)
     if anterior is None:  # lo borraron mientras subía
         documentos.borrar_objeto(archivo["clave"])
         raise HTTPException(404, "Documento no encontrado")
