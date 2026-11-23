@@ -210,3 +210,52 @@ def test_valida_parametros(client, google, params):
 def test_exige_login():
     with TestClient(app) as c:
         assert c.get("/api/comer", params={"lat": 1, "lng": 1}).status_code in (401, 403)
+
+
+# ---------- por tipo de lugar ----------
+
+def test_sin_tipo_busca_todo_como_antes(client, google):
+    _pedir(client)
+    [p] = google.pedidos
+    assert p["json"]["includedTypes"] == places.TIPOS_COMER
+    assert "excludedPrimaryTypes" not in p["json"]
+
+
+@pytest.mark.parametrize(("tipo", "incluye", "no_incluye"), [
+    ("rapida", "fast_food_restaurant", "restaurant"),
+    ("dulces", "chocolate_shop", "restaurant"),
+    ("cafe", "coffee_shop", "fast_food_restaurant"),
+    ("restaurantes", "restaurant", "candy_store")])
+def test_cada_tipo_pide_a_google_sus_categorias(client, google, tipo, incluye, no_incluye):
+    assert _pedir(client, tipo=tipo).status_code == 200
+    [p] = google.pedidos
+    assert incluye in p["json"]["includedTypes"]
+    assert no_incluye not in p["json"]["includedTypes"]
+
+
+def test_restaurantes_deja_afuera_la_comida_rapida(client, google):
+    _pedir(client, tipo="restaurantes")
+    [p] = google.pedidos
+    assert "fast_food_restaurant" in p["json"]["excludedPrimaryTypes"]
+
+
+def test_cada_tipo_tiene_su_propia_cache(client, google):
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1150, -115.1728))
+    _pedir(client)
+    _pedir(client, tipo="dulces")
+    _pedir(client)
+    _pedir(client, tipo="dulces")
+    assert [p["json"]["includedTypes"] == places.TIPOS_COMER for p in google.pedidos] == [True, False]
+
+
+def test_tipo_desconocido_da_422(client, google):
+    assert _pedir(client, tipo="cualquiera").status_code == 422
+    assert not google.pedidos
+
+
+def test_cada_lugar_dice_que_tipo_de_lugar_es(client, google):
+    google.respuesta = _respuesta(_lugar("h", "Hershey's Chocolate World", 36.1150, -115.1728,
+                                         primaryTypeDisplayName={"text": "Tienda de chocolate"}))
+    [lugar] = _pedir(client, tipo="dulces").json()["lugares"]
+    assert lugar["tipo"] == "Tienda de chocolate"
+    assert "places.primaryTypeDisplayName" in places.NEARBY_FIELDS.split(",")

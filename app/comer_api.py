@@ -5,6 +5,7 @@ import logging
 import math
 import threading
 import time
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -31,7 +32,8 @@ CASTIGO_DISTANCIA = 0.5      # puntos que resta estar a la distancia máxima
 METROS_MAXIMOS = MINUTOS_MAXIMOS * travel.METROS_POR_MIN
 
 _limite = limites.Limite(BUSQUEDAS_POR_HORA, ventana=3600)
-_cache: dict[tuple[int, int], tuple[float, list[dict]]] = {}
+Tipo = Literal["todo", "rapida", "dulces", "cafe", "restaurantes"]  # las claves de places.TIPOS_POR_CATEGORIA
+_cache: dict[tuple[tuple[int, int], str], tuple[float, list[dict]]] = {}  # (cuadrado, tipo)
 _lock = threading.Lock()
 
 
@@ -52,7 +54,7 @@ def _centro(celda: tuple[int, int]) -> tuple[float, float]:
     return lat, celda[1] * CELDA_GRADOS / max(math.cos(math.radians(lat)), 0.01)
 
 
-def _en_cache(celda: tuple[int, int]) -> list[dict] | None:
+def _en_cache(celda: tuple[tuple[int, int], str]) -> list[dict] | None:
     with _lock:
         hit = _cache.get(celda)
         if not hit:
@@ -65,7 +67,7 @@ def _en_cache(celda: tuple[int, int]) -> list[dict] | None:
         return [{**lugar, "abierto": None} for lugar in hit[1]]
 
 
-def _guardar(celda: tuple[int, int], lugares: list[dict]) -> None:
+def _guardar(celda: tuple[tuple[int, int], str], lugares: list[dict]) -> None:
     if not lugares:  # una respuesta vacía puede ser un hipo de Google: no se queda 6 h
         return
     with _lock:
@@ -74,17 +76,19 @@ def _guardar(celda: tuple[int, int], lugares: list[dict]) -> None:
         _cache[celda] = (time.monotonic(), lugares)
 
 
-def _cercanos(lat: float, lng: float, usuario: str) -> list[dict]:
-    celda = _celda(lat, lng)
-    if (hit := _en_cache(celda)) is not None:
+def _cercanos(lat: float, lng: float, usuario: str, tipo: str = "todo") -> list[dict]:
+    cuadrado = _celda(lat, lng)
+    clave = (cuadrado, tipo)
+    if (hit := _en_cache(clave)) is not None:
         return hit
     limites.exigir_cupo(_limite, usuario, "lugares para comer")
+    incluir, excluir = places.TIPOS_POR_CATEGORIA.get(tipo, (None, None))
     try:
-        lugares = places.nearby(*_centro(celda), RADIO_BUSQUEDA_M)
+        lugares = places.nearby(*_centro(cuadrado), RADIO_BUSQUEDA_M, tipos=incluir, excluir=excluir)
     except places.PlacesNoDisponible as e:
         log.warning("Places no disponible al buscar dónde comer: %s", e)
         raise HTTPException(503, "Dónde comer no está disponible por ahora. Probá de nuevo en un rato.") from e
-    _guardar(celda, lugares)
+    _guardar(clave, lugares)
     return lugares
 
 
@@ -120,14 +124,15 @@ def _armar(lugares: list[dict], origen: tuple[float, float], precio_max: int, mi
 @router.get("")
 def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | None = Query(None, ge=-180, le=180),
                 precio: int = Query(PRECIO_MAXIMO_DEFAULT, ge=1, le=2),
-                minutos: int = Query(MINUTOS_DEFAULT, ge=1, le=MINUTOS_MAXIMOS), username: str = Depends(auth)):
+                minutos: int = Query(MINUTOS_DEFAULT, ge=1, le=MINUTOS_MAXIMOS), tipo: Tipo = "todo",
+                username: str = Depends(auth)):
     """Con lat y lng (el celular), desde ahí; sin ellos, desde la sede de la próxima sesión del itinerario. `precio` es el
-    máximo ($ = 1, $$ = 2); los lugares sin dato de precio entran igual. `minutos` es el máximo caminando."""
+    máximo ($ = 1, $$ = 2); los lugares sin dato de precio entran igual. `minutos` es el máximo caminando. `tipo`: comida rápida, dulces, café o restaurantes (cada uno es otra búsqueda)."""
     if (lat is None) != (lng is None):
         raise HTTPException(422, "Mandá lat y lng juntos.")
     if lat is not None:
         origen = {"lat": lat, "lng": lng, "nombre": None, "fuente": "telefono"}
     elif not (origen := _origen_de_la_sesion(username)):
         raise HTTPException(404, "No sé desde dónde buscar: prendé la ubicación o agendá una sesión en una sede.")
-    lugares = _cercanos(origen["lat"], origen["lng"], username)
+    lugares = _cercanos(origen["lat"], origen["lng"], username, tipo)
     return {"origen": origen, "lugares": _armar(lugares, (origen["lat"], origen["lng"]), precio, minutos)}

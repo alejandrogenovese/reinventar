@@ -98,8 +98,19 @@ NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
 # reseñas (estas últimas cuestan más: se piden porque la lista muestra una o dos).
 NEARBY_FIELDS = ",".join(f"places.{c}" for c in (
     "id", "displayName", "rating", "userRatingCount", "priceLevel", "location", "formattedAddress",
-    "currentOpeningHours.openNow", "googleMapsUri", "reviews"))
+    "currentOpeningHours.openNow", "googleMapsUri", "reviews", "primaryTypeDisplayName"))
 TIPOS_COMER = ["restaurant", "cafe", "fast_food_restaurant", "sandwich_shop", "pizza_restaurant", "bakery"]
+# «Dónde comer» por tipo de lugar: (tipos que se piden, tipos principales que se dejan afuera). Son de la Tabla A de
+# Places (New): uno que no exista hace fallar toda la búsqueda.
+_COMIDA_RAPIDA = ["fast_food_restaurant", "hamburger_restaurant", "pizza_restaurant", "sandwich_shop",
+                  "chicken_restaurant", "taco_restaurant", "hot_dog_restaurant", "food_court"]
+TIPOS_POR_CATEGORIA = {
+    "rapida": (_COMIDA_RAPIDA, []),
+    "dulces": (["dessert_shop", "dessert_restaurant", "ice_cream_shop", "candy_store", "chocolate_shop",
+                "confectionery", "donut_shop"], []),
+    "cafe": (["cafe", "coffee_shop", "bakery", "bagel_shop", "tea_house", "juice_shop"], []),
+    "restaurantes": (["restaurant", "buffet_restaurant", "deli"], _COMIDA_RAPIDA),
+}
 MAX_RESULTADOS = 20  # tope de searchNearby
 # priceLevel de Places (New) → 1 = $, 2 = $$, 3 = $$$, 4 = $$$$; gratis cuenta como $. Sin dato o sin especificar → None.
 NIVELES_PRECIO = {"PRICE_LEVEL_FREE": 1, "PRICE_LEVEL_INEXPENSIVE": 1, "PRICE_LEVEL_MODERATE": 2,
@@ -135,11 +146,14 @@ def leer_cercanos(data: dict) -> list[dict]:
 
 
 def nearby(lat: float, lng: float, radio_m: float, tipos: list[str] | None = None,
-           campos: str = NEARBY_FIELDS) -> list[dict]:
-    """`campos` es la field mask: define el SKU que cobra Google (las reseñas son el más caro)."""
+           campos: str = NEARBY_FIELDS, excluir: list[str] | None = None) -> list[dict]:
+    """`campos` es la field mask: define el SKU que cobra Google (las reseñas son el más caro). `excluir`: tipos
+    principales que no entran (un restaurante cuyo tipo principal es comida rápida, por ejemplo)."""
     body = {"includedTypes": tipos or TIPOS_COMER, "maxResultCount": MAX_RESULTADOS, "languageCode": "es",
             "rankPreference": "POPULARITY",
             "locationRestriction": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radio_m)}}}
+    if excluir:
+        body["excludedPrimaryTypes"] = excluir
     try:
         r = httpx.post(NEARBY_URL, json=body, headers=_headers(campos), timeout=TIMEOUT_S)
     except httpx.HTTPError as e:

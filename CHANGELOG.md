@@ -6,6 +6,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Dónde comer por tipo de lugar.** «Dónde comer barato» suma chips para elegir comida rápida, dulces y postres
+  (chocolaterías, heladerías, donas), café y panadería o restaurantes. Cada tipo es su propia búsqueda, así un local
+  de dulces no queda tapado por las hamburgueserías. Cada lugar muestra su tipo («Tienda de chocolate»,
+  «Hamburguesería»).
+
+### Agregado
 - **«Agregar al itinerario» en Mis códigos de Excel.** Un botón suma al itinerario, fijadas, las charlas de tu lista
   que todavía no están, en el horario que muestra el cruce (si pediste una repetición, esa). Cada charla dice si ya
   está en tu itinerario. Cuando no hay ninguna registrada, la pantalla explica que «Registradas» sale de las

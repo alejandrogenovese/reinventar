@@ -1,5 +1,5 @@
 // Dónde comer barato: lugares cerca de donde estás (o de la sede de tu próxima sesión) con puntaje, reseñas, precio y
-// minutos caminando. Filtros de precio ($ / $$) y de distancia; «Llevame» reusa el botón de location.js. El servidor
+// minutos caminando. Filtros de tipo de lugar, precio ($ / $$) y distancia; «Llevame» reusa el botón de location.js. El servidor
 // cachea la búsqueda a Google, así que cambiar un filtro es barato. Si no hay clave de Places, la pantalla lo dice.
 import { api } from "./api.js";
 import { icon } from "./icons.js";
@@ -8,14 +8,18 @@ import { Hint, h, mensajeError } from "./ui.js";
 
 const PRECIOS = [[1, "$", "Hasta $ (barato)"], [2, "$$", "Hasta $$ (moderado)"]];
 const MINUTOS = [5, 10, 15];
-const DEFAULT = { precio: 2, minutos: 10 };
+// Las claves son las de places.TIPOS_POR_CATEGORIA (app/places.py); cada tipo es otra búsqueda a Google, cacheada aparte.
+const TIPOS = [["todo", "Todo"], ["rapida", "Comida rápida"], ["dulces", "Dulces y postres"], ["cafe", "Café y panadería"],
+  ["restaurantes", "Restaurantes"]];
+const DEFAULT = { tipo: "todo", precio: 2, minutos: 10 };
 
 const int = (n) => Number(n || 0).toLocaleString("es-AR");
 const puntaje = (n) => Number(n).toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Querystring del pedido: con ubicación del teléfono manda lat/lng; sin ella el servidor usa la próxima sesión. */
-export function consulta({ precio, minutos }, pos) {
+export function consulta({ precio, minutos, tipo = "todo" }, pos) {
   const params = new URLSearchParams({ precio, minutos });
+  if (tipo !== "todo") params.set("tipo", tipo);
   if (pos) { params.set("lat", pos.lat); params.set("lng", pos.lng); }
   return `/api/comer?${params}`;
 }
@@ -36,6 +40,7 @@ export function LugarCard(l) {
     h("div", { class: "ra-card-top" },
       h("h2", { class: "ra-card-title" }, l.nombre),
       ir),
+    l.tipo ? h("span", { class: "ra-kind" }, l.tipo) : null,
     h("div", { class: "ra-card-meta" },
       h("span", {}, puntajeTxt), h("span", {}, etiquetaPrecio(l.precio)),
       h("span", { class: "ra-icotext" }, icon("caminar", 16), `${l.minutos} min caminando`), abierto),
@@ -55,6 +60,7 @@ export async function viewComer(view) {
       return b;
     }));
   const chips = [
+    grupo("Tipo de lugar", TIPOS, "tipo"),
     grupo("Precio", PRECIOS, "precio"),
     grupo("Distancia caminando", MINUTOS.map((m) => [m, `${m} min`, `Hasta ${m} minutos caminando`]), "minutos")];
   function pintarChips() {
@@ -82,7 +88,7 @@ export async function viewComer(view) {
       if (mio !== pedido) return; // llegó una respuesta más nueva
       origenEl.textContent = r.origen.fuente === "sesion" ? `Cerca de ${r.origen.nombre}, tu próxima sesión` : "Cerca de donde estás";
       lista.replaceChildren(...(r.lugares.length ? r.lugares.map(LugarCard)
-        : [Hint("No encontramos lugares con esos filtros. Probá con más minutos o con $$.")]));
+        : [Hint("No encontramos lugares con esos filtros. Probá con más minutos, con $$ o con otro tipo de lugar.")]));
     } catch (e) {
       if (mio !== pedido) return;
       origenEl.textContent = "";
