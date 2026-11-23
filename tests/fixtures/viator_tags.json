@@ -1,0 +1,12 @@
+{
+  "tags": [
+    {"tagId": 21913, "allNamesByLocale": {"en": "Tours, Sightseeing & Cruises", "es": "Tours, visitas y cruceros"}},
+    {"tagId": 21911, "parentTagIds": [21913], "allNamesByLocale": {"en": "Day Trips", "es": "Excursiones de un día"}},
+    {"tagId": 12026, "parentTagIds": [21913], "allNamesByLocale": {"en": "Helicopter Tours"}},
+    {"tagId": 99000, "allNamesByLocale": {"en": "Attractions & Museums"}},
+    {"tagId": 99001, "parentTagIds": [99000], "allNamesByLocale": {"en": "Observation Decks"}},
+    {"tagId": 21909, "allNamesByLocale": {"en": "Outdoor Activities"}},
+    {"tagId": 99010, "parentTagIds": [21909], "allNamesByLocale": {"en": "Hiking"}},
+    {"allNamesByLocale": {"en": "Sin id"}}
+  ]
+}

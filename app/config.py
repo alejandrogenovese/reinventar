@@ -164,6 +164,10 @@ DOCS_ENC_KEY = _env("DOCS_ENC_KEY")
 # se loguea (ver app/ticketmaster.py).
 TICKETMASTER_API_KEY = _env("TICKETMASTER_API_KEY")
 
+# Excursiones de Viator (app/viator.py, Partner API de afiliado): pestaña Excursiones de Actividades. Sin la clave la
+# pestaña no aparece y no se pide nada. Va en el header exp-api-key y nunca se loguea.
+VIATOR_API_KEY = _env("VIATOR_API_KEY")
+
 # Alertas de ofertas por push (app/ofertas.py y app/ofertas_avisos.py).
 OFERTAS_MAX_POR_DIA = int(_env("OFERTAS_MAX_POR_DIA", "3"))        # push de ofertas por persona y por día (Las Vegas)
 OFERTAS_VENTANA_HORAS = float(_env("OFERTAS_VENTANA_HORAS", "12"))  # una oferta que arrancó hace más que esto ya no se avisa

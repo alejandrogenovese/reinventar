@@ -129,16 +129,19 @@ def leer_cercanos(data: dict) -> list[dict]:
                     "rating": p.get("rating"), "resenas": p.get("userRatingCount") or 0,
                     "precio": NIVELES_PRECIO.get(p.get("priceLevel")),
                     "abierto": (p.get("currentOpeningHours") or {}).get("openNow"),
-                    "url": p.get("googleMapsUri"), "extracto": resenas})
+                    "url": p.get("googleMapsUri"), "extracto": resenas,
+                    "tipo": (p.get("primaryTypeDisplayName") or {}).get("text")})
     return out
 
 
-def nearby(lat: float, lng: float, radio_m: float, tipos: list[str] | None = None) -> list[dict]:
+def nearby(lat: float, lng: float, radio_m: float, tipos: list[str] | None = None,
+           campos: str = NEARBY_FIELDS) -> list[dict]:
+    """`campos` es la field mask: define el SKU que cobra Google (las reseñas son el más caro)."""
     body = {"includedTypes": tipos or TIPOS_COMER, "maxResultCount": MAX_RESULTADOS, "languageCode": "es",
             "rankPreference": "POPULARITY",
             "locationRestriction": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radio_m)}}}
     try:
-        r = httpx.post(NEARBY_URL, json=body, headers=_headers(NEARBY_FIELDS), timeout=TIMEOUT_S)
+        r = httpx.post(NEARBY_URL, json=body, headers=_headers(campos), timeout=TIMEOUT_S)
     except httpx.HTTPError as e:
         raise PlacesNoDisponible(f"Sin conexión con Places: {e}") from e
     return leer_cercanos(_respuesta(r))

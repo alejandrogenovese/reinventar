@@ -1,0 +1,61 @@
+{
+  "products": [
+    {
+      "productCode": "5502GRAND",
+      "title": "Grand Canyon West con Skywalk desde Las Vegas",
+      "description": "Excursión de día completo.",
+      "images": [
+        {"imageSource": "SUPPLIER_PROVIDED", "caption": "Mirador", "isCover": false,
+         "variants": [{"height": 200, "width": 300, "url": "https://media.example.com/no-portada-300.jpg"}]},
+        {"imageSource": "SUPPLIER_PROVIDED", "caption": "Skywalk", "isCover": true,
+         "variants": [
+           {"height": 150, "width": 200, "url": "https://media.example.com/skywalk-200.jpg"},
+           {"height": 480, "width": 720, "url": "https://media.example.com/skywalk-720.jpg"},
+           {"height": 360, "width": 540, "url": "https://media.example.com/skywalk-540.jpg"}
+         ]}
+      ],
+      "reviews": {"sources": [{"provider": "VIATOR", "totalCount": 900, "averageRating": 4.6},
+                              {"provider": "TRIPADVISOR", "totalCount": 334, "averageRating": 4.4}],
+                  "totalReviews": 1234, "combinedAverageRating": 4.53},
+      "duration": {"fixedDurationInMinutes": 720},
+      "confirmationType": "INSTANT",
+      "itineraryType": "STANDARD",
+      "pricing": {"summary": {"fromPrice": 189.99, "fromPriceBeforeDiscount": 199.99}, "currency": "USD"},
+      "productUrl": "https://www.viator.com/tours/Las-Vegas/Grand-Canyon-West/d684-5502GRAND?mcid=42383&pid=P00000000&medium=api&api_version=2.0",
+      "destinations": [{"ref": "684", "primary": true}],
+      "tags": [21911, 12026],
+      "flags": ["FREE_CANCELLATION"],
+      "translationInfo": {"containsMachineTranslatedText": true}
+    },
+    {
+      "productCode": "12345P1",
+      "title": "Entrada al High Roller",
+      "images": [{"isCover": true, "variants": [{"height": 100, "width": 150, "url": "https://media.example.com/hr-150.jpg"}]}],
+      "reviews": {"totalReviews": 50, "combinedAverageRating": 4.8},
+      "duration": {"variableDurationFromMinutes": 30, "variableDurationToMinutes": 60},
+      "pricing": {"summary": {"fromPrice": 25}, "currency": "USD"},
+      "productUrl": "https://www.viator.com/tours/Las-Vegas/High-Roller/d684-12345P1?mcid=42383&pid=P00000000&medium=api&api_version=2.0",
+      "tags": [99001]
+    },
+    {
+      "productCode": "777RED",
+      "title": "Senderismo en Red Rock Canyon",
+      "images": [],
+      "reviews": {},
+      "pricing": {"summary": {"fromPrice": 99}, "currency": "USD"},
+      "productUrl": "https://www.viator.com/tours/Las-Vegas/Red-Rock/d684-777RED?mcid=42383&pid=P00000000&medium=api&api_version=2.0",
+      "tags": [99010]
+    },
+    {
+      "productCode": "SINLINK",
+      "title": "Producto sin link de reserva",
+      "pricing": {"summary": {"fromPrice": 10}, "currency": "USD"}
+    },
+    {
+      "productCode": "OTROHOST",
+      "title": "Link a otro sitio",
+      "productUrl": "https://phishing.example.com/viator.com"
+    }
+  ],
+  "totalCount": 137
+}

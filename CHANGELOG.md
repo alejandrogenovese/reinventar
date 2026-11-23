@@ -9,6 +9,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Ofertas ya no queda en blanco.** Si todavía no hay ofertas vigentes, la pantalla explica de dónde salen
   (bajas de precio de shows cuando Ticketmaster publica precios, y ofertas de comida y outlets que carga el equipo) y
   lleva a Shows. Quien es admin ve además «Cargar una oferta».
+### Agregado
+- **Actividades.** En Viaje › Actividades hay dos pestañas: *Excursiones*, con tours, excursiones de un día y entradas de
+  Viator para tus días en Las Vegas (precio desde, puntaje, duración y el botón «Reservar en Viator»), agrupadas por
+  tipo; y *Cerca*, con museos, parques y atracciones ordenadas por distancia a donde estás o a tu próxima sesión.
+  Excursiones aparece cuando el servidor tiene la clave de Viator.
 
 ## [1.2.0] - 2026-11-23
 
