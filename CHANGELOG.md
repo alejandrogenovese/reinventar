@@ -21,6 +21,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Códigos de 4 dígitos y con sufijo.** «Cruzar con mi Excel» salteaba sin avisar los códigos de 4 dígitos
   (IND3313) y daba por inexistentes las charlas cuyo código lleva -S, -SC o -D (AIM121-S, SVC003-D0). Ahora los
   reconoce, y el buscador también los toma como código en lugar de mandarlos al asistente.
+- **Buscar por el código de un horario.** Al escribir el código de una repetición (IND347-R1), la tarjeta mostraba
+  el primer horario de la charla y «Agregar» sumaba ese, no el buscado. Ahora la tarjeta es la del horario del
+  código; agrupando por día, sede u hora, cada grupo muestra el horario que le corresponde.
 
 ## [1.3.1] - 2026-11-23
 

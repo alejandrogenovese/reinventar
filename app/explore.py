@@ -118,20 +118,28 @@ def explore(filters: dict[str, set[str]], q: str = "", group_by: str | None = No
         facets[facet] = _ranked(counter, facet)
 
     matched = [(e, inst) for e in entries if (inst := _matching_instances(e, filters, skip=None))]
-    results = [catalog.card(e["session"], inst[0][2]) for e, inst in matched[offset:offset + limit]]
+    results = [catalog.card(e["session"], _elegido(inst, needle)) for e, inst in matched[offset:offset + limit]]
     out = {"total": len(matched), "results": results, "facets": facets}
     if group_by:
-        out["groups"] = _groups(matched, group_by)
+        out["groups"] = _groups(matched, group_by, needle)
     return out
 
 
-def _groups(matched: list, facet: str) -> list[dict]:
-    """Resultados agrupados por los valores de una faceta (una charla puede estar en varios grupos)."""
+def _elegido(instances: list, needle: str) -> dict:
+    """El horario de la tarjeta: el que tiene exactamente el código buscado («IND347-R1» es el del viernes, no el
+    primero de la charla); si no, el primero que cumple los filtros."""
+    return next((i[2] for i in instances if catalog.fold(i[2].get("c")) == needle), instances[0][2])
+
+
+def _groups(matched: list, facet: str, needle: str = "") -> list[dict]:
+    """Resultados agrupados por los valores de una faceta (una charla puede estar en varios grupos). En las facetas de
+    horario (día, sede, hora, anuncio) cada grupo muestra el horario que le corresponde."""
     groups: dict[str, list] = {}
     for e, instances in matched:
         for value in _values_for(facet, e, instances):
-            groups.setdefault(value, []).append((e, instances))
+            del_grupo = [i for i in instances if value in _values_for(facet, e, [i])] if facet in INSTANCE_FACETS else instances
+            groups.setdefault(value, []).append((e, del_grupo))
     ranked = sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:GROUPS_LIMIT]
     return [{"value": value, "count": len(items),
-             "results": [catalog.card(e["session"], inst[0][2]) for e, inst in items[:GROUP_RESULTS_LIMIT]]}
+             "results": [catalog.card(e["session"], _elegido(inst, needle)) for e, inst in items[:GROUP_RESULTS_LIMIT]]}
             for value, items in ranked]
