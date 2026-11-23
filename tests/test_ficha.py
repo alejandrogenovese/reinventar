@@ -188,3 +188,20 @@ def test_la_ficha_de_la_entrevista_manda_sobre_el_armado_rapido():
     assert _perfil(p) == {"completo": True, "rol": "Líder técnica", "industria": "banca", "intereses": ["Serverless"]}
     assert _perfil(None)["completo"] is False
     assert _perfil({"role": "Dev", "interests": []})["completo"] is False
+
+
+def test_armar_durante_la_estadia_solo_deja_el_vuelo_de_vuelta_en_el_banner(cli):
+    from app.ficha_api import armar
+
+    d = armar(TEST_USER, dt.datetime(2026, 12, 2, 10, tzinfo=LV))
+    assert d["fase"] == f.DURANTE
+    assert [x["id"] for x in d["banner"]] == ["vuelo_vuelta"]
+    assert len(d["faltantes"]) == 8, "la ficha sigue mostrando todo lo que falta"
+
+
+def test_armar_despues_del_viaje_no_deja_nada_en_el_banner(cli):
+    from app.ficha_api import armar
+
+    d = armar(TEST_USER, dt.datetime(2026, 12, 8, 10, tzinfo=LV))
+    assert d["fase"] == f.DESPUES
+    assert d["banner"] == []

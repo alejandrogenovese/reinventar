@@ -17,6 +17,7 @@ import { VERSION } from "./version.js";
 const CONSULTA_CADA_MS = 10 * 60_000;     // /api/estado: al abrir, al volver a primer plano y cada 10 min (sin red, no)
 const PROXIMO_CADA_MS = 5 * 60_000;       // /api/viajes/proximo: con el recálculo y al volver a primer plano, como mucho cada 5 min
 const FICHA_CADA_MS = 10 * 60_000;        // /api/ficha: lo que falta cambia poco; la pantalla «Mi ficha» lo actualiza al abrirse
+const FICHA_REINTENTO_MS = 60_000;        // si /api/ficha falla, se vuelve a pedir al minuto (no a los 10)
 const RECALCULO_MS = 150;                 // junta varios eventos seguidos (la cola emite muchos) en una sola lectura
 const CIERRES = "reinventar.estado.cierres";      // localStorage: { id: hasta (ms) } · sessionStorage: [id]
 const VERSION_VISTA = "reinventar.version.vista"; // localStorage: la última versión que se abrió en este celular
@@ -283,9 +284,12 @@ async function consultarFicha() {
   fichaDe = { token, en: ahora };
   try {
     const [r, notificaciones] = await Promise.all([api("/api/ficha"), leerNotificaciones()]);
+    if (getToken() !== token) return;  // cambió la cuenta mientras se pedía: lo de la anterior no se muestra
     cambiar({ ficha: r && typeof r === "object" ? r : null, notificaciones });
   } catch (e) {
     console.warn("[estado] no se pudo leer «Mi ficha»", e);
+    if (getToken() !== token) return;
+    fichaDe = { token, en: ahora - FICHA_CADA_MS + FICHA_REINTENTO_MS };
     cambiar({ ficha: null });
   }
   paint();
