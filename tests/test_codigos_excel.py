@@ -63,10 +63,25 @@ def test_normaliza_mayusculas_espacios_y_guiones_raros():
     assert normalizar("  KEY001  ") == [Codigo("KEY001", "KEY001")]
 
 
-def test_los_sufijos_r_r1_y_s_son_el_mismo_codigo_base_y_conservan_el_sufijo():
-    codigos = normalizar("AIM301-R, aim301-r1 y AIM301-S")
+def test_las_repeticiones_r_y_r1_son_el_mismo_codigo_base_y_conservan_el_sufijo():
+    codigos = normalizar("AIM301-R, aim301-r1 y AIM301")
     assert [c.base for c in codigos] == ["AIM301"] * 3
-    assert [c.completo for c in codigos] == ["AIM301-R", "AIM301-R1", "AIM301-S"]
+    assert [c.completo for c in codigos] == ["AIM301-R", "AIM301-R1", "AIM301"]
+
+
+@pytest.mark.parametrize(("texto", "base"), [("AIM121-S", "AIM121-S"), ("svc003-d0", "SVC003-D0"),
+                                             ("AIM2205-SC2", "AIM2205-SC2")])
+def test_los_otros_sufijos_son_parte_del_codigo_de_la_charla(texto, base):
+    # En el catálogo, -S (sponsoreada), -D0 o -SC2 nombran otra charla: solo -R y -R<n> son repeticiones.
+    assert normalizar(texto) == [Codigo(base, base)]
+
+
+@pytest.mark.parametrize(("texto", "esperado"), [("IND3313", Codigo("IND3313", "IND3313")),
+                                                 ("ind 3343", Codigo("IND3343", "IND3343")),
+                                                 ("AIM2201-S", Codigo("AIM2201-S", "AIM2201-S")),
+                                                 ("SEC4290-R1", Codigo("SEC4290", "SEC4290-R1"))])
+def test_reconoce_codigos_de_cuatro_digitos(texto, esperado):
+    assert normalizar(texto) == [esperado]
 
 
 def test_encuentra_codigos_sueltos_dentro_de_un_texto():
@@ -74,7 +89,7 @@ def test_encuentra_codigos_sueltos_dentro_de_un_texto():
 
 
 def test_no_toma_pedazos_de_palabras_ni_numeros_largos():
-    assert normalizar("ABCD1234 y 12345 y xAIM301x") == []
+    assert normalizar("ABCD1234 y 12345 y AIM30123 y xAIM301x") == []
 
 
 # ---------- extraer_codigos ----------

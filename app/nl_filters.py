@@ -14,7 +14,8 @@ log = logging.getLogger("reinventar.nl_filters")
 
 NL_MAX_TOKENS = 2000
 Q_LIMIT = 200
-_SESSION_CODE = re.compile(r"[a-z]{3}\d{3}(-(r\d+|s))?", re.IGNORECASE)  # AIM204, AIM204-R1 (repetición), ABC123-S (sponsoreada)
+# AIM204, IND3313, AIM204-R1 (repetición), ABC123-S (sponsoreada), SVC003-D0, AIM2205-SC2
+_SESSION_CODE = re.compile(r"[a-z]{3}\d{3,4}(-(r\d+|sc\d*|s|d\d+))?", re.IGNORECASE)
 VALUES_PER_FACET = 20
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 _LABELS = {

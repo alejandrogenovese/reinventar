@@ -75,13 +75,13 @@ def sin_llm(monkeypatch):
     return llamadas
 
 
-@pytest.mark.parametrize("texto", ["KEY002", "key002", "AIM204", " aim204 ", "AIM204-R1", "aim204-r12", "ABC123-S"])
+@pytest.mark.parametrize("texto", ["KEY002", "key002", "AIM204", " aim204 ", "AIM204-R1", "aim204-r12", "ABC123-S", "IND3313", "AIM2205-S", "SVC003-D0"])
 def test_un_codigo_devuelve_filtros_vacios_sin_llamar_al_llm(sin_llm, texto):
     assert nl_filters.parse(texto) == {"filters": {}, "q": "", "ignored": []}
     assert sin_llm == []
 
 
-@pytest.mark.parametrize("texto", ["bedrock", "AIM2045", "AI204", "aim 204", "AIM204-X1", "agentes AIM204"])
+@pytest.mark.parametrize("texto", ["bedrock", "AIM20456", "AI204", "aim 204", "AIM204-X1", "agentes AIM204"])
 def test_lo_que_no_es_un_codigo_sigue_yendo_al_llm(sin_llm, texto):
     with pytest.raises(nl_filters.NLFiltersUnavailable):
         nl_filters.parse(texto)
