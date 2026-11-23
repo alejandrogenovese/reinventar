@@ -21,6 +21,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   importante (vuelo, hotel, notificaciones, documentos, perfil), el aviso de arriba te lo recuerda cuando no hay nada
   más urgente («Cargá tu hotel · Completar»); si lo cerrás vuelve en 24 h. Durante el viaje solo insiste con lo que
   sirve allá: el vuelo de vuelta y las notificaciones.
+### Agregado
+- **Cargar tus eventos desde Excel.** En Eventos › Mis eventos › Cargar desde Excel subís un .xlsx o .csv con hasta
+  100 eventos (Nombre, Día, Inicio y Lugar; opcionales Fin, Tipo, Dirección, Link, Precio y Notas). Antes de guardar
+  ves una vista previa con lo nuevo, lo que cambia y los errores de cada fila; las filas con error no se guardan. Si
+  subís el mismo archivo otra vez no se duplica. Si el lugar es una sede de re:Invent, queda ubicado en el mapa. Hay
+  un Excel de ejemplo para bajar y completar.
 
 ## [1.2.0] - 2026-11-23
 
