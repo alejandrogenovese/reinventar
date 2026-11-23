@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 const {
   CIERRE, CIERRE_SERVICIO_MS, PRIORIDAD, TODO_SUBIDO_MS, avisoDeServicio, avisoProximo, cerradoHasta, cierresVigentes, compararVersiones, contarCosas,
-  elegirAvisos, novedadesValidas, progresoDeSubida, seguirSubida,
+  elegirAvisos, novedadesValidas, progresoDeSubida, proximoVisible, seguirSubida,
 } = await import("../../web/js/estado.js");
 
 const AHORA = Date.UTC(2026, 11, 1, 22, 0);
@@ -310,4 +310,13 @@ test("cerrado en la sesión no vuelve, salvo que cambie lo próximo", () => {
   assert.deepEqual(elegirAvisos(base({ proximo: VUELO, descartados: { [id]: Infinity } })), []);
   const otro = { ...VUELO, inicio: new Date(AHORA + 7_200_000).toISOString() };
   assert.equal(elegirAvisos(base({ proximo: otro, descartados: { [id]: Infinity } })).length, 1);
+});
+
+test("en Inicio el banner no repite la próxima charla, pero sí el vuelo", () => {
+  const charla = { tipo: "charla", titulo: "X" }, vuelo = { tipo: "vuelo", titulo: "UA1355" };
+  assert.equal(proximoVisible(charla, "#/"), null);
+  assert.equal(proximoVisible(charla, ""), null);
+  assert.equal(proximoVisible(charla, "#/viajes"), charla);
+  assert.equal(proximoVisible(vuelo, "#/"), vuelo);
+  assert.equal(proximoVisible(null, "#/"), null);
 });

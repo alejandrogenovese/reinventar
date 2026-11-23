@@ -64,7 +64,7 @@ def test_el_banner_pide_proximo_aparte_y_como_mucho_cada_5_min():
     banner = _js("estadoBanner.js")
     assert "const PROXIMO_CADA_MS = 5 * 60_000;" in banner
     assert "void consultarProximo();" in banner   # en cada recálculo (también al volver a primer plano)
-    assert "proximo: mundo.proximo" in banner
+    assert "proximo: proximoVisible(mundo.proximo, location.hash)" in banner
     assert 'proximo: () => api("/api/viajes/proximo")' in _js("api.js")
     assert "proximo" not in (WEB.parent / "app" / "estado.py").read_text(encoding="utf-8")   # /api/estado es compartido
 

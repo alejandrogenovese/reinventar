@@ -2,7 +2,7 @@
 // versión, «Próximo» de /api/viajes/proximo) y dibuja el aviso más importante con un «+N» que abre la hoja «Avisos». Qué
 // se muestra lo decide estado.js (puro); acá solo se lee el mundo, se guarda lo cerrado y se pinta. Diseño: demos/diseno/banner-status.html.
 import { EVENTO_CON_SERVICIO, EVENTO_SIN_SERVICIO, Viajes, api, getToken } from "./api.js";
-import { CIERRE, TODO_SUBIDO_MS, cerradoHasta, cierresVigentes, compararVersiones, elegirAvisos, novedadesValidas, progresoDeSubida, seguirSubida } from "./estado.js";
+import { CIERRE, TODO_SUBIDO_MS, cerradoHasta, cierresVigentes, compararVersiones, elegirAvisos, novedadesValidas, progresoDeSubida, proximoVisible, seguirSubida } from "./estado.js";
 import { EVENTO_GASTOS, sincronizar } from "./gastos.js";
 import { listarGastos } from "./gastosCola.js";
 import { icon } from "./icons.js";
@@ -84,7 +84,7 @@ function avisosActuales() {
     subiendo: progresoDeSubida(mundo.subida, mundo.pendientes), subidoEn: mundo.subidoEn,
     servicio: mundo.servicio, versionLocal: VERSION, versionRemota: mundo.versionRemota, actualizadaA: mundo.actualizada?.nueva ?? null,
     descartados: descartados(ahora), ruta: location.hash || "#/", countdownUrgente: countdownUrgente(),
-    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), proximo: mundo.proximo, ahora,
+    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), proximo: proximoVisible(mundo.proximo, location.hash), ahora,
   });
 }
 

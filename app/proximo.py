@@ -87,7 +87,10 @@ def _charla(plan_hoy: dict | None, now: dt.datetime) -> Candidato | None:
     except ValueError:
         return None
     venue = s.get("venue") if isinstance(s.get("venue"), dict) else {}
-    sala = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail")))) or None
+    # En el banner alcanza con el hotel y la primera parte de la sala: el detalle completo
+    # («Upper Convention Promenade · Cristal 2 · Content Hub · Red Theater») ocupa media pantalla y está en la ficha.
+    sala_corta = (venue.get("detail") or "").split(" · ")[0]
+    sala = " · ".join(filter(None, (venue.get("hotel"), sala_corta))) or None
     return _candidato("charla", inicio, CHARLA_ANTES_H, now, {
         "titulo": s.get("title") or "Lo que sigue", "hora": s["start"], "detalle": sala, "url": _url_item(s),
         "tono": "info"})
