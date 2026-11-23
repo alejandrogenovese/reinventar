@@ -1,6 +1,7 @@
 // Mis eventos: los que dan los proveedores y no están en la sección Eventos. Cada uno carga los suyos.
 import { ApiError, Catalog, MyEvents } from "./api.js";
 import { shortDay } from "./itinerary.js";
+import { CargarDesdeExcel } from "./misEventosExcel.js";
 import { Button, IconText, h, mensajeError, toast } from "./ui.js";
 
 const AUTOCOMPLETE_MIN = 3;
@@ -18,7 +19,7 @@ export function MyEventCard(e, actions = []) {
       h("h3", { class: "ra-minicard-title" }, e.title),
       e.venue?.hotel || e.venue?.detail
         ? h("div", { class: "ra-minicard-meta" }, IconText("ubicacion", [e.venue?.hotel, e.venue?.detail].filter(Boolean).join(" "))) : null,
-      e.note ? h("p", { class: "caption" }, e.note) : null,
+      e.note ? h("p", { class: "caption", style: "white-space:pre-line" }, e.note) : null,
       h("div", { class: "actions" },
         Button("Editar", { onclick: () => (location.hash = `#/mi-evento/${encodeURIComponent(e.id)}`) }),
         actions)));
@@ -26,12 +27,19 @@ export function MyEventCard(e, actions = []) {
 
 /** Lista de los eventos propios con el botón para sumar uno (arriba de la sección Eventos). */
 export async function MyEventsSection() {
-  const { eventos } = await MyEvents.list();
+  const lista = h("div");
+  const pintarLista = (eventos) => lista.replaceChildren(eventos.length
+    ? h("details", {}, h("summary", { class: "label" }, `Tus eventos (${eventos.length})`),
+      h("div", { class: "daylist" }, eventos.map((e) => MyEventCard(e)))) : "");
+  const refrescar = async () => {
+    try { pintarLista((await MyEvents.list()).eventos); } catch (err) { toast(mensajeError(err)); }
+  };
+  pintarLista((await MyEvents.list()).eventos);
   return h("section", { class: "stack" },
     h("div", { class: "actions" }, Button(IconText("agregar", "Mi evento"), { variant: "primary", onclick: () => (location.hash = "#/mi-evento/nuevo") }),
       h("span", { class: "caption" }, "¿Te invitó un proveedor a algo que no está acá? Cargalo y entra a tu itinerario.")),
-    eventos.length ? h("details", {}, h("summary", { class: "label" }, `Tus eventos (${eventos.length})`),
-      h("div", { class: "daylist" }, eventos.map((e) => MyEventCard(e)))) : null);
+    h("details", {}, h("summary", { class: "label" }, "Cargar desde Excel"), CargarDesdeExcel({ alGuardar: refrescar })),
+    lista);
 }
 
 function Autocomplete(inicial) {

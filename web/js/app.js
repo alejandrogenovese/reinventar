@@ -39,10 +39,15 @@ import { viewAdminLlm } from "./adminLlm.js";
 import { viewAdminOfertas } from "./adminOfertas.js";
 import { viewAdminUsuarios } from "./adminUsuarios.js";
 import { viewOfertas } from "./ofertas.js";
+import { CharlasNuevasAviso } from "./charlasNuevas.js";
+import { viewCharlasNuevas } from "./charlasNuevasVista.js";
 import { viewViajes } from "./viajes.js";
 import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
+import { viewActividades } from "./actividades.js";
 import { viewViaje } from "./viaje.js";
+import { viewFicha as viewMiFicha } from "./ficha.js";
+import { viewConversor } from "./conversor.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
@@ -90,6 +95,7 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/ficha$/, () => viewMiFicha(view)],
   [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdminEstado(view)],
@@ -115,12 +121,15 @@ const routes = [
   [/^#\/itinerario\/armar$/, () => viewArmar(view)],
   [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
   [/^#\/itinerario\/excel$/, () => viewMiExcel(view)],
+  [/^#\/itinerario\/nuevas$/, () => viewCharlasNuevas(view)],
   [/^#\/viajes$/, () => viewViajes(view)],
   [/^#\/viajes\/documentos$/, () => viewDocumentos(view)],
   [/^#\/viajes\/pendientes$/, () => viewPendientes(view)],
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],
+  [/^#\/actividades(?:\/(cerca))?$/, (tab) => viewActividades(view, tab || "excursiones")],
   [/^#\/viaje$/, () => viewViaje(view)],
+  [/^#\/viaje\/conversor$/, () => viewConversor(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
@@ -230,13 +239,14 @@ async function viewList() {
   const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
   // Anuncios sin reserva: debajo de Hoy; si no queda ninguno (o falla), el lugar no ocupa nada.
   const anunciosSlot = h("div", { class: "ra-optional" });
+  const nuevasSlot = h("div", { class: "ra-optional" });  // «N charlas nuevas» en el catálogo (charlasNuevas.js)
   // "Nueva" es la acción de la sección (botón chico en su encabezado), no un botón grande suelto.
   const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
     icon("agregar", 16), h("span", {}, "Nueva"));
   const localesSlot = h("div", { class: "ra-optional" });  // grabaciones hechas sin señal que todavía no subieron
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
-    diaSlot, todaySlot, anunciosSlot,
+    diaSlot, todaySlot, anunciosSlot, nuevasSlot,
     InstallPrompt({ dismissible: true }), PasskeyOffer(),
     localesSlot,
     h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
@@ -252,6 +262,7 @@ async function viewList() {
   cleanup = () => { uploader.removeEventListener("change", onUp); search?.dispose(); };
   toastOnError(uploader.refresh()); uploader.kick();
   void refreshLocales(); // antes de la lista del servidor: sin señal ni copia esa falla y las locales igual se ven
+  void CharlasNuevasAviso().then((el) => nuevasSlot.replaceChildren(el ?? ""));
 
   const sessions = await Sessions.list();
   // Buscar en lo grabado: solo tiene sentido cuando hay alguna grabación procesada.
@@ -700,6 +711,7 @@ async function viewSettings() {
     h("h1", { class: "title" }, "Ajustes"),
     h("p", {}, textoDeCuenta(cuenta)),
     h("div", { class: "actions" },
+      Button("Mi ficha", { onclick: () => (location.hash = "#/ficha") }),
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       cuenta.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),

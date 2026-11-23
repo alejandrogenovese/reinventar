@@ -57,6 +57,10 @@ model_list:
     litellm_params: *sonnet
   - model_name: rx-briefing
     litellm_params: *sonnet
+  # Conversor › «Leer con la cámara» (app/conversor.py): necesita visión, y Sonnet lee imágenes. La entrada (la foto) y
+  # la salida no se guardan en Langfuse: la app manda mask_input y mask_output (app/trazas.py, tarea privada "foto").
+  - model_name: rx-foto
+    litellm_params: *sonnet
 
   # --- STT (app/stt.py con STT_PROVIDER=litellm: "stt-<uso>"). Claude no transcribe: Whisper en Groq. ---
   # Charlas: Whisper large-v3 completo, más preciso que el turbo con acentos y ruido de sala; da los segmentos con

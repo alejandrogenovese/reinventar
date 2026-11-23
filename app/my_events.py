@@ -93,6 +93,11 @@ def crear(username: str, body: MiEvento) -> dict:
     return _guardar(username, uuid.uuid4().hex[:12], body, None)
 
 
+def guardar_con_id(username: str, id_: str, body: MiEvento) -> dict:
+    """Alta o edición con un id elegido afuera (la carga desde Excel usa uno determinístico para no duplicar)."""
+    return _guardar(username, id_, body, db.get_user_event(username, id_))
+
+
 def editar(username: str, id_: str, body: MiEvento) -> dict:
     anterior = db.get_user_event(username, id_)
     if not anterior:

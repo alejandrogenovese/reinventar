@@ -125,6 +125,9 @@ EN_PRODUCCION = bool(RAILWAY_ENVIRONMENT_NAME)
 # tests/conftest.py la apaga para que los tests no peguen a la red. No depende de ningún proveedor de STT/LLM.
 COTIZACION_AUTO = _env("COTIZACION_AUTO", "1") == "1"
 COTIZACION_MINUTOS = float(_env("COTIZACION_MINUTOS", "30"))
+# Conversor › «Leer con la cámara» (app/conversor_api.py): apagado salvo CONVERSOR_FOTO=1. Apagado, POST
+# /api/conversor/foto da 503 y el botón no aparece. Necesita el alias rx-foto (modelo con visión) en el gateway.
+CONVERSOR_FOTO = _env("CONVERSOR_FOTO", "0") == "1"
 # Fotos de ticket: bucket S3-compatible (el de Railway) si están las cinco variables; si no, disco local (dev y tests).
 TICKETS_S3_ENDPOINT = _env("TICKETS_S3_ENDPOINT")
 TICKETS_S3_BUCKET = _env("TICKETS_S3_BUCKET")
@@ -163,6 +166,10 @@ DOCS_ENC_KEY = _env("DOCS_ENC_KEY")
 # la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
 # se loguea (ver app/ticketmaster.py).
 TICKETMASTER_API_KEY = _env("TICKETMASTER_API_KEY")
+
+# Excursiones de Viator (app/viator.py, Partner API de afiliado): pestaña Excursiones de Actividades. Sin la clave la
+# pestaña no aparece y no se pide nada. Va en el header exp-api-key y nunca se loguea.
+VIATOR_API_KEY = _env("VIATOR_API_KEY")
 
 # Alertas de ofertas por push (app/ofertas.py y app/ofertas_avisos.py).
 OFERTAS_MAX_POR_DIA = int(_env("OFERTAS_MAX_POR_DIA", "3"))        # push de ofertas por persona y por día (Las Vegas)

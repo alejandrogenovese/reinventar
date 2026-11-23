@@ -7,6 +7,7 @@ import { EventCard } from "./events.js";
 import { renderMap } from "./map.js";
 import { MyEventCard } from "./myEvents.js";
 import { ShowFunctionCard } from "./shows.js";
+import { CharlasNuevasAviso } from "./charlasNuevas.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, mensajeError, toast, toastOnError, withUndo } from "./ui.js";
@@ -283,12 +284,15 @@ export async function viewItinerario(view) {
     }
 
     let dayIndex = 0;
+    const nuevasSlot = h("div", { class: "ra-optional" });
+    void CharlasNuevasAviso().then((el) => nuevasSlot.replaceChildren(el ?? ""));
     const mapEl = h("div", { class: "mapbox" });
     const tabs = h("div", { class: "tabs", role: "tablist" });
     const list = h("div", { class: "daylist" });
     const dayHeading = h("h2", { class: "sr-only" }); // título para el lector de pantalla: las pestañas no son encabezados
     view.append(h("div", { class: "stack-lg" },
       h("div", { class: "ra-sec-head" }, h("h1", { class: "title" }, "Tu itinerario"), NumerosLink()),
+      nuevasSlot,
       h("div", { class: "actions" },
         Button("Armar día por día", { variant: "primary", onclick: () => (location.hash = "#/itinerario/armar") }),
         Button("Otras formas de armarlo", { onclick: () => (location.hash = "#/itinerario/nuevo") }),

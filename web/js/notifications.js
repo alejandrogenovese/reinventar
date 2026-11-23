@@ -2,6 +2,7 @@
 // En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4 o posterior).
 import { getToken, Push, Ubicacion, Viajes } from "./api.js";
 import { locationEnabled, reportVenue, setLocationEnabled, setVenueReportEnabled } from "./location.js";
+import { CharlasNuevasSettings } from "./charlasNuevas.js";
 import { OfertasSettings } from "./ofertas.js";
 import { Button, h, mensajeError, toast } from "./ui.js";
 
@@ -208,6 +209,7 @@ function ReminderSettings() {
     h("p", { class: "caption" }, "Un aviso cuando aparecen eventos nuevos (nunca de noche). Si se cancela uno de tu itinerario, te avisamos igual."),
     sede.row,
     h("p", { class: "caption" }, "Solo cuando la app está abierta. Mandamos el nombre de la sede, no tu posición. Deja de usarse a los 45 min y se borra a las 2 h."),
+    CharlasNuevasSettings(),
     viajes);
 }
 

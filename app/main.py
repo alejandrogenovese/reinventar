@@ -22,15 +22,18 @@ from starlette.concurrency import run_in_threadpool
 
 from . import (
     __version__,
+    actividades_api,
     admin_api,
     audio,
     auth_api,
     cabeceras,
     catalog,
     charlas_auto,
+    charlas_nuevas_api,
     codigos_api,
     comer_api,
     config,
+    conversor_api,
     cotizacion,
     cuerpo,
     db,
@@ -38,8 +41,10 @@ from . import (
     documentos_api,
     estado_api,
     eventos_auto,
+    eventos_excel_api,
     events,
     events_api,
+    ficha_api,
     fragmentos,
     gastos_api,
     grabaciones_api,
@@ -162,6 +167,7 @@ app.include_router(itinerary_api.router)
 app.include_router(interview_api.router)
 app.include_router(guided_api.router)
 app.include_router(my_events_api.router)
+app.include_router(eventos_excel_api.router)
 app.include_router(events_api.router)
 app.include_router(shows_api.router)
 app.include_router(push_api.router)
@@ -180,8 +186,12 @@ app.include_router(huecos.router)
 app.include_router(codigos_api.router)
 app.include_router(demos_api.router)
 app.include_router(comer_api.router)
+app.include_router(actividades_api.router)
+app.include_router(conversor_api.router)
 app.include_router(estado_api.router)
+app.include_router(ficha_api.router)
 app.include_router(novedades_api.router)
+app.include_router(charlas_nuevas_api.router)
 
 
 @app.exception_handler(RequestValidationError)
