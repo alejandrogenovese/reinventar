@@ -15,6 +15,7 @@ const Codigos = {
   subir: (file) => api(`/api/codigos?nombre=${encodeURIComponent(file.name)}`, { method: "POST", body: file,
     headers: { "Content-Type": file.type || "application/octet-stream" } }),
   borrar: () => api("/api/codigos", { method: "DELETE" }),
+  alItinerario: () => api("/api/codigos/al-itinerario", { method: "POST" }),
   ejemplo: () => api("/api/codigos/ejemplo.xlsx", { raw: true }).then((r) => r.blob()),
 };
 const EJEMPLO = "reinventar-codigos-ejemplo.xlsx";
@@ -56,6 +57,7 @@ function CodigoItem(e) {
       h("span", { class: "ra-kind" }, [e.tipo, e.codigo].filter(Boolean).join(" · ")),
       h("h3", { class: "ra-minicard-title" }, existe ? h("a", { class: "ra-link", href: `#/charla/${e.base}` }, e.titulo) : `Código ${e.codigo}`),
       e.sala ? h("div", { class: "ra-minicard-meta" }, e.sala) : null,
+      e.en_itinerario ? h("span", { class: "caption" }, "En tu itinerario") : null,
       estado,
       e.choca_con?.length ? Hint(`Se pisa con ${e.choca_con.join(", ")}.`, { tone: "warn" }) : null,
       e.estado === "falta" ? h("a", { class: "ra-link", href: `#/charla/${e.base}` }, "Ver la ficha para registrarla") : null));
@@ -123,6 +125,29 @@ export async function viewMiExcel(view) {
     paint();
   };
 
+  let agregando = false;
+  const agregar = async () => {
+    agregando = true; paint();
+    try {
+      const { agregadas, ...nueva } = await Codigos.alItinerario();
+      if (!view.isConnected) return;
+      data = nueva; error = "";
+      toast(agregadas ? `Agregué ${plural(agregadas, "charla", "charlas")} a tu itinerario.` : "Ya estaban todas en tu itinerario.");
+    } catch (err) {
+      if (!view.isConnected) return;
+      toast(mensajeError(err));
+    }
+    agregando = false; paint();
+  };
+
+  /** «Agregar al itinerario» y, si no hay ninguna registrada, de dónde sale ese número. */
+  function Acciones(r) {
+    return [
+      r.para_agregar ? h("div", { class: "actions" }, Button(`Agregar al itinerario (${int(r.para_agregar)})`,
+        { variant: "primary", disabled: agregando, onclick: agregar })) : null,
+      r.registrados ? null : Hint("«Registradas» cuenta las charlas de tu itinerario marcadas como reservadas. Si ya te anotaste en el portal de AWS, usá «Importar reservas de AWS» en Itinerario: las carga y las marca.", { tone: "info" })];
+  }
+
   function Subida() {
     return h("div", { class: "stack" },
       error ? Hint(error, { tone: "error" }) : null,
@@ -147,6 +172,7 @@ export async function viewMiExcel(view) {
         Kpi("Choques", int(r.choques), { tone: r.choques ? "err" : "" }),
         Kpi("De más", int(r.de_mas), { note: r.inexistentes ? plural(r.inexistentes, "código que no existe", "códigos que no existen") : "" })),
       descartados.length ? Hint(`No usé ${plural(descartados.length, "código", "códigos")} que ${descartados.length === 1 ? "estaba" : "estaban"} en otras columnas u hojas: ${descartados.slice(0, 10).join(", ")}${descartados.length > 10 ? "…" : ""}. Tomé la columna con más códigos.`, { tone: "warn" }) : null,
+      ...Acciones(r),
       h("div", { class: "ra-chips", role: "group", "aria-label": "Filtrar el resultado" }, chips),
       items.length ? h("div", { class: "daylist" }, items) : h("p", { class: "caption" }, "No hay nada en esta categoría."),
       Subida(),

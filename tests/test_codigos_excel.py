@@ -515,3 +515,50 @@ def test_dos_subidas_simultaneas_no_chocan_por_la_clave_primaria(client):
         h.join()
     assert errores == []
     assert [f["codigo"] for f in _filas_guardadas(TEST_USER)] == ["AIM301", "SEC201", "KEY001"]
+
+
+# ---------- agregar al itinerario ----------
+
+def _bases_en_itinerario(username):
+    return {it["base"]: it for it in db.list_itinerary_items(username)}
+
+
+def test_agregar_al_itinerario_suma_las_que_faltan_y_no_toca_las_que_ya_estaban(client, H):
+    db.add_item("tester", "KEY001", "KEY001", MAR, "08:00")
+    db.set_item_booked("tester", "KEY001", True)
+    _subir(client, H, b"KEY001\nARC407\nDAT402-R\nZZZ999\n")
+
+    r = client.post("/api/codigos/al-itinerario", headers=H)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["agregadas"] == 2
+    items = _bases_en_itinerario("tester")
+    assert set(items) == {"KEY001", "ARC407", "DAT402"}
+    assert items["DAT402"]["code"] == "DAT402-R"  # el horario de la repetición que pidió
+    assert items["KEY001"]["reservada"]  # la que ya estaba sigue marcada como reservada
+    assert all(e["en_itinerario"] for e in r.json()["codigos"] if e["estado"] != "inexistente")
+    assert r.json()["resumen"]["para_agregar"] == 0
+
+
+def test_el_cruce_dice_cuales_estan_en_el_itinerario(client, H):
+    db.add_item("tester", "KEY001", "KEY001", MAR, "08:00")
+    r = _subir(client, H, b"KEY001\nARC407\nZZZ999\n").json()
+
+    assert {e["base"]: e["en_itinerario"] for e in r["codigos"]} == {"KEY001": True, "ARC407": False, "ZZZ999": False}
+    assert r["resumen"]["para_agregar"] == 1
+
+
+def test_agregar_dos_veces_no_duplica(client, H):
+    _subir(client, H, b"ARC407\n")
+    client.post("/api/codigos/al-itinerario", headers=H)
+
+    r = client.post("/api/codigos/al-itinerario", headers=H)
+
+    assert r.json()["agregadas"] == 0
+    assert [it["base"] for it in db.list_itinerary_items("tester")] == ["ARC407"]
+
+
+def test_agregar_sin_lista_da_404_y_pide_sesion(client, H):
+    client.delete("/api/codigos", headers=H)
+    assert client.post("/api/codigos/al-itinerario", headers=H).status_code == 404
+    assert client.post("/api/codigos/al-itinerario").status_code == 401

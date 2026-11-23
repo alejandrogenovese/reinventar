@@ -219,6 +219,12 @@ def add_manual(username: str, code: str, reason: str | None = None) -> dict:
         db.add_item(username, code, code, funcion["day"], funcion["start"], locked=True, kind="show",
                     snapshot=snapshot(funcion))
         return get_current(username)
+    agregar_charla(username, code, reason)
+    return get_current(username)
+
+
+def agregar_charla(username: str, code: str, reason: str | None = None) -> None:
+    """Una charla (código de horario) al itinerario, fijada; sale de pendientes. ValueError si el código no existe."""
     found = catalog.get_instance(code)
     if not found:
         raise ValueError("Código de sesión inexistente")
@@ -226,7 +232,6 @@ def add_manual(username: str, code: str, reason: str | None = None) -> dict:
     db.add_item(username, code, session["base"], instance["d"], instance["st"], locked=True, reason=reason,
                 snapshot=snapshot(catalog.card(session, instance)))
     db.remove_pending(username, session["base"])
-    return get_current(username)
 
 
 def set_lock(username: str, code: str, locked: bool) -> dict:
