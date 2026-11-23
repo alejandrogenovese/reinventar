@@ -142,6 +142,9 @@ DEMOS_LINK_HORAS = float(_env("DEMOS_LINK_HORAS", "6"))  # cuánto vale un link 
 # Links firmados a las fotos del CSV de reintegros (app/gastos_links.py). Sin FOTOS_LINK_SECRET se deriva de DATABASE_URL.
 FOTOS_LINK_SECRET = _env("FOTOS_LINK_SECRET")
 FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "30"))
+# Link público de solo lectura al resumen de una grabación (app/grabaciones_links.py): cuántos días vale. Usa la misma
+# FOTOS_LINK_SECRET, con otra derivación: un link de foto no sirve como link de grabación ni al revés.
+GRABACION_LINK_DIAS = float(_env("GRABACION_LINK_DIAS", "14"))
 TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
 
 # Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de

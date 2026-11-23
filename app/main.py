@@ -41,6 +41,7 @@ from . import (
     events_api,
     fragmentos,
     gastos_api,
+    grabaciones_api,
     guided_api,
     huecos,
     interview_api,
@@ -171,6 +172,7 @@ app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
 app.include_router(gastos_api.router)
 app.include_router(gastos_api.router_publico)
+app.include_router(grabaciones_api.router)  # antes de /api/sessions/{sid}: /api/sessions/activa
 app.include_router(huecos.router)
 app.include_router(codigos_api.router)
 app.include_router(demos_api.router)
@@ -311,6 +313,8 @@ def get_session(sid: str, username: str = Depends(auth)):
     s["voto"] = db.votos_resumen(sid, username)  # 👍/👎 del resumen (app/voto_resumen_api.py)
     s["blocks"] = db.get_blocks(sid)
     s["talk"] = talks.link(s.get("code"))  # {base, title} si el código es de una charla del catálogo
+    s["es_mia"] = s.get("created_by") == username
+    s["puede_borrar"] = grabaciones_api.puede_gestionar(s, username)  # también reintentar y compartir por link
     return s
 
 
@@ -358,9 +362,9 @@ def finish(sid: str, body: Finish):
     return db.get_session(sid)
 
 
-@app.post("/api/sessions/{sid}/retry", dependencies=[Depends(auth)])
-def retry(sid: str, from_scratch: bool = False):
-    _session_or_404(sid)
+@app.post("/api/sessions/{sid}/retry")
+def retry(sid: str, from_scratch: bool = False, username: str = Depends(auth)):
+    grabaciones_api.sesion_gestionable(sid, username)
     if from_scratch:
         db.replace_blocks(sid, [])
     pipeline.enqueue(sid)
@@ -374,9 +378,9 @@ def export_md(sid: str):
     return PlainTextResponse(md, media_type="text/markdown; charset=utf-8")
 
 
-@app.delete("/api/sessions/{sid}", dependencies=[Depends(auth)])
-def delete(sid: str):
-    _session_or_404(sid)
+@app.delete("/api/sessions/{sid}")
+def delete(sid: str, username: str = Depends(auth)):
+    grabaciones_api.sesion_gestionable(sid, username)
     db.delete_session(sid)
     shutil.rmtree(audio.session_dir(sid), ignore_errors=True)
     return {"ok": True}

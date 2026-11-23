@@ -1,5 +1,7 @@
-// Detalle de una grabación: barra de arriba (Volver, Compartir y el menú ⋯ con Exportar y Eliminar), encabezado con
-// estado y datos, y las pestañas Resumen / Transcripción. Llegando desde un buscador, marca el momento encontrado.
+// Detalle de una grabación: barra de arriba (Volver, Compartir resumen y el menú ⋯ con Exportar, Link público y
+// Eliminar), encabezado con estado y datos, y las pestañas Resumen / Transcripción. Llegando desde un buscador, marca el
+// momento encontrado. Ver y exportar, cualquiera; reintentar, borrar y el link público, quien grabó o un admin
+// (puede_borrar, app/grabaciones_api.py).
 import { Sessions } from "./api.js";
 import { confirmDialog } from "./dialog.js";
 import { scrollToMoment } from "./grabado.js";
@@ -61,14 +63,9 @@ function setPageBar(start, end) {
   document.body.classList.add("has-pagebar");
 }
 
-// --- exportar y compartir el .md -------------------------------------------------------------------
+// --- exportar el .md y compartir el resumen -------------------------------------------------------------
 const fileName = (s) => `${(s.code ? `${s.code}-` : "") + s.title}`
   .replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g, "").trim().replace(/\s+/g, "-") + ".md";
-
-/** El navegador puede compartir archivos (hoja de compartir del celular): solo así se muestra Compartir. */
-export function canShareFiles() {
-  try { return Boolean(navigator.canShare?.({ files: [new File([""], "resumen.md", { type: MD_TYPE })] })); } catch { return false; }
-}
 
 async function mdFile(id, s) {
   return new File([await Sessions.exportMd(id)], fileName(s), { type: MD_TYPE });
@@ -81,11 +78,29 @@ function download(file) {
   setTimeout(() => URL.revokeObjectURL(url));
 }
 
-async function share(id, s) {
-  const file = await mdFile(id, s);
-  try { await navigator.share({ files: [file], title: s.title }); } catch (e) {
-    if (e?.name !== "AbortError") download(file); // si el celular no lo deja compartir, se descarga
+/** Comparte un texto con la hoja del celular (WhatsApp, mail…); si no se puede, lo copia y avisa con `copiado`. */
+export async function compartirTexto({ title, text, url }, copiado) {
+  if (navigator.share) {
+    try { await navigator.share(url ? { title, text, url } : { title, text }); return; } catch (e) {
+      if (e?.name === "AbortError") return; // canceló la hoja de compartir: no se copia nada
+    }
   }
+  await navigator.clipboard.writeText(url ? `${text}\n${url}` : text);
+  toast(copiado);
+}
+
+/** «Compartir resumen»: el markdown público (sin «Versus lo prometido» ni «Para llevar», que son personales). */
+async function compartirResumen(id, s) {
+  await compartirTexto({ title: s.title, text: await Sessions.resumenMd(id) }, "Resumen copiado: pegalo donde quieras.");
+}
+
+const venceEl = (iso) => new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+
+/** Link público de solo lectura que vence (/c/<token>): lo abre cualquiera que lo tenga, sin cuenta. */
+async function compartirLink(id, s) {
+  const { url, vence } = await Sessions.compartir(id);
+  await compartirTexto({ title: s.title, text: `Resumen de «${s.title}» (vence el ${venceEl(vence)}):`, url },
+    `Link copiado. Vence el ${venceEl(vence)}.`);
 }
 
 // --- piezas del encabezado -------------------------------------------------------------------------
@@ -134,18 +149,19 @@ export async function viewDetail(view, id, { at = null, q = "", canGoBack = fals
   function paintBar(s) {
     if (barStatus === s.status) return; // no rearmar mientras procesa: cerraría el menú abierto
     barStatus = s.status;
-    const ready = s.status === "ready";
+    const ready = s.status === "ready" && Boolean(s.summary);
     const items = [
       ready ? { label: "Exportar .md", iconName: "bajar", onSelect: () => toastOnError(mdFile(id, s).then(download)) } : null,
-      { label: "Eliminar", iconName: "borrar", danger: true, onSelect: () => toastOnError(remove()) },
+      ready && s.puede_borrar ? { label: "Link público (vence)", iconName: "compartir", onSelect: () => toastOnError(compartirLink(id, s)) } : null,
+      s.puede_borrar ? { label: "Eliminar", iconName: "borrar", danger: true, onSelect: () => toastOnError(remove()) } : null,
     ].filter(Boolean);
     setPageBar(
       h("button", { type: "button", class: "iconbtn", "aria-label": "Volver", title: "Volver", onclick: goBack }, icon("volver", 24)),
-      [ready && canShareFiles()
-        ? h("button", { type: "button", class: "iconbtn", "aria-label": "Compartir el resumen (.md)", title: "Compartir",
-          onclick: () => toastOnError(share(id, s)) }, icon("compartir", 24))
+      [ready
+        ? h("button", { type: "button", class: "iconbtn", "aria-label": "Compartir resumen", title: "Compartir resumen",
+          onclick: () => toastOnError(compartirResumen(id, s)) }, icon("compartir", 24))
         : null,
-      MenuButton({ label: "Más acciones", items })]);
+      items.length ? MenuButton({ label: "Más acciones", items }) : null]);
   }
 
   function paintTranscript(s) {
@@ -170,8 +186,8 @@ export async function viewDetail(view, id, { at = null, q = "", canGoBack = fals
       s.talk ? TalkLink(s.talk) : "",
       s.error ? h("div", { class: "notice err" }, s.error) : "");
     actions.replaceChildren(
-      s.status === "error" ? Button("Reintentar", { variant: "primary", onclick: () => toastOnError(Sessions.retry(id).then(load)) }) : "",
-      LIVE.includes(s.status) ? Button("Seguir grabando", { variant: "primary", onclick: () => (location.hash = `#/grabar/${id}`) }) : "");
+      s.status === "error" && s.puede_borrar ? Button("Reintentar", { variant: "primary", onclick: () => toastOnError(Sessions.retry(id).then(load)) }) : "",
+      LIVE.includes(s.status) && s.es_mia ? Button("Seguir grabando", { variant: "primary", onclick: () => (location.hash = `#/grabar/${id}`) }) : "");
     actions.hidden = !actions.childElementCount;
 
     const tabs = h("div", { class: "tabs", role: "tablist" },
