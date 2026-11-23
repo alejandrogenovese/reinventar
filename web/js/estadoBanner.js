@@ -3,6 +3,8 @@
 // se muestra lo decide estado.js (puro); acá solo se lee el mundo, se guarda lo cerrado y se pinta. Diseño: demos/diseno/banner-status.html.
 import { EVENTO_CON_SERVICIO, EVENTO_SIN_SERVICIO, Viajes, api, getToken } from "./api.js";
 import { CIERRE, TODO_SUBIDO_MS, cerradoHasta, cierresVigentes, compararVersiones, elegirAvisos, novedadesValidas, progresoDeSubida, proximoVisible, seguirSubida } from "./estado.js";
+import { EVENTO_FICHA, leerNotificaciones } from "./ficha.js";
+import { avisoFicha } from "./fichaReglas.js";
 import { EVENTO_GASTOS, sincronizar } from "./gastos.js";
 import { listarGastos } from "./gastosCola.js";
 import { icon } from "./icons.js";
@@ -14,6 +16,7 @@ import { VERSION } from "./version.js";
 
 const CONSULTA_CADA_MS = 10 * 60_000;     // /api/estado: al abrir, al volver a primer plano y cada 10 min (sin red, no)
 const PROXIMO_CADA_MS = 5 * 60_000;       // /api/viajes/proximo: con el recálculo y al volver a primer plano, como mucho cada 5 min
+const FICHA_CADA_MS = 10 * 60_000;        // /api/ficha: lo que falta cambia poco; la pantalla «Mi ficha» lo actualiza al abrirse
 const RECALCULO_MS = 150;                 // junta varios eventos seguidos (la cola emite muchos) en una sola lectura
 const CIERRES = "reinventar.estado.cierres";      // localStorage: { id: hasta (ms) } · sessionStorage: [id]
 const VERSION_VISTA = "reinventar.version.vista"; // localStorage: la última versión que se abrió en este celular
@@ -45,6 +48,8 @@ let mundo = {
   versionRemota: null,
   actualizada: null,          // { nueva, anterior } si esta apertura es la primera de una versión nueva
   proximo: null,              // lo de /api/viajes/proximo: vuelo, hotel o charla que viene enseguida
+  ficha: null,                // lo de /api/ficha: qué le falta completar a la persona (app/ficha.py)
+  notificaciones: null,       // { estado, activo, denegado } de las notificaciones en este dispositivo (ficha.js)
 };
 const cambiar = (cambios) => { mundo = { ...mundo, ...cambios }; };
 
@@ -53,6 +58,8 @@ let temporizador = null;
 let ultimaFirma = null;
 let consultadoCon = null;     // token con el que ya se consultó /api/estado (al entrar con otra cuenta se vuelve a pedir)
 let proximoDe = { token: null, en: 0 };  // con qué cuenta y cuándo (ms) se pidió «Próximo» por última vez
+let fichaDe = { token: null, en: 0 };    // lo mismo para /api/ficha
+let rutaAnterior = null;                 // para volver a pedir la ficha al salir de donde se completa algo
 
 const hayRed = () => navigator.onLine !== false && !mundo.sinServicio;
 
@@ -84,7 +91,8 @@ function avisosActuales() {
     subiendo: progresoDeSubida(mundo.subida, mundo.pendientes), subidoEn: mundo.subidoEn,
     servicio: mundo.servicio, versionLocal: VERSION, versionRemota: mundo.versionRemota, actualizadaA: mundo.actualizada?.nueva ?? null,
     descartados: descartados(ahora), ruta: location.hash || "#/", countdownUrgente: countdownUrgente(),
-    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), proximo: proximoVisible(mundo.proximo, location.hash), ahora,
+    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), proximo: proximoVisible(mundo.proximo, location.hash),
+    ficha: avisoFicha({ ficha: mundo.ficha, notificaciones: mundo.notificaciones, ruta: location.hash || "#/" }), ahora,
   });
 }
 
@@ -140,7 +148,7 @@ export function paint() {
 
 function descartar(aviso) {
   const ahora = Date.now();
-  if (aviso.cierre === CIERRE.seisHoras) {
+  if (aviso.cierre === CIERRE.seisHoras || aviso.cierre === CIERRE.posponer) {
     escribirJson(local, CIERRES, { ...cierresVigentes(leerJson(local, CIERRES, {}), ahora), [aviso.id]: cerradoHasta(aviso, ahora) });
   } else if (aviso.cierre === CIERRE.sesion) {
     const ids = leerJson(sesion, CIERRES, []);
@@ -265,8 +273,27 @@ async function consultarProximo() {
   paint();
 }
 
+/** «Mi ficha»: por persona, como mucho cada 10 min (o al cambiar de cuenta). Si falla, ese aviso no se muestra. */
+async function consultarFicha() {
+  const token = getToken();
+  const ahora = Date.now();
+  if (!token || navigator.onLine === false) return;
+  if (fichaDe.token === token && ahora - fichaDe.en < FICHA_CADA_MS) return;
+  if (fichaDe.token !== token) cambiar({ ficha: null });
+  fichaDe = { token, en: ahora };
+  try {
+    const [r, notificaciones] = await Promise.all([api("/api/ficha"), leerNotificaciones()]);
+    cambiar({ ficha: r && typeof r === "object" ? r : null, notificaciones });
+  } catch (e) {
+    console.warn("[estado] no se pudo leer «Mi ficha»", e);
+    cambiar({ ficha: null });
+  }
+  paint();
+}
+
 async function recalcular() {
   void consultarProximo();
+  void consultarFicha();
   const { pendientes, fallidos } = await leerColas();
   const empezar = volvioLaRed;
   volvioLaRed = false;
@@ -304,6 +331,11 @@ function alVolverLaRed() {
 
 /** Lo llama el router en cada navegación: recalcula y, si entró otra cuenta, vuelve a consultar /api/estado. */
 export function refrescarEstado() {
+  // Al salir de una pantalla donde se completa algo de la ficha (o de Ajustes, por las notificaciones), se vuelve a pedir.
+  const ruta = location.hash || "#/";
+  const dondeSeCompleta = [...(mundo.ficha?.faltantes ?? []).map((f) => f?.link), "#/ajustes"];
+  if (ruta !== rutaAnterior && dondeSeCompleta.includes(rutaAnterior)) fichaDe = { ...fichaDe, en: 0 };
+  rutaAnterior = ruta;
   if (getToken() && consultadoCon !== getToken()) void consultarEstado();
   programarRecalculo();
 }
@@ -324,6 +356,11 @@ export function iniciarEstado() {
   });
   window.addEventListener(EVENTO_CON_SERVICIO, () => { if (mundo.sinServicio) alVolverLaRed(); });
   window.addEventListener(EVENTO_GASTOS, programarRecalculo);
+  window.addEventListener(EVENTO_FICHA, (e) => {
+    fichaDe = { token: getToken(), en: Date.now() };
+    cambiar({ ficha: e.detail?.ficha ?? null, notificaciones: e.detail?.notificaciones ?? null });
+    paint();
+  });
   window.addEventListener("hashchange", paint);
   uploader.addEventListener("change", programarRecalculo);
   document.addEventListener("visibilitychange", () => {

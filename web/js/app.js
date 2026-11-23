@@ -43,6 +43,7 @@ import { viewViajes } from "./viajes.js";
 import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
+import { viewFicha as viewMiFicha } from "./ficha.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
@@ -90,6 +91,7 @@ const routes = [
   [/^#\/login$/, viewLogin],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
+  [/^#\/ficha$/, () => viewMiFicha(view)],
   [/^#\/gastos$/, () => viewGastos(view)],
   [/^#\/password$/, () => viewPassword(view, { forced: mustChangePassword() })],
   [/^#\/admin$/, () => viewAdminEstado(view)],
@@ -700,6 +702,7 @@ async function viewSettings() {
     h("h1", { class: "title" }, "Ajustes"),
     h("p", {}, textoDeCuenta(cuenta)),
     h("div", { class: "actions" },
+      Button("Mi ficha", { onclick: () => (location.hash = "#/ficha") }),
       Button("Cambiar contraseña", { onclick: () => (location.hash = "#/password") }),
       cuenta.is_admin ? Button("Administración", { onclick: () => (location.hash = "#/admin") }) : null,
       Button("Cerrar sesión", { variant: "danger", onclick: logout })),
