@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+- **Ofertas ya no queda en blanco.** Si todavía no hay ofertas vigentes, la pantalla explica de dónde salen
+  (bajas de precio de shows cuando Ticketmaster publica precios, y ofertas de comida y outlets que carga el equipo) y
+  lleva a Shows. Quien es admin ve además «Cargar una oferta».
+
 ## [1.2.0] - 2026-11-23
 
 ### Agregado
