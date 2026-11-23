@@ -1,10 +1,10 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
 import { Today } from "./api.js";
-import { hoyNecesitaFranja } from "./lastgood.js";
-import { SinSenal } from "./sinSenal.js";
 import { CountdownBadge } from "./countdown.js";
+import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
 import { GoThereParts, startsAt } from "./location.js";
+import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, h, mensajeError, toast } from "./ui.js";
@@ -90,7 +90,7 @@ const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { c
 
 /**
  * Panel Hoy para el inicio. `sessions` son las grabaciones del usuario (para no duplicar una charla ya grabada).
- * Devuelve { el, hasTalk }: hasTalk dice si hay una charla ahora o a continuación.
+ * Devuelve { el, hasTalk, data }: hasTalk dice si hay una charla ahora o a continuación; data, lo que trajo /api/today.
  */
 export async function TodayPanel(sessions) {
   const data = await Today.get();
@@ -98,8 +98,6 @@ export async function TodayPanel(sessions) {
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
   const body = [];
 
-  // Una copia sin señal avisa de la hora de los datos (Hoy es lo que más se mira en el pasillo).
-  if (hoyNecesitaFranja(data, sessions)) body.push(SinSenal(data));
   if (data.now) body.push(TalkCard(data.now, { label: "Ahora", recorded, variant: "primary", highlight: true, aviso: avisos[data.now.code] }));
   if (data.next) body.push(TalkCard(data.next, { label: data.now ? "Después" : "Próxima", recorded, variant: data.now ? "secondary" : "primary", aviso: avisos[data.next.code] }));
   body.push(LaterList(data.later));
@@ -117,5 +115,32 @@ export async function TodayPanel(sessions) {
   const el = h("section", { class: "stack", "aria-labelledby": "hoy-title hoy-fecha" },
     h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "hoy-title" }, "Hoy"),
       h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), body);
-  return { el, hasTalk: Boolean(data.now || data.next) };
+  return { el, hasTalk: Boolean(data.now || data.next), data };
+}
+
+// ---------- franja del día (arriba de Hoy; no es un banner) ----------
+
+const Sep = () => h("span", { class: "sep", "aria-hidden": "true" }, "·");
+const Num = (n) => h("span", { class: "num" }, String(n));
+
+/**
+ * «Martes 1/12 · Día 2 de 5 · Keynote 8:00 · 3 charlas en tu agenda» con la hora de la app (sandboxNow: la simulada en
+ * modo prueba). `hoy` y `anuncios` son promesas de /api/today y /api/anuncios: si fallan, la franja sale sin esos datos.
+ * Con la keynote en curso, la pastilla «Keynote en vivo» (lo único naranja). null fuera del rango del viaje.
+ */
+export async function FranjaDia({ hoy, anuncios }) {
+  const dia = diaDeEvento(sandboxNow());
+  if (!dia) return null;
+  const [h1, a1] = await Promise.allSettled([hoy, anuncios]);
+  const valor = (r) => (r.status === "fulfilled" ? r.value : null);
+  const { keynote, charlas } = dia.tipo === "conferencia" ? resumenDelDia({ hoy: valor(h1), anuncios: valor(a1) }) : {};
+  const partes = [
+    dia.tipo === "conferencia" ? h("span", {}, "Día ", Num(dia.dia), ` de ${dia.total}`) : null,
+    keynote && !keynote.enVivo ? h("span", {}, "Keynote ", Num(keynote.hora)) : null,
+    charlas ? h("span", {}, Num(charlas), charlas === 1 ? " charla en tu agenda" : " charlas en tu agenda") : null,
+    ...dia.detalles.map((d) => h("span", {}, d)),
+  ].filter(Boolean);
+  return h("p", { class: "dia" }, h("strong", {}, dia.titulo),
+    keynote?.enVivo ? h("span", { class: "vivo" }, "Keynote en vivo") : null,
+    partes.flatMap((p, i) => (i ? [Sep(), p] : [p])));
 }

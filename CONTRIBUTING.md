@@ -87,9 +87,10 @@ La versión sigue [SemVer](https://semver.org/lang/es/): `MAJOR.MINOR.PATCH` (`f
 
 1. Subí `__version__` en `app/__init__.py`.
 2. Subí `VERSION` en `web/sw.js` al mismo número, para que los celulares descarguen la PWA nueva.
-3. En `CHANGELOG.md`, pasá lo de *Sin publicar* a una sección `## [X.Y.Z] - AAAA-MM-DD` y actualizá los links del final.
-4. `pytest -q` (`tests/test_version.py` verifica que los tres coincidan).
-5. Commit `chore: versión X.Y.Z`, tag y push:
+3. Subí `VERSION` en `web/js/version.js`: con ella el banner de estado sabe si hay una versión nueva en el servidor.
+4. En `CHANGELOG.md`, pasá lo de *Sin publicar* a una sección `## [X.Y.Z] - AAAA-MM-DD` y actualizá los links del final.
+5. `pytest -q` (`tests/test_version.py` verifica que los cuatro coincidan).
+6. Commit `chore: versión X.Y.Z`, tag y push:
    ```bash
    git tag -a vX.Y.Z -m "vX.Y.Z" && git push && git push --tags
    ```

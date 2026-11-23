@@ -1,4 +1,5 @@
 """Inicio e Itinerario sin señal: el cableado de la última copia buena (la lógica está en tests/js/ultimaCopia.test.mjs)."""
+import re
 from pathlib import Path
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -17,16 +18,15 @@ def test_hoy_itinerario_y_grabaciones_usan_la_ultima_copia():
     assert '"/api/anuncios"' in _js("lastgood.js")  # y está en la lista cerrada de rutas que se guardan
 
 
-def test_las_pantallas_muestran_la_franja_sin_senal():
-    assert "SinSenal(sessions)" in _js("app.js")
-    assert _js("itinerary.js").count("SinSenal(data)") == 2  # con y sin días armados
-
-
-def test_hoy_muestra_su_franja_cuando_es_una_copia():
-    hoy = _js("today.js")
-    assert "hoyNecesitaFranja(data, sessions)" in hoy
-    # la franja va arriba de todo en la sección Hoy, antes de las tarjetas de charlas
-    assert hoy.index("SinSenal(data)") < hoy.index("TalkCard(data.now")
+def test_sin_senal_lo_avisa_el_banner_global_y_no_cada_pantalla():
+    # La franja «Sin señal · datos de las HH:MM» se repetía en Inicio, Hoy e Itinerario: ahora la muestra el banner de
+    # estado (estadoBanner.js), que se entera cuando una pantalla cae a la última copia.
+    for modulo in ("app.js", "today.js", "itinerary.js", "sinSenal.js", "lastgood.js"):
+        codigo = _js(modulo)
+        assert not re.search(r"\bSinSenal\(", codigo), modulo  # pintarSinSenal (grabar sin sesión en el servidor) es otra cosa
+        assert "hoyNecesitaFranja" not in codigo, modulo
+    assert "avisarServicio(EVENTO_SIN_SERVICIO" in _js("api.js")
+    assert "addEventListener(EVENTO_SIN_SERVICIO" in _js("estadoBanner.js")
 
 
 def test_ajustes_no_dice_sesion_no_valida_por_falta_de_red():
@@ -45,7 +45,7 @@ def test_tus_grabaciones_sin_datos_sin_senal_no_dice_que_no_grabaste():
 
 def test_los_modulos_nuevos_estan_en_el_cache_offline():
     sw = (WEB / "sw.js").read_text()
-    for modulo in ("lastgood", "sinSenal", "locales"):
+    for modulo in ("lastgood", "sinSenal", "locales", "estado", "estadoBanner", "version", "dia"):
         assert f'"/js/{modulo}.js"' in sw, modulo
 
 

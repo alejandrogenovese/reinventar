@@ -1,12 +1,12 @@
 // ReinventAR — router y pantallas.
-import { ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
+import { Anuncios, ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
 import { viewPassword } from "./account.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
 import { disable as disablePush } from "./notifications.js";
 import { LocalesPendientes, cargarLocales } from "./locales.js";
-import { SinSenal, textoDeCuenta, textosSinGrabaciones } from "./sinSenal.js";
+import { textoDeCuenta, textosSinGrabaciones } from "./sinSenal.js";
 import { viewEvento, viewEventos } from "./events.js";
 import { viewShow } from "./shows.js";
 import { viewPerdida } from "./missed.js";
@@ -15,6 +15,7 @@ import { viewCharla, viewEmpresa, viewSpeaker } from "./knowledge.js";
 import { PasskeyLoginButton, PasskeyOffer, PasskeySettings } from "./passkey.js";
 import { refreshChanges } from "./changes.js";
 import { refreshCountdown } from "./countdown.js";
+import { iniciarEstado, refrescarEstado } from "./estadoBanner.js";
 import { RecordingSearch } from "./grabado.js";
 import { clearPageBar, viewDetail } from "./detail.js";
 import { alertSettings, locationEnabled, reportVenue, saveAlertSettings, setLocationEnabled } from "./location.js";
@@ -22,7 +23,7 @@ import { PushSettings } from "./notifications.js";
 import { refreshSandbox } from "./sandbox.js";
 import { viewSearch } from "./search.js";
 import { TalkPicker } from "./talkpicker.js";
-import { TodayPanel } from "./today.js";
+import { FranjaDia, TodayPanel } from "./today.js";
 import { AnunciosRail } from "./anuncios.js";
 import * as it from "./itinerary.js";
 import { viewArmar } from "./dayBuilder.js";
@@ -189,6 +190,7 @@ async function route() {
   await refreshSandbox(); // antes de dibujar: la hora y la ubicación simuladas se usan en las pantallas
   void refreshCountdown();
   void refreshChanges();
+  refrescarEstado();
   for (const [re, fn] of routes) {
     const m = hash.match(re);
     if (m) {
@@ -218,17 +220,18 @@ async function viewList() {
   // Lugares que pueden quedar vacíos (subida pendiente, buscador): .ra-optional:empty no ocupa lugar ni suma espacio.
   const banner = h("div", { class: "ra-optional" });
   const searchSlot = h("div", { class: "ra-optional" });
+  // Franja del día («Martes 1/12 · Día 2 de 5 · Keynote 8:00 · 3 charlas en tu agenda»): arriba de Hoy, no es un banner.
+  const diaSlot = h("div", { class: "ra-optional" });
   const todaySlot = h("div", {}, h("div", { class: "ra-skel ra-skel-today" }));
   // Anuncios sin reserva: debajo de Hoy; si no queda ninguno (o falla), el lugar no ocupa nada.
   const anunciosSlot = h("div", { class: "ra-optional" });
   // "Nueva" es la acción de la sección (botón chico en su encabezado), no un botón grande suelto.
   const newBtn = h("a", { class: "ra-btn ra-btn-ghost ra-sec-action", href: "#/nueva", "aria-label": "Nueva grabación" },
     icon("agregar", 16), h("span", {}, "Nueva"));
-  const sinSenalSlot = h("div", { class: "ra-optional" }); // «Sin señal · datos de las HH:MM» si se muestra la última copia
   const localesSlot = h("div", { class: "ra-optional" });  // grabaciones hechas sin señal que todavía no subieron
   view.append(h("div", { class: "stack-lg" },
     h("h1", { class: "sr-only" }, "Inicio"),
-    sinSenalSlot, todaySlot, anunciosSlot,
+    diaSlot, todaySlot, anunciosSlot,
     InstallPrompt({ dismissible: true }), PasskeyOffer(),
     localesSlot,
     h("section", { class: "stack", "aria-labelledby": "grabaciones-title" },
@@ -246,13 +249,15 @@ async function viewList() {
   void refreshLocales(); // antes de la lista del servidor: sin señal ni copia esa falla y las locales igual se ven
 
   const sessions = await Sessions.list();
-  sinSenalSlot.replaceChildren(SinSenal(sessions) ?? "");
   // Buscar en lo grabado: solo tiene sentido cuando hay alguna grabación procesada.
   if (sessions.some((s) => s.status === "ready")) searchSlot.replaceChildren(search = RecordingSearch());
-  TodayPanel(sessions)
+  const hoy = TodayPanel(sessions);
+  const anuncios = Anuncios.get();  // una sola vez: lo usan la fila de anuncios y la franja del día (la keynote)
+  hoy
     .then(({ el }) => todaySlot.replaceChildren(el))
     .catch((err) => todaySlot.replaceChildren(h("p", { class: "caption" }, `No se pudo cargar Hoy: ${mensajeError(err)}`)));
-  AnunciosRail(sessions)
+  void FranjaDia({ hoy: hoy.then(({ data }) => data), anuncios }).then((el) => diaSlot.replaceChildren(el ?? ""));
+  AnunciosRail(sessions, anuncios)
     .then((el) => anunciosSlot.replaceChildren(el || ""))
     .catch((err) => anunciosSlot.replaceChildren(h("p", { class: "caption" }, `No se pudieron cargar los anuncios: ${mensajeError(err)}`)));
   list.replaceChildren();
@@ -701,6 +706,7 @@ async function viewSettings() {
 
 // --- arranque ----------------------------------------------------------------
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+iniciarEstado();  // banner de estado: sin señal, subidas, servicio y versión nueva (estadoBanner.js)
 // Sede reciente para el recordatorio "¿la grabás?": solo con la app abierta (una PWA no tiene GPS en segundo plano).
 const reportVenueIfLoggedIn = () => { if (getToken() && !mustChangePassword()) void reportVenue(); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reportVenueIfLoggedIn(); });

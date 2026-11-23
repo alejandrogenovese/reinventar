@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banner de estado · mock</title>
+<style>
+  /* Tokens copiados de web/css/tokens.css (1.1.2). El oscuro va en .t-dark para poder mostrar los dos temas lado a lado. */
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("../../web/fonts/inter-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; src: url("../../web/fonts/inter-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; src: url("../../web/fonts/inter-latin-700-normal.woff2") format("woff2"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("../../web/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
+  :root, .t-light {
+    color-scheme: light;
+    --bg: #f4f4f4; --surface-1: #ffffff; --surface-2: #f9f9f9; --surface-3: #ececec;
+    --ink: #1f1f1f; --ink-muted: #5f5f5f; --line: #e3e3e3; --line-strong: #8a8a8a;
+    --brand: #fa6400; --on-brand: #1a1a1a; --brand-ink: #a84308; --brand-soft: #ffe8d9;
+    --success: #1f7a1f; --success-soft: #e4f2e4; --on-success-soft: #1a6b1d;
+    --warning: #e99d09; --warning-soft: #fdf1d8; --on-warning-soft: #3d2a00;
+    --error: #c51111; --error-soft: #fbe5e5; --on-error-soft: #a30f0f; --on-error: #ffffff;
+    --info: #2970bc; --info-soft: #e3eef9; --on-info-soft: #1d5a9a;
+    --focus: #0e7bc4;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .05), 0 1px 3px rgb(0 0 0 / .05);
+    --shadow-3: 0 3px 5px -1px rgb(0 0 0 / .2), 0 6px 10px rgb(0 0 0 / .14), 0 1px 18px rgb(0 0 0 / .12);
+    --edge: 0 0 0 1px var(--line);
+    --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-data: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --t-title: 700 20px/26px var(--font-ui); --t-heading: 600 17px/23px var(--font-ui);
+    --t-body: 400 16px/24px var(--font-ui); --t-small: 400 14px/20px var(--font-ui);
+    --t-small-strong: 600 14px/20px var(--font-ui); --t-micro: 600 12px/16px var(--font-ui);
+    --t-data: 500 13px/18px var(--font-data);
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+    --radius-s: 6px; --radius-m: 12px; --radius-l: 16px; --radius-pill: 999px;
+    --touch: 44px; --ease: 150ms ease-in-out;
+  }
+  .t-dark {
+    color-scheme: dark;
+    --bg: #111111; --surface-1: #1b1b1b; --surface-2: #222222; --surface-3: #2d2d2d;
+    --ink: #f2f2f2; --ink-muted: #a8a8a8; --line: #2e2e2e; --line-strong: #6e6e6e;
+    --brand-ink: #ff9a57; --brand-soft: #3a2210;
+    --success: #5cc45c; --success-soft: #16301a; --on-success-soft: #7fd67f;
+    --warning: #f2b23a; --warning-soft: #33280f; --on-warning-soft: #ffe2a8;
+    --error: #ff6b61; --error-soft: #3a1614; --on-error-soft: #ff9a92; --on-error: #1a0a09;
+    --info: #6ba6e6; --info-soft: #14263a; --on-info-soft: #9cc6f2;
+    --focus: #6bb8f0;
+    --shadow-1: none; --shadow-3: 0 0 0 1px var(--line-strong);
+    --edge: inset 0 0 0 1px rgb(255 255 255 / .07);
+  }
+
+  /* ---------- página del mock ---------- */
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px 32px 80px; background: #dcdcdc; color: #1f1f1f; font: 400 15px/1.5 var(--font-ui);
+    font-feature-settings: "cv11", "ss01"; }
+  .doc { max-width: 1320px; margin: 0 auto; }
+  .doc > h1 { font: 700 30px/36px var(--font-ui); letter-spacing: -0.02em; margin: 0 0 8px; }
+  .doc > p.lead { max-width: 80ch; margin: 0 0 32px; color: #444; }
+  .doc code, .reglas code { font: 500 12.5px var(--font-data); background: #ececec; padding: 1px 4px; border-radius: 4px; }
+  .estado { margin: 56px 0 0; }
+  .estado h2 { font: 700 20px/26px var(--font-ui); margin: 0 0 4px; }
+  .estado .nota { margin: 0 0 16px; max-width: 95ch; color: #444; font-size: 14px; }
+  .fila { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+  .marco-rotulo { font: 600 12px/16px var(--font-ui); color: #555; margin: 0 0 6px; }
+
+  /* Celular 390 × 640 */
+  .cel { width: 390px; height: 640px; border-radius: 40px; padding: 10px; background: #0d0d0d; box-shadow: 0 10px 30px rgb(0 0 0 / .25); }
+  .cel .pantalla { position: relative; width: 100%; height: 100%; border-radius: 31px; overflow: hidden; background: var(--bg);
+    color: var(--ink); font: var(--t-body); display: flex; flex-direction: column; }
+  .cel .notch { height: 34px; flex: none; background: var(--bg); }            /* safe-area-inset-top */
+  .cel .contenido { flex: 1; overflow: hidden; padding: 0 16px; }
+  /* Escritorio 1000 × 430 */
+  .esc { width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgb(0 0 0 / .2); background: #2b2b2b; }
+  .esc .cromo { height: 30px; display: flex; gap: 7px; align-items: center; padding: 0 12px; }
+  .esc .cromo i { width: 11px; height: 11px; border-radius: 50%; background: #5a5a5a; }
+  .esc .pantalla { height: 430px; background: var(--bg); color: var(--ink); font: var(--t-body); overflow: hidden; }
+  .esc .app { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- app (lo mínimo de styles.css para ubicar el banner) ---------- */
+  .masthead { background: var(--bg); margin: 0 -16px; padding: 0 16px; }
+  .top-banners { display: flex; flex-direction: column; gap: 6px; }
+  .top-banners:empty { display: none; }
+  .topbar { display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font: 700 18px/1 var(--font-ui); color: var(--ink); }
+  .brand b { color: var(--brand-ink); font-weight: 700; }
+  .brand .logo { width: 28px; height: 28px; border-radius: 7px; background: var(--brand); }
+  .toolbar { margin-left: auto; display: flex; }
+  .iconbtn { width: 44px; height: 44px; display: grid; place-items: center; color: var(--ink-muted); }
+  .navbar-esc { display: flex; gap: 4px; margin-left: auto; font: var(--t-small-strong); color: var(--ink-muted); }
+  .navbar-esc span { padding: 10px 12px; }
+  .navbar-esc span[aria-current] { color: var(--ink); box-shadow: inset 0 -3px 0 var(--brand); }
+  .navbar-cel { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line);
+    background: var(--surface-1); padding: 4px 8px 22px; }
+  .navbar-cel span { min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; font: var(--t-micro); color: var(--ink-muted); position: relative; }
+  .navbar-cel span::before { content: ""; width: 22px; height: 22px; border-radius: 6px; border: 2px solid currentColor; opacity: .7; }
+  .navbar-cel span[aria-current] { color: var(--ink); }
+  .navbar-cel span[aria-current]::after { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 3px; background: var(--brand); }
+
+  .sandbox-banner { background: var(--warning); color: #1a1a1a; font: var(--t-small-strong); text-align: center; padding: 4px 16px; margin: 0 -16px; }
+  .countdown-banner { display: flex; align-items: center; gap: 8px; padding: 0 0 0 16px; font: var(--t-small-strong);
+    background: var(--surface-1); color: var(--ink); box-shadow: var(--edge); border-radius: 0 0 var(--radius-m) var(--radius-m); min-height: 44px; }
+  .countdown-banner.is-urgent { background: var(--error); color: var(--on-error); }
+  .countdown-banner .t { flex: 1; font-variant-numeric: tabular-nums; }
+
+  .h-sec { font: var(--t-title); margin: 20px 0 10px; }
+  .card { background: var(--surface-1); border-radius: var(--radius-m); padding: 14px 16px; box-shadow: var(--edge), var(--shadow-1); margin-bottom: 10px; }
+  .card .k { font: var(--t-data); color: var(--ink-muted); }
+  .card .tt { font: var(--t-heading); margin-top: 2px; }
+  .card .m { font: var(--t-small); color: var(--ink-muted); margin-top: 2px; }
+  .card.is-now { box-shadow: 0 0 0 2px var(--brand); }
+
+  /* =====================================================================================
+     PROPUESTA: .estado-banner — un solo lugar (#estado-banner) dentro de .top-banners.
+     ===================================================================================== */
+  .estado-banner { display: flex; align-items: center; gap: 4px; min-height: var(--touch); padding: 0 0 0 var(--space-4);
+    border-radius: 0 0 var(--radius-m) var(--radius-m); font: var(--t-small-strong); box-shadow: var(--edge); }
+  .estado-banner .eb-ico { flex: none; width: 20px; height: 20px; margin-right: 6px; }
+  /* Sin recorte: el copy es corto y cortarlo escondería el dato (cuántos pendientes). En 390 px ocupa hasta 3 líneas. */
+  .estado-banner .eb-texto { flex: 1; min-width: 0; margin: 0; padding: 10px 0; overflow-wrap: anywhere; }
+  .estado-banner .eb-texto span { font-weight: 400; }   /* el detalle, sin negrita */
+  .estado-banner .eb-texto .eb-dato { font: 500 13px/18px var(--font-data); font-variant-numeric: tabular-nums; }
+  .eb-accion { flex: none; min-height: var(--touch); padding: 0 var(--space-3); border: 0; background: none; color: inherit; cursor: pointer;
+    font: var(--t-small-strong); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; white-space: nowrap; }
+  .eb-mas { flex: none; min-height: var(--touch); min-width: var(--touch); padding: 0 6px; border: 0; background: none; color: inherit; cursor: pointer; }
+  .eb-mas span { display: inline-grid; place-items: center; min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-pill);
+    border: 1.5px solid currentColor; font: var(--t-micro); }
+  .eb-cerrar { flex: none; width: var(--touch); height: var(--touch); display: grid; place-items: center; border: 0; background: none;
+    color: inherit; cursor: pointer; }
+  .estado-banner :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 8px; }
+  /* Tonos: fondo -soft + texto --on-*-soft (≥ 5,7:1 en los dos temas). Nunca naranja. */
+  .estado-banner.is-warn  { background: var(--warning-soft); color: var(--on-warning-soft); box-shadow: none; }
+  .estado-banner.is-error { background: var(--error-soft); color: var(--on-error-soft); box-shadow: none; }
+  .estado-banner.is-info  { background: var(--info-soft); color: var(--on-info-soft); box-shadow: none; }
+  .estado-banner.is-ok    { background: var(--success-soft); color: var(--on-success-soft); box-shadow: none; }
+  .estado-banner.is-neutro { background: var(--surface-1); color: var(--ink); }
+  .estado-banner.is-neutro .eb-ico { color: var(--info); }
+  .estado-banner.is-neutro .eb-accion { color: var(--brand-ink); }
+  /* Angosto (celular): la acción baja a una segunda fila, alineada con el texto, así el texto no queda en 5 líneas de 15 letras. */
+  .top-banners { container-type: inline-size; }
+  @container (max-width: 520px) {
+    .estado-banner { display: grid; grid-template-columns: 26px 1fr var(--touch); align-items: start; column-gap: 0; }
+    .estado-banner .eb-ico { grid-column: 1; margin-top: 10px; }
+    .estado-banner .eb-texto { grid-column: 2; }
+    .estado-banner .eb-cerrar, .estado-banner .eb-mas { grid-column: 3; grid-row: 1; }
+    .estado-banner .eb-accion { grid-column: 2; justify-self: start; margin: -8px 0 0 -12px; }
+  }
+  .eb-gira { animation: eb-gira 1.2s linear infinite; }
+  @keyframes eb-gira { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .eb-gira { animation: none; } }
+
+  /* Franja del día: NO es un banner. Vive en Inicio, arriba de «Hoy». */
+  .dia { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin: 16px 0 4px; font: var(--t-small); color: var(--ink-muted); }
+  .dia strong { font: var(--t-heading); color: var(--ink); width: 100%; }
+  .dia .sep { color: var(--line-strong); }
+  .dia .vivo { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: var(--radius-pill);
+    background: var(--brand-soft); color: var(--brand-ink); font: var(--t-micro); }
+  .dia .vivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+  .dia .num { font: var(--t-data); color: var(--ink); }
+
+  /* Hoja «Avisos» / «Novedades» (patrón .ra-sheet) */
+  .capa:empty { display: none; }
+  .hoja-velo { position: absolute; inset: 0; background: rgb(0 0 0 / .45); display: flex; align-items: flex-end; }
+  .hoja { width: 100%; max-height: 82%; background: var(--surface-1); color: var(--ink); border-radius: var(--radius-l) var(--radius-l) 0 0;
+    box-shadow: var(--shadow-3); display: flex; flex-direction: column; }
+  .hoja-cab { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 8px 24px; border-bottom: 1px solid var(--line); }
+  .hoja-cab h3 { margin: 0; font: var(--t-title); }
+  .hoja-cuerpo { padding: 12px 24px 28px; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
+  .hoja-item { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: var(--radius-m); font: var(--t-small); }
+  .hoja-item b { display: block; font: var(--t-small-strong); }
+  .hoja-item svg { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+  .hoja .pie { margin: 4px 0 0; font: var(--t-small); color: var(--ink-muted); }
+  .nov h4 { margin: 4px 0 0; font: var(--t-small-strong); color: var(--ink-muted); }
+  .nov ul { margin: 0; padding-left: 18px; font: var(--t-small); display: grid; gap: 6px; }
+  .btn { min-height: 48px; border-radius: var(--radius-m); border: 1px solid transparent; font: 600 16px/22px var(--font-ui);
+    padding: 12px 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-primary { background: var(--brand); color: var(--on-brand); }
+  .btn-secondary { background: var(--surface-1); color: var(--ink); border-color: var(--line-strong); }
+
+  /* Reglas y tabla */
+  .reglas { background: #fff; border-radius: 12px; padding: 20px 24px; margin-top: 24px; font-size: 14px; }
+  .reglas h3 { margin: 0 0 8px; font: 700 17px/23px var(--font-ui); }
+  .reglas table { border-collapse: collapse; width: 100%; }
+  .reglas th, .reglas td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e3e3e3; vertical-align: top; }
+  .reglas th { font-weight: 600; color: #555; }
+</style>
+</head>
+<body>
+<!-- Íconos (trazo, 24×24, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sinsenal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M19 12.9a10 10 0 0 0-2.3-1.6M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8A15 15 0 0 0 11 5M12 20h.01"/></symbol>
+  <symbol id="i-subir" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-nuevo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-cerrar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-reloj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+
+<div class="doc">
+  <h1>Banner de estado · ReinventAR 1.1.2</h1>
+  <p class="lead">Un solo lugar, <code>#estado-banner</code>, dentro de <code>.top-banners</code> (el masthead pegado arriba). Muestra
+    <strong>un aviso por vez</strong>, el de mayor prioridad, y si hay más, un botón «+N» que abre la hoja «Avisos» con todos.
+    No rota: rotar texto cada X segundos le quita al lector de pantalla y a quien lee despacio (WCAG 2.2.2). El naranja no
+    aparece en el banner: lo usan la acción principal y el «en vivo». Cada estado se ve en celular (390 px, claro y oscuro) y en escritorio.</p>
+
+  <div class="reglas">
+    <h3>Prioridad (de arriba hacia abajo) y reglas</h3>
+    <table>
+      <tr><th>#</th><th>Estado</th><th>Tono</th><th>¿Se cierra?</th><th>Acción</th></tr>
+      <tr><td>1</td><td>Sin señal (con lo que espera subirse)</td><td>warning</td><td>No: se va solo cuando vuelve la red</td><td>Ver pendientes</td></tr>
+      <tr><td>2</td><td>Servicio caído (resúmenes, Preguntar, transcripción)</td><td>error</td><td>Sí, hasta que cambie el estado o 6 h</td><td>Ver estado</td></tr>
+      <tr><td>3</td><td>No se pudo subir (con red, la cola falló)</td><td>error</td><td>No</td><td>Reintentar</td></tr>
+      <tr><td>4</td><td>Subiendo (volvió la señal)</td><td>info</td><td>No; pasa a «Todo subido»</td><td>—</td></tr>
+      <tr><td>5</td><td>Servicio demorado / datos atrasados</td><td>warning</td><td>Sí, 6 h o hasta que cambie</td><td>Ver estado</td></tr>
+      <tr><td>6</td><td>Versión nueva</td><td>neutro</td><td>Sí, hasta la próxima vez que abras la app</td><td>Ver novedades</td></tr>
+      <tr><td>7</td><td>Todo subido · Actualizada a X</td><td>success · neutro</td><td>«Todo subido» se va sola a los 5 s; «Actualizada» se cierra y no vuelve</td><td>Qué cambió</td></tr>
+      <tr><td>—</td><td>Estado del día</td><td>—</td><td>No es banner: va en Inicio, arriba de «Hoy»</td><td>—</td></tr>
+    </table>
+    <p style="margin:12px 0 0">Todos van con <code>role="status"</code> (polite, nunca alert: ninguno exige actuar ya; el único alert sigue siendo
+      <code>#changes-banner</code>). Orden en <code>.top-banners</code>: <code>#sandbox-banner</code> (solo tester) → <code>#estado-banner</code> →
+      <code>#changes-banner</code> → <code>#countdown-banner</code>. Con «Salí ya» (countdown urgente), el estado muestra solo las prioridades 1 a 3.
+      En <code>#/grabar/*</code> no aparece «Versión nueva», porque actualizar recarga la página y cortaría la grabación.</p>
+  </div>
+
+  <div id="estados"></div>
+</div>
+
+<!-- ======================= plantillas ======================= -->
+<template id="tpl-cel">
+  <div><p class="marco-rotulo"></p>
+  <div class="cel"><div class="pantalla">
+    <div class="notch"></div>
+    <div class="contenido">
+      <div class="masthead"><div class="top-banners"></div>
+        <header class="topbar"><span class="brand"><span class="logo"></span>Reinvent<b>AR</b></span>
+          <span class="toolbar"><span class="iconbtn">◐</span><span class="iconbtn">⚙</span></span></header></div>
+      <div class="vista"></div>
+    </div>
+    <nav class="navbar-cel"><span aria-current="page">Inicio</span><span>Buscar</span><span>Itinerario</span><span>Eventos</span><span>Viaje</span></nav>
+    <div class="capa"></div>
+  </div></div></div>
+</template>
+<template id="tpl-esc">
+  <div><p class="marco-rotulo">Escritorio · claro</p>
+  <div class="esc t-light"><div class="cromo"><i></i><i></i><i></i></div><div class="pantalla"><div class="app">
+    <div class="masthead"><div class="top-banners"></div>
+      <header class="topbar"><span class="brand"><span class="logo"></span>Reinvent<b>AR</b></span>
+        <nav class="navbar-esc"><span aria-current="page">Inicio</span><span>Buscar</span><span>Itinerario</span><span>Eventos</span><span>Viaje</span></nav>
+        <span class="toolbar" style="margin-left:0"><span class="iconbtn">◐</span><span class="iconbtn">⚙</span></span></header></div>
+    <div class="vista"></div>
+  </div></div></div></div>
+</template>
+
+<script>
+// Arma cada estado en tres marcos (celular claro, celular oscuro, escritorio) con el mismo HTML del banner.
+const ico = (id, extra = "") => `<svg class="eb-ico ${extra}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const cerrar = (que) => `<button class="eb-cerrar" type="button" aria-label="Cerrar aviso: ${que}"><svg width="20" height="20" aria-hidden="true"><use href="#i-cerrar"/></svg></button>`;
+const banner = (tono, inner) => `<div class="estado-banner ${tono}" role="status" aria-live="polite" aria-atomic="true">${inner}</div>`;
+const dato = (t) => `<span class="eb-dato">${t}</span>`;
+
+const DIA_CONF = `<p class="dia"><strong>Martes 1/12</strong><span>Día <span class="num">2</span> de 5</span><span class="sep">·</span>
+  <span>Keynote <span class="num">8:00</span></span><span class="sep">·</span><span><span class="num">3</span> charlas en tu agenda</span></p>`;
+const CUERPO = `
+  <h2 class="h-sec">Hoy</h2>
+  <div class="card is-now"><div class="k">ANT301 · 10:00–11:00</div><div class="tt">Agentes en producción con Bedrock</div><div class="m">Venetian · Nivel 3 · Lando 4301</div></div>
+  <div class="card"><div class="k">DAT402 · 13:00</div><div class="tt">Lakehouse con Iceberg en S3 Tables</div><div class="m">MGM Grand · Nivel 1</div></div>
+  <div class="card"><div class="k">ARC407 · 15:30</div><div class="tt">Arquitecturas multi-región</div><div class="m">Caesars Forum</div></div>`;
+const INICIO = DIA_CONF + CUERPO;
+
+const B = {
+  sinSenal: banner("is-warn", `${ico("sinsenal")}<p class="eb-texto">Sin señal · datos de las ${dato("14:32")}.
+    <span>2 grabaciones y 3 gastos esperan subirse.</span></p><button class="eb-accion" type="button">Ver pendientes</button>`),
+  sinSenalSolo: banner("is-warn", `${ico("sinsenal")}<p class="eb-texto">Sin señal · datos de las ${dato("14:32")}.
+    <span>Lo que hagas se guarda en el celular.</span></p>`),
+  subiendo: banner("is-info", `${ico("subir", "eb-gira")}<p class="eb-texto">Volvió la señal · subiendo ${dato("2 de 5")}
+    <span>(grabaciones y gastos)</span></p>`),
+  subido: banner("is-ok", `${ico("ok")}<p class="eb-texto">Todo subido <span>· última sincronización</span> ${dato("14:41")}</p>`),
+  noSubio: banner("is-error", `${ico("error")}<p class="eb-texto">3 gastos no se pudieron subir. <span>Siguen guardados en este celular.</span></p>
+    <button class="eb-accion" type="button">Reintentar</button>`),
+  demora: banner("is-warn", `${ico("reloj")}<p class="eb-texto">Las transcripciones vienen con demora.
+    <span>Tus grabaciones están guardadas y se procesan solas.</span></p><button class="eb-accion" type="button">Ver estado</button>${cerrar("transcripciones con demora")}`),
+  caido: banner("is-error", `${ico("error")}<p class="eb-texto">Los resúmenes y Preguntar no andan por ahora.
+    <span>Grabar y transcribir siguen funcionando.</span></p><button class="eb-accion" type="button">Ver estado</button>${cerrar("resúmenes y Preguntar caídos")}`),
+  atrasado: banner("is-warn", `${ico("alerta")}<p class="eb-texto">Eventos y shows pueden estar desactualizados.
+    <span>La última revisión fue hace 7 h.</span></p>${cerrar("eventos desactualizados")}`),
+  version: banner("is-neutro", `${ico("nuevo")}<p class="eb-texto">Hay una versión nueva ${dato("1.1.3")}</p>
+    <button class="eb-accion" type="button">Ver novedades</button>${cerrar("versión nueva")}`),
+  actualizada: banner("is-neutro", `${ico("ok")}<p class="eb-texto">Actualizada a ${dato("1.1.3")}</p>
+    <button class="eb-accion" type="button">Qué cambió</button>${cerrar("actualizada")}`),
+  varios: banner("is-warn", `${ico("sinsenal")}<p class="eb-texto">Sin señal · datos de las ${dato("14:32")}.
+    <span>2 grabaciones esperan subirse.</span></p><button class="eb-mas" type="button" aria-label="Ver los 3 avisos"><span>+2</span></button>`),
+};
+
+const SANDBOX = `<div class="sandbox-banner" role="status">MODO PRUEBA · mar 1/12 09:42 · Venetian · STT fake · LLM fake</div>`;
+const COUNTDOWN_URG = `<div class="countdown-banner is-urgent"><span class="t">Salí ya · Agentes en producción en 12:40</span><span class="iconbtn" style="color:inherit">✕</span></div>`;
+const X = `<span class="iconbtn"><svg width="22" height="22" aria-hidden="true"><use href="#i-cerrar"/></svg></span>`;
+
+const HOJA_AVISOS = `<div class="hoja-velo"><div class="hoja" role="dialog" aria-modal="true" aria-labelledby="h-av">
+  <div class="hoja-cab"><h3 id="h-av">Avisos</h3>${X}</div>
+  <div class="hoja-cuerpo">
+    <div class="hoja-item" style="background:var(--warning-soft);color:var(--on-warning-soft)"><svg aria-hidden="true"><use href="#i-sinsenal"/></svg>
+      <div><b>Sin señal desde las 14:32</b>2 grabaciones esperan subirse. Se suben solas cuando vuelva la red. <u>Ver grabaciones</u></div></div>
+    <div class="hoja-item" style="background:var(--warning-soft);color:var(--on-warning-soft)"><svg aria-hidden="true"><use href="#i-reloj"/></svg>
+      <div><b>Transcripciones con demora</b>Las nuevas tardan más de lo normal. No hace falta hacer nada.</div></div>
+    <div class="hoja-item" style="background:var(--surface-2);box-shadow:var(--edge)"><svg aria-hidden="true" style="color:var(--info)"><use href="#i-nuevo"/></svg>
+      <div><b>Hay una versión nueva (1.1.3)</b>Se instala cuando vuelva la señal y recargues. <u style="color:var(--brand-ink)">Ver novedades</u></div></div>
+    <p class="pie">Última sincronización: 14:31 · Versión instalada: 1.1.2</p>
+  </div></div></div>`;
+
+const HOJA_NOV = `<div class="hoja-velo"><div class="hoja nov" role="dialog" aria-modal="true" aria-labelledby="h-nov">
+  <div class="hoja-cab"><h3 id="h-nov">Novedades de la 1.1.3</h3>${X}</div>
+  <div class="hoja-cuerpo">
+    <h4>Agregado</h4>
+    <ul><li><b>Editar vuelos y hoteles.</b> Cada vuelo y cada hotel tiene «Editar» en su ficha.</li>
+      <li><b>Excel de ejemplo para cruzar tus códigos.</b> Lo bajás, lo completás y lo subís tal cual.</li></ul>
+    <h4>Cambiado</h4>
+    <ul><li><b>Eventos y Shows llegan hasta el lunes 7/12 a las 13:00.</b></li></ul>
+    <div style="display:flex;gap:8px;margin-top:8px"><span class="btn btn-primary" style="flex:2">Actualizar ahora</span><span class="btn btn-secondary" style="flex:1">Después</span></div>
+  </div></div></div>`;
+
+const ESTADOS = [
+  { t: "1 · Sin señal, con pendientes", n: "Reemplaza la franja suelta «Sin señal · datos de las HH:MM» de cada pantalla (sinSenal.js). Los números salen de <code>store.sesionesLocalesPendientes()</code> y <code>gastosPendientes()</code>. «Ver pendientes» lleva a Inicio › «Grabadas en este celular» (o a Gastos si solo hay gastos). No se cierra.", b: B.sinSenal },
+  { t: "1b · Sin señal, sin pendientes", n: "Describe el estado. Empuja el contenido, no lo tapa: es parte del masthead y <code>--masthead-h</code> se recalcula.", b: B.sinSenalSolo },
+  { t: "2 · Volvió la señal: subiendo", n: "Info. El ícono gira, y queda quieto con reduced motion. Se anuncia al empezar y al terminar, no con cada número (aria-live solo al cambiar de estado).", b: B.subiendo },
+  { t: "3 · Todo subido", n: "Success. Se va sola a los 5 s: es una confirmación. La última sincronización queda en la hoja Avisos y en Ajustes.", b: B.subido },
+  { t: "4 · Con red, pero la cola falló", n: "Error: el gasto o la grabación falló varias veces o el servidor lo rechazó. «Reintentar» corre la cola de nuevo. No se cierra.", b: B.noSubio },
+  { t: "5 · Servicio demorado (transcripción)", n: "Warning. Lo decide el servidor: hay grabaciones en cola o transcribiendo hace más de 20 min. Se cierra por 6 h o hasta que cambie el nivel.", b: B.demora },
+  { t: "6 · Servicio caído (resúmenes y Preguntar)", n: "Error. Dice qué no anda y qué sí, sin jerga: nada de «LLM», «LiteLLM» ni «Langfuse».", b: B.caido },
+  { t: "7 · Datos atrasados (fuentes de eventos)", n: "Warning, solo si la fuente lleva 3 veces su intervalo sin revisarse o falló la última revisión (la regla de estadoFuente). Para el catálogo: «Los cambios de AWS en las charlas pueden tardar en aparecer».", b: B.atrasado },
+  { t: "8 · Versión nueva + hoja Novedades", n: "Neutro: superficie, ícono info y link brand-ink. «Ver novedades» abre la hoja con lo que dice el CHANGELOG. La acción principal de la hoja (naranja) es «Actualizar ahora», que recarga. No aparece en #/grabar/*.", b: B.version, hoja: HOJA_NOV },
+  { t: "9 · Después de actualizar", n: "Una sola vez por versión (localStorage <code>reinventar.version.vista</code>).", b: B.actualizada },
+  { t: "10 · Varios a la vez: «+N» y hoja Avisos", n: "Se ve el de mayor prioridad. «+2» (44 × 44, aria-label «Ver los 3 avisos») abre la hoja con todos y la última sincronización.", b: B.varios, hoja: HOJA_AVISOS },
+  { t: "11 · Convivencia: modo prueba + estado + «Salí ya»", n: "Orden fijo en el masthead. Con el countdown urgente, el estado muestra solo las prioridades 1 a 3. Entran las tres franjas y la tarjeta «Ahora» sigue a la vista.", b: SANDBOX + B.sinSenal + COUNTDOWN_URG },
+];
+
+const DIAS = [
+  ["Antes del viaje", `<p class="dia"><strong>Faltan 7 días para re:Invent</strong><span>Llegás el domingo 29/11</span></p>`],
+  ["Domingo de llegada", `<p class="dia"><strong>Domingo 29/11</strong><span>Llegada</span><span class="sep">·</span><span>re:Invent arranca mañana</span></p>`],
+  ["Día de conferencia", DIA_CONF],
+  ["Keynote en vivo (único naranja)", `<p class="dia"><strong>Martes 1/12</strong><span class="vivo">Keynote en vivo</span><span>Día <span class="num">2</span> de 5</span><span class="sep">·</span><span><span class="num">3</span> charlas en tu agenda</span></p>`],
+  ["Después de la conferencia", `<p class="dia"><strong>Sábado 5/12</strong><span>re:Invent terminó</span><span class="sep">·</span><span>la estadía sigue hasta el lunes 7/12 a las <span class="num">13:00</span></span></p>`],
+];
+
+const raiz = document.getElementById("estados");
+function marco(tpl, rotulo, tema, bannerHtml, vista, capa) {
+  const n = document.getElementById(tpl).content.cloneNode(true);
+  if (rotulo) n.querySelector(".marco-rotulo").textContent = rotulo;
+  if (tema) n.querySelector(".cel").classList.add(tema);
+  n.querySelector(".top-banners").innerHTML = bannerHtml;
+  n.querySelector(".vista").innerHTML = vista;
+  if (capa && n.querySelector(".capa")) n.querySelector(".capa").innerHTML = capa;
+  return n;
+}
+function seccion(titulo, nota) {
+  const s = document.createElement("section");
+  s.className = "estado";
+  s.innerHTML = `<h2>${titulo}</h2><p class="nota">${nota}</p><div class="fila"></div>`;
+  raiz.append(s);
+  return s.querySelector(".fila");
+}
+for (const e of ESTADOS) {
+  const fila = seccion(e.t, e.n);
+  fila.append(marco("tpl-cel", "Celular 390 · claro", "t-light", e.b, INICIO));
+  fila.append(marco("tpl-cel", e.hoja ? "Celular 390 · oscuro · con la hoja abierta" : "Celular 390 · oscuro", "t-dark", e.b, INICIO, e.hoja));
+  fila.append(marco("tpl-esc", null, null, e.b, INICIO));
+}
+const filaDia = seccion("12 · Estado del día (en Inicio, no en el masthead)",
+  "Encabeza «Hoy». Se calcula con <code>sandboxNow()</code> y el rango de <code>app/estadia.py</code>: conferencia del 30/11 al 4/12 (día N de 5) " +
+  "y estadía del 29/11 al 7/12 a las 13:00. La keynote sale de <code>/api/anuncios</code> y las charlas de <code>/api/today</code> (las de tu agenda). " +
+  "Lo único naranja es «en vivo». Fuera del rango (más de 14 días antes o después del 7/12) no se muestra.");
+DIAS.forEach(([rot, html], i) => filaDia.append(marco("tpl-cel", `Celular · ${rot}`, i % 2 ? "t-dark" : "t-light", "", html + CUERPO)));
+</script>
+</body>
+</html>

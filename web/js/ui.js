@@ -222,3 +222,22 @@ export function withCodeLinks(text, valid, { className = "ra-link" } = {}) {
   parts.push(text.slice(last));
   return parts;
 }
+
+/**
+ * Hoja que sube desde abajo en el celular (la misma de los filtros): título, cuerpo con scroll y, si hay, pie con acciones.
+ * Al cerrarse se saca del DOM y devuelve el foco a lo que la abrió.
+ */
+export function Hoja(idTitulo, titulo, cuerpo, pie = null) {
+  const opener = document.activeElement;
+  const dlg = h("dialog", { class: "ra-sheet", "aria-labelledby": idTitulo },
+    h("div", { class: "ra-sheet-head" },
+      h("h2", { class: "ra-dialog-title", id: idTitulo }, titulo),
+      h("button", { type: "button", class: "iconbtn", "aria-label": `Cerrar ${titulo.toLowerCase()}`, onclick: () => dlg.close() }, icon("cerrar", 24))),
+    h("div", { class: "ra-sheet-body" }, cuerpo),
+    pie ? h("div", { class: "ra-sheet-foot actions" }, pie) : null);
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => { dlg.remove(); if (opener?.isConnected) opener.focus(); });
+  document.body.append(dlg);
+  dlg.showModal();
+  return dlg;
+}

@@ -175,6 +175,71 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
 .countdown-banner.is-live { background: var(--success-soft); color: var(--on-success-soft); }
 .countdown-text { flex: 1; padding: 10px 0; color: inherit; text-decoration: none; font-variant-numeric: tabular-nums; }
 .countdown-close { display: grid; place-items: center; background: none; border: 0; color: inherit; width: var(--touch); height: var(--touch); flex: none; cursor: pointer; }
+/* Banner de estado (web/js/estadoBanner.js · demos/diseno/banner-status.html): un aviso por vez dentro de .top-banners.
+   Tonos: fondo -soft + texto --on-*-soft (≥ 5,7:1 en los dos temas). Nunca naranja: es de la acción principal y del «en vivo». */
+.top-banners { container-type: inline-size; }
+.estado-banner { display: flex; align-items: center; gap: var(--space-1); min-height: var(--touch); padding: 0 0 0 var(--space-4);
+  border-radius: 0 0 var(--radius-m) var(--radius-m); font: var(--t-small-strong); box-shadow: var(--edge); }
+.estado-banner[hidden] { display: none; }
+.estado-banner .eb-ico { flex: none; width: 20px; height: 20px; margin-right: 6px; }
+/* Sin recorte: el copy es corto y cortarlo escondería el dato (cuántos pendientes). En 390 px ocupa hasta 3 líneas. */
+.estado-banner .eb-texto { flex: 1; min-width: 0; margin: 0; padding: 10px 0; overflow-wrap: anywhere; }
+.estado-banner .eb-texto span { font-weight: 400; }
+.estado-banner .eb-texto .eb-dato { font: var(--t-data); font-variant-numeric: tabular-nums; }
+.eb-accion { flex: none; min-height: var(--touch); padding: 0 var(--space-3); border: 0; background: none; color: inherit; cursor: pointer;
+  font: var(--t-small-strong); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; white-space: nowrap; }
+.eb-mas { flex: none; min-height: var(--touch); min-width: var(--touch); padding: 0 6px; border: 0; background: none; color: inherit; cursor: pointer; }
+.eb-mas span { display: inline-grid; place-items: center; min-width: 32px; height: 28px; padding: 0 var(--space-2); border-radius: var(--radius-pill);
+  border: 1.5px solid currentColor; font: var(--t-micro); }
+.eb-cerrar { flex: none; width: var(--touch); height: var(--touch); display: grid; place-items: center; border: 0; background: none; color: inherit; cursor: pointer; }
+.estado-banner :focus-visible, .eb-item :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: var(--radius-s); }
+.estado-banner.is-warn { background: var(--warning-soft); color: var(--on-warning-soft); box-shadow: none; }
+.estado-banner.is-error { background: var(--error-soft); color: var(--on-error-soft); box-shadow: none; }
+.estado-banner.is-info { background: var(--info-soft); color: var(--on-info-soft); box-shadow: none; }
+.estado-banner.is-ok { background: var(--success-soft); color: var(--on-success-soft); box-shadow: none; }
+.estado-banner.is-neutro { background: var(--surface-1); color: var(--ink); }
+.estado-banner.is-neutro .eb-ico { color: var(--info); }
+.estado-banner.is-neutro .eb-accion { color: var(--brand-ink); }
+/* Angosto (celular): la acción baja a una segunda fila, alineada con el texto, así el texto no queda en 5 líneas de 15 letras. */
+@container (max-width: 520px) {
+  .estado-banner { display: grid; grid-template-columns: 26px 1fr var(--touch); align-items: start; column-gap: 0; }
+  .estado-banner[hidden] { display: none; }
+  .estado-banner .eb-ico { grid-column: 1; margin-top: 10px; }
+  .estado-banner .eb-texto { grid-column: 2; }
+  .estado-banner .eb-cerrar, .estado-banner .eb-mas { grid-column: 3; grid-row: 1; }
+  .estado-banner .eb-accion { grid-column: 2; justify-self: start; margin: -8px 0 0 -12px; }
+}
+.eb-gira { animation: eb-gira 1.2s linear infinite; }
+@keyframes eb-gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .eb-gira { animation: none; } }
+/* Hojas «Avisos» y «Novedades» (patrón .ra-sheet) */
+.eb-lista { list-style: none; margin: 0; padding: var(--space-3) 0 0; display: flex; flex-direction: column; gap: 10px; }
+.eb-item { display: flex; gap: 10px; align-items: flex-start; padding: var(--space-3); border-radius: var(--radius-m); font: var(--t-small); }
+.eb-item .eb-ico { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.eb-item-texto { flex: 1; min-width: 0; }
+.eb-item-texto b { display: block; font: var(--t-small-strong); }
+.eb-item .eb-accion { display: block; min-height: var(--touch); padding: 0; }
+.eb-item .eb-cerrar { margin: -10px -10px 0 0; }
+.eb-item.is-warn { background: var(--warning-soft); color: var(--on-warning-soft); }
+.eb-item.is-error { background: var(--error-soft); color: var(--on-error-soft); }
+.eb-item.is-info { background: var(--info-soft); color: var(--on-info-soft); }
+.eb-item.is-ok { background: var(--success-soft); color: var(--on-success-soft); }
+.eb-item.is-neutro { background: var(--surface-2); color: var(--ink); box-shadow: var(--edge); }
+.eb-item.is-neutro .eb-ico { color: var(--info); }
+.eb-item.is-neutro .eb-accion { color: var(--brand-ink); }
+.eb-pie { margin: var(--space-2) 0 var(--space-6); }
+.eb-nov-cuerpo { padding: var(--space-3) 0 var(--space-6); }
+.eb-nov h4 { margin: var(--space-3) 0 var(--space-1); font: var(--t-small-strong); color: var(--ink-muted); }
+.eb-nov ul { margin: 0; padding-left: 18px; font: var(--t-small); display: grid; gap: 6px; }
+
+/* Franja del día (web/js/today.js): NO es un banner. Vive en Inicio, arriba de «Hoy». Lo único naranja es «en vivo». */
+.dia { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); margin: 0; font: var(--t-small); color: var(--ink-muted); }
+.dia strong { font: var(--t-heading); color: var(--ink); width: 100%; }
+.dia .sep { color: var(--line-strong); }
+.dia .vivo { display: inline-flex; align-items: center; gap: 6px; padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--brand-soft); color: var(--brand-ink); font: var(--t-micro); }
+.dia .vivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+.dia .num { font: var(--t-data); color: var(--ink); }
 .changes-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); font: var(--t-small); background: var(--warning-soft); color: var(--on-warning-soft); box-shadow: var(--edge); }
 .changes-banner[hidden] { display: none; }
 .changes-banner p { flex: 1; margin: 0; }

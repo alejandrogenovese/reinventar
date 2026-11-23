@@ -104,10 +104,11 @@ function railControls(rail, total) {
 
 /**
  * Fila «Anuncios sin reserva» para Inicio. `sessions` son las grabaciones (para no grabar dos veces la misma charla).
- * Devuelve null si no queda ningún anuncio: la sección no se dibuja (sin estado vacío en Inicio).
+ * Devuelve null si no queda ningún anuncio: la sección no se dibuja (sin estado vacío en Inicio). `pedido` deja reusar
+ * el de Inicio (la franja del día también lo lee).
  */
-export async function AnunciosRail(sessions) {
-  const data = await Anuncios.get();
+export async function AnunciosRail(sessions, pedido = Anuncios.get()) {
+  const data = await pedido;
   if (!data.items.length) return null;
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
   const cards = data.items.map((s) => h("li", {}, AnnCard(s, { isToday: data.is_today, recorded })));

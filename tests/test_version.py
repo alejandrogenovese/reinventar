@@ -1,4 +1,4 @@
-"""Una sola versión: app/__init__.py manda; /health, el service worker y el CHANGELOG la repiten."""
+"""Una sola versión: app/__init__.py manda; /health, el service worker, web/js/version.js y el CHANGELOG la repiten."""
 import re
 from pathlib import Path
 
@@ -26,6 +26,13 @@ def test_service_worker_usa_la_misma_version():
     sw = (ROOT / "web" / "sw.js").read_text()
 
     assert f'const VERSION = "reinventar-v{__version__}";' in sw
+
+
+def test_la_pwa_conoce_su_version():
+    # El banner de estado la compara con la de /api/estado para avisar «Hay una versión nueva».
+    version_js = (ROOT / "web" / "js" / "version.js").read_text()
+
+    assert f'export const VERSION = "{__version__}";' in version_js
 
 
 def test_changelog_documenta_la_version_actual():
