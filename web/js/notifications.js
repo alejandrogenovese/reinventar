@@ -137,7 +137,8 @@ export async function prenderSede(d) {
 function ViajesSettings() {
   const campos = [["viajes_checkin", "Avisarme cuándo abre el check-in de mis vuelos"],
     ["viajes_hoteles", "Avisarme el check-in y el check-out del hotel"],
-    ["viajes_estado", "Avisarme demoras y cambios de puerta de mis vuelos"]];
+    ["viajes_estado", "Avisarme demoras y cambios de puerta de mis vuelos"],
+    ["viajes_pendientes", "Recordarme los pendientes del viaje (fecha límite y los días antes de salir)"]];
   const switches = campos.map(([clave, texto]) => ({ clave, ...Switch(`push-${clave}`, texto) }));
   const save = () => Viajes.savePrefs(Object.fromEntries(switches.map((s) => [s.clave, s.input.checked])));
   for (const sw of switches) {
@@ -149,7 +150,7 @@ function ViajesSettings() {
   }
   void Viajes.prefs().then((p) => { for (const sw of switches) { sw.input.checked = p[sw.clave] !== false; sw.input.disabled = false; } }).catch(() => {});
   return h("div", { class: "stack" }, ...switches.map((s) => s.row),
-    h("p", { class: "caption" }, "Los vuelos y hoteles se cargan en Viajes. Las alertas de demora y puerta necesitan que el servidor tenga activado el estado de vuelos."));
+    h("p", { class: "caption" }, "Los vuelos, hoteles y pendientes se cargan en Viaje. Las alertas de demora y puerta necesitan que el servidor tenga activado el estado de vuelos."));
 }
 
 /** "Recordarme grabar" y "Avisarme de eventos nuevos" (prendidos) y "Usar en qué sede estoy para los avisos" (apagado;

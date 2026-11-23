@@ -162,6 +162,16 @@ export const Viajes = {
   savePrefs: (prefs) => api("/api/viajes/preferencias", { method: "PUT", json: prefs }),
 };
 
+// Pendientes del viaje (app/pendientes_api.py): el GET siembra la lista sugerida la primera vez.
+const urlPendiente = (id, resto = "") => `/api/viajes/pendientes/${encodeURIComponent(id)}${resto}`;
+export const Pendientes = {
+  get: () => api("/api/viajes/pendientes"),
+  agregar: (json) => api("/api/viajes/pendientes", { method: "POST", json }),
+  editar: (id, json) => api(urlPendiente(id), { method: "PUT", json }),
+  marcar: (id, hecho) => api(urlPendiente(id, "/hecho"), { method: hecho ? "POST" : "DELETE" }),
+  borrar: (id) => api(urlPendiente(id), { method: "DELETE" }),
+};
+
 export const Today = {
   get: () => apiConUltimaCopia("/api/today"),
 };
