@@ -112,7 +112,7 @@ function Banner(aviso, cuantos) {
   const lateral = cuantos > 1
     ? h("button", { type: "button", class: "eb-mas", "aria-label": `Ver los ${cuantos} avisos`, onclick: abrirAvisos }, h("span", {}, `+${cuantos - 1}`))
     : aviso.cierre ? BotonCerrar(aviso, () => document.getElementById("view")?.focus({ preventScroll: true })) : null;
-  return [Icono(aviso), Texto(aviso), accion, lateral];
+  return [Icono(aviso), Texto(aviso), accion, lateral].filter(Boolean); // replaceChildren pinta null como texto
 }
 
 /** Pinta el aviso de mayor prioridad. No repinta si no cambió nada (aria-live anunciaría lo mismo otra vez). */
