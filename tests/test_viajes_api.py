@@ -69,13 +69,13 @@ def test_cada_persona_ve_y_borra_solo_lo_suyo(cli):
 
 def test_las_preferencias_arrancan_prendidas_y_se_guardan_sin_pisar_las_de_grabar(cli):
     assert cli.get("/api/viajes/preferencias", headers=cli.H).json() == {
-        "viajes_checkin": True, "viajes_hoteles": True, "viajes_estado": True}
+        "viajes_checkin": True, "viajes_hoteles": True, "viajes_estado": True, "viajes_pendientes": True}
     cli.put("/api/push/preferencias", headers=cli.H, json={"grabar": False, "ubicacion": False})
 
     r = cli.put("/api/viajes/preferencias", headers=cli.H, json={
         "viajes_checkin": False, "viajes_hoteles": True, "viajes_estado": False})
 
-    assert r.json() == {"viajes_checkin": False, "viajes_hoteles": True, "viajes_estado": False}
+    assert r.json() == {"viajes_checkin": False, "viajes_hoteles": True, "viajes_estado": False, "viajes_pendientes": True}
     assert cli.get("/api/push/preferencias", headers=cli.H).json()["grabar"] is False
 
 
