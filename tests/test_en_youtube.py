@@ -62,3 +62,12 @@ def test_el_itinerario_expone_en_youtube_por_charla(client, headers):
     assert r.status_code == 200
     charlas = {s["code"]: s["en_youtube"] for d in r.json()["days"] for s in d["sessions"]}
     assert charlas == {"ANT301": True, "ANT302": False, "KEY001": True}
+
+
+@pytest.mark.parametrize(("base", "esperado"), [("ANT301", True), ("ANT302", False), ("KEY001", True)])
+def test_la_ficha_de_la_charla_expone_en_youtube(client, headers, base, esperado):
+    # La ficha (knowledge.js) y su botón «Grabar esta charla» usan este endpoint, no catalog.card().
+    r = client.get(f"/api/catalog/sessions/{base}", headers=headers)
+
+    assert r.status_code == 200
+    assert r.json()["en_youtube"] is esperado

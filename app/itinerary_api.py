@@ -104,7 +104,8 @@ def catalog_detail(base: str):
     s = catalog.get_session(base)
     if not s:
         raise HTTPException(404, "Sesión inexistente")
-    return s
+    # Copia: no se toca la sesión del catálogo en memoria. La ficha usa en_youtube para la etiqueta y el aviso al grabar.
+    return {**s, "en_youtube": catalog.se_publica_en_youtube(s.get("type"))}
 
 
 @router.get("/api/itinerary/profile")
