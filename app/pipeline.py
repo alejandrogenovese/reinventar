@@ -69,6 +69,11 @@ def start_worker():
     threading.Thread(target=_loop, name="pipeline", daemon=True).start()
 
 
+def vivo() -> bool:
+    """Si el hilo que procesa las grabaciones está corriendo (lo mira el banner de estado)."""
+    return any(t.name == "pipeline" and t.is_alive() for t in threading.enumerate())
+
+
 def _loop():
     while True:
         trabajo = _q.get()

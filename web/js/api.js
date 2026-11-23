@@ -94,6 +94,14 @@ export async function duenoDeCopias() {
   return valor;
 }
 
+// El banner de estado (estadoBanner.js) se entera así de que una pantalla cayó a la última copia («ra:sin-servicio», con
+// la hora de esa copia) y de que la API volvió a contestar («ra:con-servicio»). Sin window (tests de node) no pasa nada.
+export const EVENTO_SIN_SERVICIO = "ra:sin-servicio";
+export const EVENTO_CON_SERVICIO = "ra:con-servicio";
+function avisarServicio(tipo, detail) {
+  try { globalThis.window?.dispatchEvent(new CustomEvent(tipo, { detail })); } catch { /* sin banner: no pasa nada */ }
+}
+
 /** GET que guarda la respuesta buena y, si no hay señal, devuelve la última (marcada con staleAt). */
 export async function apiConUltimaCopia(path) {
   const de = await duenoDeCopias();
@@ -101,9 +109,11 @@ export async function apiConUltimaCopia(path) {
   try {
     const data = await api(path, copia ? { signal: AbortSignal.timeout?.(SIN_SENAL_TIMEOUT_MS) } : {});
     if (de) saveLast(de, path, data);
+    avisarServicio(EVENTO_CON_SERVICIO, { path });
     return data;
   } catch (e) {
     if (!copia || !sinServicio(e)) throw e;
+    avisarServicio(EVENTO_SIN_SERVICIO, { path, at: copia.at, status: e.status });
     return markStale(copia.data, copia.at);
   }
 }

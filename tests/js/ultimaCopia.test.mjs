@@ -11,11 +11,12 @@ globalThis.localStorage = {
   get length() { return memoria.size; },
 };
 const eventos = [];
-globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); return true; } };
+const detalles = [];
+globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); detalles.push(e.detail); return true; } };
 globalThis.location = { hash: "" };
 
 const { Anuncios, Itinerary, Sessions, Today, duenoDeCopias, getToken, setToken } = await import("../../web/js/api.js");
-const { clearLast, hoyNecesitaFranja, loadLast, markStale, saveLast, sinSenalTexto, staleAt } = await import("../../web/js/lastgood.js");
+const { clearLast, horaCorta, leerUltimaSync, loadLast, marcarUltimaSync, markStale, saveLast, staleAt } = await import("../../web/js/lastgood.js");
 
 const DUENO = "0123456789ab"; // forma que tiene el dueño real: 12 hex
 const copiasGuardadas = () => [...memoria.keys()].filter((k) => k.startsWith("reinventar.last."));
@@ -23,7 +24,7 @@ const respuesta = (data) => ({ ok: true, status: 200, json: async () => data });
 const falla = (status, detail = "x") => ({ ok: false, status, statusText: "x", json: async () => ({ detail }) });
 const sinRed = async () => { throw new TypeError("Failed to fetch"); };
 
-beforeEach(() => { memoria.clear(); eventos.length = 0; setToken("tok-aaaaaaaaaaaa"); });
+beforeEach(() => { memoria.clear(); eventos.length = 0; detalles.length = 0; setToken("tok-aaaaaaaaaaaa"); });
 
 test("con red devuelve lo del servidor y deja una copia con su hora", async () => {
   globalThis.fetch = async () => respuesta({ days: [{ day: "lunes" }] });
@@ -198,18 +199,38 @@ test("al leer se valida la forma: una copia con otra forma se ignora", () => {
   }
 });
 
-test("el texto de la franja lleva la hora de los datos", () => {
+test("la hora corta de los datos va en 24 h", () => {
   const at = new Date(2026, 11, 2, 14, 5).getTime();
-  assert.match(sinSenalTexto(at), /^Sin señal · datos de las 14:05$/);
+  assert.equal(horaCorta(at), "14:05");
 });
 
-test("Hoy lleva su franja si es copia, salvo que Inicio ya muestre la suya (no se repite)", () => {
-  const fresco = () => ({ a: 1 });
-  const copia = (at) => markStale({ a: 1 }, at);
-  assert.equal(hoyNecesitaFranja(copia(1), fresco()), true, "Hoy es copia y la lista vino fresca: Hoy avisa");
-  assert.equal(hoyNecesitaFranja(copia(1), copia(2)), false, "las dos son copia: alcanza con la franja de Inicio");
-  assert.equal(hoyNecesitaFranja(fresco(), fresco()), false, "con señal no hay franja");
-  assert.equal(hoyNecesitaFranja(fresco(), copia(2)), false);
+test("al caer a la copia se avisa «ra:sin-servicio» con la hora de la copia, y al volver «ra:con-servicio»", async () => {
+  globalThis.fetch = async () => respuesta({ date: "2026-12-01" });
+  await Today.get();
+  assert.ok(eventos.includes("ra:con-servicio"), "con red, la API contestó");
+  const guardada = loadLast(await duenoDeCopias(), "/api/today").at;
+  eventos.length = 0; detalles.length = 0;
+  globalThis.fetch = sinRed;
+  await Today.get();
+  const i = eventos.indexOf("ra:sin-servicio");
+  assert.ok(i >= 0, "sin red cayó a la copia y avisó al banner");
+  assert.equal(detalles[i].at, guardada);
+  assert.equal(detalles[i].path, "/api/today");
+  assert.equal(detalles[i].status, 0);
+});
+
+test("sin copia guardada no se avisa nada: el error sigue a la pantalla", async () => {
+  globalThis.fetch = sinRed;
+  await assert.rejects(Today.get());
+  assert.ok(!eventos.includes("ra:sin-servicio"));
+});
+
+test("la última sincronización se guarda y se lee; sin valor o con basura es null", () => {
+  assert.equal(leerUltimaSync(), null);
+  marcarUltimaSync(1_764_690_000_000);
+  assert.equal(leerUltimaSync(), 1_764_690_000_000);
+  memoria.set("reinventar.ultimaSync", "ayer");
+  assert.equal(leerUltimaSync(), null);
 });
 
 test("al guardar el token, la app avisa para que el service worker se entere", () => {

@@ -8,7 +8,7 @@ import re
 
 import httpx
 
-from . import config, langfuse_scores, llm_router, sandbox, trazas
+from . import config, estado, langfuse_scores, llm_router, sandbox, trazas
 from .llm_router import Tarea
 
 log = logging.getLogger("reinventar.llm")
@@ -19,6 +19,15 @@ def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000) -> st
     p = sandbox.proveedor_llm()
     if p == "fake":
         return _fake(system, user)
+    try:
+        return _llamar(p, tarea, system, user, max_tokens)
+    except Exception:
+        # Solo se cuentan las fallas (no los éxitos): el banner de estado da los resúmenes por caídos si se acumulan.
+        estado.registrar_falla_llm("prueba" if sandbox.actual() else "real")
+        raise
+
+
+def _llamar(p: str, tarea: Tarea, system: str, user: str, max_tokens: int) -> str:
     model = llm_router.modelo(tarea, p)
     if p == "anthropic":
         return _claude(model, system, user, max_tokens)

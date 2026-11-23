@@ -5,6 +5,18 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.1.3] - 2026-11-23
+
+### Agregado
+- **Aviso de estado arriba de la app.** Un solo aviso, debajo de la barra, que te dice lo que importa en el momento:
+  si estás sin señal y cuántas grabaciones y gastos esperan subirse, si algo no se pudo subir (con «Reintentar»),
+  cuando vuelve la señal y se está subiendo todo, y si el servicio está caído o demorado (por ejemplo, «Las
+  transcripciones vienen con demora. Tus grabaciones están guardadas y se procesan solas.»). Si hay más de un aviso,
+  «+N» los muestra todos. Reemplaza los «Sin señal» que antes aparecían en cada pantalla.
+- **Versión nueva y novedades.** Cuando hay una versión nueva, el aviso lo dice y «Ver novedades» muestra qué cambió,
+  con «Actualizar ahora». Nunca aparece mientras grabás.
+- **El día en Inicio.** Arriba de «Hoy»: qué día de re:Invent es, a qué hora es la keynote y cuántas charlas tenés.
+
 ## [1.1.2] - 2026-11-22
 
 ### Agregado
