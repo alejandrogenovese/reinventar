@@ -54,11 +54,21 @@ export function markStale(data, at) {
 /** Hora (ms) en que se guardaron estos datos si son una copia sin señal; null si vienen frescos del servidor. */
 export const staleAt = (data) => (data && typeof data === "object" ? copias.get(data) ?? null : null);
 
-/**
- * ¿Hoy lleva su propia franja «Sin señal»? Sí si Hoy es una copia, salvo que la lista de grabaciones (sessions) también
- * lo sea: Inicio ya muestra esa franja arriba de todo y no se repite.
- */
-export const hoyNecesitaFranja = (data, sessions) => staleAt(data) !== null && staleAt(sessions) === null;
+/** «14:05»: la hora del celular, en 24 h. */
+export const horaCorta = (ms) => new Date(ms).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
 
-export const sinSenalTexto =(at) =>
-  `Sin señal · datos de las ${new Date(at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+// Última sincronización: cuándo subió bien un gasto o un pedazo de grabación. La muestran la hoja «Avisos» y «Todo subido».
+const ULTIMA_SYNC = "reinventar.ultimaSync";
+
+/** Anota que algo subió bien (lo llaman el uploader de grabaciones y el sync de gastos). Sin almacenamiento, no pasa nada. */
+export function marcarUltimaSync(ahora = Date.now()) {
+  try { localStorage.setItem(ULTIMA_SYNC, String(Math.trunc(ahora))); } catch { /* sin almacenamiento */ }
+}
+
+/** Hora (ms) de la última sincronización buena, o null si nunca hubo (o el valor guardado no es un número). */
+export function leerUltimaSync() {
+  try {
+    const valor = Number(localStorage.getItem(ULTIMA_SYNC));
+    return Number.isFinite(valor) && valor > 0 ? valor : null;
+  } catch { return null; }
+}

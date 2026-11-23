@@ -96,7 +96,11 @@ def test_los_toggles_dicen_su_estado_y_tocan_44_px():
 
 
 def test_la_hoja_es_un_dialog_con_titulo_y_los_campos_tienen_label():
-    assert '"dialog"' in PANTALLA and "aria-labelledby" in PANTALLA
+    # La hoja es la compartida de ui.js (la usan también las hojas del banner de estado).
+    ui = (WEB / "js" / "ui.js").read_text()
+    hoja = ui[ui.index("export function Hoja("):]
+    assert '"dialog"' in hoja and "aria-labelledby" in hoja
+    assert "Hoja(" in PANTALLA and "Hoja," in PANTALLA
     assert PANTALLA.count('"label"') >= 3
 
 

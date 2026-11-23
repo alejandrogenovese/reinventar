@@ -2,6 +2,7 @@
 import { Sessions } from "./api.js";
 import * as store from "./store.js";
 import { crearDetectorDeHuecos, mandarHuecos } from "./huecos.js";
+import { marcarUltimaSync } from "./lastgood.js";
 import { METER_SILENT, mensajeError } from "./ui.js";
 
 const TIMESLICE_MS = 10_000;
@@ -460,6 +461,7 @@ export const uploader = new (class extends EventTarget {
           const destino = await sesionRemota(c.session);
           await Sessions.putChunk(destino, c.part, c.seq, c.blob, AbortSignal.timeout?.(60_000));
           await store.deleteChunk(c.session, c.part, c.seq);
+          marcarUltimaSync();  // subió un pedazo: es la última sincronización que muestra el banner de estado
           this.lastError = null; this.backoff = 1000;
         } catch (e) {
           const alCrear = e.origen === "crear";

@@ -4,6 +4,7 @@ import { ApiError, MSG_SIN_CONEXION, api, cuentaConCopia, getToken, sinServicio 
 import { Bars, dayLong, dec, int } from "./charts.js";
 import { sinDoble } from "./adminUi.js";
 import { confirmDialog } from "./dialog.js";
+import { marcarUltimaSync } from "./lastgood.js";
 import { icon } from "./icons.js";
 import {
   CALIDAD_JPEG, CATEGORIAS, TOPE_FOTO_BYTES, aCambio, agruparPorDia, borrarFoto, borrarGasto, contarIntentoFoto, crearGasto, decidirDueno,
@@ -11,7 +12,7 @@ import {
   leerMeta, listarGastos, nuevoId, parsearMonto, partirEnLotes, resolverRespuesta, separarInvalidos, textoEdad, totales, transaccionarGastos,
   usdDe, validarGasto, vaciarCola, visibles,
 } from "./gastosCola.js";
-import { Button, Hint, h, mensajeError, toast, toastOnError } from "./ui.js";
+import { Button, Hint, Hoja, h, mensajeError, toast, toastOnError } from "./ui.js";
 
 const SYNC_CADA_MS = 60_000;
 const LOTE_SYNC = 200;             // tope de gastos por pedido de /sync del servidor
@@ -40,7 +41,11 @@ const oyentes = new Set();
 let enCurso = null;
 let iniciado = false;
 
-const avisar = () => { for (const f of [...oyentes]) f(); };
+// Cada cambio en la cola de gastos (sync, alta, edición, baja) se avisa a la pantalla y, con «ra:gastos», al banner de
+// estado (estadoBanner.js), que cuenta los pendientes y los rechazados.
+export const EVENTO_GASTOS = "ra:gastos";
+const avisarCola = () => { try { window.dispatchEvent(new Event(EVENTO_GASTOS)); } catch { /* sin banner */ } };
+const avisar = () => { for (const f of [...oyentes]) f(); avisarCola(); };
 
 /** Pedido a la API con tope de espera: si el servidor no contesta en `ms`, se trata como falta de señal. */
 async function apiConTimeout(ruta, opciones = {}, ms = TIMEOUT_PEDIDO_MS) {
@@ -87,6 +92,7 @@ async function pedirSync(lote, desdeInicial) {
   for (let vuelta = 0; vuelta < MAX_VUELTAS_SYNC; vuelta += 1) {
     const r = await apiConTimeout("/api/gastos/sync", { method: "POST", json: { cambios: cambios.map(aCambio), desde } });
     await aplicarRespuesta(cambios, r);
+    if (cambios.length) marcarUltimaSync();  // subió algo: es la última sincronización que muestra el banner de estado
     desde = r.ahora;  // el cursor es el reloj del servidor (`ahora`), nunca el del teléfono
     await guardarMeta("ultimoSync", desde);  // por pedido: si se corta a la mitad de una bajada larga, no se empieza de cero
     if (!r.hay_mas) break;
@@ -190,22 +196,6 @@ async function achicarFoto(archivo) {
 
 // ---------- piezas de pantalla ----------
 
-/** Hoja que sube desde abajo en el celular (la misma de los filtros): título, cuerpo con scroll y pie con acciones. */
-function Hoja(idTitulo, titulo, cuerpo, pie) {
-  const opener = document.activeElement;
-  const dlg = h("dialog", { class: "ra-sheet", "aria-labelledby": idTitulo },
-    h("div", { class: "ra-sheet-head" },
-      h("h2", { class: "ra-dialog-title", id: idTitulo }, titulo),
-      h("button", { type: "button", class: "iconbtn", "aria-label": `Cerrar ${titulo.toLowerCase()}`, onclick: () => dlg.close() }, icon("cerrar", 24))),
-    h("div", { class: "ra-sheet-body" }, cuerpo),
-    h("div", { class: "ra-sheet-foot actions" }, pie));
-  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener("close", () => { dlg.remove(); if (opener?.isConnected) opener.focus(); });
-  document.body.append(dlg);
-  dlg.showModal();
-  return dlg;
-}
-
 /** Grupo de botones con aria-pressed. `esActivo(valor)` dice cuál está elegido; `elegir(valor)` lo cambia. */
 function Grupo(etiqueta, clase, items, esActivo, elegir, { chip = false } = {}) {
   const botones = items.map(([valor, texto]) => h("button", { type: "button", class: chip ? "ra-chip" : "", "aria-pressed": "false",
@@ -299,6 +289,7 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
     }
     dlg.close();
     alGuardar();
+    avisarCola();
     sincronizarEnSilencio();
   }
 
@@ -307,6 +298,7 @@ function abrirCarga({ gasto = null, tarjeta, alGuardar }) {
     await guardarGasto(borrarGasto(gasto));
     dlg.close();
     alGuardar();
+    avisarCola();
     sincronizarEnSilencio();
   }
 

@@ -9,5 +9,5 @@ Las reglas completas están en `README.md` (sección *Cómo trabajar en el repo*
 - Las funcionalidades nuevas van con su test en `tests/`. STT, LLM y embeddings se usan en modo `fake`; los tests no consumen APIs.
 - En CI y en las Actions no está cargado el catálogo de re:Invent (schema `reinvent`). Corré los tests de núcleo con el mismo comando que `.github/workflows/ci-promote.yml`; los que usan el catálogo quedan para correr local.
 - El repo es público: nunca agregues secretos, tokens ni URLs con credenciales. Van en `.env` (ignorado) o en las variables de Railway.
-- Si cambiás la versión, se sube en tres lugares a la vez: `app/__init__.py`, `VERSION` en `web/sw.js` y `CHANGELOG.md` (`tests/test_version.py` lo verifica).
+- Si cambiás la versión, se sube en cuatro lugares a la vez: `app/__init__.py`, `VERSION` en `web/sw.js`, `web/js/version.js` y `CHANGELOG.md` (`tests/test_version.py` lo verifica).
 - Lo que cambie para el usuario va en `CHANGELOG.md`, sección *Sin publicar*.

@@ -3,6 +3,7 @@
 // Ubicación, reloj, caminar, alerta, fijar, llevar, reproducir, listo, externo, etc. reemplazan a los emojis y glifos
 // (✓ ✕ ＋ ↗) que se usaban como íconos. Volver, compartir, más (⋯), enviar, bajar y borrar son de la barra del detalle
 // y del chat.
+// Sin señal, subir, ok, error y nuevo son del banner de estado (estadoBanner.js), del mock demos/diseno/banner-status.html.
 // Toman el color del texto (currentColor). Son decorativos: el botón o link que los contiene lleva el nombre accesible.
 const ICONS = {
   inicio: "<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" fill=\"currentColor\" d=\"M11.402 1.201a1 1 0 0 1 1.205 0l9.66 7.29c.027.02.053.041.077.064A2.05 2.05 0 0 1 23 10v11.135A1.873 1.873 0 0 1 21.133 23h-5.8a1 1 0 0 1-1-1v-4.664a2.333 2.333 0 1 0-4.666 0V22a1 1 0 0 1-1 1H2.866A1.872 1.872 0 0 1 1 21.134V10c0-.018 0-.037.002-.055a2.045 2.045 0 0 1 .731-1.455l9.67-7.289ZM3 10.046V21h4.667v-3.664a4.333 4.333 0 1 1 8.666 0V21H21V10.047a.052.052 0 0 0-.003-.01l-8.993-6.785-9.001 6.786a.05.05 0 0 0-.003.008Z\"/>",
@@ -38,6 +39,11 @@ const ICONS = {
   borrar: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3\"/></g>",
   ojo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></g>",
   ojoTachado: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18\"/></g>",
+  sinsenal: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M19 12.9a10 10 0 0 0-2.3-1.6M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8A15 15 0 0 0 11 5M12 20h.01\"/></g>",
+  subir: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a9 9 0 1 1-3-6.7\"/><path d=\"M21 4v5h-5\"/></g>",
+  ok: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.5 2.5L16 9.5\"/></g>",
+  error: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z\"/><path d=\"M12 8v4M12 16h.01\"/></g>",
+  nuevo: "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"/></g>",
 };
 
 /** <svg> del ícono `name` (de ICONS), 24×24 salvo que se pida otro tamaño. */
