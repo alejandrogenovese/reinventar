@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.2] - 2026-11-23
+
 ### Agregado
 - **Dónde comer, con más filtros.** La distancia se elige con un deslizador de 5 a 30 minutos caminando y la
   lista se actualiza al soltarlo. El precio llega hasta $$$$. Se suman «Abierto ahora», puntaje mínimo (4 ★ o
@@ -13,8 +15,6 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   (chocolaterías, heladerías, donas), café y panadería o restaurantes. Cada tipo es su propia búsqueda, así un local
   de dulces no queda tapado por las hamburgueserías. Cada lugar muestra su tipo («Tienda de chocolate»,
   «Hamburguesería»).
-
-### Agregado
 - **«Agregar al itinerario» en Mis códigos de Excel.** Un botón suma al itinerario, fijadas, las charlas de tu lista
   que todavía no están, en el horario que muestra el cruce (si pediste una repetición, esa). Cada charla dice si ya
   está en tu itinerario. Cuando no hay ninguna registrada, la pantalla explica que «Registradas» sale de las
@@ -586,7 +586,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.1.3...v1.2.0
