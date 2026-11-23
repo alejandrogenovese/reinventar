@@ -194,3 +194,11 @@ def test_sin_itinerario_sigue_con_vuelos_y_hoteles(cli, monkeypatch):
 
 def test_el_endpoint_pide_sesion(cli):
     assert cli.get("/api/viajes/proximo").status_code == 401
+
+
+def test_la_sala_de_la_charla_va_corta_en_el_banner():
+    plan = _plan(venue={"hotel": "Wynn/Encore", "detail": "Upper Convention Promenade · Cristal 2 · Content Hub"})
+
+    p = proximo.elegir([], [], plan, _lv("2026-12-01T14:00"))
+
+    assert p["detalle"] == "Wynn/Encore · Upper Convention Promenade"

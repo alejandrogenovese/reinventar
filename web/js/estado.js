@@ -154,6 +154,12 @@ const texto = (x) => (typeof x === "string" && x.trim() ? x.trim() : null);
  * puede tener hasta 5 min). Vuelo: «Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12»; hotel y charla:
  * «Próximo: {título} · 14:30 · {sala}». Se omite lo que falte. El destino solo puede ser una ruta de la app (#/…).
  */
+/** En Inicio la próxima charla ya está en la tarjeta «Próxima»: el banner no la repite (vuelos y hotel sí). */
+export function proximoVisible(proximo, hash) {
+  const enInicio = hash === "" || hash === "#" || hash === "#/";
+  return enInicio && proximo?.tipo === "charla" ? null : proximo;
+}
+
 export function avisoProximo(p, ahora) {
   const tipo = TIPOS_PROXIMO[p?.tipo] ? p.tipo : null;
   const titulo = texto(p?.titulo);
