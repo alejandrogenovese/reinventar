@@ -592,6 +592,21 @@ def sessions_in(statuses):
     return [r["id"] for r in rows]
 
 
+def updated_at_en_proceso() -> list[float]:
+    """updated_at de las grabaciones en proceso (para el banner de estado: cuánto hace que no se mueven)."""
+    with conn() as c:
+        rows = c.execute("SELECT updated_at FROM sessions WHERE status = ANY(%s)", (list(PROCESSING),)).fetchall()
+    return [r["updated_at"] for r in rows]
+
+
+def errores_desde(desde: float) -> int:
+    """Cuántas grabaciones quedaron con error desde ese momento (epoch)."""
+    with conn() as c:
+        r = c.execute("SELECT COUNT(*) AS n FROM sessions WHERE status = 'error' AND updated_at >= %s",
+                      (desde,)).fetchone()
+    return r["n"]
+
+
 # --- usuarios / login ------------------------------------------------------------------------
 
 def get_user(username):

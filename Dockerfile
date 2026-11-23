@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir --require-hashes --only-binary :all: -r requireme
 
 COPY app ./app
 COPY web ./web
+# Lo lee GET /api/novedades (app/novedades.py busca ../CHANGELOG.md desde app/, o sea /srv/CHANGELOG.md).
+COPY CHANGELOG.md .
 
 # --no-proxy-headers: uvicorn no reescribe request.client desde X-Forwarded-For (lo manda el cliente y esquivaba el
 # límite por IP). La IP sale de X-Real-IP (app/auth_api.py) y el esquema https de app/esquema_proxy.py.
