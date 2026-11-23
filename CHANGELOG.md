@@ -6,6 +6,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Dónde comer, con más filtros.** La distancia se elige con un deslizador de 5 a 30 minutos caminando y la
+  lista se actualiza al soltarlo. El precio llega hasta $$$$. Se suman «Abierto ahora», puntaje mínimo (4 ★ o
+  4,5 ★) y el orden: recomendados, más cerca o mejor puntaje.
 - **Dónde comer por tipo de lugar.** «Dónde comer barato» suma chips para elegir comida rápida, dulces y postres
   (chocolaterías, heladerías, donas), café y panadería o restaurantes. Cada tipo es su propia búsqueda, así un local
   de dulces no queda tapado por las hamburgueserías. Cada lugar muestra su tipo («Tienda de chocolate»,

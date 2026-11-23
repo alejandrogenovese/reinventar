@@ -141,6 +141,10 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 }
 @keyframes ra-check-in { from { transform: scale(.4); opacity: 0; } }
 .ra-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Deslizador (Dónde comer: minutos caminando). Táctil: el alto alcanza para el dedo. */
+.ra-range { display: grid; gap: var(--space-1); max-width: 420px; }
+.ra-range input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--brand); margin: 0; }
+.ra-range-marcas { display: flex; justify-content: space-between; font: var(--t-micro); color: var(--ink-2); }
 /* Tag: dato, no se toca (sin borde ni sombra); el chip-botón tiene borde y estado */
 /* Aviso de perfil sin confirmar (web/js/knowledge.js): --warning como fondo, texto oscuro en los dos temas. */
 .ra-disclaimer { background: var(--warning-soft); color: var(--on-warning-soft); font: var(--t-small); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }

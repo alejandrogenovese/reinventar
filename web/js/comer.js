@@ -1,30 +1,40 @@
 // Dónde comer barato: lugares cerca de donde estás (o de la sede de tu próxima sesión) con puntaje, reseñas, precio y
-// minutos caminando. Filtros de tipo de lugar, precio ($ / $$) y distancia; «Llevame» reusa el botón de location.js. El servidor
-// cachea la búsqueda a Google, así que cambiar un filtro es barato. Si no hay clave de Places, la pantalla lo dice.
+// minutos caminando. Filtros: tipo de lugar, precio ($ a $$$$), minutos (deslizador que actualiza al moverlo), abierto
+// ahora, puntaje mínimo y orden. «Llevame» reusa el botón de location.js. El servidor cachea la búsqueda a Google, así
+// que cambiar un filtro es barato. Si no hay clave de Places, la pantalla lo dice.
 import { api } from "./api.js";
 import { icon } from "./icons.js";
 import { GoThereParts, currentPosition } from "./location.js";
 import { Hint, h, mensajeError } from "./ui.js";
 
-const PRECIOS = [[1, "$", "Hasta $ (barato)"], [2, "$$", "Hasta $$ (moderado)"]];
-const MINUTOS = [5, 10, 15];
+const PRECIOS = [[1, "$", "Hasta $ (barato)"], [2, "$$", "Hasta $$ (moderado)"], [3, "$$$", "Hasta $$$ (caro)"],
+  [4, "$$$$", "Hasta $$$$ (muy caro)"]];
+export const MINUTOS = { min: 5, max: 30, paso: 5 };
+const PUNTAJES = [[0, "Cualquier puntaje"], [4, "4 ★ o más"], [4.5, "4,5 ★ o más"]];
+const ORDENES = [["recomendado", "Recomendados"], ["cerca", "Más cerca"], ["puntaje", "Mejor puntaje"]];
+const ESPERA_DESLIZADOR_MS = 300; // mientras se arrastra no se pide nada: se pide al quedarse quieto
 // Las claves son las de places.TIPOS_POR_CATEGORIA (app/places.py); cada tipo es otra búsqueda a Google, cacheada aparte.
 const TIPOS = [["todo", "Todo"], ["rapida", "Comida rápida"], ["dulces", "Dulces y postres"], ["cafe", "Café y panadería"],
   ["restaurantes", "Restaurantes"]];
-const DEFAULT = { tipo: "todo", precio: 2, minutos: 10 };
+const DEFAULT = { tipo: "todo", precio: 2, minutos: 10, abierto: false, puntaje: 0, orden: "recomendado" };
 
 const int = (n) => Number(n || 0).toLocaleString("es-AR");
 const puntaje = (n) => Number(n).toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-/** Querystring del pedido: con ubicación del teléfono manda lat/lng; sin ella el servidor usa la próxima sesión. */
-export function consulta({ precio, minutos, tipo = "todo" }, pos) {
+/** Querystring del pedido: con ubicación del teléfono manda lat/lng; sin ella el servidor usa la próxima sesión. Lo que
+ * está en su valor por defecto no viaja. */
+export function consulta({ precio, minutos, tipo = "todo", abierto = false, puntaje = 0, orden = "recomendado" }, pos) {
   const params = new URLSearchParams({ precio, minutos });
   if (tipo !== "todo") params.set("tipo", tipo);
+  if (abierto) params.set("abierto", "true");
+  if (puntaje) params.set("puntaje", puntaje);
+  if (orden !== "recomendado") params.set("orden", orden);
   if (pos) { params.set("lat", pos.lat); params.set("lng", pos.lng); }
   return `/api/comer?${params}`;
 }
 
 const etiquetaPrecio = (n) => (n ? "$".repeat(n) : "Sin dato de precio");
+export const minutosTexto = (m) => `Hasta ${m} min caminando`;
 
 function Resena(r) {
   return h("blockquote", { class: "caption", style: { margin: "0", paddingLeft: "var(--space-3)", borderLeft: "2px solid var(--surface-3)" } },
@@ -52,6 +62,8 @@ export async function viewComer(view) {
   const filtros = { ...DEFAULT };
   const lista = h("div", { class: "stack", "aria-live": "polite" });
   const origenEl = h("p", { class: "caption" });
+  const abiertoBtn = h("button", { type: "button", class: "ra-chip", "aria-pressed": "false",
+    onclick: () => { filtros.abierto = !filtros.abierto; pintarChips(); void cargar(); } }, "Abierto ahora");
   const grupo = (titulo, opciones, clave) => h("div", { class: "ra-chips", role: "group", "aria-label": titulo },
     opciones.map(([valor, texto, aria]) => {
       const b = h("button", { type: "button", class: "ra-chip", "aria-pressed": "false", "aria-label": aria || null,
@@ -62,8 +74,29 @@ export async function viewComer(view) {
   const chips = [
     grupo("Tipo de lugar", TIPOS, "tipo"),
     grupo("Precio", PRECIOS, "precio"),
-    grupo("Distancia caminando", MINUTOS.map((m) => [m, `${m} min`, `Hasta ${m} minutos caminando`]), "minutos")];
+    Deslizador(),
+    grupo("Puntaje", PUNTAJES, "puntaje"),
+    grupo("Ordenar", ORDENES, "orden"),
+    h("div", { class: "ra-chips" }, abiertoBtn)];
+
+  function Deslizador() {
+    const etiqueta = h("span", { class: "label" }, minutosTexto(filtros.minutos));
+    let espera;
+    const input = h("input", { type: "range", min: MINUTOS.min, max: MINUTOS.max, step: MINUTOS.paso,
+      value: filtros.minutos, "aria-label": "Minutos caminando como máximo",
+      oninput: () => {
+        filtros.minutos = Number(input.value);
+        etiqueta.textContent = minutosTexto(filtros.minutos);
+        clearTimeout(espera);
+        espera = setTimeout(() => void cargar(), ESPERA_DESLIZADOR_MS);
+      } });
+    return h("div", { class: "ra-range" }, etiqueta, input,
+      h("div", { class: "ra-range-marcas", "aria-hidden": "true" }, h("span", {}, `${MINUTOS.min} min`), h("span", {}, `${MINUTOS.max} min`)));
+  }
+
   function pintarChips() {
+    abiertoBtn.classList.toggle("ra-chip-on", filtros.abierto);
+    abiertoBtn.setAttribute("aria-pressed", String(filtros.abierto));
     for (const b of view.querySelectorAll("button.ra-chip[data-clave]")) {
       const on = String(filtros[b.dataset.clave]) === b.dataset.valor;
       b.classList.toggle("ra-chip-on", on);
@@ -88,7 +121,7 @@ export async function viewComer(view) {
       if (mio !== pedido) return; // llegó una respuesta más nueva
       origenEl.textContent = r.origen.fuente === "sesion" ? `Cerca de ${r.origen.nombre}, tu próxima sesión` : "Cerca de donde estás";
       lista.replaceChildren(...(r.lugares.length ? r.lugares.map(LugarCard)
-        : [Hint("No encontramos lugares con esos filtros. Probá con más minutos, con $$ o con otro tipo de lugar.")]));
+        : [Hint("No encontramos lugares con esos filtros. Probá con más minutos, más $, otro tipo de lugar o sacando «Abierto ahora».")]));
     } catch (e) {
       if (mio !== pedido) return;
       origenEl.textContent = "";
