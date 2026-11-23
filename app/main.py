@@ -41,6 +41,7 @@ from . import (
     eventos_auto,
     events,
     events_api,
+    ficha_api,
     fragmentos,
     gastos_api,
     grabaciones_api,
@@ -183,6 +184,7 @@ app.include_router(demos_api.router)
 app.include_router(comer_api.router)
 app.include_router(actividades_api.router)
 app.include_router(estado_api.router)
+app.include_router(ficha_api.router)
 app.include_router(novedades_api.router)
 
 

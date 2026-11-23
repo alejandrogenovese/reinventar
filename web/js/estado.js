@@ -13,8 +13,9 @@ export const TODO_SUBIDO_MS = 5_000;              // «Todo subido» se va solo:
 
 const RUTA_GRABAR = "#/grabar/";  // ahí no se ofrece actualizar: recargar cortaría la grabación
 
-// Cómo se cierra cada aviso: «6h» (servicio), «sesion» (hasta la próxima vez que se abra la app), «siempre» (no vuelve).
-export const CIERRE = { seisHoras: "6h", sesion: "sesion", siempre: "siempre" };
+// Cómo se cierra cada aviso: «6h» (servicio), «sesion» (hasta la próxima vez que se abra la app), «siempre» (no vuelve),
+// «posponer» (vuelve a los `posponerMs` del aviso: «Mi ficha», fichaReglas.js).
+export const CIERRE = { seisHoras: "6h", sesion: "sesion", siempre: "siempre", posponer: "posponer" };
 
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const dato = (texto) => ({ dato: String(texto) });
@@ -193,12 +194,12 @@ export function avisoProximo(p, ahora) {
  * - servicio: la lista de /api/estado. versionLocal / versionRemota. actualizadaA: versión recién instalada o null.
  * - descartados { id: hasta (ms; Infinity = no vuelve) }. ruta: location.hash. countdownUrgente: «Salí ya» a la vista.
  * - datosDe: hora (ms) de la última copia que se está mostrando. ultimaSync: hora (ms) de la última subida buena.
- * - proximo: lo de /api/viajes/proximo (o null): siempre va último.
+ * - proximo: lo de /api/viajes/proximo (o null). ficha: el aviso de «Mi ficha» ya armado (fichaReglas.avisoFicha) o null.
  */
 export function elegirAvisos({
   online = true, pendientes = {}, subiendo = null, subidoEn = null, fallidos = {}, servicio = [], versionLocal = null,
   versionRemota = null, actualizadaA = null, descartados = {}, ruta = "", countdownUrgente = false, datosDe = null,
-  ultimaSync = null, proximo = null, ahora,
+  ultimaSync = null, proximo = null, ficha = null, ahora,
 }) {
   const avisos = [];
   if (!online) avisos.push(avisoSinSenal({ pendientes, datosDe }));
@@ -214,6 +215,7 @@ export function elegirAvisos({
   if (actualizadaA) avisos.push(avisoActualizada(actualizadaA));
   const deProximo = proximo ? avisoProximo(proximo, ahora) : null;
   if (deProximo) avisos.push(deProximo);
+  if (ficha) avisos.push(ficha);
   return avisos
     .filter((a) => !(a.cierre && descartados?.[a.id] > ahora))
     .filter((a) => !countdownUrgente || a.prioridad <= PRIORIDAD_MAXIMA_URGENTE)
@@ -223,6 +225,7 @@ export function elegirAvisos({
 /** Hasta cuándo queda cerrado un aviso que se cierra ahora (ms; Infinity si no vuelve en esta sesión o nunca; null si no se cierra). */
 export function cerradoHasta(aviso, ahora) {
   if (aviso.cierre === CIERRE.seisHoras) return ahora + CIERRE_SERVICIO_MS;
+  if (aviso.cierre === CIERRE.posponer) return ahora + (Number.isFinite(aviso.posponerMs) ? aviso.posponerMs : CIERRE_SERVICIO_MS);
   return aviso.cierre ? Infinity : null;
 }
 
