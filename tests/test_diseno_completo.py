@@ -53,12 +53,12 @@ def test_exportar_y_eliminar_van_en_el_menu_y_eliminar_confirma():
     assert 'confirmDialog("¿Eliminar la sesión?"' in _funcion("detail.js", "viewDetail")
 
 
-def test_compartir_solo_si_el_navegador_comparte_archivos():
+def test_compartir_resumen_usa_la_hoja_del_celular_y_si_no_copia():
     detalle = JS["detail.js"]
-    assert "navigator.canShare?.({ files:" in detalle
-    assert "ready && canShareFiles()" in detalle
-    # si compartir falla (y no es que el usuario canceló), se descarga
-    assert 'e?.name !== "AbortError"' in detalle
+    assert "Sessions.resumenMd(id)" in detalle  # el markdown público, sin lo personal
+    assert "navigator.share(url ? { title, text, url } : { title, text })" in detalle
+    # si el usuario cancela no se copia; si compartir no anda, se copia al portapapeles y avisa
+    assert 'e?.name === "AbortError"' in detalle and "navigator.clipboard.writeText" in detalle
 
 
 def test_menu_accesible():

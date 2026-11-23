@@ -42,6 +42,7 @@ import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
+import { decidirGrabar } from "./grabacionDuplicada.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -285,9 +286,12 @@ function viewNew() {
     const btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
     try {
+      const code = fd.get("code").trim() || null;
+      const decision = await decidirGrabar(code); // si otra persona ya graba esa charla, lo avisa antes
+      if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
       const s = await empezarSesion({
         title: fd.get("title").trim(), kind: fd.get("kind"),
-        code: fd.get("code").trim() || null, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,
+        code, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,
       });
       location.hash = `#/grabar/${s.id}`;
     } catch (err) { toast(mensajeError(err, "No pude crear la sesión. Probá de nuevo.")); btn.disabled = false; }

@@ -695,13 +695,17 @@ def ultimo_push(username, prefijo) -> float | None:
 
 # ---------- recordatorio "¿la grabás?" ----------
 
-def grabacion_activa(code, creada_desde, chunk_desde) -> bool:
-    """Si hay una grabación de esa charla creada desde `creada_desde`, o en curso con audio desde `chunk_desde`."""
+def grabacion_activa(code, creada_desde, chunk_desde, excluir=None) -> dict | None:
+    """{id, created_by, status} de una grabación de esa charla creada desde `creada_desde`, o en curso con audio desde
+    `chunk_desde`; None si no hay. Primero las que siguen grabando. `excluir`: no cuenta las de ese usuario."""
     with conn() as c:
-        return c.execute(
-            "SELECT 1 FROM sessions s WHERE upper(s.code) = upper(%s) AND (s.created_at >= %s OR (s.status = 'recording' "
-            "AND EXISTS (SELECT 1 FROM chunks k WHERE k.session_id = s.id AND k.received_at >= %s))) LIMIT 1",
-            (code, creada_desde, chunk_desde)).fetchone() is not None
+        r = c.execute(
+            "SELECT s.id, s.created_by, s.status FROM sessions s WHERE upper(s.code) = upper(%s) "
+            "AND (%s::text IS NULL OR s.created_by IS DISTINCT FROM %s) AND (s.created_at >= %s OR (s.status = 'recording' "
+            "AND EXISTS (SELECT 1 FROM chunks k WHERE k.session_id = s.id AND k.received_at >= %s))) "
+            "ORDER BY (s.status = 'recording') DESC, s.created_at DESC LIMIT 1",
+            (code, excluir, excluir, creada_desde, chunk_desde)).fetchone()
+    return dict(r) if r else None
 
 
 def set_ubicacion(username, id_sede) -> None:

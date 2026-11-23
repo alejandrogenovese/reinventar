@@ -5,6 +5,18 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Aviso si alguien ya está grabando la charla.** Al empezar a grabar una charla que otra persona ya está grabando,
+  la app avisa «Ana ya está grabando esta charla» y deja elegir entre «Grabar igual» o «Ver la suya». Sin señal no
+  pregunta: graba igual.
+- **Compartir resumen.** En el detalle de una grabación, «Compartir resumen» abre WhatsApp (o lo que elijas) con el
+  resumen en texto; si el celular no puede, lo copia. No incluye «Versus lo prometido» ni «Para llevar a Galicia».
+- **Link público que vence.** En el menú ⋯, «Link público» arma un link de solo lectura al resumen que se abre sin
+  cuenta (y se puede imprimir o guardar en PDF). Vence a los 14 días. No está disponible en modo prueba.
+
+### Cambiado
+- **Reintentar y eliminar una grabación, solo quien la grabó** (o un admin). Ver y exportar sigue igual para todos.
+
 ## [1.1.3] - 2026-11-23
 
 ### Agregado
