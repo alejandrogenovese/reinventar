@@ -3,6 +3,7 @@ import { Today } from "./api.js";
 import { CountdownBadge } from "./countdown.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
+import { decidirGrabar } from "./grabacionDuplicada.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
@@ -16,10 +17,13 @@ const dayLabel = (iso) =>
 
 export const place = (s) => [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ");
 
-/** Crea la sesión de grabación con los datos de la charla y abre el grabador. */
+/** Crea la sesión de grabación con los datos de la charla y abre el grabador. Si otra persona ya la está grabando,
+ *  antes lo avisa y deja elegir entre grabar igual o ver la suya. */
 export async function recordTalk(s, btn) {
   btn.disabled = true;
   try {
+    const decision = await decidirGrabar(s.code);
+    if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
     // Sin señal también se puede grabar: empezarSesion arma una sesión local que se sube cuando vuelva la red.
     const rec = await empezarSesion({
       title: s.title.slice(0, 200), kind: s.recording_kind, code: s.code,
