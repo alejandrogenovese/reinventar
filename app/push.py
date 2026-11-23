@@ -28,6 +28,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from . import (
     changes,
+    charlas_nuevas,
     config,
     db,
     documentos,
@@ -317,6 +318,7 @@ def tick() -> int:
             with sandbox.activar(sb):  # en modo prueba: su reloj simulado y su schema de prueba
                 sent += _seguro("itinerario y viajes", username, _avisos_de, username)
                 sent += _seguro("ofertas", username, ofertas_avisos.enviar, username, sandbox.ahora(), notify)
+                sent += _seguro("charlas nuevas", username, charlas_nuevas.enviar, username, sandbox.ahora(), notify)
         except Exception:  # noqa: BLE001 — leer a la persona o su modo prueba tampoco frena a las demás
             log.exception("los avisos de %s fallaron", username)
     return sent

@@ -240,6 +240,14 @@ CREATE TABLE IF NOT EXISTS viajes_documentos (
   actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (username, id)
 );
+-- «Charlas nuevas» que la persona agregó o descartó desde esa lista (app/charlas_nuevas.py): no le vuelven a aparecer.
+CREATE TABLE IF NOT EXISTS charlas_nuevas_decision (
+  username TEXT NOT NULL,
+  base TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('agregada', 'descartada')),
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, base)
+);
 """
 INDICES_DATOS_USUARIO = """
 -- Va después de agregar las columnas: usa client_id.
@@ -270,6 +278,7 @@ COLUMNAS_DATOS_USUARIO = (
     ("preferencias_avisos", "viajes_hoteles", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "viajes_estado", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "viajes_pendientes", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("preferencias_avisos", "charlas_nuevas", "BOOLEAN NOT NULL DEFAULT TRUE"),  # push de charlas nuevas (app/charlas_nuevas.py)
     ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("gastos", "foto_at", "TIMESTAMPTZ"),
     ("viajes_vuelos", "ciudad", "TEXT NOT NULL DEFAULT ''"),  # de dónde sale, como la eligió la persona
@@ -289,7 +298,7 @@ COLUMNAS_DATOS_USUARIO = (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
                         "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados",
-                        "viajes_documentos", "viajes_pendientes")
+                        "viajes_documentos", "viajes_pendientes", "charlas_nuevas_decision")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).

@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Charlas nuevas.** Cuando AWS suma charlas al catálogo, aparecen en Itinerario › Charlas nuevas (y en una tarjeta en
+  Inicio): las de los últimos 7 días que todavía no pasaron, primero las que coinciden con tus intereses. Cada una se
+  agrega a tu agenda con un toque (te avisamos si se superpone con algo) o se descarta, y no vuelve a aparecer. Te
+  llega un solo aviso por tanda («3 charlas nuevas»), nunca de noche ni repetido; se apaga en Ajustes.
+
 ## [1.2.0] - 2026-11-23
 
 ### Agregado
