@@ -30,6 +30,7 @@ from . import (
     changes,
     config,
     db,
+    documentos,
     eventos_avisos,
     itinerary,
     leave,
@@ -299,6 +300,10 @@ def tick() -> int:
     sent = 0
     db.purgar_ubicaciones(time.time() - recordatorio.UBICACION_BORRADO_MIN * 60)
     db.purgar_reportes_lleno(time.time() - lleno.BORRADO_H * 3600)
+    try:
+        documentos.purgar_si_toca(dt.datetime.now(dt.UTC))  # 30 días después del viaje (app/documentos.py)
+    except Exception:  # noqa: BLE001 — si el bucket no contesta, se reintenta en la próxima vuelta
+        log.exception("el borrado automático de documentos falló")
     with sandbox.real():
         users = db.push_usernames()
         try:

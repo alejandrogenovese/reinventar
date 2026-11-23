@@ -6,6 +6,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Documentos de viaje.** En Viajes › Documentos de viaje podés subir el pasaporte, la ESTA o visa, el seguro, reservas,
+  la entrada a re:Invent o la tarjeta de embarque (foto o PDF, hasta 8 MB). Solo vos los ves, se guardan cifrados y se
+  borran solos 30 días después del viaje (o cuando toques «Borrar todos mis documentos»). Si alguno vence durante el
+  viaje te avisamos. Con «Guardar en este teléfono» queda una copia cifrada para verlo sin señal; se borra al cerrar sesión.
 - **Pendientes del viaje.** En Viaje, una checklist de lo que conviene tener resuelto antes de salir (ESTA o visa,
   pasaporte, seguro, eSIM, check-in de United, entrada de re:Invent, avisar al banco, dólares, documentos…). Tildás
   lo que ya hiciste, sumás lo tuyo con fecha límite si querés, y editás o borrás cualquiera (un sugerido que borrás

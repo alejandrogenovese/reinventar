@@ -35,6 +35,7 @@ from . import (
     cuerpo,
     db,
     demos_api,
+    documentos_api,
     estado_api,
     eventos_auto,
     events,
@@ -95,6 +96,7 @@ async def lifespan(_app):
     charlas_auto.start_worker()
     cotizacion.start_worker()
     gastos_api.al_arrancar()
+    documentos_api.al_arrancar()
     yield
     pg.close()
 
@@ -172,6 +174,7 @@ app.include_router(lleno_api.router)
 app.include_router(voto_resumen_api.router)
 app.include_router(gastos_api.router)
 app.include_router(gastos_api.router_publico)
+app.include_router(documentos_api.router)
 app.include_router(grabaciones_api.router)  # antes de /api/sessions/{sid}: /api/sessions/activa
 app.include_router(huecos.router)
 app.include_router(codigos_api.router)

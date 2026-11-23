@@ -13,13 +13,14 @@ mismo hilo de 60 s: cada uno por clave en push_sent, así que ninguno se repite.
   (pendres:<día>). Las fechas son días de Las Vegas, como el horario de silencio.
 Ninguno sale en el horario de silencio (app/recordatorio.py), salvo el check-in web y el estado del vuelo cuando faltan
 menos de 6 h para la salida.
-Cada tipo se apaga desde Ajustes (preferencias_avisos.viajes_*).
+Cada tipo se apaga desde Ajustes (preferencias_avisos.viajes_*). Además, un aviso si algún documento de viaje vence
+durante el viaje (app/documentos.py), que respeta el silencio y no lleva datos del documento.
 """
 import datetime as dt
 import time
 from collections.abc import Callable
 
-from . import db, estadia, recordatorio, viajes_pendientes, vuelos
+from . import db, documentos, estadia, recordatorio, viajes_pendientes, vuelos
 
 CHECKIN_HOTEL_ANTES_H = 3
 CHECKOUT_DESDE_HORA = 19        # la noche anterior al check-out
@@ -274,4 +275,5 @@ def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
             del _pendientes[(username, clave)]
         _pendientes.update({(username, clave): pendiente for clave, pendiente in diferidos.items()})
         out += nuevos
+    out += documentos.avisos(username, now)   # documentos que vencen durante el viaje (sin datos del documento)
     return out
