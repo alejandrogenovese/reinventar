@@ -1,10 +1,13 @@
 """Cliente LLM intercambiable: Claude directo, un endpoint OpenAI-compatible o el gateway LiteLLM.
 
 Cada llamada pide una tarea (app/llm_router.py), no un modelo: el router decide el modelo según el proveedor.
+El mensaje del usuario puede llevar una imagen (Imagen): va en base64 dentro del mismo pedido, nunca a disco.
 """
+import base64
 import json
 import logging
 import re
+from dataclasses import dataclass
 
 import httpx
 
@@ -15,26 +18,40 @@ log = logging.getLogger("reinventar.llm")
 _anthropic = None
 
 
-def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000) -> str:
+@dataclass(frozen=True)
+class Imagen:
+    """Una imagen para el mensaje del usuario (JPEG, PNG o WebP ya validados por quien llama). Vive solo en memoria."""
+    tipo: str
+    datos: bytes
+
+    def base64(self) -> str:
+        return base64.b64encode(self.datos).decode("ascii")
+
+    def __repr__(self) -> str:  # que un log o un traceback no vuelquen la foto
+        return f"Imagen({self.tipo}, {len(self.datos)} bytes)"
+
+
+def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000, imagen: Imagen | None = None) -> str:
     p = sandbox.proveedor_llm()
     if p == "fake":
-        return _fake(system, user)
+        return _fake_imagen() if imagen else _fake(system, user)
     try:
-        return _llamar(p, tarea, system, user, max_tokens)
+        return _llamar(p, tarea, system, user, max_tokens, imagen)
     except Exception:
         # Solo se cuentan las fallas (no los éxitos): el banner de estado da los resúmenes por caídos si se acumulan.
         estado.registrar_falla_llm("prueba" if sandbox.actual() else "real")
         raise
 
 
-def _llamar(p: str, tarea: Tarea, system: str, user: str, max_tokens: int) -> str:
+def _llamar(p: str, tarea: Tarea, system: str, user: str, max_tokens: int, imagen: Imagen | None = None) -> str:
     model = llm_router.modelo(tarea, p)
+    con_imagen = {"imagen": imagen} if imagen else {}  # sin imagen, el pedido queda exactamente como antes
     if p == "anthropic":
-        return _claude(model, system, user, max_tokens)
+        return _claude(model, system, user, max_tokens, **con_imagen)
     if p == "openai":
-        return _openai(model, system, user, max_tokens)
+        return _openai(model, system, user, max_tokens, **con_imagen)
     if p == "litellm":
-        return _openai(model, system, user, max_tokens, extra=_metadata(tarea, system))
+        return _openai(model, system, user, max_tokens, extra=_metadata(tarea, system), **con_imagen)
     raise ValueError(f"LLM_PROVIDER desconocido: {p}")
 
 
@@ -72,7 +89,23 @@ def _system_cacheable(system: str) -> list[dict]:
     return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
 
 
-def claude_mensaje(model, system, user, max_tokens):
+def contenido_claude(user: str, imagen: Imagen | None = None) -> str | list[dict]:
+    """El content del usuario para Anthropic: texto solo, o la imagen (bloque base64) seguida del texto."""
+    if not imagen:
+        return user
+    return [{"type": "image", "source": {"type": "base64", "media_type": imagen.tipo, "data": imagen.base64()}},
+            {"type": "text", "text": user}]
+
+
+def contenido_openai(user: str, imagen: Imagen | None = None) -> str | list[dict]:
+    """El content del usuario en formato OpenAI (el que acepta LiteLLM): texto solo, o texto más image_url con data URL."""
+    if not imagen:
+        return user
+    return [{"type": "text", "text": user},
+            {"type": "image_url", "image_url": {"url": f"data:{imagen.tipo};base64,{imagen.base64()}"}}]
+
+
+def claude_mensaje(model, system, user, max_tokens, imagen: Imagen | None = None):
     """El mensaje completo de Claude (texto y uso de tokens). Lo usa también scripts/evaluar_modelos.py, para medir
     con exactamente los mismos parámetros que la app."""
     global _anthropic
@@ -83,7 +116,7 @@ def claude_mensaje(model, system, user, max_tokens):
             raise RuntimeError("Falta ANTHROPIC_API_KEY")
         _anthropic = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=4, timeout=600)
     return _anthropic.messages.create(
-        model=model, max_tokens=max_tokens, system=_system_cacheable(system), messages=[{"role": "user", "content": user}],
+        model=model, max_tokens=max_tokens, system=_system_cacheable(system), messages=[{"role": "user", "content": contenido_claude(user, imagen)}],
         # extra_body porque "thinking"/"output_config" no son parámetros tipados en anthropic==0.40.0.
         extra_body=thinking_params(model),
     )
@@ -93,8 +126,8 @@ def texto(msg) -> str:
     return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
 
 
-def _claude(model, system, user, max_tokens):
-    msg = claude_mensaje(model, system, user, max_tokens)
+def _claude(model, system, user, max_tokens, imagen: Imagen | None = None):
+    msg = claude_mensaje(model, system, user, max_tokens, imagen) if imagen else claude_mensaje(model, system, user, max_tokens)
     text = texto(msg)
     if not text:
         kinds = [getattr(b, "type", "?") for b in msg.content]
@@ -102,14 +135,15 @@ def _claude(model, system, user, max_tokens):
     return text
 
 
-def _openai(model, system, user, max_tokens, extra: dict | None = None):
+def _openai(model, system, user, max_tokens, extra: dict | None = None, imagen: Imagen | None = None):
     if not config.LLM_BASE_URL:
         raise RuntimeError("Falta LLM_BASE_URL")
     r = httpx.post(
         f"{config.LLM_BASE_URL.rstrip('/')}/chat/completions",
         headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
         json={"model": model, "max_tokens": max_tokens,
-              "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], **(extra or {})},
+              "messages": [{"role": "system", "content": system}, {"role": "user", "content": contenido_openai(user, imagen)}],
+              **(extra or {})},
         timeout=600,
     )
     if r.status_code >= 400:
@@ -118,6 +152,15 @@ def _openai(model, system, user, max_tokens, extra: dict | None = None):
 
 
 _FAKE_SERVICE = "Amazon S3"  # servicio que devuelve el LLM falso de los tests
+
+
+def _fake_imagen() -> str:
+    """Lectura de foto del LLM falso (conversor): siempre la misma carta, determinística para los tests."""
+    return json.dumps({"textos": [
+        {"original": "Ribeye steak 16 oz", "traduccion": "Bife de ojo de bife de 16 oz", "unidades": [{"valor": 16, "unidad": "oz"}]},
+        {"original": "Draft beer 1 pint $9", "traduccion": "Cerveza tirada, 1 pinta, 9 dólares",
+         "unidades": [{"valor": 1, "unidad": "pint"}, {"valor": 9, "unidad": "$"}]},
+    ]})
 
 
 def _fake(system, user):

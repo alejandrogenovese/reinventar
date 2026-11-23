@@ -31,6 +31,7 @@ from . import (
     codigos_api,
     comer_api,
     config,
+    conversor_api,
     cotizacion,
     cuerpo,
     db,
@@ -180,6 +181,7 @@ app.include_router(huecos.router)
 app.include_router(codigos_api.router)
 app.include_router(demos_api.router)
 app.include_router(comer_api.router)
+app.include_router(conversor_api.router)
 app.include_router(estado_api.router)
 app.include_router(novedades_api.router)
 

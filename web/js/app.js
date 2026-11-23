@@ -43,6 +43,7 @@ import { viewViajes } from "./viajes.js";
 import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
+import { viewConversor } from "./conversor.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
@@ -121,6 +122,7 @@ const routes = [
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],
   [/^#\/viaje$/, () => viewViaje(view)],
+  [/^#\/viaje\/conversor$/, () => viewConversor(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],

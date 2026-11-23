@@ -29,6 +29,7 @@ class Tarea(StrEnum):
     BRIEFING = "briefing"                        # ficha para charlar con un speaker o empresa
     CATALOGO = "catalogo"                        # scripts: claves del resumen y eventos de networking
     CATALOGO_TRADUCCION = "catalogo-traduccion"  # script: traducción de los resúmenes del catálogo
+    FOTO = "foto"                                # conversor: leer y traducir una foto (carta, cartel); necesita visión
 
 
 # Modelo directo de cada tarea (sin gateway): el de hoy, con las mismas variables de siempre.
@@ -44,6 +45,7 @@ _DIRECTO: dict[Tarea, Callable[[], str]] = {
     Tarea.BRIEFING: lambda: config.BRIEFING_MODEL,
     Tarea.CATALOGO: lambda: config.EXTRACT_MODEL,
     Tarea.CATALOGO_TRADUCCION: lambda: config.TRANSLATE_MODEL,
+    Tarea.FOTO: lambda: config.ASK_MODEL,  # Sonnet: lee imágenes
 }
 
 class UsoSTT(StrEnum):

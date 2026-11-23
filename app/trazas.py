@@ -13,6 +13,7 @@ Además, cada llamada lleva:
   - entrevista (repreguntas y ficha) y stt-voz (la respuesta dictada): ni la entrada ni la salida se guardan, porque las
     dos repiten lo que contó la persona de su trabajo.
   - razones: tampoco, porque la entrada es la ficha y la salida explica cada charla en función de la ficha.
+  - foto (conversor): tampoco; la entrada es la foto que sacó la persona y la salida, lo que se lee en ella.
   - chat, briefing e itinerario: si el pedido lleva la ficha de la entrevista (Traza(con_ficha=True)), no se guarda la
     entrada. La salida sí (es lo que hace falta para depurar), aunque pueda mencionar algo de la ficha.
 Nada de datos personales en trace_metadata: solo códigos de charla, tipos y cantidades.
@@ -30,7 +31,7 @@ LARGO_HASH_PROMPT = 8
 LARGO_TRACE_ID = 32  # hex, como los que genera Langfuse
 FLUJO_ENTREVISTA = "entrevista"
 # Tareas que nunca guardan en Langfuse ni la entrada ni la salida: las dos repiten lo que contó la persona.
-_PRIVADAS = frozenset({"entrevista", "stt-voz", "razones"})
+_PRIVADAS = frozenset({"entrevista", "stt-voz", "razones", "foto"})
 
 
 @dataclass(frozen=True)

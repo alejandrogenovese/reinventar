@@ -11,6 +11,7 @@ export const SECCIONES = [
   { href: "#/gastos", icono: () => icon("listo", 20), titulo: "Gastos", bajada: "Cuánto llevás gastado y qué se reintegra" },
   { href: "#/ofertas", icono: () => icon("eventos", 20), titulo: "Ofertas", bajada: "Bajas de precio en shows y promos de comida y compras, con aviso" },
   { href: "#/viajes", icono: () => icon("viaje", 20), titulo: "Vuelos y hoteles", bajada: "Check-in, demoras y puerta de embarque" },
+  { href: "#/viaje/conversor", icono: () => icon("invertir", 20), titulo: "Conversor", bajada: "°F, onzas, libras, millas, talles, propina y dólares a pesos, sin señal" },
 ];
 
 const Tarjeta = (s) => h("a", { class: "ra-card", href: s.href, style: { textDecoration: "none" } },
