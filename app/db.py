@@ -159,6 +159,25 @@ CREATE TABLE IF NOT EXISTS viajes_hoteles (
   creado DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, id)
 );
+-- Checklist de pendientes del viaje (app/viajes_pendientes.py). Los sugeridos se siembran con su clave_sugerido (el
+-- UNIQUE evita duplicarlos) y al borrarlos quedan marcados con borrado_en, así no se vuelven a sembrar; los propios se
+-- borran de verdad. documento_id queda para vincular un documento del viaje (sin FK: la tabla es de otra funcionalidad).
+CREATE TABLE IF NOT EXISTS viajes_pendientes (
+  username TEXT NOT NULL,
+  id TEXT NOT NULL,
+  texto TEXT NOT NULL CHECK (char_length(texto) BETWEEN 1 AND 120),
+  fecha_limite DATE,
+  hecho_en TIMESTAMPTZ,
+  orden INTEGER NOT NULL DEFAULT 0,
+  origen TEXT NOT NULL CHECK (origen IN ('sugerido', 'propio')),
+  clave_sugerido TEXT,
+  vuelo_id TEXT,
+  documento_id TEXT,
+  borrado_en TIMESTAMPTZ,
+  creado DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (username, id),
+  UNIQUE (username, clave_sugerido)
+);
 -- Control de gastos del viaje (app/gastos.py). client_id lo genera el teléfono: reenviar un gasto no lo duplica.
 -- updated_at es el reloj del teléfono (decide quién gana en un conflicto); sincronizado_at es el del servidor (es el
 -- cursor de /sync: un teléfono con el reloj atrasado no puede hacer que otro se pierda el cambio). Las tres cotizaciones
@@ -250,6 +269,7 @@ COLUMNAS_DATOS_USUARIO = (
     ("preferencias_avisos", "viajes_checkin", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "viajes_hoteles", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "viajes_estado", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("preferencias_avisos", "viajes_pendientes", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("gastos", "foto_at", "TIMESTAMPTZ"),
     ("viajes_vuelos", "ciudad", "TEXT NOT NULL DEFAULT ''"),  # de dónde sale, como la eligió la persona
@@ -258,7 +278,7 @@ COLUMNAS_DATOS_USUARIO = (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
                         "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados",
-                        "viajes_documentos")
+                        "viajes_documentos", "viajes_pendientes")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).

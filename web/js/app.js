@@ -43,6 +43,7 @@ import { viewViajes } from "./viajes.js";
 import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
+import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -115,6 +116,7 @@ const routes = [
   [/^#\/itinerario\/excel$/, () => viewMiExcel(view)],
   [/^#\/viajes$/, () => viewViajes(view)],
   [/^#\/viajes\/documentos$/, () => viewDocumentos(view)],
+  [/^#\/viajes\/pendientes$/, () => viewPendientes(view)],
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],
   [/^#\/viaje$/, () => viewViaje(view)],

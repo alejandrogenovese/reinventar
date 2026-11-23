@@ -10,6 +10,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
   la entrada a re:Invent o la tarjeta de embarque (foto o PDF, hasta 8 MB). Solo vos los ves, se guardan cifrados y se
   borran solos 30 días después del viaje (o cuando toques «Borrar todos mis documentos»). Si alguno vence durante el
   viaje te avisamos. Con «Guardar en este teléfono» queda una copia cifrada para verlo sin señal; se borra al cerrar sesión.
+- **Pendientes del viaje.** En Viaje, una checklist de lo que conviene tener resuelto antes de salir (ESTA o visa,
+  pasaporte, seguro, eSIM, check-in de United, entrada de re:Invent, avisar al banco, dólares, documentos…). Tildás
+  lo que ya hiciste, sumás lo tuyo con fecha límite si querés, y editás o borrás cualquiera (un sugerido que borrás
+  no vuelve). La tarjeta de Viaje muestra cuántos llevás listos. Te avisamos 3 días antes y el mismo día de cada
+  fecha límite, y los 3 días previos al viaje, a la mañana, cuántos te faltan. Se apaga en Ajustes.
 
 ## [1.1.3] - 2026-11-23
 
