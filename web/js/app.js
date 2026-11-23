@@ -295,6 +295,7 @@ function viewNew() {
     h("label", { for: `k${i}` }, k),
   ]);
   const field = (label, input) => h("div", { class: "field" }, h("label", { class: "label", for: input.id }, label), input);
+  let elegida = null; // la charla elegida en el buscador (trae en_youtube); un código escrito a mano no avisa
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
@@ -302,8 +303,12 @@ function viewNew() {
     btn.disabled = true;
     try {
       const code = fd.get("code").trim() || null;
-      const decision = await decidirGrabar(code); // si otra persona ya graba esa charla, lo avisa antes
-      if (!decision.grabar) { location.hash = `#/s/${decision.ver}`; return; }
+      // si AWS la sube a YouTube o si otra persona ya graba esa charla, lo avisa antes
+      const decision = await decidirGrabar(code, { talk: elegida?.code === code ? elegida : null });
+      if (!decision.grabar) {
+        if (decision.ver) location.hash = `#/s/${decision.ver}`; else btn.disabled = false;
+        return;
+      }
       const s = await empezarSesion({
         title: fd.get("title").trim(), kind: fd.get("kind"),
         code, venue: fd.get("venue").trim() || null, speaker: fd.get("speaker").trim() || null,
@@ -312,7 +317,7 @@ function viewNew() {
     } catch (err) { toast(mensajeError(err, "No pude crear la sesión. Probá de nuevo.")); btn.disabled = false; }
   } },
     h("h1", { class: "title" }, "Nueva sesión"),
-    TalkPicker({ onPick: (talk) => fillFromTalk(form, talk) }),
+    TalkPicker({ onPick: (talk) => { elegida = talk; fillFromTalk(form, talk); } }),
     h("fieldset", { class: "fieldset-plain" }, h("legend", { class: "label" }, "Tipo"), h("div", { class: "segmented" }, radios)),
     field("Título", h("input", { id: "title", name: "title", required: true, maxlength: "200", placeholder: "Keynote de apertura", autocomplete: "off" })),
     field("Código de agenda", h("input", { id: "code", name: "code", maxlength: "40", placeholder: "ANT301", autocapitalize: "characters", autocomplete: "off" })),

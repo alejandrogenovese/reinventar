@@ -9,6 +9,7 @@ import { MyEventCard } from "./myEvents.js";
 import { ShowFunctionCard } from "./shows.js";
 import { CharlasNuevasAviso } from "./charlasNuevas.js";
 import { icon } from "./icons.js";
+import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, mensajeError, toast, toastOnError, withUndo } from "./ui.js";
 
@@ -142,8 +143,9 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, ex
       h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
       h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
       AvisoBaja(s),
-      tags.length || s.newlaunch ? h("div", { class: "ra-chips" },
+      tags.length || s.newlaunch || s.en_youtube ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
+        EtiquetaYoutube(s),
         tags.slice(0, 6).map(Tag)) : null,
       People(s),
       Abstract(s),

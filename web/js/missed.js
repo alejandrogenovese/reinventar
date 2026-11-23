@@ -48,7 +48,9 @@ export async function viewPerdida(view, code) {
         ? h("div", { class: "daylist" }, data.similar.map((c) => SessionMiniCard(c, { onAdd: add(c.code) })))
         : h("p", { class: "caption" }, "No hay charlas parecidas en las próximas 4 horas.")),
     section("Más tarde",
-      h("p", { class: "caption" }, "AWS suele publicar muchas charlas en YouTube después del evento; no todas."),
+      h("p", { class: "caption" }, data.talk.en_youtube
+        ? "AWS publica esta charla en YouTube (canal AWS Events) entre 24 y 48 h después: la podés ver ahí."
+        : "Esta no se publica en YouTube: fijate si alguien la grabó en la app."),
       inItinerary ? Button("Quitarla del itinerario", { variant: "danger", onclick: async () => {
         try { await Itinerary.remove(code); await done("Quitada del itinerario."); } catch (err) { toast(mensajeError(err)); }
       } }) : null)));

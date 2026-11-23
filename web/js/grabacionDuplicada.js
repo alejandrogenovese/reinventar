@@ -3,6 +3,7 @@
 // o «Ver la suya». La consulta nunca frena la grabación: sin señal, lenta o con error, se graba igual.
 import { Sessions } from "./api.js";
 import { confirmDialog } from "./dialog.js";
+import { decidirPorYoutube } from "./avisoYoutube.js";
 
 export const CONSULTA_TIMEOUT_MS = 3000; // en el salón la señal va y viene: no se hace esperar a nadie para grabar
 
@@ -18,10 +19,13 @@ export async function consultarActiva(code, consultar = (c, signal) => Sessions.
 export const textoAviso = (activa) => `${activa.quien || "Alguien"} ya está grabando esta charla`;
 
 /**
- * ¿Grabar? Devuelve { grabar: true } o { grabar: false, ver: id } (abrir la grabación de la otra persona).
+ * ¿Grabar? Devuelve { grabar: true }, { grabar: false } («No grabar» en el aviso de YouTube) o
+ * { grabar: false, ver: id } (abrir la grabación de la otra persona).
+ * Con `talk` (la charla, con en_youtube), primero el aviso de YouTube (web/js/avisoYoutube.js), que no usa red.
  * `preguntar(activa)` resuelve true si elige «Grabar igual».
  */
-export async function decidirGrabar(code, { consultar, preguntar = preguntarConDialogo } = {}) {
+export async function decidirGrabar(code, { talk = null, consultar, preguntar = preguntarConDialogo, youtube = {} } = {}) {
+  if (!(await decidirPorYoutube(talk, youtube))) return { grabar: false };
   const activa = await consultarActiva(code, consultar);
   if (!activa) return { grabar: true };
   return (await preguntar(activa)) ? { grabar: true } : { grabar: false, ver: activa.id };
