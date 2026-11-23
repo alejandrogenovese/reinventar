@@ -35,6 +35,7 @@ from . import (
     cuerpo,
     db,
     demos_api,
+    estado_api,
     eventos_auto,
     events,
     events_api,
@@ -47,6 +48,7 @@ from . import (
     knowledge_api,
     lleno_api,
     my_events_api,
+    novedades_api,
     numeros_api,
     ofertas_api,
     passkey_api,
@@ -171,6 +173,8 @@ app.include_router(huecos.router)
 app.include_router(codigos_api.router)
 app.include_router(demos_api.router)
 app.include_router(comer_api.router)
+app.include_router(estado_api.router)
+app.include_router(novedades_api.router)
 
 
 @app.exception_handler(RequestValidationError)
