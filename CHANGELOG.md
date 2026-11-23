@@ -12,6 +12,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **«Próximo» en el aviso de arriba.** Cuando no hay nada más importante, el aviso de arriba te muestra lo que viene:
   tu vuelo desde 12 h antes («Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12»), el check-in o el
   check-out del hotel, o la próxima charla del día. Tocalo para ir a la ficha.
+- **Pendientes del viaje.** En Viaje, una checklist de lo que conviene tener resuelto antes de salir (ESTA o visa,
+  pasaporte, seguro, eSIM, check-in de United, entrada de re:Invent, avisar al banco, dólares, documentos…). Tildás
+  lo que ya hiciste, sumás lo tuyo con fecha límite si querés, y editás o borrás cualquiera (un sugerido que borrás
+  no vuelve). La tarjeta de Viaje muestra cuántos llevás listos. Te avisamos 3 días antes y el mismo día de cada
+  fecha límite, y los 3 días previos al viaje, a la mañana, cuántos te faltan. Se apaga en Ajustes.
 
 ## [1.1.3] - 2026-11-23
 

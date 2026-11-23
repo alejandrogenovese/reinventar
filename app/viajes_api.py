@@ -72,6 +72,7 @@ class PreferenciasViajes(BaseModel):
     viajes_checkin: bool
     viajes_hoteles: bool
     viajes_estado: bool
+    viajes_pendientes: bool | None = None   # None: la app vieja no lo manda y queda como estaba
 
 
 def _vuelo_publico(v: dict) -> dict:
@@ -199,4 +200,4 @@ def get_preferencias(username: str = Depends(auth)):
 
 @router.put("/preferencias")
 def put_preferencias(body: PreferenciasViajes, username: str = Depends(auth)):
-    return vuelos.set_prefs(username, body.model_dump())
+    return vuelos.set_prefs(username, body.model_dump(exclude_none=True))

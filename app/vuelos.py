@@ -317,7 +317,7 @@ def consultar(numero: str, fecha: str, http=None, usuario: str | None = None) ->
 
 # ---------- base de datos ----------
 
-PREFS_VIAJES = ("viajes_checkin", "viajes_hoteles", "viajes_estado")
+PREFS_VIAJES = ("viajes_checkin", "viajes_hoteles", "viajes_estado", "viajes_pendientes")
 TOPE_POR_PERSONA = 40
 
 
@@ -332,12 +332,14 @@ def get_prefs(username: str) -> dict:
 
 
 def set_prefs(username: str, prefs: dict) -> dict:
-    """Guarda solo las columnas de viajes; crea la fila con los valores por defecto del resto si no existía."""
+    """Guarda solo las columnas de viajes que vienen en `prefs` (una app vieja no manda viajes_pendientes: queda como
+    estaba); crea la fila con los valores por defecto del resto si no existía."""
+    columnas = [k for k in PREFS_VIAJES if k in prefs]
     with db.conn() as c:
         c.execute("INSERT INTO preferencias_avisos (username,grabar,ubicacion,updated_at) VALUES (%s,TRUE,FALSE,%s) "
                   "ON CONFLICT DO NOTHING", (username, time.time()))
-        c.execute("UPDATE preferencias_avisos SET viajes_checkin=%s, viajes_hoteles=%s, viajes_estado=%s, updated_at=%s "
-                  "WHERE username=%s", (*(prefs[k] for k in PREFS_VIAJES), time.time(), username))
+        c.execute(f"UPDATE preferencias_avisos SET {''.join(f'{k}=%s, ' for k in columnas)}updated_at=%s "
+                  "WHERE username=%s", (*(prefs[k] for k in columnas), time.time(), username))
     return get_prefs(username)
 
 

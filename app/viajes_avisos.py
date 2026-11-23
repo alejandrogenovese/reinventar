@@ -10,6 +10,9 @@ mismo hilo de 60 s: cada uno por clave en push_sent, así que ninguno se repite.
   de salir avisa si la demora cambia 15 min o más contra la última avisada, si aparece o cambia la puerta, o si se
   cancela; ya en el aire, solo cuando aparece la cinta de equipaje (una vez por cinta). Lo que se compara se guarda
   recién cuando el aviso llegó a algún dispositivo (confirmar / descartar, los llama app/push.py).
+- Pendientes del viaje (app/viajes_pendientes.py): cada uno con fecha límite avisa 3 días antes y el mismo día (clave
+  pend:<id>:<día del aviso>), y los 3 días previos a la estadía sale a la mañana un resumen «Te faltan N pendientes»
+  (pendres:<día>). Las fechas son días de Las Vegas, como el horario de silencio.
 Ninguno sale en el horario de silencio (app/recordatorio.py), salvo el check-in web y el estado del vuelo cuando faltan
 menos de 6 h para la salida (la cinta, que llega con el vuelo ya en el aire, siempre es urgente).
 Cada tipo se apaga desde Ajustes (preferencias_avisos.viajes_*).
@@ -18,7 +21,7 @@ import datetime as dt
 import time
 from collections.abc import Callable
 
-from . import db, recordatorio, vuelos
+from . import db, estadia, recordatorio, viajes_pendientes, vuelos
 
 CHECKIN_HOTEL_ANTES_H = 3
 CHECKOUT_DESDE_HORA = 19        # la noche anterior al check-out
@@ -32,6 +35,10 @@ ATERRIZAJE_CERCA_MIN = 45       # a menos de esto de aterrizar se vuelve al inte
 VENTANA_EXTRA_SILENCIO_H = 2    # si una ventana cae toda en silencio, se avisa a la mañana hasta 2 h después
 URGENTE_H = 6                   # con menos que esto para salir, el estado avisa aunque sea de noche
 TTL_SEGUNDOS = 3600
+PENDIENTE_AVISO_DIAS = (3, 0)   # días antes de la fecha límite en que se avisa
+RESUMEN_DIAS_PREVIOS = 3        # el resumen sale los N días antes de que empiece la estadía
+RESUMEN_HASTA_HORA = 12         # «a la mañana»: desde que termina el silencio hasta esta hora
+URL_PENDIENTES = "/#/viajes/pendientes"
 
 _DIAS = ("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
 
@@ -226,6 +233,36 @@ def estado(lista: list[dict], now: dt.datetime, consulta: Callable[[str, str], d
     return avisos, guardar, diferidos
 
 
+def _aviso_fecha_limite(p: dict, hoy: dt.date) -> tuple[str, dict] | None:
+    faltan = (p["fecha_limite"] - hoy).days
+    if faltan not in PENDIENTE_AVISO_DIAS:
+        return None
+    titulo = "Hoy vence un pendiente del viaje" if faltan == 0 else f"En {faltan} días vence un pendiente del viaje"
+    return f"pend:{p['id']}:{hoy.isoformat()}", _msg(titulo, p["texto"], URL_PENDIENTES)
+
+
+def _resumen(lista: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    hoy = now.date()
+    faltan_dias = (estadia.INICIO_DE_LA_ESTADIA.date() - hoy).days
+    if not lista or not 1 <= faltan_dias <= RESUMEN_DIAS_PREVIOS or now.hour >= RESUMEN_HASTA_HORA:
+        return []
+    n = len(lista)
+    titulo = "Te falta 1 pendiente del viaje" if n == 1 else f"Te faltan {n} pendientes del viaje"
+    cuando = "Mañana" if faltan_dias == 1 else f"En {faltan_dias} días"
+    return [(f"pendres:{hoy.isoformat()}", _msg(titulo, f"{cuando} arranca el viaje. Tocá para ver la lista.",
+                                                URL_PENDIENTES))]
+
+
+def pendientes(lista: list[dict], now: dt.datetime) -> list[tuple[str, dict]]:
+    """`lista`: los pendientes sin hacer. `now` en hora de Las Vegas. Nada sale de noche: el día del aviso sigue vigente
+    a la mañana (la clave lleva el día, así que tampoco se repite)."""
+    if recordatorio.en_silencio(now):
+        return []
+    hoy = now.date()
+    out = [a for p in lista if p.get("fecha_limite") and (a := _aviso_fecha_limite(p, hoy))]
+    return out + _resumen(lista, now)
+
+
 # Estados a guardar cuando llegue el aviso, por (usuario, clave). Los usa push.tick después de notify.
 _pendientes: dict[tuple[str, str], tuple[str, dict]] = {}
 
@@ -259,7 +296,7 @@ def descartar(username: str, clave: str) -> None:
 
 
 def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
-    """Lo que corresponde avisar ahora a este usuario sobre sus vuelos y hoteles."""
+    """Lo que corresponde avisar ahora a este usuario sobre sus vuelos, hoteles y pendientes del viaje."""
     prefs = vuelos.get_prefs(username)
     lista_vuelos = vuelos.listar_vuelos(username)
     out: list[tuple[str, dict]] = []
@@ -267,6 +304,8 @@ def avisos(username: str, now: dt.datetime) -> list[tuple[str, dict]]:
         out += checkin_web(lista_vuelos, now)   # de noche solo sale lo urgente
     if prefs["viajes_hoteles"]:
         out += hoteles(vuelos.listar_hoteles(username), now)
+    if prefs["viajes_pendientes"]:
+        out += pendientes(viajes_pendientes.sin_hacer(username), now)
     if prefs["viajes_estado"] and lista_vuelos and vuelos.estado_disponible():
         nuevos, guardar, diferidos = estado(
             lista_vuelos, now, lambda n, f: vuelos.consultar(n, f, usuario=username), time.time())
