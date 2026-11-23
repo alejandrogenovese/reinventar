@@ -135,6 +135,30 @@ def notify(username: str, message: dict) -> int:
     return sum(send(sub, payload, ttl=ttl) < 300 for sub in db.push_subscriptions(username))
 
 
+def notify_cada_uno(username: str, message: dict) -> int:
+    """Como notify, pero un dispositivo que falla (timeout, servicio caído) no corta a los demás: se registra y cuenta
+    como no entregado. Así quien lo usa desmarca el aviso solo si no llegó a ninguno (si no, los que sí lo recibieron lo
+    volverían a recibir en la próxima vuelta)."""
+    ttl = message.get("ttl", TTL_SECONDS)
+    payload = {k: v for k, v in message.items() if k != "ttl"}
+    llegados = 0
+    for sub in db.push_subscriptions(username):
+        try:
+            llegados += send(sub, payload, ttl=ttl) < 300
+        except Exception:  # noqa: BLE001
+            log.exception("push a %s de %s falló", urlsplit(sub["endpoint"]).netloc, username)
+    return llegados
+
+
+def _altas_charlas_nuevas() -> dict:
+    """Las charlas nuevas para avisar en esta vuelta: una sola consulta para todos los usuarios (app/charlas_nuevas.py)."""
+    try:
+        return charlas_nuevas.altas_para_aviso()
+    except Exception:  # noqa: BLE001 — sin el catálogo igual salen los demás avisos
+        log.exception("no se pudieron leer las charlas nuevas")
+        return {}
+
+
 # ---------- qué avisar ----------
 
 def _at(day: str, hhmm_: str) -> dt.datetime:
@@ -311,6 +335,7 @@ def tick() -> int:
             ofertas.correr_si_toca(sandbox.ahora())  # precios de shows cada 6 h (app/ofertas.py)
         except Exception:  # noqa: BLE001 — sin precios de shows igual salen los demás avisos
             log.exception("el job de ofertas falló")
+        altas_nuevas = _altas_charlas_nuevas() if users else {}
     for username in users:
         try:
             with sandbox.real():
@@ -318,7 +343,9 @@ def tick() -> int:
             with sandbox.activar(sb):  # en modo prueba: su reloj simulado y su schema de prueba
                 sent += _seguro("itinerario y viajes", username, _avisos_de, username)
                 sent += _seguro("ofertas", username, ofertas_avisos.enviar, username, sandbox.ahora(), notify)
-                sent += _seguro("charlas nuevas", username, charlas_nuevas.enviar, username, sandbox.ahora(), notify)
+                if altas_nuevas:
+                    sent += _seguro("charlas nuevas", username, charlas_nuevas.enviar, username, sandbox.ahora(),
+                                    notify_cada_uno, altas_nuevas)
         except Exception:  # noqa: BLE001 — leer a la persona o su modo prueba tampoco frena a las demás
             log.exception("los avisos de %s fallaron", username)
     return sent

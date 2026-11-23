@@ -8,6 +8,9 @@
   las que tocan sus intereses («3 charlas nuevas» · «AIM401 …, DEV302 … y 1 más»). Solo las altas de las últimas
   VENTANA_AVISO, nunca en el horario de silencio (app/recordatorio.py: sale a la mañana) y cada charla una sola vez
   (clave charlanueva:<base> en push_sent). Se apaga desde Ajustes (preferencias_avisos.charlas_nuevas, prendida).
+  Las altas se consultan una vez por vuelta para todos; por persona va un camino liviano (sin armar el itinerario) con
+  un advisory lock, para que con varios workers la tanda no salga partida. Un dispositivo que falla no hace que se
+  desmarque: solo se reintenta si no llegó a ninguno (push.notify_cada_uno).
 - Intereses: las claves de la ficha de la entrevista guiada y los intereses del armado rápido, buscados en el texto de
   la charla. Sin LLM ni embeddings: es una comparación de texto. Sin perfil, se avisa igual.
 El alta se compara con el reloj real; «todavía no pasó», con el del evento (el simulado en modo prueba).
@@ -132,29 +135,50 @@ def _horario(session: dict, instancia: dict, dias: list[dict]) -> dict:
             "venue": card["venue"], "choques": choques(card, dias)}
 
 
-def pendientes(username: str, ahora: dt.datetime, real: dt.datetime | None = None) -> list[dict]:
-    """Las charlas nuevas que le quedan por ver: primero las de sus intereses, después de la más reciente a la más
-    vieja. Cada una es la tarjeta de su próximo horario más `horarios`, `interes` y `alta`."""
-    real = real or ahora_real()
-    recientes = altas(real - dt.timedelta(days=DIAS_VISIBLES))
-    if not recientes:
-        return []
+def _candidatas(username: str, recientes: dict[str, dt.datetime], ahora: dt.datetime,
+                en_agenda: set[str]) -> list[tuple[str, dt.datetime, dict, list[dict]]]:
+    """(base, alta, sesión, horarios futuros) de las altas que la persona no agregó, no descartó, no tiene en el
+    itinerario y todavía no pasaron."""
     ya = decisiones(username)
-    dias = itinerary.get_current(username)["days"]
-    en_agenda = {c.get("base") for d in dias for c in d["sessions"]}
-    claves = claves_de_interes(username)
     out = []
     for base, alta in recientes.items():
         session = None if base in ya or base in en_agenda else catalog.get_session(base)
         proximas = futuras(session, ahora) if session else []
-        if not proximas:
-            continue
-        out.append({**catalog.card(session, proximas[0]), "alta": alta.isoformat(), "interes": coincide(session, claves),
-                    "horarios": [_horario(session, i, dias) for i in proximas]})
-    return sorted(out, key=lambda c: (not c["interes"], -dt.datetime.fromisoformat(c["alta"]).timestamp(), c["base"]))
+        if proximas:
+            out.append((base, alta, session, proximas))
+    return out
+
+
+def _ordenar(charlas: list[dict]) -> list[dict]:
+    """Primero las de sus intereses; después de la más reciente a la más vieja."""
+    return sorted(charlas, key=lambda c: (not c["interes"], -dt.datetime.fromisoformat(c["alta"]).timestamp(), c["base"]))
+
+
+def pendientes(username: str, ahora: dt.datetime, real: dt.datetime | None = None) -> list[dict]:
+    """Las charlas nuevas que le quedan por ver (la pantalla). Cada una es la tarjeta de su próximo horario más
+    `horarios` (con sus choques), `interes` y `alta`."""
+    real = real or ahora_real()
+    recientes = altas(real - dt.timedelta(days=DIAS_VISIBLES))
+    if not recientes:
+        return []
+    dias = itinerary.get_current(username)["days"]
+    candidatas = _candidatas(username, recientes, ahora, {c.get("base") for d in dias for c in d["sessions"]})
+    claves = claves_de_interes(username) if candidatas else []
+    return _ordenar([{**catalog.card(session, proximas[0]), "alta": alta.isoformat(), "interes": coincide(session, claves),
+                      "horarios": [_horario(session, i, dias) for i in proximas]}
+                     for _base, alta, session, proximas in candidatas])
 
 
 # ---------- push ----------
+
+CANDADO = 20261123   # advisory lock (CANDADO, hashtext(usuario)): con varios workers, la tanda sale entera de uno solo
+
+
+def altas_para_aviso(real: dt.datetime | None = None) -> dict[str, dt.datetime]:
+    """Las altas que todavía se avisan (las de las últimas VENTANA_AVISO). Se consulta una vez por vuelta de
+    app/push.tick y se comparte entre todos los usuarios."""
+    return altas((real or ahora_real()) - VENTANA_AVISO)
+
 
 def mensaje(charlas: list[dict]) -> dict:
     """Un solo push para todas: «Charla nueva: AIM401» o «3 charlas nuevas», con las primeras en el cuerpo."""
@@ -175,30 +199,45 @@ def _ya_avisadas(username: str, claves: list[str]) -> set[str]:
                                             (username, claves)).fetchall()}
 
 
-def a_avisar(username: str, ahora: dt.datetime, real: dt.datetime | None = None) -> list[dict]:
-    """Las charlas de la lista que entraron hace menos de VENTANA_AVISO y todavía no se le avisaron."""
-    real = real or ahora_real()
-    recientes = [c for c in pendientes(username, ahora, real)
-                 if dt.datetime.fromisoformat(c["alta"]) >= real - VENTANA_AVISO]
-    if not recientes:
+def a_avisar(username: str, ahora: dt.datetime, recientes: dict[str, dt.datetime]) -> list[dict]:
+    """Las altas de `recientes` que le quedan por ver y todavía no se le avisaron, ya ordenadas. Camino liviano: sin
+    armar el itinerario, ni horarios ni choques (corre para cada persona en cada vuelta)."""
+    sin_avisar = set(recientes) - _ya_avisadas(username, [clave(b) for b in recientes])
+    if not sin_avisar:
         return []
-    ya = _ya_avisadas(username, [clave(c["base"]) for c in recientes])
-    return [c for c in recientes if clave(c["base"]) not in ya]
+    en_agenda = {i["base"] for i in db.list_itinerary_items(username)}
+    candidatas = _candidatas(username, {b: recientes[b] for b in sin_avisar}, ahora, en_agenda)
+    claves = claves_de_interes(username) if candidatas else []
+    return _ordenar([{"base": base, "title": session["title"], "alta": alta.isoformat(),
+                      "interes": coincide(session, claves)} for base, alta, session, _p in candidatas])
 
 
 def enviar(username: str, ahora: dt.datetime, notificar: Callable[[str, dict], int],
-           real: dt.datetime | None = None) -> int:
+           recientes: dict[str, dt.datetime] | None = None) -> int:
     """Manda el aviso agrupado si corresponde. `notificar(usuario, mensaje)` devuelve a cuántos dispositivos llegó (en
-    producción, push.notify). Devuelve cuántos push salieron (0 o 1)."""
-    if recordatorio.en_silencio(ahora) or not quiere_aviso(username):
+    producción, push.notify_cada_uno: un dispositivo que falla no corta a los demás). `recientes`: lo de
+    altas_para_aviso (si no viene, se consulta). Devuelve cuántos push salieron (0 o 1)."""
+    ahora = ahora.astimezone(sandbox.EVENT_TZ)  # el silencio es en hora de Las Vegas
+    if recordatorio.en_silencio(ahora):
         return 0
-    marcadas = [c for c in a_avisar(username, ahora, real) if db.mark_push_sent(username, clave(c["base"]))]
+    recientes = altas_para_aviso() if recientes is None else recientes
+    if not recientes or not quiere_aviso(username):
+        return 0
+    with db.conn() as c, c.transaction():
+        libre = c.execute("SELECT pg_try_advisory_xact_lock(%s, hashtext(%s)) AS libre", (CANDADO, username)).fetchone()
+        if not libre["libre"]:
+            return 0  # otro worker está mandando la tanda de esta persona
+        return _mandar(username, a_avisar(username, ahora, recientes), notificar)
+
+
+def _mandar(username: str, charlas: list[dict], notificar: Callable[[str, dict], int]) -> int:
+    marcadas = [c for c in charlas if db.mark_push_sent(username, clave(c["base"]))]
     if not marcadas:
         return 0
     try:
         llego = notificar(username, mensaje(marcadas))
     except Exception:
-        _desmarcar(username, marcadas)  # un timeout no puede dar las charlas por avisadas
+        _desmarcar(username, marcadas)  # no se sabe si llegó a alguno: se reintenta en la próxima vuelta
         raise
     if not llego:  # no llegó a ningún dispositivo: se reintenta en la próxima vuelta
         _desmarcar(username, marcadas)

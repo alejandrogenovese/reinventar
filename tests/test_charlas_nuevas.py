@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from app import catalog, db, sandbox
 from app import charlas_nuevas as cn
+from app import push as push_mod
 from app.main import app
 from scripts.actualizar_catalogo import aplicar_migraciones
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
@@ -291,3 +292,134 @@ def test_altas_lee_solo_las_marcadas_desde_la_fecha(base):
                      (id_speech, id_speech, "Breakout session", alta))
 
     assert cn.altas(REAL - dt.timedelta(days=7), conectar=conectar, schema=schema) == {"AIM401": REAL}
+
+
+def test_altas_sin_el_schema_del_catalogo_no_rompe():
+    conn = psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
+    schema = f"ch_vacio_{uuid.uuid4().hex[:8]}"
+    conn.execute(f"CREATE SCHEMA {schema}")
+
+    @contextmanager
+    def conectar():
+        yield conn
+
+    try:
+        assert cn.altas(REAL, conectar=conectar, schema=schema) == {}
+    finally:
+        conn.execute(f"DROP SCHEMA {schema} CASCADE")
+        conn.close()
+
+
+# ---------- push: camino liviano y candado ----------
+
+def test_el_push_va_por_el_camino_liviano_sin_armar_el_itinerario(cli, monkeypatch):
+    cli.post("/api/itinerary/items", headers=cli.H, json={"code": "AIM401-R"})
+    monkeypatch.setattr(cn.itinerary, "get_current", lambda u: pytest.fail("el push no arma el itinerario"))
+    push = Push()
+
+    cn.enviar(TEST_USER, AHORA, push)
+
+    assert push.enviados[0][1]["title"] == "Charla nueva: DEV302"   # AIM401 ya está en su itinerario
+
+
+def test_sin_altas_para_avisar_sale_sin_tocar_la_base(cli, monkeypatch):
+    monkeypatch.setattr(cn, "quiere_aviso", lambda u: pytest.fail("no hacía falta leer la preferencia"))
+
+    assert cn.enviar(TEST_USER, AHORA, Push(), {}) == 0
+
+
+def test_si_otro_worker_tiene_la_tanda_de_la_persona_no_la_parte(cli):
+    otro = psycopg.connect(os.environ["DATABASE_URL"])
+    try:
+        otro.execute("SELECT pg_advisory_xact_lock(%s, hashtext(%s))", (cn.CANDADO, TEST_USER))
+        push = Push()
+        assert cn.enviar(TEST_USER, AHORA, push) == 0
+        assert cn.enviar(TEST_ADMIN, AHORA, push) == 1   # el candado es por persona
+    finally:
+        otro.rollback()
+        otro.close()
+    assert cn.enviar(TEST_USER, AHORA, Push()) == 1
+
+
+# ---------- dentro de push.tick ----------
+
+class Servicio:
+    """Los servicios de push: el endpoint «malo» se cuelga; el resto recibe."""
+
+    def __init__(self):
+        self.recibidos = []
+
+    def __call__(self, sub, payload, http=None, ttl=0):
+        if "malo" in sub["endpoint"]:
+            raise TimeoutError
+        self.recibidos.append((sub["endpoint"], payload["title"]))
+        return 201
+
+
+@pytest.fixture
+def tick(cli, monkeypatch):
+    """push.tick con lo demás apagado: solo TEST_USER suscripto, con dos dispositivos (uno se cuelga)."""
+    monkeypatch.setattr(push_mod.db, "push_usernames", lambda: [TEST_USER])
+    monkeypatch.setattr(push_mod.db, "push_subscriptions",
+                        lambda u: [{"endpoint": f"https://fcm.googleapis.com/{u}/{n}"} for n in ("bueno", "malo")])
+    monkeypatch.setattr(push_mod.documentos, "purgar_si_toca", lambda ahora: None)
+    monkeypatch.setattr(push_mod.ofertas, "correr_si_toca", lambda ahora: None)
+    monkeypatch.setattr(push_mod, "_avisos_de", lambda u: 0)
+    monkeypatch.setattr(push_mod.ofertas_avisos, "enviar", lambda u, ahora, notificar: 0)
+    servicio = Servicio()
+    monkeypatch.setattr(push_mod, "send", servicio)
+    return servicio
+
+
+def test_un_dispositivo_que_falla_no_hace_que_los_demas_lo_reciban_de_nuevo(tick):
+    assert push_mod.tick() == 1
+    assert push_mod.tick() == 0
+
+    assert tick.recibidos == [(f"https://fcm.googleapis.com/{TEST_USER}/bueno", "2 charlas nuevas")]
+
+
+def test_si_no_llega_a_ningun_dispositivo_el_tick_siguiente_reintenta(tick, monkeypatch):
+    monkeypatch.setattr(push_mod.db, "push_subscriptions", lambda u: [{"endpoint": "https://fcm.googleapis.com/malo"}])
+    assert push_mod.tick() == 0
+
+    monkeypatch.setattr(push_mod.db, "push_subscriptions", lambda u: [{"endpoint": "https://fcm.googleapis.com/bueno"}])
+    assert push_mod.tick() == 1
+
+
+def test_si_las_charlas_nuevas_fallan_no_frenan_ni_ofertas_ni_itinerario(tick, monkeypatch):
+    llamados = []
+    monkeypatch.setattr(push_mod.db, "push_usernames", lambda: [TEST_USER, TEST_ADMIN])
+    monkeypatch.setattr(push_mod, "_avisos_de", lambda u: llamados.append(("itinerario", u)) or 0)
+    monkeypatch.setattr(push_mod.ofertas_avisos, "enviar", lambda u, ahora, n: llamados.append(("ofertas", u)) or 0)
+
+    def roto(*_a, **_k):
+        raise RuntimeError("catálogo raro")
+
+    monkeypatch.setattr(cn, "enviar", roto)
+    push_mod.tick()
+    monkeypatch.setattr(cn, "altas", roto)   # tampoco si falla la lectura de las altas
+    push_mod.tick()
+
+    assert llamados == [(k, u) for _ in range(2) for u in (TEST_USER, TEST_ADMIN) for k in ("itinerario", "ofertas")]
+
+
+def test_el_silencio_va_en_hora_de_las_vegas_aunque_el_reloj_venga_en_utc(tick, monkeypatch):
+    # 05:00 UTC son las 21:00 del día anterior en Las Vegas: allá todavía no es de noche.
+    monkeypatch.setattr(sandbox, "ahora", lambda tz=LV: dt.datetime(2026, 12, 1, 5, tzinfo=dt.UTC))
+
+    assert push_mod.tick() == 1
+
+
+# ---------- datos del usuario ----------
+
+def test_la_tabla_es_de_datos_del_usuario_y_se_borra_con_ellos(cli):
+    assert "charlas_nuevas_decision" in db.tablas_datos_usuario()
+    tabla = f"{sandbox.schema_prueba()}.charlas_nuevas_decision"
+    with db.conn() as c:
+        c.execute(f"INSERT INTO {tabla} (username, base, decision, creado) VALUES (%s, 'AIM401', 'descartada', 0)",
+                  (TEST_USER,))
+
+    db.borrar_datos_prueba()
+
+    with db.conn() as c:
+        assert c.execute(f"SELECT count(*) AS n FROM {tabla}").fetchone()["n"] == 0
