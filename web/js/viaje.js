@@ -8,6 +8,7 @@ import { h } from "./ui.js";
 export const SECCIONES = [
   { href: "#/viajes/pendientes", icono: () => icon("listo", 20), titulo: "Pendientes del viaje", bajada: "ESTA, seguro, eSIM y lo que falte antes de salir" },
   { href: "#/comer", icono: () => icon("ubicacion", 20), titulo: "Dónde comer barato", bajada: "Cerca de tu próxima charla, con precio y reseñas" },
+  { href: "#/actividades", icono: () => icon("explorar", 20), titulo: "Actividades", bajada: "Excursiones de Viator y atracciones cerca tuyo" },
   { href: "#/gastos", icono: () => icon("listo", 20), titulo: "Gastos", bajada: "Cuánto llevás gastado y qué se reintegra" },
   { href: "#/ofertas", icono: () => icon("eventos", 20), titulo: "Ofertas", bajada: "Bajas de precio en shows y promos de comida y compras, con aviso" },
   { href: "#/viajes", icono: () => icon("viaje", 20), titulo: "Vuelos y hoteles", bajada: "Check-in, demoras y puerta de embarque" },

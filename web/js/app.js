@@ -42,6 +42,7 @@ import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
 import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
+import { viewActividades } from "./actividades.js";
 import { viewViaje } from "./viaje.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
@@ -120,6 +121,7 @@ const routes = [
   [/^#\/viajes\/pendientes$/, () => viewPendientes(view)],
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],
+  [/^#\/actividades(?:\/(cerca))?$/, (tab) => viewActividades(view, tab || "excursiones")],
   [/^#\/viaje$/, () => viewViaje(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],

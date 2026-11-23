@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Actividades.** En Viaje › Actividades hay dos pestañas: *Excursiones*, con tours, excursiones de un día y entradas de
+  Viator para tus días en Las Vegas (precio desde, puntaje, duración y el botón «Reservar en Viator»), agrupadas por
+  tipo; y *Cerca*, con museos, parques y atracciones ordenadas por distancia a donde estás o a tu próxima sesión.
+  Excursiones aparece cuando el servidor tiene la clave de Viator.
+
 ## [1.2.0] - 2026-11-23
 
 ### Agregado

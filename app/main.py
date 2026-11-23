@@ -22,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import (
     __version__,
+    actividades_api,
     admin_api,
     audio,
     auth_api,
@@ -180,6 +181,7 @@ app.include_router(huecos.router)
 app.include_router(codigos_api.router)
 app.include_router(demos_api.router)
 app.include_router(comer_api.router)
+app.include_router(actividades_api.router)
 app.include_router(estado_api.router)
 app.include_router(novedades_api.router)
 
