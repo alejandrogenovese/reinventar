@@ -217,7 +217,8 @@ def test_exige_login():
 def test_sin_tipo_busca_todo_como_antes(client, google):
     _pedir(client)
     [p] = google.pedidos
-    assert p["json"]["includedTypes"] == places.TIPOS_COMER and "excludedPrimaryTypes" not in p["json"]
+    assert p["json"]["includedTypes"] == places.TIPOS_COMER
+    assert "excludedPrimaryTypes" not in p["json"]
 
 
 @pytest.mark.parametrize(("tipo", "incluye", "no_incluye"), [
@@ -228,7 +229,8 @@ def test_sin_tipo_busca_todo_como_antes(client, google):
 def test_cada_tipo_pide_a_google_sus_categorias(client, google, tipo, incluye, no_incluye):
     assert _pedir(client, tipo=tipo).status_code == 200
     [p] = google.pedidos
-    assert incluye in p["json"]["includedTypes"] and no_incluye not in p["json"]["includedTypes"]
+    assert incluye in p["json"]["includedTypes"]
+    assert no_incluye not in p["json"]["includedTypes"]
 
 
 def test_restaurantes_deja_afuera_la_comida_rapida(client, google):

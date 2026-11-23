@@ -2,21 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// DOM mínimo: alcanza para armar las tarjetas, recorrerlas y tocar botones.
-class Nodo {
-  constructor(tag) { this.tag = tag; this.nodeType = 1; this.attrs = {}; this.children = []; this.className = ""; this.style = {}; this.on = {}; this.classList = { add: () => {}, toggle: () => {} }; }
-  setAttribute(k, v) { this.attrs[k] = String(v); }
-  getAttribute(k) { return this.attrs[k] ?? null; }
-  addEventListener(tipo, fn) { this.on[tipo] = fn; }
-  append(...hijos) { this.children.push(...hijos); }
-  replaceChildren(...hijos) { this.children = hijos; }
-  get textContent() { return this.children.map((c) => (typeof c === "string" ? c : c.textContent)).join(""); }
-  set textContent(v) { this.children = [String(v)]; }
-}
-globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
-globalThis.window = { dispatchEvent() {}, addEventListener() {} };
-globalThis.location = { hash: "" };
-globalThis.document = { createElement: (t) => new Nodo(t), createElementNS: (_n, t) => new Nodo(t), getElementById: () => null };
+import { Nodo } from "./domMinimo.mjs";
 
 const { minutosTexto, duracionTexto, precioTexto, distanciaTexto, consultaCerca, pintarExcursiones, panelExcursiones, pestanaInicial } =
   await import("../../web/js/actividades.js");
