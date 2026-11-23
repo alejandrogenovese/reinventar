@@ -1,4 +1,6 @@
 """API de Viajes: alta, edición y baja de vuelos y hoteles, validación, aislamiento por usuario y reseteo de avisos."""
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -22,7 +24,7 @@ def _limpiar():
         for t in ("viajes_vuelos", "viajes_hoteles"):
             c.execute(f"DELETE FROM {t} WHERE username IN (%s,%s)", (TEST_USER, TEST_ADMIN))
         c.execute("DELETE FROM preferencias_avisos WHERE username IN (%s,%s)", (TEST_USER, TEST_ADMIN))
-        c.execute("DELETE FROM push_sent WHERE username IN (%s,%s) AND key ~ '^(vcheckin|vcancel|vdemora|vpuerta|hin|hout):'",
+        c.execute("DELETE FROM push_sent WHERE username IN (%s,%s) AND key ~ '^(vcheckin|vcancel|vdemora|vpuerta|vcinta|hin|hout):'",
                   (TEST_USER, TEST_ADMIN))
 
 
@@ -134,7 +136,8 @@ def _marcar(username: str, *claves: str) -> None:
 
 def _con_estado(username: str, id_: str) -> None:
     vuelos.guardar_estado(username, id_, {"salida_utc": 1.8e9, "demora_min": 40, "puerta": "B12", "terminal": "A",
-                                          "estado": "Delayed", "consultado_en": 1.7e9})
+                                          "estado": "Delayed", "consultado_en": 1.7e9, "destino_iata": "IAH",
+                                          "llegada_utc": 1.8e9 + 3600, "llegada_cinta": "7", "matricula": "N1"})
 
 
 def test_edita_un_vuelo_y_devuelve_la_ficha_actualizada(cli):
@@ -171,15 +174,17 @@ def test_otra_persona_no_puede_editar_el_vuelo_ni_el_hotel(cli):
 def test_cambiar_la_salida_del_vuelo_resetea_estado_y_avisos(cli):
     v = cli.post("/api/viajes/vuelos", headers=cli.H, json=VUELO).json()
     _con_estado(TEST_USER, v["id"])
-    _marcar(TEST_USER, f"vcheckin:{v['id']}", f"vcancel:{v['id']}", f"vdemora:{v['id']}:0>40", f"vpuerta:{v['id']}:B12")
+    _marcar(TEST_USER, f"vcheckin:{v['id']}", f"vcancel:{v['id']}", f"vdemora:{v['id']}:0>40", f"vpuerta:{v['id']}:B12",
+            f"vcinta:{v['id']}:7")
     viajes_avisos._pendientes[(TEST_USER, f"vpuerta:{v['id']}:B12")] = (v["id"], {"puerta": "B12"})
 
     r = cli.put(f"/api/viajes/vuelos/{v['id']}", headers=cli.H, json={**VUELO, "fecha": "2026-11-29"})
 
     e = r.json()
     assert e["demora_min"] is None and e["puerta"] is None and e["estado"] is None and e["salida"] == "2026-11-29T21:05"
+    assert e["destino_iata"] is None and e["llegada"] is None and e["llegada_cinta"] is None and e["matricula"] is None
     guardado = vuelos.get_vuelo(TEST_USER, v["id"])
-    assert guardado["salida_utc"] is None and guardado["consultado_en"] is None
+    assert guardado["salida_utc"] is None and guardado["consultado_en"] is None and guardado["llegada_utc"] is None
     assert _marcas(TEST_USER, v["id"]) == set()
     assert (TEST_USER, f"vpuerta:{v['id']}:B12") not in viajes_avisos._pendientes
 
@@ -221,3 +226,20 @@ def test_editar_el_hotel_resetea_solo_los_avisos_que_cambian(cli, cambio, quedan
     assert cli.put(f"/api/viajes/hoteles/{h['id']}", headers=cli.H, json={**HOTEL, **cambio}).status_code == 200
 
     assert _marcas(TEST_USER, h["id"]) == {f"{k}:{h['id']}" for k in quedan}
+
+
+def test_la_ficha_del_vuelo_trae_destino_llegada_y_avion(cli):
+    v = cli.post("/api/viajes/vuelos", headers=cli.H, json=VUELO).json()
+    llega = dt.datetime(2026, 11, 30, 3, 33, tzinfo=dt.UTC).timestamp()
+    vuelos.guardar_estado(TEST_USER, v["id"], {"destino_iata": "IAH", "destino_nombre": "Houston", "llegada_utc": llega,
+                                               "llegada_terminal": "C", "llegada_cinta": "7", "checkin_desk": "E1",
+                                               "aeronave": "Boeing 737", "matricula": "N1"})
+
+    e = cli.get("/api/viajes", headers=cli.H).json()["vuelos"][0]
+
+    assert (e["destino_iata"], e["destino_nombre"], e["llegada_terminal"], e["llegada_cinta"]) == ("IAH", "Houston", "C", "7")
+    assert (e["checkin_desk"], e["aeronave"], e["matricula"]) == ("E1", "Boeing 737", "N1")
+    assert e["llegada"] == "2026-11-30T00:33"   # sin la hora local del destino, en la zona del vuelo (Buenos Aires)
+
+    vuelos.guardar_estado(TEST_USER, v["id"], {"llegada_local": "2026-11-29T21:33"})
+    assert cli.get("/api/viajes", headers=cli.H).json()["vuelos"][0]["llegada"] == "2026-11-29T21:33"

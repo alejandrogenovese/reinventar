@@ -180,3 +180,67 @@ def test_un_error_de_la_api_o_de_red_no_tira_nada():
             raise httpx.ConnectError("sin red")
 
     assert vuelos.consultar("AR3", "2026-11-28", http=Caido()) is None
+
+
+# ---------- destino, llegada y avión (todo opcional) ----------
+
+def _completa():
+    """Una respuesta con todo lo que documenta AeroDataBox para flights/number (forma no verificada contra una real)."""
+    return [{"number": "UA 1355", "status": "Departed", "greatCircleDistance": {"km": 2209.6},
+             "aircraft": {"model": "Boeing 737 MAX 9", "reg": "N37502"},
+             "departure": {"airport": {"iata": "LAS", "name": "Las Vegas Harry Reid", "municipalityName": "Las Vegas"},
+                           "scheduledTime": {"utc": "2026-12-04 20:45Z", "local": "2026-12-04 12:45-08:00"},
+                           "revisedTime": {"utc": "2026-12-04 21:05Z", "local": "2026-12-04 13:05-08:00"},
+                           "terminal": "3", "gate": "D12", "checkInDesk": "E1-E8"},
+             "arrival": {"airport": {"iata": "IAH", "name": "Houston George Bush Intercontinental",
+                                     "municipalityName": "Houston"},
+                         "scheduledTime": {"utc": "2026-12-05 02:20Z", "local": "2026-12-04 20:20-06:00"},
+                         "revisedTime": {"utc": "2026-12-05 02:40Z", "local": "2026-12-04 20:40-06:00"},
+                         "terminal": "C", "baggageBelt": "7"}}]
+
+
+def test_lee_destino_llegada_y_avion_de_una_respuesta_completa():
+    r = vuelos.leer_estado(_completa(), "2026-12-04")
+
+    assert r["demora_min"] == 20 and r["puerta"] == "D12" and r["terminal"] == "3"
+    assert (r["destino_iata"], r["destino_nombre"]) == ("IAH", "Houston")
+    assert r["llegada_utc"] == dt.datetime(2026, 12, 5, 2, 40, tzinfo=dt.UTC).timestamp()   # la revisada
+    assert r["llegada_local"] == "2026-12-04T20:40"   # hora de Houston, del desfase de la respuesta
+    assert (r["llegada_terminal"], r["llegada_cinta"], r["checkin_desk"]) == ("C", "7", "E1-E8")
+    assert (r["aeronave"], r["matricula"]) == ("Boeing 737 MAX 9", "N37502")
+
+
+def test_sin_los_datos_opcionales_lee_igual_la_salida():
+    r = vuelos.leer_estado(_raw(), "2026-11-28")
+
+    assert r["salida_utc"] and r["puerta"] == "B12"
+    assert all(r[k] is None for k in vuelos.CAMPOS_LLEGADA)
+
+
+def test_con_datos_a_medias_toma_lo_que_hay():
+    raw = _completa()
+    raw[0]["aircraft"] = "raro"
+    raw[0]["departure"]["checkInDesk"] = 12
+    raw[0]["arrival"] = {"airport": {"iata": "IAH", "name": "Houston Intercontinental"},
+                         "scheduledTime": {"utc": "2026-12-05 02:20Z"}, "baggageBelt": "  "}
+
+    r = vuelos.leer_estado(raw, "2026-12-04")
+
+    assert r["destino_nombre"] == "Houston Intercontinental"   # sin municipio, el nombre del aeropuerto
+    assert r["llegada_utc"] == dt.datetime(2026, 12, 5, 2, 20, tzinfo=dt.UTC).timestamp()
+    assert r["llegada_local"] is None   # sin hora local no se sabe el huso del destino
+    assert r["llegada_cinta"] is None and r["checkin_desk"] is None and r["aeronave"] is None
+
+
+def test_la_hora_local_de_llegada_sale_del_desfase_aunque_falte_la_revisada_local():
+    raw = _completa()
+    raw[0]["arrival"]["revisedTime"] = {"utc": "2026-12-05 03:00Z"}
+
+    assert vuelos.leer_estado(raw, "2026-12-04")["llegada_local"] == "2026-12-04T21:00"
+
+
+def test_un_texto_largo_de_la_respuesta_se_recorta():
+    raw = _completa()
+    raw[0]["aircraft"]["model"] = "x" * 500
+
+    assert len(vuelos.leer_estado(raw, "2026-12-04")["aeronave"]) == vuelos.LARGO_MAX_TEXTO

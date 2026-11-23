@@ -6,6 +6,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ## [Sin publicar]
 
 ### Agregado
+- **Más datos de tu vuelo.** La ficha del vuelo muestra a dónde va y a qué hora llega («A Houston (IAH) · llega
+  16:40», en hora del destino), el avión y su matrícula, el mostrador de check-in, la terminal de llegada y la cinta
+  de equipaje cuando la asignan. Te avisamos con una notificación en cuanto aparece la cinta.
+- **«Próximo» en el aviso de arriba.** Cuando no hay nada más importante, el aviso de arriba te muestra lo que viene:
+  tu vuelo desde 12 h antes («Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12»), el check-in o el
+  check-out del hotel, o la próxima charla del día. Tocalo para ir a la ficha.
 - **Documentos de viaje.** En Viajes › Documentos de viaje podés subir el pasaporte, la ESTA o visa, el seguro, reservas,
   la entrada a re:Invent o la tarjeta de embarque (foto o PDF, hasta 8 MB). Solo vos los ves, se guardan cifrados y se
   borran solos 30 días después del viaje (o cuando toques «Borrar todos mis documentos»). Si alguno vence durante el

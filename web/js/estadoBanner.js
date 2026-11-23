@@ -1,7 +1,7 @@
 // Banner de estado (#estado-banner, en .top-banners): junta las fuentes (red, colas de grabaciones y gastos, /api/estado,
-// versión) y dibuja el aviso más importante con un «+N» que abre la hoja «Avisos». Qué se muestra lo decide estado.js
-// (puro); acá solo se lee el mundo, se guarda lo cerrado y se pinta. Diseño: demos/diseno/banner-status.html.
-import { EVENTO_CON_SERVICIO, EVENTO_SIN_SERVICIO, api, getToken } from "./api.js";
+// versión, «Próximo» de /api/viajes/proximo) y dibuja el aviso más importante con un «+N» que abre la hoja «Avisos». Qué
+// se muestra lo decide estado.js (puro); acá solo se lee el mundo, se guarda lo cerrado y se pinta. Diseño: demos/diseno/banner-status.html.
+import { EVENTO_CON_SERVICIO, EVENTO_SIN_SERVICIO, Viajes, api, getToken } from "./api.js";
 import { CIERRE, TODO_SUBIDO_MS, cerradoHasta, cierresVigentes, compararVersiones, elegirAvisos, novedadesValidas, progresoDeSubida, seguirSubida } from "./estado.js";
 import { EVENTO_GASTOS, sincronizar } from "./gastos.js";
 import { listarGastos } from "./gastosCola.js";
@@ -13,6 +13,7 @@ import { Button, Hoja, h, mensajeError, toast } from "./ui.js";
 import { VERSION } from "./version.js";
 
 const CONSULTA_CADA_MS = 10 * 60_000;     // /api/estado: al abrir, al volver a primer plano y cada 10 min (sin red, no)
+const PROXIMO_CADA_MS = 5 * 60_000;       // /api/viajes/proximo: con el recálculo y al volver a primer plano, como mucho cada 5 min
 const RECALCULO_MS = 150;                 // junta varios eventos seguidos (la cola emite muchos) en una sola lectura
 const CIERRES = "reinventar.estado.cierres";      // localStorage: { id: hasta (ms) } · sessionStorage: [id]
 const VERSION_VISTA = "reinventar.version.vista"; // localStorage: la última versión que se abrió en este celular
@@ -20,7 +21,7 @@ const VERSION_VISTA = "reinventar.version.vista"; // localStorage: la última ve
 // Íconos de cada aviso (estado.js los nombra; acá se dibujan con nombres literales).
 const ICONO = {
   sinsenal: () => icon("sinsenal", 20), subir: () => icon("subir", 20), ok: () => icon("ok", 20), error: () => icon("error", 20),
-  nuevo: () => icon("nuevo", 20), reloj: () => icon("reloj", 20), alerta: () => icon("alerta", 20),
+  nuevo: () => icon("nuevo", 20), reloj: () => icon("reloj", 20), alerta: () => icon("alerta", 20), viaje: () => icon("viaje", 20),
 };
 
 const local = () => localStorage;
@@ -43,6 +44,7 @@ let mundo = {
   servicio: [],
   versionRemota: null,
   actualizada: null,          // { nueva, anterior } si esta apertura es la primera de una versión nueva
+  proximo: null,              // lo de /api/viajes/proximo: vuelo, hotel o charla que viene enseguida
 };
 const cambiar = (cambios) => { mundo = { ...mundo, ...cambios }; };
 
@@ -50,6 +52,7 @@ let volvioLaRed = false;      // el próximo recálculo empieza a contar «subie
 let temporizador = null;
 let ultimaFirma = null;
 let consultadoCon = null;     // token con el que ya se consultó /api/estado (al entrar con otra cuenta se vuelve a pedir)
+let proximoDe = { token: null, en: 0 };  // con qué cuenta y cuándo (ms) se pidió «Próximo» por última vez
 
 const hayRed = () => navigator.onLine !== false && !mundo.sinServicio;
 
@@ -81,7 +84,7 @@ function avisosActuales() {
     subiendo: progresoDeSubida(mundo.subida, mundo.pendientes), subidoEn: mundo.subidoEn,
     servicio: mundo.servicio, versionLocal: VERSION, versionRemota: mundo.versionRemota, actualizadaA: mundo.actualizada?.nueva ?? null,
     descartados: descartados(ahora), ruta: location.hash || "#/", countdownUrgente: countdownUrgente(),
-    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), ahora,
+    datosDe: mundo.datosDe, ultimaSync: leerUltimaSync(), proximo: mundo.proximo, ahora,
   });
 }
 
@@ -243,7 +246,27 @@ async function leerColas() {
   };
 }
 
+/** «Próximo» es por persona (no va en /api/estado, que se cachea compartido). Como mucho cada 5 min, salvo que cambie la
+ * cuenta; sin red no se pide y queda lo último (estado.js lo descarta cuando ya empezó). Si falla, no se muestra. */
+async function consultarProximo() {
+  const token = getToken();
+  const ahora = Date.now();
+  if (!token || navigator.onLine === false) return;
+  if (proximoDe.token === token && ahora - proximoDe.en < PROXIMO_CADA_MS) return;
+  if (proximoDe.token !== token) cambiar({ proximo: null });  // otra cuenta: lo de la anterior no se muestra
+  proximoDe = { token, en: ahora };
+  try {
+    const r = await Viajes.proximo();
+    cambiar({ proximo: r && typeof r === "object" ? r : null });
+  } catch (e) {
+    console.warn("[estado] no se pudo leer «Próximo»", e);
+    cambiar({ proximo: null });
+  }
+  paint();
+}
+
 async function recalcular() {
+  void consultarProximo();
   const { pendientes, fallidos } = await leerColas();
   const empezar = volvioLaRed;
   volvioLaRed = false;

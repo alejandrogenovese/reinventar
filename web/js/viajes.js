@@ -22,14 +22,34 @@ function estadoDelVuelo(v) {
   return null;
 }
 
+/** «A Houston (IAH) · llega 16:40». La hora es la del destino (llegada_local, del desfase que manda AeroDataBox); si no
+ * vino, el servidor la da en la zona del vuelo y se aclara de dónde es. Si llega otro día, con el día. */
+function llegadaDelVuelo(v) {
+  const destino = v.destino_nombre && v.destino_iata ? `${v.destino_nombre} (${v.destino_iata})` : v.destino_nombre || v.destino_iata;
+  if (!destino && !v.llegada) return "";
+  const otroDia = v.llegada && v.salida && v.llegada.slice(0, 10) !== v.salida.slice(0, 10);
+  const hora = v.llegada ? `llega ${otroDia ? cuando(v.llegada) : v.llegada.slice(11, 16)}${v.llegada_local ? "" : ` (hora de ${v.zona_nombre})`}` : "";
+  return [destino ? `A ${destino}` : "", hora].filter(Boolean).join(" · ");
+}
+
+/** Lo que trajo AeroDataBox además de la salida: avión, mostrador de check-in y llegada (la cinta, solo si ya está). */
+function datosDelVuelo(v) {
+  const avion = v.aeronave ? `Avión ${v.aeronave}${v.matricula ? ` · matrícula ${v.matricula}` : ""}` : v.matricula ? `Matrícula ${v.matricula}` : "";
+  const llegada = [v.llegada_terminal ? `Llega a la terminal ${v.llegada_terminal}` : "", v.llegada_cinta ? `Cinta de equipaje ${v.llegada_cinta}` : ""];
+  return [avion, v.checkin_desk ? `Mostrador de check-in ${v.checkin_desk}` : "", llegada.filter(Boolean).join(" · ")].filter(Boolean);
+}
+
 function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
   const sale = v.salida ? `${cuando(v.salida)} (${v.zona_nombre})` : `${dia(v.fecha)} · sin hora`;
   const puerta = v.puerta ? `Puerta ${v.puerta}${v.terminal ? ` · Terminal ${v.terminal}` : ""}` : "";
+  const llega = llegadaDelVuelo(v);
   return h("article", { class: "ra-card", id: `vuelo-${v.id}` },
     h("div", { class: "ra-card-top" },
       h("a", { class: "ra-card-title ra-link", href: `#/viajes/vuelo/${v.id}` }, v.numero, v.aerolinea ? ` · ${v.aerolinea}` : ""),
       estadoDelVuelo(v)),
     h("div", { class: "ra-card-meta" }, h("span", {}, sale), puerta ? h("span", {}, puerta) : null),
+    llega ? h("div", { class: "ra-card-meta" }, h("span", {}, llega)) : null,
+    detalle ? datosDelVuelo(v).map((linea) => h("p", { class: "caption" }, linea)) : null,
     v.checkin_abre ? h("p", { class: "caption" }, `Check-in web desde el ${cuando(v.checkin_abre)} (${v.checkin_horas} h antes)`) : null,
     detalle ? h("div", { class: "actions" },
       linkSeguro(v.checkin_url) ? h("a", { class: "ra-btn ra-btn-secondary", href: linkSeguro(v.checkin_url), target: "_blank", rel: "noopener" }, "Hacer check-in") : null,

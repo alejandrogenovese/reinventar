@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const {
-  CIERRE, CIERRE_SERVICIO_MS, PRIORIDAD, TODO_SUBIDO_MS, avisoDeServicio, cerradoHasta, cierresVigentes, compararVersiones, contarCosas,
+  CIERRE, CIERRE_SERVICIO_MS, PRIORIDAD, TODO_SUBIDO_MS, avisoDeServicio, avisoProximo, cerradoHasta, cierresVigentes, compararVersiones, contarCosas,
   elegirAvisos, novedadesValidas, progresoDeSubida, seguirSubida,
 } = await import("../../web/js/estado.js");
 
@@ -252,4 +252,62 @@ test("novedadesValidas: arma las secciones en orden y descarta lo que no tiene l
   ] }]);
   assert.deepEqual(novedadesValidas({ detail: "Not Found" }), []);
   assert.deepEqual(novedadesValidas(null), []);
+});
+
+
+// ---------- «Próximo» (/api/viajes/proximo) ----------
+
+const VUELO = {
+  tipo: "vuelo", titulo: "UA1355 a Houston", hora: "13:05", detalle: "puerta D12", url: "#/viajes/vuelo/v1",
+  demora_min: 20, cancelado: false, tono: "info", inicio: new Date(AHORA + 3_600_000).toISOString(),
+};
+
+test("el vuelo próximo: número, destino, salida con demora y puerta; el botón lleva a la ficha", () => {
+  const a = avisoProximo(VUELO, AHORA);
+  assert.equal(textoDe(a), "Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12");
+  assert.deepEqual(a.accion, { texto: "Ver vuelo", tipo: "ir", destino: "#/viajes/vuelo/v1" });
+  assert.equal(a.tono, "info");
+  assert.equal(a.prioridad, PRIORIDAD.proximo);
+});
+
+test("lo que falta se omite", () => {
+  assert.equal(textoDe(avisoProximo({ ...VUELO, demora_min: 0, detalle: null }, AHORA)), "Próximo: UA1355 a Houston · sale 13:05");
+  assert.equal(textoDe(avisoProximo({ ...VUELO, hora: null, demora_min: null }, AHORA)), "Próximo: UA1355 a Houston · puerta D12");
+});
+
+test("un vuelo cancelado va con tono de error", () => {
+  const a = avisoProximo({ ...VUELO, cancelado: true, tono: "error" }, AHORA);
+  assert.equal(a.tono, "error");
+  assert.equal(textoDe(a), "Próximo: UA1355 a Houston · cancelado");
+});
+
+test("la charla: título, hora y sala", () => {
+  const a = avisoProximo({ tipo: "charla", titulo: "Agentes en producción", hora: "14:30", detalle: "Venetian · Sala Lido 3",
+    url: "#/charla/ARC407", inicio: VUELO.inicio }, AHORA);
+  assert.equal(textoDe(a), "Próximo: Agentes en producción · 14:30 · Venetian · Sala Lido 3");
+  assert.equal(a.accion.destino, "#/charla/ARC407");
+});
+
+test("lo que ya empezó, lo raro o un destino fuera de la app no se muestra como tal", () => {
+  assert.equal(avisoProximo({ ...VUELO, inicio: new Date(AHORA - 1).toISOString() }, AHORA), null);
+  assert.equal(avisoProximo({ ...VUELO, tipo: "otro" }, AHORA), null);
+  assert.equal(avisoProximo({ ...VUELO, titulo: " " }, AHORA), null);
+  assert.equal(avisoProximo(null, AHORA), null);
+  assert.equal(avisoProximo({ ...VUELO, url: "https://ejemplo.invalid" }, AHORA).accion, null);
+});
+
+test("«Próximo» va debajo de todo: nunca tapa servicio caído, sin señal ni versión", () => {
+  assert.deepEqual(ids(elegirAvisos(base({ proximo: VUELO }))), [avisoProximo(VUELO, AHORA).id]);
+  const avisos = elegirAvisos(todo({ proximo: VUELO }));
+  assert.equal(avisos.at(-1).id, avisoProximo(VUELO, AHORA).id);
+  assert.equal(elegirAvisos(base({ online: false, proximo: VUELO }))[0].id, "sin-senal");
+  assert.equal(elegirAvisos(base({ versionRemota: "1.1.3", proximo: VUELO }))[0].id, "version:1.1.3");
+  assert.deepEqual(elegirAvisos(base({ proximo: VUELO, countdownUrgente: true })), []);  // con «Salí ya», no
+});
+
+test("cerrado en la sesión no vuelve, salvo que cambie lo próximo", () => {
+  const id = avisoProximo(VUELO, AHORA).id;
+  assert.deepEqual(elegirAvisos(base({ proximo: VUELO, descartados: { [id]: Infinity } })), []);
+  const otro = { ...VUELO, inicio: new Date(AHORA + 7_200_000).toISOString() };
+  assert.equal(elegirAvisos(base({ proximo: otro, descartados: { [id]: Infinity } })).length, 1);
 });

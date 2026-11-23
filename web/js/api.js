@@ -167,6 +167,7 @@ export const Viajes = {
   quitarHotel: (id) => api(`/api/viajes/hoteles/${encodeURIComponent(id)}`, { method: "DELETE" }),
   prefs: () => api("/api/viajes/preferencias"),
   savePrefs: (prefs) => api("/api/viajes/preferencias", { method: "PUT", json: prefs }),
+  proximo: () => api("/api/viajes/proximo"),  // «Próximo» del banner de estado (o null)
 };
 
 // Documentos de viaje (app/documentos_api.py). La lista (solo metadatos) tiene copia sin señal; el archivo nunca: sin
