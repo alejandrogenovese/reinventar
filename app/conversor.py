@@ -7,6 +7,8 @@ ni la entrada ni la salida (app/trazas.py: tarea privada "foto").
 """
 import json
 import logging
+import math
+import re
 
 from . import config, llm
 from .llm_router import Tarea
@@ -18,13 +20,19 @@ MAX_UNIDADES = 10
 LARGO_TEXTO = 300
 LARGO_UNIDAD = 20
 MAX_TOKENS = 2000
+LIMITE_VALOR = 1e9  # un valor más grande no es una medida de una carta o un cartel: se descarta
+# Mismo criterio que parsearNumero de web/js/unidades.js. Miles: 1 a 3 cifras (sin 0 adelante) y grupos de 3 con el
+# mismo separador, punto o coma («1,234», «1.234»), con decimales opcionales detrás del otro («1,234.5»).
+_MILES = re.compile(r"(-?)([1-9]\d{0,2}(?:([.,])\d{3})(?:\3\d{3})*)(?:([.,])(\d+))?")
+# Decimal simple: un solo separador («72,5», «72.5», «,5», «0,750»). Nada de «1_000», «1e3» ni «inf».
+_DECIMAL = re.compile(r"-?(?:\d+(?:[.,]\d*)?|[.,]\d+)")
 
 SYSTEM = f"""Leés fotos que saca una persona argentina de viaje en Estados Unidos: cartas de restaurante, carteles, etiquetas, pronósticos, máquinas del gym. Transcribís el texto legible y lo traducís a {config.TARGET_LANGUAGE}, con voseo.
 
 Para cada renglón o ítem con sentido propio (un plato con su precio, un cartel, una indicación) devolvés:
 - "original": el texto tal como se lee en la foto.
 - "traduccion": la traducción, breve y natural. Los nombres propios y de marcas quedan igual.
-- "unidades": los números con unidad estadounidense que aparecen en ese texto, sin convertirlos: [{{"valor": 16, "unidad": "oz"}}]. Unidades posibles: °F, oz, lb, fl oz, cup, pint, gallon, in, ft, yd, mi, mph, $. Precios en dólares con unidad "$". Si no hay, [].
+- "unidades": los números con unidad estadounidense que aparecen en ese texto, sin convertirlos: [{{"valor": 16, "unidad": "oz"}}]. "valor" va siempre como número JSON (16, 2.5, 1250), nunca como texto ni con separador de miles. Unidades posibles: °F, oz, lb, fl oz, cup, pint, gallon, in, ft, yd, mi, mph, $. Precios en dólares con unidad "$". Si no hay, [].
 
 No conviertas nada ni agregues texto que no esté en la foto. Si no hay texto legible, devolvé {{"textos": []}}.
 Respondé solo con JSON, sin comentarios: {{"textos": [{{"original": "...", "traduccion": "...", "unidades": [...]}}]}}"""
@@ -74,15 +82,24 @@ def _cadena(valor, largo: int) -> str:
 
 
 def _numero(valor) -> float | None:
+    """El valor como número finito; si el LLM lo mandó como texto, se lee con _MILES o _DECIMAL. Si no, None."""
     if isinstance(valor, bool):
         return None
     if isinstance(valor, int | float):
-        return float(valor)
-    if isinstance(valor, str):
-        try:
-            return float(valor.strip().replace(",", "."))
-        except ValueError:
-            return None
+        numero = float(valor)
+    elif isinstance(valor, str):
+        numero = _numero_de_texto(valor.strip())
+    else:
+        return None
+    return numero if numero is not None and math.isfinite(numero) else None
+
+
+def _numero_de_texto(texto: str) -> float | None:
+    miles = _MILES.fullmatch(texto)
+    if miles and miles[4] != miles[3]:
+        return float(f"{miles[1]}{re.sub(r'[.,]', '', miles[2])}" + (f".{miles[5]}" if miles[5] else ""))
+    if _DECIMAL.fullmatch(texto):
+        return float(texto.replace(",", "."))
     return None
 
 
@@ -90,7 +107,7 @@ def _unidad(u) -> dict | None:
     if not isinstance(u, dict):
         return None
     valor, unidad = _numero(u.get("valor")), _cadena(u.get("unidad"), LARGO_UNIDAD)
-    if valor is None or not unidad or valor != valor or abs(valor) == float("inf"):  # valor != valor: NaN
+    if valor is None or not unidad or not abs(valor) < LIMITE_VALOR:
         return None
     return {"valor": int(valor) if valor.is_integer() else valor, "unidad": unidad}
 

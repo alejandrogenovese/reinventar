@@ -27,7 +27,18 @@ test("parsearNumero acepta coma o punto decimal y el signo menos", () => {
 });
 
 test("parsearNumero devuelve null con lo que no es número", () => {
-  for (const malo of ["", "abc", "12a", "-", ",", "1-2", null, undefined, Number.NaN]) assert.equal(parsearNumero(malo), null, String(malo));
+  for (const malo of ["", "abc", "12a", "-", ",", "1-2", "1_000", "1e3", "0x10", "1.234.5", "1,23,4", "Infinity", null, undefined,
+    Number.NaN, Number.POSITIVE_INFINITY, {}, []]) assert.equal(parsearNumero(malo), null, String(malo));
+});
+
+test("parsearNumero: miles con punto o coma en grupos de 3; si no, el separador es decimal", () => {
+  assert.equal(parsearNumero("1,234"), 1234);
+  assert.equal(parsearNumero("1.234"), 1234);
+  assert.equal(parsearNumero("12.345"), 12345);
+  assert.equal(parsearNumero("0,750"), 0.75);      // con 0 adelante no son miles
+  assert.equal(parsearNumero("1234,5"), 1234.5);
+  assert.equal(parsearNumero("1,5"), 1.5);
+  assert.equal(parsearNumero("1,2345"), 1.2345);  // 4 cifras: decimal
 });
 
 test("convertir: peso, volumen, largo y velocidad", () => {
@@ -44,6 +55,14 @@ test("convertir devuelve null entre dimensiones distintas o unidades que no exis
   assert.equal(convertir(1, "lb", "ml"), null);
   assert.equal(convertir(1, "F", "kg"), null);
   assert.equal(convertir(1, "piedra", "kg"), null);
+  assert.equal(convertir(1, "constructor", "toString"), null);
+  assert.equal(convertir(1, "__proto__", "__proto__"), null);
+});
+
+test("convertir devuelve null si el resultado no es finito", () => {
+  assert.equal(convertir(Number.MAX_VALUE, "mi", "cm"), null);
+  assert.equal(convertir(Number.MAX_VALUE, "C", "F"), null);
+  assert.equal(usdAArs(Number.MAX_VALUE, 1885), null);
 });
 
 test("todos los pares de las pestañas son convertibles", () => {
@@ -113,5 +132,11 @@ test("unidades leídas en la foto: alias y conversión al sistema métrico", () 
   assert.equal(convertirDetectada({ valor: 25, unidad: "$" }, { tarjeta: 1885 }), "US$ 25 = $ 47.125");
   assert.equal(convertirDetectada({ valor: 25, unidad: "$" }), null);
   assert.equal(convertirDetectada({ valor: "muchos", unidad: "oz" }), null);
+  for (const unidad of ["constructor", "__proto__", "toString", "hasOwnProperty", 16, null]) {
+    assert.equal(unidadConocida(unidad), null, String(unidad));
+    assert.equal(convertirDetectada({ valor: 1, unidad }), null, String(unidad));
+  }
+  assert.equal(convertirDetectada({ valor: Number.MAX_VALUE, unidad: "mi" }), null);
+  assert.equal(convertirDetectada({ valor: Number.MAX_VALUE, unidad: "$" }, { tarjeta: 1885 }), null);
   assert.equal(conUnidad(0.5, "kg"), "0,5 kg");
 });

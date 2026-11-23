@@ -31,6 +31,11 @@ class Imagen:
         return f"Imagen({self.tipo}, {len(self.datos)} bytes)"
 
 
+# Tareas cuyas fallas no cuentan para el banner de estado: una foto ilegible o rechazada por el modelo no quiere decir
+# que los resúmenes estén caídos.
+_SIN_CONTAR_FALLAS = frozenset({Tarea.FOTO})
+
+
 def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000, imagen: Imagen | None = None) -> str:
     p = sandbox.proveedor_llm()
     if p == "fake":
@@ -39,7 +44,8 @@ def complete(tarea: Tarea, system: str, user: str, max_tokens: int = 8000, image
         return _llamar(p, tarea, system, user, max_tokens, imagen)
     except Exception:
         # Solo se cuentan las fallas (no los éxitos): el banner de estado da los resúmenes por caídos si se acumulan.
-        estado.registrar_falla_llm("prueba" if sandbox.actual() else "real")
+        if tarea not in _SIN_CONTAR_FALLAS:
+            estado.registrar_falla_llm("prueba" if sandbox.actual() else "real")
         raise
 
 

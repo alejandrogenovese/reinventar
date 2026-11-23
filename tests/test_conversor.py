@@ -3,12 +3,14 @@ LLM en modo fake: no consume APIs. Sin catálogo (corre en CI)."""
 import base64
 import json
 import logging
+import tempfile
+from pathlib import Path
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, conversor, limites, llm, trazas
+from app import config, conversor, conversor_api, estado, limites, llm, sandbox, trazas
 from app.llm_router import Tarea
 from app.main import app
 from tests.conftest import login_headers
@@ -60,6 +62,28 @@ def test_rechaza_lo_que_se_pasa_de_tamano(cli):
     assert subir(cli, grande).status_code == 413
 
 
+MULTIPART = {"content-type": "multipart/form-data; boundary=x"}
+
+
+def test_rechaza_por_el_content_length_declarado_sin_leer_el_cuerpo(cli):
+    r = cli.post(URL, headers={**cli.H, **MULTIPART, "content-length": str(10 * 1024 * 1024)}, content=b"--x--")
+
+    assert r.status_code == 413
+
+
+def test_rechaza_un_cuerpo_sin_content_length_que_pasa_el_tope_mientras_llega(cli):
+    tope = conversor_api.FOTO_MAX_BYTES + conversor_api.MULTIPART_SOBRANTE
+    trozo = b"\x00" * (64 * 1024)
+
+    def en_trozos():  # sin largo conocido: httpx lo manda con Transfer-Encoding: chunked
+        for _ in range(tope // len(trozo) + 2):
+            yield trozo
+
+    r = cli.post(URL, headers={**cli.H, **MULTIPART}, content=en_trozos())
+
+    assert r.status_code == 413
+
+
 def test_sin_el_campo_foto_da_422(cli):
     assert subir(cli, campo="archivo").status_code == 422
 
@@ -87,6 +111,23 @@ def test_tiene_cupo_por_usuario(cli):
     assert subir(cli).status_code == 429
 
 
+def test_una_falla_de_la_foto_no_cuenta_para_el_banner_de_estado(monkeypatch):
+    def falla(*_a, **_k):
+        raise RuntimeError("LLM 400: imagen no soportada")
+
+    monkeypatch.setattr(sandbox, "proveedor_llm", lambda: "openai")
+    monkeypatch.setattr(llm, "_openai", falla)
+    antes = len(estado.fallas_llm("real"))
+
+    with pytest.raises(RuntimeError):
+        llm.complete(Tarea.FOTO, "s", "u", 10, imagen=llm.Imagen("image/jpeg", JPEG))
+    assert len(estado.fallas_llm("real")) == antes
+
+    with pytest.raises(RuntimeError):
+        llm.complete(Tarea.CHAT, "s", "u", 10)
+    assert len(estado.fallas_llm("real")) == antes + 1
+
+
 def test_si_el_llm_falla_da_502_sin_loguear_el_contenido(cli, monkeypatch, caplog):
     def falla(*_a, **_k):
         raise RuntimeError("LLM 500: respuesta con datos de la foto")
@@ -99,12 +140,22 @@ def test_si_el_llm_falla_da_502_sin_loguear_el_contenido(cli, monkeypatch, caplo
     assert "datos de la foto" not in caplog.text and base64.b64encode(JPEG).decode() not in caplog.text
 
 
+def _con_la_foto(rutas: set[Path]) -> list[Path]:
+    """Los archivos (o los de adentro de las carpetas) que contienen los bytes de la foto de prueba."""
+    archivos = {a for r in rutas for a in ([r] if r.is_file() else r.rglob("*")) if a.is_file()}
+    return [a for a in archivos if a.stat().st_size < 10 * 1024 * 1024 and JPEG in a.read_bytes()]
+
+
 def test_la_foto_no_se_guarda_en_disco(cli, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    antes = set(config.DATA_DIR.rglob("*"))
+    temporal = Path(tempfile.gettempdir())
+    antes_datos, antes_temporal = set(config.DATA_DIR.rglob("*")), set(temporal.iterdir())
 
     assert subir(cli).status_code == 200
-    assert set(config.DATA_DIR.rglob("*")) == antes and list(tmp_path.iterdir()) == []
+
+    assert set(config.DATA_DIR.rglob("*")) == antes_datos and list(tmp_path.iterdir()) == []
+    # En el temporal del sistema pueden aparecer archivos de otros procesos: ninguno nuevo puede tener la foto.
+    assert _con_la_foto(set(temporal.iterdir()) - antes_temporal) == []
 
 
 # ---------- parseo ----------
@@ -121,6 +172,32 @@ def test_el_parseo_tolera_json_incompleto():
                                        '```json\n{"textos": [{"original": "", "traduccion": ""}]}\n```'])
 def test_el_parseo_sin_nada_legible_devuelve_lista_vacia(respuesta):
     assert conversor.parsear(respuesta) == {"textos": []}
+
+
+@pytest.mark.parametrize("valor,esperado", [
+    (16, 16), (2.5, 2.5), ("72,5", 72.5), ("72.5", 72.5), ("1,234", 1234), ("1.234", 1234), ("1,234.5", 1234.5),
+    ("1.234,5", 1234.5), ("0,750", 0.75), ("-40", -40), (",5", 0.5)])
+def test_el_valor_se_lee_con_el_criterio_de_miles_del_front(valor, esperado):
+    crudo = json.dumps({"textos": [{"original": "x", "unidades": [{"valor": valor, "unidad": "oz"}]}]})
+
+    assert conversor.parsear(crudo)["textos"][0]["unidades"] == [{"valor": esperado, "unidad": "oz"}]
+
+
+@pytest.mark.parametrize("valor", ["1_000", "1e3", "inf", "nan", "Infinity", "1.234.5", "12a", "", 1e9, -1e12, True, None, [1]])
+def test_el_valor_raro_o_desmedido_se_descarta(valor):
+    crudo = json.dumps({"textos": [{"original": "x", "unidades": [{"valor": valor, "unidad": "oz"}]}]})
+
+    assert conversor.parsear(crudo)["textos"][0]["unidades"] == []
+
+
+def test_el_valor_infinito_del_json_se_descarta():
+    crudo = '{"textos": [{"original": "x", "unidades": [{"valor": Infinity, "unidad": "oz"}]}]}'
+
+    assert conversor.parsear(crudo) == {"textos": [{"original": "x", "traduccion": "", "unidades": []}]}
+
+
+def test_el_prompt_pide_el_valor_como_numero_json():
+    assert '"valor" va siempre como número JSON' in conversor.SYSTEM
 
 
 def test_el_parseo_limpia_unidades_y_textos_raros():

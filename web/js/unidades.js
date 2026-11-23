@@ -48,23 +48,28 @@ export const ATAJOS_COMIDA = [
   { etiqueta: "1 cup", valor: 1, de: "cup", a: "ml" },
 ];
 
+// Miles: de 1 a 3 cifras (sin 0 adelante) y grupos de 3 con el mismo separador, punto o coma («1.234», «1,234»,
+// «1.234.567»), con decimales opcionales detrás del otro separador («1.234,5», «1,234.5»). El mismo criterio usa el
+// servidor (app/conversor.py: _numero).
+const NUMERO_MILES = /^(-?)([1-9]\d{0,2}(?:([.,])\d{3})(?:\3\d{3})*)(?:([.,])(\d+))?$/;
+// Decimal simple: un solo separador, punto o coma («72,5», «72.5», «,5», «0,750»).
+const NUMERO_DECIMAL = /^-?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/;
+
 /**
- * Lee un número escrito a mano: acepta coma o punto decimal («72,5» y «72.5»), signo menos y separador de miles cuando
- * hay los dos («1.234,5») o el mismo se repite («1.234.567»). Devuelve null si no es un número.
+ * Lee un número escrito a mano o leído en una foto: coma o punto decimal, signo menos y miles según NUMERO_MILES.
+ * Cualquier otra cosa («1_000», «1e3», «12a», «1.234.5») devuelve null.
  * @param {unknown} texto
  * @returns {number | null}
  */
 export function parsearNumero(texto) {
   if (typeof texto === "number") return Number.isFinite(texto) ? texto : null;
-  const limpio = String(texto ?? "").trim().replace(/\s+/g, "").replace(/^[−–]/, "-").replace(/^\+/, "");
-  if (!/^-?[\d.,]*\d[\d.,]*$/.test(limpio)) return null;
-  const ultimo = Math.max(limpio.lastIndexOf("."), limpio.lastIndexOf(","));
-  const separadores = limpio.match(/[.,]/g) ?? [];
-  const mismoRepetido = separadores.length > 1 && new Set(separadores).size === 1;
-  const normal = mismoRepetido
-    ? limpio.replace(/[.,]/g, "")
-    : ultimo < 0 ? limpio : `${limpio.slice(0, ultimo).replace(/[.,]/g, "")}.${limpio.slice(ultimo + 1)}`;
-  const n = Number(normal);
+  if (typeof texto !== "string") return null;
+  const limpio = texto.trim().replace(/\s+/g, "").replace(/^[−–]/, "-").replace(/^\+/, "");
+  const miles = NUMERO_MILES.exec(limpio);
+  let normal = null;
+  if (miles && miles[4] !== miles[3]) normal = `${miles[1]}${miles[2].replace(/[.,]/g, "")}${miles[5] ? `.${miles[5]}` : ""}`;
+  else if (NUMERO_DECIMAL.test(limpio)) normal = limpio.replace(",", ".");
+  const n = normal == null ? Number.NaN : Number(normal);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -81,11 +86,12 @@ const temperatura = (valor, de, a) => {
  * @returns {number | null}
  */
 export function convertir(valor, de, a) {
+  if (!Object.hasOwn(UNIDADES, de) || !Object.hasOwn(UNIDADES, a)) return null;  // «constructor», «__proto__»…
   const u1 = UNIDADES[de];
   const u2 = UNIDADES[a];
-  if (!u1 || !u2 || u1.dim !== u2.dim || !Number.isFinite(valor)) return null;
-  if (u1.dim === "temperatura") return temperatura(valor, de, a);
-  return (valor * u1.factor) / u2.factor;
+  if (u1.dim !== u2.dim || !Number.isFinite(valor)) return null;
+  const r = u1.dim === "temperatura" ? temperatura(valor, de, a) : (valor * u1.factor) / u2.factor;
+  return Number.isFinite(r) ? r : null;
 }
 
 /** Decimales razonables para mostrar: gramos y mililitros enteros; el resto según el tamaño. */
@@ -151,7 +157,8 @@ export function calcularPropina(subtotal, porcentaje, impuesto = IMPUESTO_CLARK)
 /** Dólares a pesos con la cotización tarjeta. null sin cotización. */
 export function usdAArs(usd, tarjeta) {
   if (!Number.isFinite(usd) || !(tarjeta > 0)) return null;
-  return Math.round(usd * tarjeta);
+  const ars = Math.round(usd * tarjeta);
+  return Number.isFinite(ars) ? ars : null;
 }
 
 // ---------- talles (aproximados) ----------
@@ -203,13 +210,15 @@ const ALIAS = {
   gal: ["gal", "gallon", "gallons"], in: ["in", "inch", "inches", "\""], ft: ["ft", "feet", "foot", "'"], yd: ["yd", "yard", "yards"],
   mi: ["mi", "mile", "miles"], mph: ["mph", "mi/h"], usd: ["$", "usd", "us$", "dollar", "dollars"],
 };
-const POR_ALIAS = Object.fromEntries(Object.entries(ALIAS).flatMap(([clave, alias]) => alias.map((a) => [a, clave])));
+// Map y no un objeto: lo que escribe el LLM («constructor», «__proto__») no puede caer en el prototipo.
+const POR_ALIAS = new Map(Object.entries(ALIAS).flatMap(([clave, alias]) => alias.map((a) => [a, clave])));
 /** A qué se pasa cada unidad estadounidense que aparece en una foto. */
 export const DESTINO = { F: "C", oz: "g", lb: "kg", floz: "ml", cup: "ml", pint: "ml", gal: "l", in: "cm", ft: "m", yd: "m", mi: "km", mph: "kmh" };
 
 /** La clave de la unidad («16 OZ» → oz, «$» → usd) o null si no la conocemos. */
 export function unidadConocida(texto) {
-  return POR_ALIAS[String(texto ?? "").trim().toLowerCase().replace(/\s+/g, " ")] ?? null;
+  if (typeof texto !== "string") return null;
+  return POR_ALIAS.get(texto.trim().toLowerCase().replace(/\s+/g, " ")) ?? null;
 }
 
 /**
@@ -227,5 +236,6 @@ export function convertirDetectada({ valor, unidad }, { tarjeta = null } = {}) {
     return ars == null ? null : `US$ ${formatear(n, 2)} = $ ${formatear(ars, 0)}`;
   }
   const a = DESTINO[clave];
-  return `${conUnidad(n, clave)} = ${conUnidad(convertir(n, clave, a), a)}`;
+  const r = convertir(n, clave, a);
+  return r == null ? null : `${conUnidad(n, clave)} = ${conUnidad(r, a)}`;
 }
