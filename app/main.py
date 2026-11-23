@@ -29,6 +29,7 @@ from . import (
     cabeceras,
     catalog,
     charlas_auto,
+    charlas_nuevas_api,
     codigos_api,
     comer_api,
     config,
@@ -190,6 +191,7 @@ app.include_router(conversor_api.router)
 app.include_router(estado_api.router)
 app.include_router(ficha_api.router)
 app.include_router(novedades_api.router)
+app.include_router(charlas_nuevas_api.router)
 
 
 @app.exception_handler(RequestValidationError)
