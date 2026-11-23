@@ -221,6 +221,25 @@ CREATE TABLE IF NOT EXISTS codigos_deseados (
   subido_en DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, codigo)
 );
+-- Documentos de viaje (app/documentos.py). Acá solo metadatos: el archivo va cifrado al bucket de documentos, bajo
+-- archivo_clave (sin nombre de archivo ni datos personales). sha256 es del archivo original.
+CREATE TABLE IF NOT EXISTS viajes_documentos (
+  username TEXT NOT NULL,
+  id UUID NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('pasaporte', 'esta_visa', 'seguro', 'reserva', 'entrada_reinvent',
+                                     'tarjeta_embarque', 'otro')),
+  titulo TEXT NOT NULL CHECK (char_length(titulo) <= 80),
+  vence DATE,
+  notas TEXT NOT NULL DEFAULT '' CHECK (char_length(notas) <= 500),
+  vuelo_id TEXT,
+  archivo_clave TEXT NOT NULL,
+  archivo_tipo TEXT NOT NULL,
+  bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (username, id)
+);
 """
 INDICES_DATOS_USUARIO = """
 -- Va después de agregar las columnas: usa client_id.
@@ -270,7 +289,7 @@ COLUMNAS_DATOS_USUARIO = (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
                         "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados",
-                        "viajes_pendientes")
+                        "viajes_documentos", "viajes_pendientes")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).

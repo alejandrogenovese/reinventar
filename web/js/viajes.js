@@ -203,6 +203,7 @@ export async function viewViajes(view, focoInicial = null) {
       h("h1", { class: "title" }, "Viajes"),
       foco && !elegido ? Hint("No encontramos ese vuelo u hotel: puede que ya lo hayas quitado.", { tone: "warn" }) : null,
       h("p", { class: "caption" }, "Cargá tus vuelos y hoteles y te avisamos cuándo abre el check-in, cuándo hacer el check-in y el check-out del hotel, y si tu vuelo se demora o cambia de puerta. Los avisos se prenden y apagan en Ajustes."),
+      h("a", { class: "ra-btn ra-btn-secondary", href: "#/viajes/documentos" }, "Documentos de viaje"),
       !data.estado_disponible ? Hint("Las alertas de demora y puerta no están activas en este servidor; el resto de los avisos anda igual.") : null,
       h("section", { class: "stack" }, h("h2", { class: "label" }, "Vuelos"),
         vuelos.length ? vuelos : h("p", { class: "caption" }, "Todavía no cargaste vuelos."),

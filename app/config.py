@@ -147,6 +147,18 @@ FOTOS_LINK_DIAS = float(_env("FOTOS_LINK_DIAS", "30"))
 GRABACION_LINK_DIAS = float(_env("GRABACION_LINK_DIAS", "14"))
 TICKETS_DIR = Path(_env("TICKETS_DIR", str(DATA_DIR / "tickets")))
 
+# Documentos de viaje (pasaporte, visa, seguro, reservas; app/documentos.py): bucket propio, nunca el de tickets. Los
+# archivos se cifran en la app (AES-256-GCM) con DOCS_ENC_KEY: 32 bytes en base64 (generarla con
+# `python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"`). En Railway, sin las cinco DOCS_S3_*
+# o sin la clave, la sección queda apagada (503): nunca cae al disco del contenedor. DOCS_DIR es solo para dev y tests.
+DOCS_S3_ENDPOINT = _env("DOCS_S3_ENDPOINT")
+DOCS_S3_BUCKET = _env("DOCS_S3_BUCKET")
+DOCS_S3_KEY_ID = _env("DOCS_S3_KEY_ID")
+DOCS_S3_SECRET = _env("DOCS_S3_SECRET")
+DOCS_S3_REGION = _env("DOCS_S3_REGION")
+DOCS_DIR = Path(_env("DOCS_DIR", str(DATA_DIR / "documentos")))
+DOCS_ENC_KEY = _env("DOCS_ENC_KEY")
+
 # Shows de Ticketmaster (app/ticketmaster.py): conciertos, espectáculos, deportes y actividades en Las Vegas, dentro de
 # la misma revisión automática. Sin la key, la pestaña Shows no aparece y no se pide nada. La key viaja en la URL: nunca
 # se loguea (ver app/ticketmaster.py).

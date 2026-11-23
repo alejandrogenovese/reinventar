@@ -40,6 +40,7 @@ import { viewAdminOfertas } from "./adminOfertas.js";
 import { viewAdminUsuarios } from "./adminUsuarios.js";
 import { viewOfertas } from "./ofertas.js";
 import { viewViajes } from "./viajes.js";
+import { viewDocumentos } from "./documentos.js";
 import { viewComer } from "./comer.js";
 import { viewViaje } from "./viaje.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
@@ -115,6 +116,7 @@ const routes = [
   [/^#\/itinerario\/numeros(\?.*)?$/, () => viewNumeros(view)],
   [/^#\/itinerario\/excel$/, () => viewMiExcel(view)],
   [/^#\/viajes$/, () => viewViajes(view)],
+  [/^#\/viajes\/documentos$/, () => viewDocumentos(view)],
   [/^#\/viajes\/pendientes$/, () => viewPendientes(view)],
   [/^#\/viajes\/(vuelo|hotel)\/([\w-]+)$/, (tipo, id) => viewViajes(view, { tipo, id })],
   [/^#\/comer$/, () => viewComer(view)],

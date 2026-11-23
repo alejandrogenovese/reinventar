@@ -1,4 +1,5 @@
-"""Dónde viven las fotos de ticket: un bucket S3-compatible (el de Railway) o, sin configurarlo, el disco local.
+"""Dónde viven las fotos de ticket (y, con su propio juego de variables, los documentos de viaje: app/documentos.py):
+un bucket S3-compatible (el de Railway) o, sin configurarlo, el disco local.
 
 Las dos implementaciones guardan, leen y borran bytes por clave. La clave la arma el servidor (usuario + client_id del
 gasto + extensión según los bytes): jamás sale del nombre de archivo que manda el cliente.
@@ -143,15 +144,43 @@ class AlmacenS3:
                            segundos)
 
 
-_VARIABLES_S3 = (("TICKETS_S3_ENDPOINT", "ENDPOINT"), ("TICKETS_S3_BUCKET", "BUCKET"), ("TICKETS_S3_KEY_ID", "KEY_ID"),
-                 ("TICKETS_S3_SECRET", "SECRET"), ("TICKETS_S3_REGION", "REGION"))
+_SUFIJOS_S3 = ("ENDPOINT", "BUCKET", "KEY_ID", "SECRET", "REGION")
+
+
+class JuegoS3:
+    """Un juego de variables de bucket (TICKETS_S3_*, DOCS_S3_*) y la carpeta local que lo reemplaza en desarrollo
+    (TICKETS_DIR, DOCS_DIR). Así cada uso tiene su propio bucket sin duplicar la firma SigV4."""
+
+    def __init__(self, prefijo: str, carpeta: str):
+        self.prefijo, self.carpeta = prefijo, carpeta
+
+    def nombres(self) -> tuple[str, ...]:
+        return tuple(f"{self.prefijo}_{sufijo}" for sufijo in _SUFIJOS_S3)
+
+    def valores(self) -> tuple[str, ...]:
+        return tuple(getattr(config, nombre) for nombre in self.nombres())
+
+    def faltantes(self) -> list[str]:
+        return [nombre for nombre, valor in zip(self.nombres(), self.valores(), strict=True) if not valor]
+
+    def configurado(self) -> bool:
+        return not self.faltantes()
+
+    def crear_s3(self) -> AlmacenS3:
+        return AlmacenS3(*self.valores())
+
+    def local(self) -> AlmacenLocal:
+        return AlmacenLocal(getattr(config, self.carpeta))
+
+
+TICKETS = JuegoS3("TICKETS_S3", "TICKETS_DIR")
 
 
 def verificar_configuracion() -> None:
     """Al arrancar: un bucket configurado a medias, o ninguno en producción, hace que las fotos caigan al disco del
     contenedor, que se pierde en cada deploy. Se avisa con un error (solo nombres de variables, nunca valores)."""
-    faltan = [nombre for nombre, sufijo in _VARIABLES_S3 if not getattr(config, f"TICKETS_S3_{sufijo}")]
-    if 0 < len(faltan) < len(_VARIABLES_S3):
+    faltan = TICKETS.faltantes()
+    if 0 < len(faltan) < len(_SUFIJOS_S3):
         log.error("Bucket de tickets configurado a medias: faltan %s. Las fotos se guardan en el disco del contenedor "
                   "y se pierden en el próximo deploy.", ", ".join(faltan))
     elif faltan and config.EN_PRODUCCION:
@@ -160,8 +189,7 @@ def verificar_configuracion() -> None:
 
 
 def s3_configurado() -> bool:
-    return all((config.TICKETS_S3_ENDPOINT, config.TICKETS_S3_BUCKET, config.TICKETS_S3_KEY_ID,
-                config.TICKETS_S3_SECRET, config.TICKETS_S3_REGION))
+    return TICKETS.configurado()
 
 
 _s3: AlmacenS3 | None = None
@@ -171,8 +199,7 @@ def obtener() -> Almacen:
     """S3 si están las cinco variables TICKETS_S3_*; si no, disco local."""
     global _s3
     if not s3_configurado():
-        return AlmacenLocal(config.TICKETS_DIR)
+        return TICKETS.local()
     if _s3 is None:
-        _s3 = AlmacenS3(config.TICKETS_S3_ENDPOINT, config.TICKETS_S3_BUCKET, config.TICKETS_S3_KEY_ID,
-                        config.TICKETS_S3_SECRET, config.TICKETS_S3_REGION)
+        _s3 = TICKETS.crear_s3()
     return _s3

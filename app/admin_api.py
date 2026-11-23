@@ -13,6 +13,7 @@ from . import (
     charlas_auto,
     config,
     db,
+    documentos,
     eventos_auto,
     eventos_link,
     events,
@@ -174,7 +175,9 @@ def advance_sandbox_clock(username: str, body: AdvanceClock, _admin: str = Depen
 
 @router.delete("/sandbox/data")
 def clear_sandbox_data(_admin: str = Depends(admin)):
-    """Borra todo lo creado en modo prueba (grabaciones, itinerarios), de todos los usuarios. Lo real no se toca."""
+    """Borra todo lo creado en modo prueba (grabaciones, itinerarios, documentos), de todos los usuarios. Lo real no se
+    toca. Los archivos de documentos van primero: después de vaciar la tabla ya no se sabría cuáles eran."""
+    documentos.borrar_objetos_prueba()
     rows = db.borrar_datos_prueba()
     shutil.rmtree(config.DATA_DIR / "prueba", ignore_errors=True)
     return {"ok": True, "rows": rows}

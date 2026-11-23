@@ -12,6 +12,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **«Próximo» en el aviso de arriba.** Cuando no hay nada más importante, el aviso de arriba te muestra lo que viene:
   tu vuelo desde 12 h antes («Próximo: UA1355 a Houston · sale 13:05 (+20 min) · puerta D12»), el check-in o el
   check-out del hotel, o la próxima charla del día. Tocalo para ir a la ficha.
+- **Documentos de viaje.** En Viajes › Documentos de viaje podés subir el pasaporte, la ESTA o visa, el seguro, reservas,
+  la entrada a re:Invent o la tarjeta de embarque (foto o PDF, hasta 8 MB). Solo vos los ves, se guardan cifrados y se
+  borran solos 30 días después del viaje (o cuando toques «Borrar todos mis documentos»). Si alguno vence durante el
+  viaje te avisamos. Con «Guardar en este teléfono» queda una copia cifrada para verlo sin señal; se borra al cerrar sesión.
 - **Pendientes del viaje.** En Viaje, una checklist de lo que conviene tener resuelto antes de salir (ESTA o visa,
   pasaporte, seguro, eSIM, check-in de United, entrada de re:Invent, avisar al banco, dólares, documentos…). Tildás
   lo que ya hiciste, sumás lo tuyo con fecha límite si querés, y editás o borrás cualquiera (un sugerido que borrás
