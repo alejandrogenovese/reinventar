@@ -33,3 +33,6 @@ Diagramas/
 
 # Videos y timelines de las demos (demos/specs)
 demos/out/
+
+# Archivos temporales de trabajo
+scratchpad/
