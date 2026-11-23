@@ -20,29 +20,48 @@ def catalogo(monkeypatch):
     monkeypatch.setattr(catalog, "_sessions", [CHARLA])
 
 
-@pytest.mark.parametrize(("q", "codigo"), [("IND347-R1", "IND347-R1"), ("ind347-r1", "IND347-R1"),
-                                          (" IND347-R ", "IND347-R")])
-def test_el_codigo_de_un_horario_trae_ese_horario(q, codigo):
-    [tarjeta] = explore.explore({}, q)["results"]
-
-    assert tarjeta["code"] == codigo
+def _codigos(q, filtros=None, **kw):
+    return [t["code"] for t in explore.explore(filtros or {}, q, **kw)["results"]]
 
 
-def test_el_codigo_base_o_un_texto_traen_el_primer_horario():
-    assert explore.explore({}, "IND347")["results"][0]["code"] == "IND347-R"
-    assert explore.explore({}, "semantic")["results"][0]["code"] == "IND347-R"
+@pytest.mark.parametrize("q", ["IND347-R1", "ind347-r1", " IND347-R1 "])
+def test_el_codigo_de_un_horario_trae_solo_ese_horario(q):
+    assert _codigos(q) == ["IND347-R1"]
+
+
+@pytest.mark.parametrize("q", ["IND347", "ind347"])
+def test_el_codigo_de_la_charla_trae_todos_sus_horarios(q):
+    r = explore.explore({}, q)
+
+    assert [t["code"] for t in r["results"]] == ["IND347-R", "IND347-R1"]
+    assert r["total"] == 2
+
+
+def test_un_texto_que_no_es_codigo_trae_una_tarjeta_por_charla():
+    assert _codigos("semantic") == ["IND347-R"]
 
 
 def test_el_codigo_se_combina_con_los_filtros_de_horario():
-    # Con un filtro de día que deja afuera el horario del código, la tarjeta es la del horario que sí cumple.
-    [tarjeta] = explore.explore({"dia": {"2026-12-01"}}, "IND347-R1")["results"]
+    # El filtro de día manda: con el martes elegido, la charla de la base trae solo el martes.
+    assert _codigos("IND347", {"dia": {"2026-12-01"}}) == ["IND347-R"]
+    # Si el filtro deja afuera el horario del código, queda el que sí cumple (la charla calza por texto).
+    assert _codigos("IND347-R1", {"dia": {"2026-12-01"}}) == ["IND347-R"]
 
-    assert tarjeta["code"] == "IND347-R"
+
+def test_paginado_sobre_los_horarios():
+    assert _codigos("IND347", limit=1, offset=1) == ["IND347-R1"]
 
 
-def test_agrupado_cada_grupo_muestra_su_horario_y_si_no_el_del_codigo():
-    por_dia = {g["value"]: g["results"][0]["code"] for g in explore.explore({}, "IND347-R", group_by="dia")["groups"]}
-    [por_tipo] = explore.explore({}, "IND347-R1", group_by="tipo")["groups"]
+def test_agrupado_por_dia_cada_grupo_muestra_su_horario():
+    grupos = explore.explore({}, "IND347", group_by="dia")["groups"]
 
-    assert por_dia == {"2026-12-01": "IND347-R", "2026-12-04": "IND347-R1"}
-    assert por_tipo["results"][0]["code"] == "IND347-R1"
+    assert {g["value"]: [t["code"] for t in g["results"]] for g in grupos} == {
+        "2026-12-01": ["IND347-R"], "2026-12-04": ["IND347-R1"]}
+
+
+def test_agrupado_por_tipo_respeta_el_codigo_buscado():
+    [base] = explore.explore({}, "IND347", group_by="tipo")["groups"]
+    [horario] = explore.explore({}, "IND347-R1", group_by="tipo")["groups"]
+
+    assert [t["code"] for t in base["results"]] == ["IND347-R", "IND347-R1"]
+    assert [t["code"] for t in horario["results"]] == ["IND347-R1"]

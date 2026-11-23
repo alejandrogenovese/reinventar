@@ -46,9 +46,12 @@ def test_catalog_search_encuentra_la_charla_con_sufijo_de_repeticion(q):
     assert _codigos(catalog.search(q=q)) >= {"AIM204"}
 
 
-@pytest.mark.parametrize("q", ["key002", "KEY002", "aim204", "AIM204", "aim204-r1"])
-def test_explore_encuentra_la_charla_por_su_codigo(q):
-    assert explore.explore({}, q=q)["total"] == 1
+@pytest.mark.parametrize(("q", "codigos"), [("key002", {"KEY002"}), ("KEY002", {"KEY002"}), ("aim204-r1", {"AIM204-R1"}),
+                                            ("aim204", {"AIM204", "AIM204-R1", "AIM204-R2"}),
+                                            ("AIM204", {"AIM204", "AIM204-R1", "AIM204-R2"})])
+def test_explore_encuentra_la_charla_por_su_codigo(q, codigos):
+    # El código de la charla trae todos sus horarios; el de un horario, solo ese.
+    assert _codigos(explore.explore({}, q=q)["results"]) == codigos
 
 
 def test_un_codigo_que_no_existe_no_encuentra_nada():

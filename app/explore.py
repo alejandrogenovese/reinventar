@@ -118,17 +118,21 @@ def explore(filters: dict[str, set[str]], q: str = "", group_by: str | None = No
         facets[facet] = _ranked(counter, facet)
 
     matched = [(e, inst) for e in entries if (inst := _matching_instances(e, filters, skip=None))]
-    results = [catalog.card(e["session"], _elegido(inst, needle)) for e, inst in matched[offset:offset + limit]]
-    out = {"total": len(matched), "results": results, "facets": facets}
+    cards = [(e, i) for e, inst in matched for i in _horarios(e, inst, needle)]
+    results = [catalog.card(e["session"], i) for e, i in cards[offset:offset + limit]]
+    out = {"total": len(cards), "results": results, "facets": facets}
     if group_by:
         out["groups"] = _groups(matched, group_by, needle)
     return out
 
 
-def _elegido(instances: list, needle: str) -> dict:
-    """El horario de la tarjeta: el que tiene exactamente el código buscado («IND347-R1» es el del viernes, no el
-    primero de la charla); si no, el primero que cumple los filtros."""
-    return next((i[2] for i in instances if catalog.fold(i[2].get("c")) == needle), instances[0][2])
+def _horarios(entry: dict, instances: list, needle: str) -> list[dict]:
+    """Los horarios que van con tarjeta propia. Con el código de la charla («IND347»), todos los que cumplen los
+    filtros; con el de un horario («IND347-R1»), solo ese; con cualquier otro texto, uno por charla (el primero)."""
+    if needle and needle == catalog.fold(entry["session"].get("base")):
+        return [i[2] for i in instances]
+    exacto = [i[2] for i in instances if catalog.fold(i[2].get("c")) == needle]
+    return exacto[:1] or [instances[0][2]]
 
 
 def _groups(matched: list, facet: str, needle: str = "") -> list[dict]:
@@ -137,9 +141,11 @@ def _groups(matched: list, facet: str, needle: str = "") -> list[dict]:
     groups: dict[str, list] = {}
     for e, instances in matched:
         for value in _values_for(facet, e, instances):
-            del_grupo = [i for i in instances if value in _values_for(facet, e, [i])] if facet in INSTANCE_FACETS else instances
-            groups.setdefault(value, []).append((e, del_grupo))
+            del_grupo = instances
+            if facet in INSTANCE_FACETS:
+                del_grupo = [i for i in instances if value in _values_for(facet, e, [i])]
+            groups.setdefault(value, []).extend((e, i) for i in _horarios(e, del_grupo, needle))
     ranked = sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:GROUPS_LIMIT]
     return [{"value": value, "count": len(items),
-             "results": [catalog.card(e["session"], _elegido(inst, needle)) for e, inst in items[:GROUP_RESULTS_LIMIT]]}
+             "results": [catalog.card(e["session"], i) for e, i in items[:GROUP_RESULTS_LIMIT]]}
             for value, items in ranked]
