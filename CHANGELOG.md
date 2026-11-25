@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Está llena: otras charlas cerca.** Si avisaron que un horario está lleno y no estás anotado, la ficha de la
+  charla sugiere hasta 5 charlas de hoy que empiezan ahora o dentro de la hora, en la misma sede o a 15 minutos
+  caminando como mucho, con la hora, la sede y cuánto se camina. No sugiere las que también avisaron llenas.
+
 ## [1.3.2] - 2026-11-23
 
 ### Agregado
