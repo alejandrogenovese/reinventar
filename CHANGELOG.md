@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.3] - 2026-11-25
+
 ### Agregado
 - **Está llena: otras charlas cerca.** Si avisaron que un horario está lleno y no estás anotado, la ficha de la
   charla sugiere hasta 5 charlas de hoy que empiezan ahora o dentro de la hora, en la misma sede o a 15 minutos
@@ -612,7 +614,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...HEAD
+[1.3.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/alejandrogenovese/reinventar/compare/v1.2.0...v1.3.0
