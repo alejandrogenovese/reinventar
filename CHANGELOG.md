@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Admin › Usuarios › Borrar usuario.** Borra la cuenta y todo lo suyo, también lo del modo prueba: itinerario,
+  eventos, viajes, gastos con sus fotos, documentos del bucket, las grabaciones que hizo (con el audio), sesiones,
+  passkeys y notificaciones. Para confirmar hay que escribir el nombre del usuario. Un admin no se puede borrar a sí
+  mismo ni a otro admin, y cada borrado queda registrado (quién, cuándo y qué se borró).
+
 ### Corregido
 - **Ofertas: se ve por qué no hay bajas de precio de shows.** Si Ticketmaster no publica precios para ninguna función
   de la semana, el job de ofertas lo deja en el log en cada vuelta en vez de quedar vacío sin explicación.
