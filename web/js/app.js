@@ -1,6 +1,7 @@
 // ReinventAR — router y pantallas.
-import { Anuncios, ApiError, Auth, Sessions, cuentaConCopia, getToken, mustChangePassword, setMustChangePassword, setToken } from "./api.js";
+import { Anuncios, ApiError, Auth, Sessions, cuentaConCopia, debeCargarMail, getToken, mustChangePassword, setDebeCargarMail, setMustChangePassword, setToken } from "./api.js";
 import { viewPassword } from "./account.js";
+import { viewMail, viewOlvide } from "./mail.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
@@ -93,6 +94,8 @@ if (masthead && "ResizeObserver" in window) {
 const routes = [
   [/^#\/?$/, viewList],
   [/^#\/login$/, viewLogin],
+  [/^#\/olvide$/, () => viewOlvide(view)],
+  [/^#\/mail$/, () => viewMail(view)],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
   [/^#\/ficha$/, () => viewMiFicha(view)],
@@ -183,6 +186,38 @@ function markNav(hash) {
   }
 }
 
+// Las pantallas que se ven sin sesión: entrar y recuperar la contraseña.
+const SIN_SESION = /^#\/(login|olvide)$/;
+
+/** Sin sesión, a entrar; con la contraseña temporal, a cambiarla. true si mandó a otra pantalla. */
+function desviarSesion(hash) {
+  let destino = null;
+  if (!getToken()) {
+    if (!SIN_SESION.test(hash)) destino = "#/login";
+  } else if (mustChangePassword() && hash !== "#/password") {
+    destino = "#/password";
+  }
+  if (destino) location.hash = destino;
+  return destino !== null;
+}
+
+/**
+ * Sin el mail verificado, a cargarlo (#/mail). Va después de refreshSandbox: su /api/me actualiza si falta (también para
+ * quien ya tenía la sesión abierta). Sin señal no se exige: cargarlo necesita red, y en un salón sin señal no puede
+ * quedar trabado lo que anda sin conexión.
+ */
+function desviarMail(hash) {
+  const debe = getToken() && !mustChangePassword() && debeCargarMail() && navigator.onLine !== false && hash !== "#/mail";
+  if (debe) location.hash = "#/mail";
+  return Boolean(debe);
+}
+
+/** A dónde va después de entrar: primero la contraseña temporal, después el mail. */
+function destinoTrasLogin(r) {
+  if (r.must_change_password) return "#/password";
+  return r.debe_cargar_mail ? "#/mail" : "#/";
+}
+
 let ignoreNextHash = false;
 let navigatedInApp = false; // Volver del detalle usa el historial solo si se llegó navegando dentro de la app
 let routedOnce = false;
@@ -198,10 +233,10 @@ async function route() {
   navigatedInApp = routedOnce;
   routedOnce = true;
   const hash = location.hash || "#/";
-  if (!getToken() && hash !== "#/login") { location.hash = "#/login"; return; }
-  if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
+  if (desviarSesion(hash)) return;
   markNav(hash);
   await refreshSandbox(); // antes de dibujar: la hora y la ubicación simuladas se usan en las pantallas
+  if (desviarMail(hash)) return;
   void refreshCountdown();
   void refreshChanges();
   refrescarEstado();
@@ -644,8 +679,9 @@ async function viewRecord(id) {
 function finishLogin(r) {
   setToken(r.token);
   setMustChangePassword(r.must_change_password);
+  setDebeCargarMail(r.debe_cargar_mail === true);
   void store.persist();
-  location.hash = r.must_change_password ? "#/password" : "#/";
+  location.hash = destinoTrasLogin(r);
 }
 
 function viewLogin() {
@@ -668,7 +704,8 @@ function viewLogin() {
     h("h1", { class: "title" }, "Ingresá a ReinventAR"),
     h("div", { class: "field" }, h("label", { class: "label", for: "username" }, "Usuario"), userInput),
     pass.el,
-    h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Entrar")),
+    h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Entrar"),
+      h("a", { class: "ra-btn ra-btn-ghost", href: "#/olvide" }, "¿Olvidaste tu contraseña?")),
     status);
   const passkey = PasskeyLoginButton(finishLogin, (msg) => status.replaceChildren(h("div", { class: "notice err" }, msg)));
   view.append(form, passkey);
