@@ -8,7 +8,7 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import config, db, limites, passkeys_db, passwords, sandbox, venues
+from . import config, db, limites, mail, passkeys_db, passwords, sandbox, venues
 from .auth import auth_pendiente, bearer, is_admin
 
 router = APIRouter()
@@ -32,6 +32,7 @@ def _session_info(user: dict) -> dict:
         "must_change_password": user["must_change_password"],
         "is_admin": is_admin(user["username"]),
         "sandbox": sandbox.info(sb, venues.by_id(sb.id_sede) if sb else None),
+        **mail.estado_de(user),
     }
 
 
@@ -109,8 +110,15 @@ def change_password(body: PasswordChange, username: str = Depends(auth_pendiente
         raise HTTPException(400, "La contraseña actual no es correcta")
     if body.new_password == body.current_password:
         raise HTTPException(400, "La contraseña nueva tiene que ser distinta de la actual")
-    salt, password_hash = passwords.hash_password(body.new_password)
-    db.set_password(username, salt, password_hash, must_change_password=False)
-    db.revoke_tokens(username, except_token=bearer(authorization))  # cierra la sesión en los otros celulares
-    passkeys_db.delete_all(username)  # una passkey agregada por quien tenía la contraseña vieja no sobrevive
+    cambiar_contrasena(username, body.new_password, conservar_token=bearer(authorization))
     return {"ok": True}
+
+
+def cambiar_contrasena(username: str, nueva: str, conservar_token: str | None = None) -> None:
+    """Guarda la contraseña nueva (ya elegida por la persona) y corta lo que dependía de la vieja: cierra las sesiones
+    (salvo conservar_token, la del celular desde donde la cambió) y borra las passkeys, porque una agregada por quien
+    tenía la contraseña vieja no sobrevive. También la usa la recuperación por mail (app/mail_api.py)."""
+    salt, password_hash = passwords.hash_password(nueva)
+    db.set_password(username, salt, password_hash, must_change_password=False)
+    db.revoke_tokens(username, except_token=conservar_token)
+    passkeys_db.delete_all(username)

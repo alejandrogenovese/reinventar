@@ -54,6 +54,7 @@ from . import (
     itinerary_api,
     knowledge_api,
     lleno_api,
+    mail_api,
     my_events_api,
     novedades_api,
     numeros_api,
@@ -160,6 +161,7 @@ app.add_middleware(GzipSelectivo)  # por fuera de las cabeceras (que no tocan el
 app.add_middleware(WwwRedirectMiddleware)  # el último que se agrega corre primero: www. redirige antes que nada
 app.add_middleware(EsquemaProxyMiddleware)  # el más externo: fija https antes de los redirects de rutas y StaticFiles
 app.include_router(auth_api.router)
+app.include_router(mail_api.router)
 app.include_router(admin_api.router)
 app.include_router(passkey_api.router)
 app.include_router(knowledge_api.router)

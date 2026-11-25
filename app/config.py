@@ -18,6 +18,21 @@ PASSWORD_MIN_LENGTH = 8
 WEBAUTHN_RP_ID = _env("WEBAUTHN_RP_ID")
 WEBAUTHN_ORIGIN = _env("WEBAUTHN_ORIGIN")
 
+# Mails (app/mail.py): verificación del mail de cada persona y recuperación de contraseña.
+#   off    → no se manda nada y el mail no se exige (default: un entorno sin configurar no deja a nadie afuera)
+#   fake   → tests y desarrollo: no sale nada (en Railway cuenta como off)
+#   smtp   → SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD; SMTP_SEGURIDAD = starttls (587) | ssl (465) | ninguna
+#   resend → API HTTP de Resend con RESEND_API_KEY
+# MAIL_FROM es el remitente («ReinventAR <no-responder@tu-dominio>»), de un dominio verificado en el proveedor.
+MAIL_PROVIDER = _env("MAIL_PROVIDER", "off")
+MAIL_FROM = _env("MAIL_FROM")
+SMTP_HOST = _env("SMTP_HOST")
+SMTP_PORT = int(_env("SMTP_PORT", "587"))
+SMTP_USER = _env("SMTP_USER")
+SMTP_PASSWORD = _env("SMTP_PASSWORD")
+SMTP_SEGURIDAD = _env("SMTP_SEGURIDAD", "starttls").lower()
+RESEND_API_KEY = _env("RESEND_API_KEY")
+
 # Persistencia: Postgres para datos (estado de la app en DB_SCHEMA, catálogo en el schema reinvent)
 # y un Railway Volume en /data para los archivos de audio.
 DATABASE_URL = _env("DATABASE_URL")

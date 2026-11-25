@@ -260,6 +260,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_
 # respuestas/ficha/ficha_texto: itinerario guiado (app/interview.py). salir_antes/reservada: armado guiado (app/guided.py).
 # ofertas*: alertas de ofertas (app/ofertas_avisos.py), apagadas hasta que la persona las prende.
 # cotizacion_estimada: la congelada era la de respaldo o tenía más de 48 h. foto_at: va como ?v= para no ver la foto vieja.
+DOBLE = "DOUBLE PRECISION"
 COLUMNAS_DATOS_USUARIO = (
     ("sessions", "created_by", "TEXT"),
     ("sessions", "huecos", "TEXT"),
@@ -286,7 +287,7 @@ COLUMNAS_DATOS_USUARIO = (
     # aeropuerto de destino, «YYYY-MM-DDTHH:MM»), terminal y cinta de llegada, mostrador de check-in y el avión.
     ("viajes_vuelos", "destino_iata", "TEXT"),
     ("viajes_vuelos", "destino_nombre", "TEXT"),
-    ("viajes_vuelos", "llegada_utc", "DOUBLE PRECISION"),
+    ("viajes_vuelos", "llegada_utc", DOBLE),
     ("viajes_vuelos", "llegada_local", "TEXT"),
     ("viajes_vuelos", "llegada_terminal", "TEXT"),
     ("viajes_vuelos", "llegada_cinta", "TEXT"),
@@ -348,6 +349,19 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (    -- Web Push: un registro por 
   auth TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
+-- Códigos de verificación de mail y tokens de recuperación de contraseña (app/mail_db.py): uno vigente por usuario y
+-- tipo (pedir otro reemplaza el anterior). hash: sha256 del código o token, nunca en claro. email: a dónde se mandó.
+CREATE TABLE IF NOT EXISTS mail_codigos (
+  username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+  tipo TEXT NOT NULL CHECK (tipo IN ('verificar', 'recuperar')),
+  hash TEXT NOT NULL,
+  email TEXT NOT NULL,
+  creado DOUBLE PRECISION NOT NULL,
+  vence DOUBLE PRECISION NOT NULL,
+  intentos INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (username, tipo)
+);
+CREATE INDEX IF NOT EXISTS mail_codigos_hash ON mail_codigos (hash);
 -- Registro de lo que hace un admin sobre las cuentas (hoy: borrar un usuario). Queda aunque el usuario ya no exista.
 CREATE TABLE IF NOT EXISTS auditoria_admin (
   id BIGSERIAL PRIMARY KEY,
@@ -371,9 +385,14 @@ COLUMNAS_CUENTAS = (
     ("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("users", "modo_prueba", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("users", "prueba", "JSONB"),
-    ("auth_tokens", "usado_at", "DOUBLE PRECISION"),
+    ("auth_tokens", "usado_at", DOBLE),
     ("auth_tokens", "hasheado", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    # Mail verificado de la persona (app/mail_api.py): en minúsculas, único entre usuarios. Solo se guarda verificado.
+    ("users", "email", "TEXT"),
+    ("users", "email_verificado_at", DOBLE),
 )
+# Va después de agregar las columnas: usa users.email.
+INDICES_CUENTAS = "CREATE UNIQUE INDEX IF NOT EXISTS users_email_unico ON users (email) WHERE email IS NOT NULL;"
 
 GLOBALES = """
 -- Ofertas (app/ofertas.py): las cargadas a mano por un admin y las bajas de precio de shows. Son de todos: solo existen
@@ -440,6 +459,7 @@ def init():
             c.execute(GLOBALES)
             c.execute(CUENTAS)
             _agregar_columnas(c, COLUMNAS_CUENTAS)
+            c.execute(INDICES_CUENTAS)
             _crear_fragmentos(c)
             _hashear_tokens_viejos(c)
             sectors.ensure(c)
@@ -919,6 +939,7 @@ def list_users():
     with conn() as c:
         rows = c.execute(
             "SELECT u.username, u.created_at, u.must_change_password, u.is_active, u.modo_prueba, u.prueba, "
+            "       u.email, u.email_verificado_at, "
             "       MAX(t.created_at) AS last_login, COUNT(t.token) AS open_sessions, "
             "       (SELECT COUNT(*) FROM itinerary_items i WHERE i.username = u.username) AS itinerary_items "
             "FROM users u LEFT JOIN auth_tokens t ON t.username = u.username "
