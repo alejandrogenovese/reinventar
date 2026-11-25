@@ -20,7 +20,7 @@ WEBAUTHN_ORIGIN = _env("WEBAUTHN_ORIGIN")
 
 # Mails (app/mail.py): verificación del mail de cada persona y recuperación de contraseña.
 #   off    → no se manda nada y el mail no se exige (default: un entorno sin configurar no deja a nadie afuera)
-#   fake   → tests y desarrollo: no sale nada, el mail queda en el log
+#   fake   → tests y desarrollo: no sale nada (en Railway cuenta como off)
 #   smtp   → SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD; SMTP_SEGURIDAD = starttls (587) | ssl (465) | ninguna
 #   resend → API HTTP de Resend con RESEND_API_KEY
 # MAIL_FROM es el remitente («ReinventAR <no-responder@tu-dominio>»), de un dominio verificado en el proveedor.

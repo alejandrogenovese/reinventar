@@ -62,13 +62,21 @@ def borrar_codigo(username: str, tipo: str) -> None:
         c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s", (username, tipo))
 
 
-def consumir_token(hash_: str) -> str | None:
-    """Usa el token de recuperación (una sola vez: lo borra al leerlo). Devuelve el usuario, o None si no existe o
-    venció."""
+def consumir_token(hash_: str) -> dict | None:
+    """Usa el token de recuperación (una sola vez: lo borra al leerlo). Devuelve {username, email} (el mail al que se
+    mandó), o None si no existe o venció."""
     with sandbox.real(), conn() as c:
-        r = c.execute("DELETE FROM mail_codigos WHERE hash=%s AND tipo=%s RETURNING username, vence",
+        r = c.execute("DELETE FROM mail_codigos WHERE hash=%s AND tipo=%s RETURNING username, email, vence",
                       (hash_, RECUPERAR)).fetchone()
-    return r["username"] if r and r["vence"] >= time.time() else None
+    return {"username": r["username"], "email": r["email"]} if r and r["vence"] >= time.time() else None
+
+
+def token_reciente(username: str, segundos: float) -> bool:
+    """¿Hay un link de recuperación vigente creado hace menos de `segundos`?"""
+    ahora = time.time()
+    with sandbox.real(), conn() as c:
+        return c.execute("SELECT 1 FROM mail_codigos WHERE username=%s AND tipo=%s AND creado > %s AND vence >= %s",
+                         (username, RECUPERAR, ahora - segundos, ahora)).fetchone() is not None
 
 
 def fijar_email(username: str, email: str) -> None:

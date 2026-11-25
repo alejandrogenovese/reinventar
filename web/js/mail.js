@@ -10,7 +10,10 @@ const CODIGO_DIGITOS = 6;
 export const normalizarEmail = (valor) => String(valor ?? "").trim().toLowerCase();
 
 /** Chequeo rápido antes de mandar (el servidor vuelve a validar): algo@dominio.tld, sin espacios. */
-export const pareceEmail = (valor) => /^[^@\s]{1,64}@[^@\s]+\.[^@\s.]{2,}$/.test(normalizarEmail(valor)) && normalizarEmail(valor).length <= 254;
+export const pareceEmail = (valor) => {
+  const email = normalizarEmail(valor);
+  return email.length <= 254 && /^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(email);
+};
 
 /** El código tal como lo tipeó o pegó («123 456», «123-456»): solo los dígitos. */
 export const limpiarCodigo = (valor) => String(valor ?? "").replace(/\D/g, "").slice(0, CODIGO_DIGITOS);
@@ -105,6 +108,8 @@ export function viewOlvide(view) {
 
 // --- elegir contraseña nueva desde el link ------------------------------------
 export function viewRecuperar(view, token) {
+  // El token no queda en la barra ni en el historial (es de un solo uso, pero igual): ya está en esta pantalla.
+  try { history.replaceState(null, "", "#/recuperar"); } catch { /* sin history: no pasa nada */ }
   const next = PasswordField("rec-next", "Contraseña nueva", { autocomplete: "new-password", minlength: MIN_LENGTH });
   const repeat = PasswordField("rec-repeat", "Repetila", { autocomplete: "new-password", minlength: MIN_LENGTH });
   const estado = h("div");

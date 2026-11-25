@@ -76,7 +76,7 @@ def test_el_codigo_correcto_verifica_el_mail_normalizado(c):
     assert (me["email"], me["email_verificado"], me["debe_cargar_mail"]) == (email.lower(), True, False)
 
 
-@pytest.mark.parametrize("malo", ["sin-arroba", "a@b", "dos@@ejemplo.com", "con espacio@ejemplo.com", "x@ejemplo.com\nBcc: y"])
+@pytest.mark.parametrize("malo", ["sin-arroba", "a@b", "dos@@ejemplo.com", "con espacio@ejemplo.com", "x@ejemplo.com\nBcc: y", "a,b@ejemplo.com", "x<y@ejemplo.com>", '"a"@ejemplo.com'])
 def test_rechaza_mails_mal_formados(c, malo):
     H = login_headers(c, _usuario(), CLAVE)
 
@@ -221,10 +221,28 @@ def test_el_token_se_guarda_hasheado_y_vence(c):
     assert c.post("/api/password/restablecer", json={"token": token, "new_password": "nueva-clave-123"}).status_code == 400
 
 
+def _envejecer_link(username):
+    with db.conn() as conn:
+        conn.execute("UPDATE mail_codigos SET creado = creado - %s WHERE username=%s AND tipo='recuperar'",
+                     (mail_api.TOKEN_ESPERA_SEGUNDOS + 1, username))
+
+
+def test_un_link_recien_mandado_no_se_pisa_con_otro_pedido(c):
+    username, _ = _con_mail_verificado(c)
+    c.post("/api/password/olvide", json={"usuario": username})
+    primero = _token_enviado()
+
+    c.post("/api/password/olvide", json={"usuario": username})
+
+    assert len(mail.enviados) == 1
+    assert c.post("/api/password/restablecer", json={"token": primero, "new_password": "nueva-clave-123"}).status_code == 200
+
+
 def test_pedir_otro_link_invalida_el_anterior(c):
     username, _ = _con_mail_verificado(c)
     c.post("/api/password/olvide", json={"usuario": username})
     viejo = _token_enviado()
+    _envejecer_link(username)
     c.post("/api/password/olvide", json={"usuario": username})
 
     assert c.post("/api/password/restablecer", json={"token": viejo, "new_password": "nueva-clave-123"}).status_code == 400
@@ -247,12 +265,57 @@ def test_olvide_tiene_tope_por_cuenta_exista_o_no(c):
     assert estados == [200] * limites.OLVIDE_POR_CUENTA + [429]
 
 
-def test_en_railway_sin_url_configurada_no_arma_el_link_con_el_host_del_pedido(c, monkeypatch):
+class PedidoFalso:
+    base_url = "https://malo.example/"
+
+
+def test_en_railway_sin_url_configurada_no_arma_el_link_con_el_host_del_pedido(monkeypatch):
     monkeypatch.setattr(config, "EN_PRODUCCION", True)
     monkeypatch.setattr(config, "APP_URL", "")
     monkeypatch.setattr(config, "WEBAUTHN_ORIGIN", "")
+
+    assert mail_api._url_app(PedidoFalso()) is None
+
+
+def test_en_railway_el_link_sale_de_la_configuracion(monkeypatch):
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+    monkeypatch.setattr(config, "APP_URL", "")
+    monkeypatch.setattr(config, "WEBAUTHN_ORIGIN", "https://staging.ejemplo/")
+
+    assert mail_api._url_app(PedidoFalso()) == "https://staging.ejemplo"
+
+
+def test_el_link_no_sirve_si_despues_cambio_el_mail(c):
     username, _ = _con_mail_verificado(c)
+    c.post("/api/password/olvide", json={"usuario": username})
+    token = _token_enviado()
+    mail_db.fijar_email(username, _mail_unico().lower())
 
-    c.post("/api/password/olvide", json={"usuario": username}, headers={"Host": "malo.example"})
+    assert c.post("/api/password/restablecer", json={"token": token, "new_password": "nueva-clave-123"}).status_code == 400
 
-    assert not mail.enviados
+
+def test_al_restablecer_avisa_al_mail_de_la_cuenta(c):
+    username, email = _con_mail_verificado(c)
+    c.post("/api/password/olvide", json={"usuario": username})
+
+    c.post("/api/password/restablecer", json={"token": _token_enviado(), "new_password": "nueva-clave-123"})
+
+    assert (mail.enviados[-1]["para"], mail.enviados[-1]["asunto"]) == (email, "Tu contraseña de ReinventAR cambió")
+
+
+def test_cambiar_un_mail_ya_verificado_pide_la_contrasena(c):
+    username = _usuario()
+    H = login_headers(c, username, CLAVE)
+    _verificar(c, H, _mail_unico())
+
+    sin = c.post("/api/me/email", headers=H, json={"email": _mail_unico()})
+    con = c.post("/api/me/email", headers=H, json={"email": _mail_unico(), "current_password": CLAVE})
+
+    assert (sin.status_code, con.status_code) == (403, 200)
+
+
+def test_el_modo_fake_no_se_usa_en_railway(monkeypatch):
+    monkeypatch.setattr(config, "MAIL_PROVIDER", "fake")
+    monkeypatch.setattr(config, "EN_PRODUCCION", True)
+
+    assert mail.activo() is False

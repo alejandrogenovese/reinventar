@@ -2,7 +2,7 @@
 
 MAIL_PROVIDER:
   off    → no se manda nada y el mail no es obligatorio (default: un entorno sin configurar no deja a nadie afuera)
-  fake   → para tests y desarrollo: los mails quedan en `enviados` (memoria) y en el log, no salen
+  fake   → para tests y desarrollo: los mails quedan en `enviados` (memoria), no salen. En Railway cuenta como off
   smtp   → cualquier servidor SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_SEGURIDAD)
   resend → API HTTP de Resend (RESEND_API_KEY)
 En todos los reales, MAIL_FROM es el remitente («ReinventAR <no-responder@dominio>»).
@@ -32,8 +32,11 @@ class MailNoEnviado(Exception):
 
 
 def proveedor() -> str:
+    """El proveedor configurado. fake en Railway cuenta como off: ahí nadie debe poder leer códigos en los logs."""
     valor = config.MAIL_PROVIDER.lower()
-    return valor if valor in PROVEEDORES else "off"
+    if valor not in PROVEEDORES or (valor == "fake" and config.EN_PRODUCCION):
+        return "off"
+    return valor
 
 
 def activo() -> bool:
@@ -64,7 +67,7 @@ def enviar(destino: str, asunto: str, texto: str) -> None:
 def _fake(destino: str, asunto: str, texto: str) -> None:
     enviados.append({"para": destino, "asunto": asunto, "texto": texto})
     del enviados[:-ENVIADOS_MAXIMO]
-    log.info("Mail (fake) a %s: %s\n%s", destino, asunto, texto)
+    log.info("Mail (fake) a %s: %s", destino, asunto)  # sin el texto: lleva códigos y links de un solo uso
 
 
 def _mensaje(destino: str, asunto: str, texto: str) -> EmailMessage:
