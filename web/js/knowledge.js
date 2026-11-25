@@ -1,6 +1,6 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
-import { AvisoBaja, LlenoAvisos, avisosDe } from "./lleno.js";
+import { AvisoBaja, LlenoAvisos, SugerenciasLleno, avisosDe } from "./lleno.js";
 import { BriefingPanel } from "./briefing.js";
 import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
@@ -81,7 +81,8 @@ function Slot(i, mine, onChange, aviso) {
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
     h("div", { class: "actions ra-slot-actions" }, action),  // una fila que envuelve: ninguna pastilla tapa a otra
-    LlenoAvisos(i.code, aviso));
+    LlenoAvisos(i.code, aviso),
+    SugerenciasLleno(i.code, aviso, Boolean(own)));
 }
 
 function PersonLink(p, extra) {

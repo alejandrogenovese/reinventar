@@ -320,6 +320,7 @@ export const Lleno = {
   estado: (codes) => api(`/api/lleno?codes=${codes.map(enc).join(",")}`),
   avisar: (code, estado) => api(`/api/lleno/${enc(code)}`, { method: "POST", json: { estado } }),
   retirar: (code) => api(`/api/lleno/${enc(code)}`, { method: "DELETE" }),
+  alternativas: (code) => api(`/api/lleno/${enc(code)}/alternativas`),
 };
 
 export const Events = {

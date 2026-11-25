@@ -1,5 +1,5 @@
 // «Está llena / hay mucha cola»: lo que avisa la gente en la puerta (app/lleno.py). Va en la ficha de la charla, en las
-// tarjetas de Hoy y en las del itinerario.
+// tarjetas de Hoy y en las del itinerario. Si está llena, la ficha sugiere otras charlas cerca (app/lleno_alternativas.py).
 import { Lleno } from "./api.js";
 import { Hint, h, mensajeError, toast } from "./ui.js";
 
@@ -56,3 +56,34 @@ export const codigosDeCharlas = (items) => [...new Set(items.filter((s) => s && 
 
 /** Avisos de esos códigos; si falla (sin conexión) o no hay códigos, {}: las tarjetas se muestran igual. */
 export const avisosDe = (codes) => (codes.length ? Lleno.estado(codes).catch(() => ({})) : Promise.resolve({}));
+
+/** «14:30 · Caesars Forum · 9 min caminando»: cuándo, dónde y cuánto se camina desde la sala llena. */
+export function detalleAlternativa(a) {
+  let camino = `${a.minutos} min caminando`;
+  if (a.misma_sede) camino = "en el mismo edificio";
+  else if (a.estimado) camino = `unos ${camino}`;
+  return [a.en_curso ? `Empezó ${a.start}` : a.start, a.venue?.hotel, camino].filter(Boolean).join(" · ");
+}
+
+/** Las charlas cerca que empiezan ahora o en un rato, cada una con link a su ficha. */
+export function ListaAlternativas(alternativas) {
+  if (!alternativas.length) return h("p", { class: "caption" }, "No encontramos otras charlas cerca que empiecen pronto.");
+  return h("div", { class: "stack" },
+    h("strong", {}, "Está llena. Cerca y por empezar:"),
+    h("ul", { class: "ra-people" }, alternativas.map((a) => h("li", {},
+      h("a", { class: "ra-link", href: `#/charla/${encodeURIComponent(a.base)}` }, a.title),
+      h("span", { class: "caption" }, ` · ${detalleAlternativa(a)}`)))));
+}
+
+/**
+ * En la ficha: si avisaron que el horario está lleno y no estás anotado, otras charlas cerca. Se carga aparte para no
+ * demorar la ficha; si falla (sin conexión), no muestra nada. null si no corresponde.
+ */
+export function SugerenciasLleno(code, aviso, anotado) {
+  if (anotado || !aviso?.lleno) return null;
+  const box = h("div", { class: "ra-lleno-alternativas", "aria-live": "polite" });
+  void Lleno.alternativas(code)
+    .then((r) => box.replaceChildren(...(r.llena ? [ListaAlternativas(r.alternativas)] : [])))
+    .catch(() => box.replaceChildren());
+  return box;
+}

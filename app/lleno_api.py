@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
-from . import catalog, db, limites, lleno, sandbox
+from . import catalog, db, limites, lleno, lleno_alternativas, sandbox
 from .auth import auth
 
 router = APIRouter(prefix="/api/lleno")
@@ -41,6 +41,27 @@ def estado(codes: str = Query(..., max_length=600), username: str = Depends(auth
     if not lista or len(lista) > lleno.CODIGOS_POR_PEDIDO:
         raise HTTPException(422, f"Pasá entre 1 y {lleno.CODIGOS_POR_PEDIDO} códigos")
     return _estado(lista, username)
+
+
+def _llenos(codes: list[str]) -> set[str]:
+    """Horarios con algún aviso vigente de «está llena» («mucha cola» no cuenta: todavía se puede entrar)."""
+    filas = db.reportes_lleno(codes, time.time() - lleno.VIGENCIA_MIN * 60)
+    return {f["code"] for f in filas if f["estado"] == "lleno"}
+
+
+@router.get("/{code}/alternativas")
+def alternativas(code: str, username: str = Depends(auth)):
+    """Si el horario está lleno, otras charlas cerca que empiezan ahora o en un rato, sin las que también avisaron
+    llenas (app/lleno_alternativas.py)."""
+    found = catalog.get_instance(code)
+    if not found:
+        raise HTTPException(404, "No encontramos ese horario")
+    if code not in _llenos([code]):
+        return {"llena": False, "alternativas": []}
+    cercanas = lleno_alternativas.cercanas(catalog.card(*found), catalog.all_sessions(), sandbox.ahora())
+    llenas = _llenos([c["code"] for c in cercanas]) if cercanas else set()
+    libres = [c for c in cercanas if c["code"] not in llenas]
+    return {"llena": True, "alternativas": libres[:lleno_alternativas.MAX_SUGERENCIAS]}
 
 
 @router.post("/{code}")
