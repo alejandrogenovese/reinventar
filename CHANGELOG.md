@@ -9,6 +9,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - **Está llena: otras charlas cerca.** Si avisaron que un horario está lleno y no estás anotado, la ficha de la
   charla sugiere hasta 5 charlas de hoy que empiezan ahora o dentro de la hora, en la misma sede o a 15 minutos
   caminando como mucho, con la hora, la sede y cuánto se camina. No sugiere las que también avisaron llenas.
+- **Admin › Usuarios › Borrar usuario.** Borra la cuenta y todo lo suyo, también lo del modo prueba: itinerario,
+  eventos, viajes, gastos con sus fotos, documentos del bucket, las grabaciones que hizo (con el audio), sesiones,
+  passkeys y notificaciones. Para confirmar hay que escribir el nombre del usuario. Un admin no se puede borrar a sí
+  mismo ni a otro admin, y cada borrado queda registrado (quién, cuándo y qué se borró).
 
 ## [1.3.2] - 2026-11-23
 
