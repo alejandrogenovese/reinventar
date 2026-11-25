@@ -1,24 +1,28 @@
-"""Mail de cada persona (obligatorio y verificado con un código) y recuperación de contraseña por mail.
+"""Mail de cada persona (obligatorio y verificado con un código) y recuperación de contraseña con un código por mail.
 
 - POST /api/me/email: normaliza y valida el mail, revisa que no lo tenga otra cuenta y manda un código de 6 dígitos
   (vence en CODIGO_MINUTOS, CODIGO_INTENTOS intentos). El mail se guarda en users recién al verificarlo.
 - POST /api/me/email/verificar: con el código correcto, el mail queda verificado.
 - POST /api/password/olvide: siempre la misma respuesta, exista o no la cuenta. Si existe, está activa y tiene el mail
-  verificado, le llega un link de un solo uso que vence en TOKEN_MINUTOS. Todo el trabajo va después de responder
-  (BackgroundTasks): ni el tiempo de respuesta dice si la cuenta existe.
-- POST /api/password/restablecer: con un token vigente, cambia la contraseña, cierra todas las sesiones y borra las
-  passkeys.
+  verificado, le llega un código de 6 dígitos (vence en RECUPERAR_MINUTOS, RECUPERAR_INTENTOS intentos, una sola vez).
+  Todo el trabajo va después de responder (BackgroundTasks): ni el tiempo de respuesta dice si la cuenta existe.
+- POST /api/password/restablecer: usuario o mail, código y contraseña nueva. Un código incorrecto, vencido, sin
+  intentos o de una cuenta que no existe da siempre el mismo error. Si vale, cambia la contraseña, cierra todas las
+  sesiones, borra las passkeys y avisa por mail.
+Cada mail lleva el apartado «Seguridad» (app/mail_plantillas.py): la IP y el navegador se toman acá, en el endpoint.
 """
 import logging
 import re
 import secrets
+import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import config, db, limites, mail, mail_db, passwords
+from . import config, db, limites, mail, mail_db, mail_plantillas, passwords
 from .auth import auth
 from .auth_api import cambiar_contrasena, ip_cliente
+from .mail_plantillas import Origen
 
 router = APIRouter()
 log = logging.getLogger("reinventar.mail")
@@ -26,18 +30,20 @@ log = logging.getLogger("reinventar.mail")
 CODIGO_MINUTOS = 15
 CODIGO_INTENTOS = 5
 CODIGO_DIGITOS = 6
-TOKEN_MINUTOS = 30
+RECUPERAR_MINUTOS = 10
+RECUPERAR_INTENTOS = 5
 EMAIL_MAX = 254
 # Formato razonable (algo@dominio.tld), sin espacios ni saltos de línea: la verificación real es el código.
 # Solo caracteres comunes: nada de «,», «<», «"» o «;», que un cliente de mail lee como otro destinatario o un nombre.
 _EMAIL = re.compile(r"^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$")
 _CODIGO = re.compile(rf"^\d{{{CODIGO_DIGITOS}}}$")
-# Un link de recuperación recién mandado no se pisa con otro pedido: nadie puede anularle el link a la víctima.
-TOKEN_ESPERA_SEGUNDOS = 120
+# Un código de recuperación recién mandado no se pisa con otro pedido: nadie puede anularle el código a la víctima.
+RECUPERAR_ESPERA_SEGUNDOS = 120
 CLAVE_LIMITE_MAX = 64
-RESPUESTA_OLVIDE = ("Si hay una cuenta con ese usuario o mail y tiene el mail verificado, te mandamos un link para "
-                    "elegir una contraseña nueva. Revisá tu correo (y el spam). El link vence en "
-                    f"{TOKEN_MINUTOS} minutos.")
+RESPUESTA_OLVIDE = ("Si hay una cuenta con ese usuario o mail y tiene el mail verificado, te mandamos un código de "
+                    f"{CODIGO_DIGITOS} dígitos. Revisá tu correo (y el spam). Vence en {RECUPERAR_MINUTOS} minutos.")
+# Igual para todo lo que falle al restablecer: no dice si la cuenta existe ni qué parte estuvo mal.
+ERROR_RESTABLECER = "El código no es válido o ya venció. Revisalo o pedí uno nuevo."
 
 
 class EmailNuevo(BaseModel):
@@ -55,7 +61,8 @@ class Olvide(BaseModel):
 
 
 class Restablecer(BaseModel):
-    token: str = Field(min_length=20, max_length=200)
+    usuario: str = Field(min_length=1, max_length=EMAIL_MAX)
+    codigo: str = Field(pattern=_CODIGO.pattern)
     new_password: str = Field(min_length=config.PASSWORD_MIN_LENGTH, max_length=200)
 
 
@@ -67,17 +74,27 @@ def normalizar_email(valor: str) -> str:
     return email
 
 
+def _origen(request: Request, username: str, buscado_por_mail: bool = False) -> Origen:
+    """IP y navegador del pedido, tomados en el endpoint (la tarea en segundo plano ya no tiene el request)."""
+    return Origen(username=username, ip=ip_cliente(request), user_agent=request.headers.get("user-agent", ""),
+                  momento=time.time(), buscado_por_mail=buscado_por_mail)
+
+
+def _nuevo_codigo() -> str:
+    return f"{secrets.randbelow(10 ** CODIGO_DIGITOS):0{CODIGO_DIGITOS}d}"
+
+
 def _exigir_envio_activo() -> None:
     if not mail.activo():
         raise HTTPException(503, "El envío de mails no está configurado en este entorno.")
 
 
-def _mandar(destino: str, asunto: str, texto: str) -> bool:
+def _mandar(destino: str, mensaje: mail.Mensaje) -> bool:
     try:
-        mail.enviar(destino, asunto, texto)
+        mail.enviar(destino, mensaje)
         return True
-    except mail.MailNoEnviado as e:
-        log.exception("No se pudo mandar el mail (%s): %s", asunto, e)
+    except mail.MailNoEnviado:
+        log.exception("No se pudo mandar un mail de la cuenta")
         return False
 
 
@@ -96,7 +113,7 @@ def _exigir_contrasena_si_ya_verifico(username: str, contrasena: str | None) -> 
     409: {"description": "Otra cuenta ya tiene ese mail"}, 422: {"description": "Mail inválido"},
     429: {"description": "Demasiados envíos"}, 502: {"description": "No se pudo mandar el mail"},
     503: {"description": "Envío de mails no configurado"}})
-def pedir_codigo(body: EmailNuevo, username: str = Depends(auth)):
+def pedir_codigo(body: EmailNuevo, request: Request, username: str = Depends(auth)):
     _exigir_envio_activo()
     email = normalizar_email(body.email)
     # El cupo va antes de revisar si el mail está en uso: así nadie puede probar mails ajenos sin límite.
@@ -106,11 +123,10 @@ def pedir_codigo(body: EmailNuevo, username: str = Depends(auth)):
     if otro and otro["username"] != username:
         raise HTTPException(409, "Ese mail ya lo usa otra cuenta. Usá otro o pedile ayuda a un admin.")
     limites.exigir_cupo(limites.mails_destino, email, "códigos por mail")
-    codigo = f"{secrets.randbelow(10 ** CODIGO_DIGITOS):0{CODIGO_DIGITOS}d}"
+    codigo = _nuevo_codigo()
     mail_db.guardar_codigo(username, mail_db.VERIFICAR, mail_db.hash_codigo(username, codigo), email, CODIGO_MINUTOS * 60)
-    texto = (f"Hola {username}:\n\nTu código para confirmar este mail en ReinventAR es {codigo}.\n"
-             f"Vence en {CODIGO_MINUTOS} minutos. Si no fuiste vos, ignorá este mensaje.\n")
-    if not _mandar(email, f"Tu código de ReinventAR: {codigo}", texto):
+    mensaje = mail_plantillas.confirmar_mail(_origen(request, username), email, codigo, CODIGO_MINUTOS)
+    if not _mandar(email, mensaje):
         mail_db.borrar_codigo(username, mail_db.VERIFICAR)
         raise HTTPException(502, "No pudimos mandar el mail. Probá de nuevo en un rato.")
     return {"ok": True, "enviado_a": email, "vence_minutos": CODIGO_MINUTOS}
@@ -141,66 +157,65 @@ def verificar_codigo(body: CodigoMail, username: str = Depends(auth)):
 
 # ---------- recuperación de contraseña ----------
 
-def _url_app(request: Request) -> str | None:
-    """Base del link de recuperación. En Railway sale solo de la configuración (APP_URL o WEBAUTHN_ORIGIN): nunca del
-    Host del pedido, que lo manda el cliente. Fuera de Railway (dev) se usa la URL del pedido."""
-    base = config.APP_URL or config.WEBAUTHN_ORIGIN.rstrip("/")
-    if base:
-        return base
-    return None if config.EN_PRODUCCION else str(request.base_url).rstrip("/")
+def _clave_cuenta(usuario: str) -> str:
+    """Cómo se busca la cuenta (y la clave de su tope): minúsculas, sin espacios y con largo máximo."""
+    return usuario.strip().lower()[:CLAVE_LIMITE_MAX]
 
 
-def _buscar_cuenta(usuario: str) -> dict | None:
-    valor = usuario.strip().lower()
-    user = mail_db.usuario_por_email(valor) if "@" in valor else db.get_user(valor)
+def _buscar_cuenta(cuenta: str) -> dict | None:
+    """La cuenta que puede recuperar: existe, está activa y tiene el mail verificado. None si no."""
+    user = mail_db.usuario_por_email(cuenta) if "@" in cuenta else db.get_user(cuenta)
     if not user or not user["is_active"] or not user.get("email") or not user.get("email_verificado_at"):
         return None
     return user
 
 
-def _mandar_link(usuario: str, base: str | None) -> None:
+def _mandar_codigo_recuperacion(cuenta: str, origen: Origen) -> None:
     """Corre después de responder. Si la cuenta no califica no hace nada (y nada de eso se ve desde afuera)."""
-    user = _buscar_cuenta(usuario)
-    if user is None:
+    user = _buscar_cuenta(cuenta)
+    if user is None or mail_db.codigo_reciente(user["username"], mail_db.RECUPERAR, RECUPERAR_ESPERA_SEGUNDOS):
         return
-    if base is None:
-        log.error("Falta APP_URL (o WEBAUTHN_ORIGIN): no se puede armar el link de recuperación")
-        return
-    if mail_db.token_reciente(user["username"], TOKEN_ESPERA_SEGUNDOS):
-        return
-    token = secrets.token_urlsafe(32)
-    mail_db.guardar_codigo(user["username"], mail_db.RECUPERAR, mail_db.hash_token(token), user["email"],
-                           TOKEN_MINUTOS * 60)
-    texto = (f"Hola {user['username']}:\n\nPediste elegir una contraseña nueva para ReinventAR. Entrá a este link "
-             f"(vence en {TOKEN_MINUTOS} minutos y sirve una sola vez):\n\n{base}/#/recuperar/{token}\n\n"
-             "Si no fuiste vos, ignorá este mensaje: tu contraseña no cambia.\n")
-    if not _mandar(user["email"], "Elegí una contraseña nueva para ReinventAR", texto):
+    codigo = _nuevo_codigo()
+    mail_db.guardar_codigo(user["username"], mail_db.RECUPERAR, mail_db.hash_codigo(user["username"], codigo),
+                           user["email"], RECUPERAR_MINUTOS * 60)
+    origen = Origen(user["username"], origen.ip, origen.user_agent, origen.momento, buscado_por_mail="@" in cuenta)
+    mensaje = mail_plantillas.recuperar_contrasena(origen, codigo, RECUPERAR_MINUTOS, RECUPERAR_INTENTOS)
+    if not _mandar(user["email"], mensaje):
         mail_db.borrar_codigo(user["username"], mail_db.RECUPERAR)
 
 
 @router.post("/api/password/olvide", responses={429: {"description": "Demasiados pedidos"}})
 def olvide(body: Olvide, request: Request, tareas: BackgroundTasks):
-    cuenta = body.usuario.strip().lower()[:CLAVE_LIMITE_MAX]  # la clave del tope no crece con lo que mande el cliente
+    cuenta = _clave_cuenta(body.usuario)
     if not limites.olvide_ip.consumir(ip_cliente(request)) or not limites.olvide_cuenta.consumir(cuenta):
         raise limites.demasiados_intentos()
     if mail.activo():
-        tareas.add_task(_mandar_link, cuenta, _url_app(request))
+        tareas.add_task(_mandar_codigo_recuperacion, cuenta, _origen(request, ""))
     return {"ok": True, "mensaje": RESPUESTA_OLVIDE}
 
 
+def _validar_codigo_recuperacion(user: dict | None, codigo: str) -> bool:
+    """Gasta un intento y consume el código si coincide (una sola vez). Solo vale para el mail al que se mandó."""
+    if user is None:
+        return False
+    username = user["username"]
+    vigente = mail_db.sumar_intento(username, mail_db.RECUPERAR, RECUPERAR_INTENTOS)
+    hash_ = mail_db.hash_codigo(username, codigo)
+    if vigente is None or not secrets.compare_digest(vigente["hash"], hash_):
+        return False
+    return mail_db.consumir_codigo(username, mail_db.RECUPERAR, hash_) == user["email"]
+
+
 @router.post("/api/password/restablecer", responses={
-    400: {"description": "Link inválido, usado o vencido"}, 429: {"description": "Demasiados pedidos"}})
+    400: {"description": "Código inválido, vencido o sin intentos (el mismo error exista o no la cuenta)"},
+    429: {"description": "Demasiados pedidos"}})
 def restablecer(body: Restablecer, request: Request):
     if not limites.restablecer_ip.consumir(ip_cliente(request)):
         raise limites.demasiados_intentos()
-    vigente = mail_db.consumir_token(mail_db.hash_token(body.token.strip()))
-    user = db.get_user(vigente["username"]) if vigente else None
-    # El link vale solo para el mail al que se mandó: si después cambió, ya no sirve.
-    if not user or not user["is_active"] or user.get("email") != vigente["email"]:
-        raise HTTPException(400, "El link no es válido, ya se usó o venció. Pedí uno nuevo.")
+    user = _buscar_cuenta(_clave_cuenta(body.usuario))
+    if not _validar_codigo_recuperacion(user, body.codigo):
+        raise HTTPException(400, ERROR_RESTABLECER)
     cambiar_contrasena(user["username"], body.new_password)
     limites.fallos_usuario.limpiar(user["username"])
-    _mandar(user["email"], "Tu contraseña de ReinventAR cambió",
-            f"Hola {user['username']}:\n\nSe eligió una contraseña nueva para tu cuenta y se cerraron todas tus "
-            "sesiones. Si no fuiste vos, avisale ya a un admin.\n")
+    _mandar(user["email"], mail_plantillas.contrasena_cambiada(_origen(request, user["username"])))
     return {"ok": True}

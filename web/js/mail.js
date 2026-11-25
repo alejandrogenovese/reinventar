@@ -1,4 +1,4 @@
-// Mail obligatorio (#/mail) y recuperación de contraseña (#/olvide, #/recuperar/<token>). El servidor valida todo
+// Mail obligatorio (#/mail) y recuperación de contraseña con un código por mail (#/olvide). El servidor valida todo
 // (app/mail_api.py); acá van los pasos de la pantalla y unas reglas puras que se prueban con node --test.
 import { Mail, setDebeCargarMail } from "./api.js";
 import { PasswordField, h, mensajeError, toast } from "./ui.js";
@@ -83,50 +83,63 @@ function pasoCodigo(paso, destino, minutos) {
   codigo.input.focus();
 }
 
-// --- olvidé mi contraseña -----------------------------------------------------
+// --- recuperar contraseña: usuario o mail → código y contraseña nueva, en el mismo flujo -----
 export function viewOlvide(view) {
-  const usuario = campo("olvide-usuario", "Tu usuario o tu mail", { autocomplete: "username", autocapitalize: "none", maxlength: 254 });
+  const paso = h("div", { class: "stack-lg" });
+  view.append(paso);
+  pasoPedirCodigo(paso);
+}
+
+function pasoPedirCodigo(paso, previo = "") {
+  const usuario = campo("olvide-usuario", "Tu usuario o tu mail", { autocomplete: "username", autocapitalize: "none", maxlength: 254, value: previo });
   const estado = h("div");
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
     e.preventDefault();
+    const cuenta = usuario.input.value.trim();
     let r;
-    if (await enviar(form, estado, async () => { r = await Mail.olvide(usuario.input.value.trim()); })) {
-      estado.replaceChildren(aviso(r.mensaje, { error: false }));
-      form.querySelector("button[type=submit]").disabled = true;
-    }
+    if (await enviar(form, estado, async () => { r = await Mail.olvide(cuenta); })) pasoRestablecer(paso, cuenta, r.mensaje);
   } },
-    h("h1", { class: "title" }, "¿Olvidaste tu contraseña?"),
-    h("p", {}, "Si tu cuenta tiene el mail confirmado, te mandamos un link para elegir una nueva. Si no, pedile a un admin que te la resetee."),
+    h("h1", { class: "title" }, "Recuperar contraseña"),
+    h("p", {}, "Si tu cuenta tiene el mail confirmado, te mandamos un código para elegir una contraseña nueva. Si no, pedile a un admin que te la resetee."),
     usuario.el,
     h("div", { class: "actions" },
-      h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Mandarme el link"),
+      h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Mandarme el código"),
       h("a", { class: "ra-btn ra-btn-ghost", href: "#/login" }, "Volver a entrar")),
     estado);
-  view.append(form);
+  paso.replaceChildren(form);
   usuario.input.focus();
 }
 
-// --- elegir contraseña nueva desde el link ------------------------------------
-export function viewRecuperar(view, token) {
-  // El token no queda en la barra ni en el historial (es de un solo uso, pero igual): ya está en esta pantalla.
-  try { history.replaceState(null, "", "#/recuperar"); } catch { /* sin history: no pasa nada */ }
+function pasoRestablecer(paso, cuenta, mensaje) {
+  const codigo = campo("rec-codigo", `Código de ${CODIGO_DIGITOS} dígitos`, { inputmode: "numeric", autocomplete: "one-time-code", maxlength: 12, pattern: "[0-9 -]*" });
   const next = PasswordField("rec-next", "Contraseña nueva", { autocomplete: "new-password", minlength: MIN_LENGTH });
   const repeat = PasswordField("rec-repeat", "Repetila", { autocomplete: "new-password", minlength: MIN_LENGTH });
   const estado = h("div");
   const form = h("form", { class: "stack-lg", onsubmit: async (e) => {
     e.preventDefault();
-    if (next.input.value !== repeat.input.value) { estado.replaceChildren(aviso("Las dos contraseñas no coinciden.")); return; }
-    if (next.input.value.length < MIN_LENGTH) { estado.replaceChildren(aviso(`Necesita al menos ${MIN_LENGTH} caracteres.`)); return; }
-    if (await enviar(form, estado, () => Mail.restablecer(token, next.input.value))) {
+    const error = errorRestablecer(limpiarCodigo(codigo.input.value), next.input.value, repeat.input.value);
+    if (error) { estado.replaceChildren(aviso(error)); return; }
+    if (await enviar(form, estado, () => Mail.restablecer(cuenta, limpiarCodigo(codigo.input.value), next.input.value))) {
       toast("Contraseña cambiada. Entrá con la nueva.");
       location.hash = "#/login";
     }
   } },
-    h("h1", { class: "title" }, "Elegí una contraseña nueva"),
-    next.el, repeat.el,
+    h("h1", { class: "title" }, "Recuperar contraseña"),
+    aviso(mensaje, { error: false }),
+    codigo.el, next.el, repeat.el,
     h("p", { class: "caption" }, `Mínimo ${MIN_LENGTH} caracteres. Se cierra la sesión en todos tus dispositivos y se borran tus passkeys.`),
-    h("div", { class: "actions" }, h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Guardar")),
+    h("div", { class: "actions" },
+      h("button", { type: "submit", class: "ra-btn ra-btn-primary" }, "Guardar"),
+      h("button", { type: "button", class: "ra-btn ra-btn-ghost", onclick: () => pasoPedirCodigo(paso, cuenta) }, "Pedir otro código")),
     estado);
-  view.append(form);
-  next.input.focus();
+  paso.replaceChildren(form);
+  codigo.input.focus();
+}
+
+/** Lo que se puede revisar antes de mandar (el servidor vuelve a validar todo). null si está bien. */
+export function errorRestablecer(codigo, nueva, repetida) {
+  if (codigo.length !== CODIGO_DIGITOS) return `El código tiene ${CODIGO_DIGITOS} dígitos.`;
+  if (nueva.length < MIN_LENGTH) return `La contraseña nueva necesita al menos ${MIN_LENGTH} caracteres.`;
+  if (nueva !== repetida) return "Las dos contraseñas nuevas no coinciden.";
+  return null;
 }

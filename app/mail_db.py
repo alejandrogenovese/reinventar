@@ -1,6 +1,6 @@
-"""Persistencia del mail de cada usuario y de sus códigos (tabla mail_codigos, columnas users.email*).
+"""Persistencia del mail de cada usuario y de sus códigos de un solo uso (tabla mail_codigos, columnas users.email*).
 
-Los códigos y tokens se guardan hasheados (sha256): quien lea la base o un backup no puede usarlos. Hay uno vigente por
+Los códigos se guardan hasheados (sha256): quien lea la base o un backup no puede usarlos. Hay uno vigente por
 usuario y tipo: pedir otro reemplaza (e invalida) el anterior. Siempre en el schema real (son de la cuenta).
 """
 import hashlib
@@ -20,13 +20,9 @@ class MailEnUso(Exception):
 
 
 def hash_codigo(username: str, codigo: str) -> str:
-    """El código de verificación (6 dígitos) se hashea junto con el usuario: dos personas con el mismo código no
-    comparten hash."""
+    """Los códigos (6 dígitos, de verificación y de recuperación) se hashean junto con el usuario: dos personas con el
+    mismo código no comparten hash."""
     return hashlib.sha256(f"{username}:{codigo}".encode()).hexdigest()
-
-
-def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def usuario_por_email(email: str) -> dict | None:
@@ -62,21 +58,21 @@ def borrar_codigo(username: str, tipo: str) -> None:
         c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s", (username, tipo))
 
 
-def consumir_token(hash_: str) -> dict | None:
-    """Usa el token de recuperación (una sola vez: lo borra al leerlo). Devuelve {username, email} (el mail al que se
-    mandó), o None si no existe o venció."""
+def consumir_codigo(username: str, tipo: str, hash_: str) -> str | None:
+    """Usa el código (una sola vez: lo borra al leerlo, en la misma sentencia que lo compara). Devuelve el mail al que
+    se mandó, o None si no coincide o ya no está: de dos pedidos a la vez con el mismo código, solo uno lo consume."""
     with sandbox.real(), conn() as c:
-        r = c.execute("DELETE FROM mail_codigos WHERE hash=%s AND tipo=%s RETURNING username, email, vence",
-                      (hash_, RECUPERAR)).fetchone()
-    return {"username": r["username"], "email": r["email"]} if r and r["vence"] >= time.time() else None
+        r = c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s AND hash=%s AND vence >= %s RETURNING email",
+                      (username, tipo, hash_, time.time())).fetchone()
+    return r["email"] if r else None
 
 
-def token_reciente(username: str, segundos: float) -> bool:
-    """¿Hay un link de recuperación vigente creado hace menos de `segundos`?"""
+def codigo_reciente(username: str, tipo: str, segundos: float) -> bool:
+    """¿Hay un código vigente de ese tipo creado hace menos de `segundos`?"""
     ahora = time.time()
     with sandbox.real(), conn() as c:
         return c.execute("SELECT 1 FROM mail_codigos WHERE username=%s AND tipo=%s AND creado > %s AND vence >= %s",
-                         (username, RECUPERAR, ahora - segundos, ahora)).fetchone() is not None
+                         (username, tipo, ahora - segundos, ahora)).fetchone() is not None
 
 
 def fijar_email(username: str, email: str) -> None:

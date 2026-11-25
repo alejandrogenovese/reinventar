@@ -235,7 +235,8 @@ export const Mail = {
   pedirCodigo: (email) => api("/api/me/email", { method: "POST", json: { email } }),
   verificar: (codigo) => api("/api/me/email/verificar", { method: "POST", json: { codigo } }),
   olvide: (usuario) => api("/api/password/olvide", { method: "POST", json: { usuario } }),
-  restablecer: (token, newPassword) => api("/api/password/restablecer", { method: "POST", json: { token, new_password: newPassword } }),
+  restablecer: (usuario, codigo, newPassword) =>
+    api("/api/password/restablecer", { method: "POST", json: { usuario, codigo, new_password: newPassword } }),
 };
 
 // Ajustes sin señal: quién es y si es admin se guarda por usuario junto a las otras copias (lastgood.js, se borra al cerrar

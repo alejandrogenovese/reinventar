@@ -1,7 +1,7 @@
 // ReinventAR — router y pantallas.
 import { Anuncios, ApiError, Auth, Sessions, cuentaConCopia, debeCargarMail, getToken, mustChangePassword, setDebeCargarMail, setMustChangePassword, setToken } from "./api.js";
 import { viewPassword } from "./account.js";
-import { viewMail, viewOlvide, viewRecuperar } from "./mail.js";
+import { viewMail, viewOlvide } from "./mail.js";
 import { confirmDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { InstallPrompt } from "./install.js";
@@ -95,7 +95,6 @@ const routes = [
   [/^#\/?$/, viewList],
   [/^#\/login$/, viewLogin],
   [/^#\/olvide$/, () => viewOlvide(view)],
-  [/^#\/recuperar\/([\w-]{20,200})$/, (token) => viewRecuperar(view, token)],
   [/^#\/mail$/, () => viewMail(view)],
   [/^#\/nueva$/, viewNew],
   [/^#\/ajustes$/, viewSettings],
@@ -188,7 +187,7 @@ function markNav(hash) {
 }
 
 // Las pantallas que se ven sin sesión: entrar y recuperar la contraseña.
-const SIN_SESION = /^#\/(login|olvide|recuperar\/[\w-]+)$/;
+const SIN_SESION = /^#\/(login|olvide)$/;
 
 /** Sin sesión, a entrar; con la contraseña temporal, a cambiarla. true si mandó a otra pantalla. */
 function desviarSesion(hash) {

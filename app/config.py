@@ -32,9 +32,6 @@ SMTP_USER = _env("SMTP_USER")
 SMTP_PASSWORD = _env("SMTP_PASSWORD")
 SMTP_SEGURIDAD = _env("SMTP_SEGURIDAD", "starttls").lower()
 RESEND_API_KEY = _env("RESEND_API_KEY")
-# URL pública de la app, para el link de recuperación de contraseña (https://staging.reinventar.app). Si falta, se usa
-# WEBAUTHN_ORIGIN. Nunca sale del Host del pedido en Railway: un Host falso no puede armar un link a otro sitio.
-APP_URL = _env("APP_URL").rstrip("/")
 
 # Persistencia: Postgres para datos (estado de la app en DB_SCHEMA, catálogo en el schema reinvent)
 # y un Railway Volume en /data para los archivos de audio.

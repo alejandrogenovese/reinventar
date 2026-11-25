@@ -4,6 +4,8 @@ import pytest
 
 from app import config, mail
 
+MENSAJE = mail.Mensaje("Asunto", "Cuerpo", "<p>Cuerpo</p>")
+
 
 class SmtpFalso:
     enviados: list = []
@@ -47,22 +49,31 @@ def test_apagado_no_manda_y_avisa(monkeypatch):
     monkeypatch.setattr(config, "MAIL_PROVIDER", "off")
 
     with pytest.raises(mail.MailNoEnviado):
-        mail.enviar("a@ejemplo.com", "hola", "texto")
+        mail.enviar("a@ejemplo.com", MENSAJE)
 
 
 def test_smtp_usa_starttls_login_y_el_remitente_configurado(smtp):
-    mail.enviar("a@ejemplo.com", "Asunto", "Cuerpo")
+    mail.enviar("a@ejemplo.com", MENSAJE)
 
     servidor, mensaje = smtp.enviados[-1]
     assert (servidor.host, servidor.tls, servidor.usuario) == ("smtp.ejemplo", True, "usuario")
     assert (mensaje["To"], mensaje["From"], mensaje["Subject"]) == ("a@ejemplo.com", "App <no-responder@ejemplo.com>", "Asunto")
 
 
+def test_smtp_manda_texto_y_html_como_alternativas(smtp):
+    mail.enviar("a@ejemplo.com", MENSAJE)
+
+    _, mensaje = smtp.enviados[-1]
+    partes = [p.get_content_type() for p in mensaje.iter_parts()]
+    assert mensaje.get_content_type() == "multipart/alternative"
+    assert partes == ["text/plain", "text/html"]
+
+
 def test_smtp_sin_host_no_intenta_mandar(smtp, monkeypatch):
     monkeypatch.setattr(config, "SMTP_HOST", "")
 
     with pytest.raises(mail.MailNoEnviado):
-        mail.enviar("a@ejemplo.com", "Asunto", "Cuerpo")
+        mail.enviar("a@ejemplo.com", MENSAJE)
     assert not smtp.enviados
 
 
@@ -73,12 +84,13 @@ def test_resend_manda_por_http_con_la_clave(monkeypatch):
     monkeypatch.setattr(config, "RESEND_API_KEY", "clave-de-prueba")
     monkeypatch.setattr(mail.httpx, "post", lambda url, **kw: pedidos.append((url, kw)) or httpx.Response(200))
 
-    mail.enviar("a@ejemplo.com", "Asunto", "Cuerpo")
+    mail.enviar("a@ejemplo.com", MENSAJE)
 
     url, kw = pedidos[-1]
     assert url == mail.RESEND_URL
     assert kw["headers"]["Authorization"] == "Bearer clave-de-prueba"
     assert kw["json"]["to"] == ["a@ejemplo.com"]
+    assert (kw["json"]["text"], kw["json"]["html"]) == ("Cuerpo", "<p>Cuerpo</p>")
 
 
 def test_resend_que_rechaza_levanta_mail_no_enviado(monkeypatch):
@@ -88,4 +100,4 @@ def test_resend_que_rechaza_levanta_mail_no_enviado(monkeypatch):
     monkeypatch.setattr(mail.httpx, "post", lambda url, **kw: httpx.Response(422))
 
     with pytest.raises(mail.MailNoEnviado):
-        mail.enviar("a@ejemplo.com", "Asunto", "Cuerpo")
+        mail.enviar("a@ejemplo.com", MENSAJE)
