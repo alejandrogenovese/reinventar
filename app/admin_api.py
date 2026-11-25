@@ -9,6 +9,7 @@ from psycopg.errors import UndefinedColumn, UndefinedTable
 from pydantic import BaseModel, Field
 
 from . import (
+    borrar_usuario,
     catalog,
     charlas_auto,
     config,
@@ -146,6 +147,18 @@ def revoke_sessions(username: str, _admin: str = Depends(admin)):
     _user_or_404(username)
     _cortar_accesos(username)
     return {"ok": True}
+
+
+@router.delete("/users/{username}", responses={
+    400: {"description": "Es el propio admin u otro administrador"}, 404: {"description": "Usuario inexistente"}})
+def delete_user(username: str, current: str = Depends(admin)):
+    """Borra al usuario y todo lo suyo (datos, grabaciones, documentos, fotos, sesiones). Queda en auditoria_admin."""
+    _user_or_404(username)
+    if username == current:
+        raise HTTPException(400, "No podés borrar tu propio usuario")
+    if is_admin(username):
+        raise HTTPException(400, "Es administrador: primero sacalo de ADMIN_USERS")
+    return {"ok": True, "borrado": borrar_usuario.borrar(username, current)}
 
 
 @router.put("/users/{username}/sandbox")

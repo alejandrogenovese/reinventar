@@ -286,6 +286,7 @@ export const Admin = {
   createUser: (username, password) => api("/api/admin/users", { method: "POST", json: { username, password } }),
   resetPassword: (username, password) => api(`/api/admin/users/${enc(username)}/reset-password`, { method: "POST", json: { password } }),
   setActive: (username, active) => api(`/api/admin/users/${enc(username)}/active`, { method: "POST", json: { active } }),
+  deleteUser: (username) => api(`/api/admin/users/${enc(username)}`, { method: "DELETE" }),
   revokeSessions: (username) => api(`/api/admin/users/${enc(username)}/sessions`, { method: "DELETE" }),
   usage: () => api("/api/admin/usage"),
   reloadCatalog: () => api("/api/admin/catalog/reload", { method: "POST" }),

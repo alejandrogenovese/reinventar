@@ -73,3 +73,10 @@ export function hace(iso, ahora = Date.now()) {
 
 /** Estado del mail de un usuario para Admin › Usuarios: el servidor solo guarda el mail una vez verificado. */
 export const textoMail = (u) => (u?.email && u?.email_verificado_at ? `Mail: ${u.email} (verificado)` : "Mail: sin verificar todavía");
+/** Lo que de verdad borra el servidor al borrar un usuario (app/borrar_usuario.py). */
+export const textoBorrarUsuario = (username) => `Se borra ${username} y todo lo suyo: itinerario, eventos, viajes, gastos con `
+  + "sus fotos, documentos, las grabaciones que hizo (también para los demás), sesiones y passkeys. No se puede deshacer. "
+  + `Para confirmar, escribí «${username}».`;
+
+/** El borrado solo sigue si escribió exactamente el nombre del usuario (sin espacios de más). */
+export const confirmaBorrado = (escrito, username) => typeof escrito === "string" && escrito.trim() === username;

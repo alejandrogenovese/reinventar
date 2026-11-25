@@ -362,6 +362,15 @@ CREATE TABLE IF NOT EXISTS mail_codigos (
   PRIMARY KEY (username, tipo)
 );
 CREATE INDEX IF NOT EXISTS mail_codigos_hash ON mail_codigos (hash);
+-- Registro de lo que hace un admin sobre las cuentas (hoy: borrar un usuario). Queda aunque el usuario ya no exista.
+CREATE TABLE IF NOT EXISTS auditoria_admin (
+  id BIGSERIAL PRIMARY KEY,
+  at DOUBLE PRECISION NOT NULL,
+  admin TEXT NOT NULL,
+  accion TEXT NOT NULL,
+  objetivo TEXT NOT NULL,
+  detalle JSONB
+);
 CREATE TABLE IF NOT EXISTS webauthn_challenges (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,                  -- register | login
@@ -714,6 +723,24 @@ def set_password(username, salt, password_hash, must_change_password):
 def set_user_active(username, active):
     with conn() as c:
         c.execute("UPDATE users SET is_active=%s WHERE username=%s", (active, username))
+
+
+def registrar_auditoria(admin, accion, objetivo, detalle=None) -> None:
+    with sandbox.real(), conn() as c:
+        c.execute("INSERT INTO auditoria_admin (at, admin, accion, objetivo, detalle) VALUES (%s,%s,%s,%s,%s)",
+                  (time.time(), admin, accion, objetivo, Jsonb(detalle) if detalle is not None else None))
+
+
+def auditoria(objetivo=None, limite=50) -> list[dict]:
+    with sandbox.real(), conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT at, admin, accion, objetivo, detalle FROM auditoria_admin "
+            "WHERE %s::text IS NULL OR objetivo = %s ORDER BY id DESC LIMIT %s", (objetivo, objetivo, limite)).fetchall()]
+
+
+def en_bootstrap(username) -> bool:
+    """¿Está en BOOTSTRAP_USERS? Si se borra, vuelve a crearse en el próximo arranque."""
+    return any(p.split(":", 1)[0].strip() == username for p in config.BOOTSTRAP_USERS.split(",") if ":" in p)
 
 
 # --- Web Push -------------------------------------------------------------------------------

@@ -1,9 +1,9 @@
-// Admin › Usuarios (#/admin/usuarios): alta, y por usuario reseteo de contraseña, cierre de sesiones, desactivar y modo prueba.
+// Admin › Usuarios (#/admin/usuarios): alta, y por usuario reseteo de contraseña, cierre de sesiones, desactivar, borrar y modo prueba.
 // Lista compacta: cada usuario es una fila (nombre, etiquetas, último ingreso) que al abrirla muestra sus acciones.
 // Cada acción repinta solo la fila de ese usuario (lo abierto sigue abierto y el scroll no salta) y bloquea su botón mientras corre.
 import { Admin } from "./api.js";
 import { AdminShell, Cargable, Chevron, avisar, confirmar, conOcupado, hace, sinDoble } from "./adminUi.js";
-import { campoDelError, textoCortarAccesos, textoMail } from "./adminTextos.js";
+import { campoDelError, confirmaBorrado, textoBorrarUsuario, textoCortarAccesos, textoMail } from "./adminTextos.js";
 import { promptDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { refreshSandbox } from "./sandbox.js";
@@ -124,6 +124,13 @@ export function UserRow(u, venues) {
       `No va a poder entrar hasta que lo actives de nuevo. ${textoCortarAccesos(u.username)}`, "Desactivar")) return;
     await ejecutar(b, () => Admin.setActive(u.username, !u.is_active), u.is_active ? `${u.username} desactivado` : `${u.username} activado`, repintar);
   };
+  const borrar = async (b) => {
+    const escrito = await promptDialog(`¿Borrar a ${u.username}?`, { label: "Nombre del usuario" },
+      { text: textoBorrarUsuario(u.username), confirmLabel: "Borrar para siempre", danger: true });
+    if (escrito == null) return;
+    if (!confirmaBorrado(escrito, u.username)) { avisar("El nombre no coincide: no se borró nada.", { error: true }); return; }
+    await ejecutar(b, () => Admin.deleteUser(u.username), `${u.username} borrado`, repintar);
+  };
 
   const fila = h("details", { class: "ra-adm-usuario" },
     h("summary", { class: `ra-adm-fila${u.is_active ? "" : " is-off"}` },
@@ -138,7 +145,9 @@ export function UserRow(u, venues) {
           boton("Resetear contraseña", reset, { "data-accion": "reset" }),
           u.open_sessions ? boton("Cerrar sesiones", revoke, { "data-accion": "revocar" }) : null,
           u.is_admin ? null : boton(u.is_active ? "Desactivar" : "Activar", toggle,
-            { variante: u.is_active ? "ghost" : "secondary", extra: u.is_active ? " ra-adm-btn-err" : "", nombre: `${u.is_active ? "Desactivar a" : "Activar a"} ${u.username}`, "data-accion": "activo" }))),
+            { variante: u.is_active ? "ghost" : "secondary", extra: u.is_active ? " ra-adm-btn-err" : "", nombre: `${u.is_active ? "Desactivar a" : "Activar a"} ${u.username}`, "data-accion": "activo" }),
+          u.is_admin ? null : boton("Borrar usuario", borrar,
+            { variante: "ghost", extra: " ra-adm-btn-err", nombre: `Borrar a ${u.username}`, "data-accion": "borrar" }))),
       SandboxPanel(u, venues, repintar)));
   return fila;
 }
