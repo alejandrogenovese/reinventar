@@ -89,6 +89,21 @@ fotos_conversor = Limite(FOTOS_CONVERSOR_POR_USUARIO, VENTANA_LARGA)
 LINKS_GRABACION_POR_IP = 120
 links_grabacion = Limite(LINKS_GRABACION_POR_IP, VENTANA_CORTA)
 
+# Mails (app/mail_api.py): cada envío cuesta (y un abuso puede quemar la reputación del remitente). Por usuario y por
+# dirección para el código de verificación; por IP y por cuenta pedida para «¿Olvidaste tu contraseña?» (esta cuenta se
+# suma exista o no la cuenta, así el 429 no dice nada de quién existe).
+MAILS_VERIFICACION_POR_USUARIO = 5
+MAILS_POR_DESTINO = 5
+OLVIDE_POR_IP = 10
+OLVIDE_POR_CUENTA = 3
+RESTABLECER_POR_IP = 20
+
+mails_verificacion = Limite(MAILS_VERIFICACION_POR_USUARIO, VENTANA_LARGA)
+mails_destino = Limite(MAILS_POR_DESTINO, VENTANA_LARGA)
+olvide_ip = Limite(OLVIDE_POR_IP)
+olvide_cuenta = Limite(OLVIDE_POR_CUENTA, VENTANA_LARGA)
+restablecer_ip = Limite(RESTABLECER_POR_IP)
+
 
 def demasiados_intentos() -> HTTPException:
     return HTTPException(429, "Demasiados intentos. Esperá unos minutos y probá de nuevo.")
@@ -114,7 +129,8 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
-         admin_links, links_grabacion, fotos_conversor)
+         admin_links, links_grabacion, fotos_conversor, mails_verificacion, mails_destino, olvide_ip, olvide_cuenta,
+         restablecer_ip)
 
 
 def reiniciar_todo() -> None:

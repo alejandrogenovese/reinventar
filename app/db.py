@@ -348,6 +348,19 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (    -- Web Push: un registro por 
   auth TEXT NOT NULL,
   created_at DOUBLE PRECISION NOT NULL
 );
+-- Códigos de verificación de mail y tokens de recuperación de contraseña (app/mail_db.py): uno vigente por usuario y
+-- tipo (pedir otro reemplaza el anterior). hash: sha256 del código o token, nunca en claro. email: a dónde se mandó.
+CREATE TABLE IF NOT EXISTS mail_codigos (
+  username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+  tipo TEXT NOT NULL CHECK (tipo IN ('verificar', 'recuperar')),
+  hash TEXT NOT NULL,
+  email TEXT NOT NULL,
+  creado DOUBLE PRECISION NOT NULL,
+  vence DOUBLE PRECISION NOT NULL,
+  intentos INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (username, tipo)
+);
+CREATE INDEX IF NOT EXISTS mail_codigos_hash ON mail_codigos (hash);
 CREATE TABLE IF NOT EXISTS webauthn_challenges (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,                  -- register | login
@@ -364,7 +377,12 @@ COLUMNAS_CUENTAS = (
     ("users", "prueba", "JSONB"),
     ("auth_tokens", "usado_at", "DOUBLE PRECISION"),
     ("auth_tokens", "hasheado", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    # Mail verificado de la persona (app/mail_api.py): en minúsculas, único entre usuarios. Solo se guarda verificado.
+    ("users", "email", "TEXT"),
+    ("users", "email_verificado_at", "DOUBLE PRECISION"),
 )
+# Va después de agregar las columnas: usa users.email.
+INDICES_CUENTAS = "CREATE UNIQUE INDEX IF NOT EXISTS users_email_unico ON users (email) WHERE email IS NOT NULL;"
 
 GLOBALES = """
 -- Ofertas (app/ofertas.py): las cargadas a mano por un admin y las bajas de precio de shows. Son de todos: solo existen
@@ -431,6 +449,7 @@ def init():
             c.execute(GLOBALES)
             c.execute(CUENTAS)
             _agregar_columnas(c, COLUMNAS_CUENTAS)
+            c.execute(INDICES_CUENTAS)
             _crear_fragmentos(c)
             _hashear_tokens_viejos(c)
             sectors.ensure(c)
@@ -892,6 +911,7 @@ def list_users():
     with conn() as c:
         rows = c.execute(
             "SELECT u.username, u.created_at, u.must_change_password, u.is_active, u.modo_prueba, u.prueba, "
+            "       u.email, u.email_verificado_at, "
             "       MAX(t.created_at) AS last_login, COUNT(t.token) AS open_sessions, "
             "       (SELECT COUNT(*) FROM itinerary_items i WHERE i.username = u.username) AS itinerary_items "
             "FROM users u LEFT JOIN auth_tokens t ON t.username = u.username "

@@ -3,7 +3,7 @@
 // Cada acción repinta solo la fila de ese usuario (lo abierto sigue abierto y el scroll no salta) y bloquea su botón mientras corre.
 import { Admin } from "./api.js";
 import { AdminShell, Cargable, Chevron, avisar, confirmar, conOcupado, hace, sinDoble } from "./adminUi.js";
-import { campoDelError, textoCortarAccesos } from "./adminTextos.js";
+import { campoDelError, textoCortarAccesos, textoMail } from "./adminTextos.js";
 import { promptDialog } from "./dialog.js";
 import { icon } from "./icons.js";
 import { refreshSandbox } from "./sandbox.js";
@@ -105,7 +105,8 @@ const Marcas = (u) => h("span", { class: "ra-g-marcas" },
   u.is_admin ? h("span", { class: "ra-tag is-new" }, "admin") : null,
   u.is_active ? null : Tag("desactivado"),
   u.sandbox ? h("span", { class: "ra-g-marca is-pendiente" }, "modo prueba") : null,
-  u.must_change_password ? h("span", { class: "ra-g-marca" }, "debe cambiar contraseña") : null);
+  u.must_change_password ? h("span", { class: "ra-g-marca" }, "debe cambiar contraseña") : null,
+  u.email_verificado_at ? null : h("span", { class: "ra-g-marca" }, "sin mail verificado"));
 
 export function UserRow(u, venues) {
   const repintar = () => refrescarFila(fila, u.username, venues);
@@ -132,6 +133,7 @@ export function UserRow(u, venues) {
       h("div", { class: "ra-adm-grupo" },
         h("h3", {}, "Acciones"),
         h("p", { class: "ra-adm-cap" }, `${u.open_sessions} sesiones abiertas · ${u.itinerary_items} charlas en el itinerario`),
+        h("p", { class: "ra-adm-cap" }, textoMail(u)),
         h("div", { class: "ra-adm-acciones" },
           boton("Resetear contraseña", reset, { "data-accion": "reset" }),
           u.open_sessions ? boton("Cerrar sesiones", revoke, { "data-accion": "revocar" }) : null,

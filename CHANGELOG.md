@@ -5,6 +5,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+- **Mail obligatorio y verificado.** Quien no tiene el mail confirmado lo carga al entrar, en una pantalla que no se
+  saltea. Le llega un código de 6 dígitos que vence en 15 minutos y tiene 5 intentos. El mail se guarda en minúsculas
+  y no puede repetirse entre cuentas. Sin señal no se exige, para no trabar lo que anda sin conexión.
+- **«¿Olvidaste tu contraseña?» en el login.** Con el usuario o el mail llega un link de un solo uso que vence en 30
+  minutos. La respuesta es la misma exista o no la cuenta. Al elegir la contraseña nueva se cierran todas las sesiones y
+  se borran las passkeys.
+- **Admin › Usuarios muestra el mail** de cada persona y marca a quien todavía no lo verificó.
+- Envío de mails configurable (`MAIL_PROVIDER`: SMTP, Resend, `fake` para desarrollo y tests, u `off`). Mientras
+  esté en `off` (el default), el mail no se exige.
+
 ## [1.3.2] - 2026-11-23
 
 ### Agregado

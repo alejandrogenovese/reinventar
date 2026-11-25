@@ -70,3 +70,6 @@ export function hace(iso, ahora = Date.now()) {
   const horas = Math.round(min / 60);
   return horas < 48 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} días`;
 }
+
+/** Estado del mail de un usuario para Admin › Usuarios: el servidor solo guarda el mail una vez verificado. */
+export const textoMail = (u) => (u?.email && u?.email_verificado_at ? `Mail: ${u.email} (verificado)` : "Mail: sin verificar todavía");

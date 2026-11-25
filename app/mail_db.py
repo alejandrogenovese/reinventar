@@ -1,0 +1,81 @@
+"""Persistencia del mail de cada usuario y de sus códigos (tabla mail_codigos, columnas users.email*).
+
+Los códigos y tokens se guardan hasheados (sha256): quien lea la base o un backup no puede usarlos. Hay uno vigente por
+usuario y tipo: pedir otro reemplaza (e invalida) el anterior. Siempre en el schema real (son de la cuenta).
+"""
+import hashlib
+import time
+
+import psycopg
+
+from . import sandbox
+from .db import conn
+
+VERIFICAR = "verificar"
+RECUPERAR = "recuperar"
+
+
+class MailEnUso(Exception):
+    """Otro usuario ya tiene ese mail verificado."""
+
+
+def hash_codigo(username: str, codigo: str) -> str:
+    """El código de verificación (6 dígitos) se hashea junto con el usuario: dos personas con el mismo código no
+    comparten hash."""
+    return hashlib.sha256(f"{username}:{codigo}".encode()).hexdigest()
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def usuario_por_email(email: str) -> dict | None:
+    with sandbox.real(), conn() as c:
+        r = c.execute("SELECT * FROM users WHERE email=%s", (email,)).fetchone()
+    return dict(r) if r else None
+
+
+def guardar_codigo(username: str, tipo: str, hash_: str, email: str, vigencia: float) -> None:
+    ahora = time.time()
+    with sandbox.real(), conn() as c:
+        c.execute("INSERT INTO mail_codigos (username,tipo,hash,email,creado,vence,intentos) VALUES (%s,%s,%s,%s,%s,%s,0) "
+                  "ON CONFLICT (username, tipo) DO UPDATE SET hash=EXCLUDED.hash, email=EXCLUDED.email, "
+                  "creado=EXCLUDED.creado, vence=EXCLUDED.vence, intentos=0",
+                  (username, tipo, hash_, email, ahora, ahora + vigencia))
+
+
+def sumar_intento(username: str, tipo: str, maximo: int) -> dict | None:
+    """Anota un intento y devuelve el código vigente ({hash, email, vence, intentos}); None si no hay, venció o ya
+    se gastaron los intentos (en esos casos lo borra). Revisa y anota en una sola sentencia: dos pedidos a la vez no
+    se cuelan por el último intento."""
+    with sandbox.real(), conn() as c:
+        r = c.execute("UPDATE mail_codigos SET intentos = intentos + 1 WHERE username=%s AND tipo=%s AND intentos < %s "
+                      "AND vence >= %s RETURNING hash, email, vence, intentos",
+                      (username, tipo, maximo, time.time())).fetchone()
+        if r is None:
+            c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s", (username, tipo))
+    return dict(r) if r else None
+
+
+def borrar_codigo(username: str, tipo: str) -> None:
+    with sandbox.real(), conn() as c:
+        c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s", (username, tipo))
+
+
+def consumir_token(hash_: str) -> str | None:
+    """Usa el token de recuperación (una sola vez: lo borra al leerlo). Devuelve el usuario, o None si no existe o
+    venció."""
+    with sandbox.real(), conn() as c:
+        r = c.execute("DELETE FROM mail_codigos WHERE hash=%s AND tipo=%s RETURNING username, vence",
+                      (hash_, RECUPERAR)).fetchone()
+    return r["username"] if r and r["vence"] >= time.time() else None
+
+
+def fijar_email(username: str, email: str) -> None:
+    """Guarda el mail ya verificado. MailEnUso si otro usuario lo verificó antes (índice único)."""
+    try:
+        with sandbox.real(), conn() as c:
+            c.execute("UPDATE users SET email=%s, email_verificado_at=%s WHERE username=%s",
+                      (email, time.time(), username))
+    except psycopg.errors.UniqueViolation as e:
+        raise MailEnUso(email) from e

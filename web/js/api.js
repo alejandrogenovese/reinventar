@@ -5,11 +5,13 @@ import { clearLast, loadLast, markStale, saveLast } from "./lastgood.js";
 const KEY = "reinventar.token";
 
 const MUST_CHANGE = "reinventar.mustChangePassword";
+const MUST_MAIL = "reinventar.debeCargarMail";
 
 export function getToken() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } }
 export function setToken(t) {
   try { localStorage.setItem(KEY, t); } catch {}
   if (!t) { // cerrar sesión: las copias sin señal y los documentos guardados son de esa persona y no se quedan en el celular
+    setDebeCargarMail(false);
     clearLast();
     void borrarDocsLocales();
   }
@@ -19,6 +21,9 @@ export function setToken(t) {
 // Lo informa el login: mientras esté en true, el router manda a #/password.
 export function mustChangePassword() { try { return localStorage.getItem(MUST_CHANGE) === "1"; } catch { return false; } }
 export function setMustChangePassword(v) { try { localStorage.setItem(MUST_CHANGE, v ? "1" : "0"); } catch {} }
+// Lo informan el login y /api/me: mientras no tenga el mail verificado, el router manda a #/mail (no se puede saltear).
+export function debeCargarMail() { try { return localStorage.getItem(MUST_MAIL) === "1"; } catch { return false; } }
+export function setDebeCargarMail(v) { try { localStorage.setItem(MUST_MAIL, v ? "1" : "0"); } catch {} }
 
 export class ApiError extends Error {
   constructor(status, detail) { super(typeof detail === "string" ? detail : detail?.message || `HTTP ${status}`); this.status = status; this.detail = detail; }
@@ -220,9 +225,17 @@ export const Itinerary = {
 export const Auth = {
   login: (username, password) => api("/api/login", { method: "POST", json: { username, password } }),
   logout: () => api("/api/logout", { method: "POST" }),
-  me: () => api("/api/me"),
+  me: () => api("/api/me").then((me) => { setDebeCargarMail(me.debe_cargar_mail === true); return me; }),
   changePassword: (currentPassword, newPassword) =>
     api("/api/password", { method: "POST", json: { current_password: currentPassword, new_password: newPassword } }),
+};
+
+// Mail obligatorio y recuperación de contraseña (app/mail_api.py).
+export const Mail = {
+  pedirCodigo: (email) => api("/api/me/email", { method: "POST", json: { email } }),
+  verificar: (codigo) => api("/api/me/email/verificar", { method: "POST", json: { codigo } }),
+  olvide: (usuario) => api("/api/password/olvide", { method: "POST", json: { usuario } }),
+  restablecer: (token, newPassword) => api("/api/password/restablecer", { method: "POST", json: { token, new_password: newPassword } }),
 };
 
 // Ajustes sin señal: quién es y si es admin se guarda por usuario junto a las otras copias (lastgood.js, se borra al cerrar
