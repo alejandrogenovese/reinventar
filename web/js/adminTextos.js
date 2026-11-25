@@ -70,3 +70,11 @@ export function hace(iso, ahora = Date.now()) {
   const horas = Math.round(min / 60);
   return horas < 48 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} días`;
 }
+
+/** Lo que de verdad borra el servidor al borrar un usuario (app/borrar_usuario.py). */
+export const textoBorrarUsuario = (username) => `Se borra ${username} y todo lo suyo: itinerario, eventos, viajes, gastos con `
+  + "sus fotos, documentos, las grabaciones que hizo (también para los demás), sesiones y passkeys. No se puede deshacer. "
+  + `Para confirmar, escribí «${username}».`;
+
+/** El borrado solo sigue si escribió exactamente el nombre del usuario (sin espacios de más). */
+export const confirmaBorrado = (escrito, username) => typeof escrito === "string" && escrito.trim() === username;

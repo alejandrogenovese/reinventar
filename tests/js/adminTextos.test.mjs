@@ -67,3 +67,19 @@ test("el resumen de grabaciones pluraliza cada estado según la cantidad", () =>
   assert.equal(resumenEstados({ ready: 1, error: 1, queued: 1 }), "1 lista · 1 en cola · 1 con error");
   assert.equal(resumenEstados({ ready: 3, error: 2, recording: 2, transcribing: 1 }), "3 listas · 2 grabando · 1 transcribiendo · 2 con error");
 });
+
+test("borrar un usuario avisa que también se van sus grabaciones y que no se deshace", async () => {
+  const { textoBorrarUsuario } = await import("../../web/js/adminTextos.js");
+  const texto = textoBorrarUsuario("pepe");
+  assert.match(texto, /grabaciones/);
+  assert.match(texto, /No se puede deshacer/);
+  assert.match(texto, /«pepe»/);
+});
+
+test("el borrado solo sigue si escribió exactamente el nombre", async () => {
+  const { confirmaBorrado } = await import("../../web/js/adminTextos.js");
+  assert.equal(confirmaBorrado(" pepe ", "pepe"), true);
+  assert.equal(confirmaBorrado("Pepe", "pepe"), false);
+  assert.equal(confirmaBorrado("", "pepe"), false);
+  assert.equal(confirmaBorrado(null, "pepe"), false);
+});
