@@ -260,6 +260,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS sessions_client_id_unico ON sessions (created_
 # respuestas/ficha/ficha_texto: itinerario guiado (app/interview.py). salir_antes/reservada: armado guiado (app/guided.py).
 # ofertas*: alertas de ofertas (app/ofertas_avisos.py), apagadas hasta que la persona las prende.
 # cotizacion_estimada: la congelada era la de respaldo o tenía más de 48 h. foto_at: va como ?v= para no ver la foto vieja.
+DOBLE = "DOUBLE PRECISION"
 COLUMNAS_DATOS_USUARIO = (
     ("sessions", "created_by", "TEXT"),
     ("sessions", "huecos", "TEXT"),
@@ -286,7 +287,7 @@ COLUMNAS_DATOS_USUARIO = (
     # aeropuerto de destino, «YYYY-MM-DDTHH:MM»), terminal y cinta de llegada, mostrador de check-in y el avión.
     ("viajes_vuelos", "destino_iata", "TEXT"),
     ("viajes_vuelos", "destino_nombre", "TEXT"),
-    ("viajes_vuelos", "llegada_utc", "DOUBLE PRECISION"),
+    ("viajes_vuelos", "llegada_utc", DOBLE),
     ("viajes_vuelos", "llegada_local", "TEXT"),
     ("viajes_vuelos", "llegada_terminal", "TEXT"),
     ("viajes_vuelos", "llegada_cinta", "TEXT"),
@@ -375,11 +376,11 @@ COLUMNAS_CUENTAS = (
     ("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("users", "modo_prueba", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("users", "prueba", "JSONB"),
-    ("auth_tokens", "usado_at", "DOUBLE PRECISION"),
+    ("auth_tokens", "usado_at", DOBLE),
     ("auth_tokens", "hasheado", "BOOLEAN NOT NULL DEFAULT FALSE"),
     # Mail verificado de la persona (app/mail_api.py): en minúsculas, único entre usuarios. Solo se guarda verificado.
     ("users", "email", "TEXT"),
-    ("users", "email_verificado_at", "DOUBLE PRECISION"),
+    ("users", "email_verificado_at", DOBLE),
 )
 # Va después de agregar las columnas: usa users.email.
 INDICES_CUENTAS = "CREATE UNIQUE INDEX IF NOT EXISTS users_email_unico ON users (email) WHERE email IS NOT NULL;"

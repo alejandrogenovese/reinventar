@@ -190,6 +190,35 @@ function markNav(hash) {
 // Las pantallas que se ven sin sesión: entrar y recuperar la contraseña.
 const SIN_SESION = /^#\/(login|olvide|recuperar\/[\w-]+)$/;
 
+/** Sin sesión, a entrar; con la contraseña temporal, a cambiarla. true si mandó a otra pantalla. */
+function desviarSesion(hash) {
+  let destino = null;
+  if (!getToken()) {
+    if (!SIN_SESION.test(hash)) destino = "#/login";
+  } else if (mustChangePassword() && hash !== "#/password") {
+    destino = "#/password";
+  }
+  if (destino) location.hash = destino;
+  return destino !== null;
+}
+
+/**
+ * Sin el mail verificado, a cargarlo (#/mail). Va después de refreshSandbox: su /api/me actualiza si falta (también para
+ * quien ya tenía la sesión abierta). Sin señal no se exige: cargarlo necesita red, y en un salón sin señal no puede
+ * quedar trabado lo que anda sin conexión.
+ */
+function desviarMail(hash) {
+  const debe = getToken() && !mustChangePassword() && debeCargarMail() && navigator.onLine !== false && hash !== "#/mail";
+  if (debe) location.hash = "#/mail";
+  return Boolean(debe);
+}
+
+/** A dónde va después de entrar: primero la contraseña temporal, después el mail. */
+function destinoTrasLogin(r) {
+  if (r.must_change_password) return "#/password";
+  return r.debe_cargar_mail ? "#/mail" : "#/";
+}
+
 let ignoreNextHash = false;
 let navigatedInApp = false; // Volver del detalle usa el historial solo si se llegó navegando dentro de la app
 let routedOnce = false;
@@ -205,13 +234,10 @@ async function route() {
   navigatedInApp = routedOnce;
   routedOnce = true;
   const hash = location.hash || "#/";
-  if (!getToken() && !SIN_SESION.test(hash)) { location.hash = "#/login"; return; }
-  if (getToken() && mustChangePassword() && hash !== "#/password") { location.hash = "#/password"; return; }
+  if (desviarSesion(hash)) return;
   markNav(hash);
   await refreshSandbox(); // antes de dibujar: la hora y la ubicación simuladas se usan en las pantallas
-  // Después de refreshSandbox: su /api/me actualiza si falta el mail (también para quien ya tenía la sesión abierta).
-  // Sin señal no se exige: cargarlo necesita red, y en un salón sin señal no puede quedar trabado lo que anda sin conexión.
-  if (getToken() && !mustChangePassword() && debeCargarMail() && navigator.onLine !== false && hash !== "#/mail") { location.hash = "#/mail"; return; }
+  if (desviarMail(hash)) return;
   void refreshCountdown();
   void refreshChanges();
   refrescarEstado();
@@ -656,7 +682,7 @@ function finishLogin(r) {
   setMustChangePassword(r.must_change_password);
   setDebeCargarMail(r.debe_cargar_mail === true);
   void store.persist();
-  location.hash = r.must_change_password ? "#/password" : r.debe_cargar_mail ? "#/mail" : "#/";
+  location.hash = destinoTrasLogin(r);
 }
 
 function viewLogin() {

@@ -77,7 +77,7 @@ def _mandar(destino: str, asunto: str, texto: str) -> bool:
         mail.enviar(destino, asunto, texto)
         return True
     except mail.MailNoEnviado as e:
-        log.error("No se pudo mandar el mail (%s): %s", asunto, e)
+        log.exception("No se pudo mandar el mail (%s): %s", asunto, e)
         return False
 
 
@@ -91,7 +91,11 @@ def _exigir_contrasena_si_ya_verifico(username: str, contrasena: str | None) -> 
         raise HTTPException(403, "Para cambiar un mail ya confirmado hace falta tu contraseña actual.")
 
 
-@router.post("/api/me/email")
+@router.post("/api/me/email", responses={
+    403: {"description": "Cambiar un mail ya verificado pide la contraseña actual"},
+    409: {"description": "Otra cuenta ya tiene ese mail"}, 422: {"description": "Mail inválido"},
+    429: {"description": "Demasiados envíos"}, 502: {"description": "No se pudo mandar el mail"},
+    503: {"description": "Envío de mails no configurado"}})
 def pedir_codigo(body: EmailNuevo, username: str = Depends(auth)):
     _exigir_envio_activo()
     email = normalizar_email(body.email)
@@ -112,7 +116,9 @@ def pedir_codigo(body: EmailNuevo, username: str = Depends(auth)):
     return {"ok": True, "enviado_a": email, "vence_minutos": CODIGO_MINUTOS}
 
 
-@router.post("/api/me/email/verificar")
+@router.post("/api/me/email/verificar", responses={
+    400: {"description": "Código incorrecto"}, 409: {"description": "Otra cuenta verificó ese mail"},
+    410: {"description": "Código vencido o sin intentos"}})
 def verificar_codigo(body: CodigoMail, username: str = Depends(auth)):
     codigo = body.codigo
     vigente = mail_db.sumar_intento(username, mail_db.VERIFICAR, CODIGO_INTENTOS)
@@ -172,7 +178,7 @@ def _mandar_link(usuario: str, base: str | None) -> None:
         mail_db.borrar_codigo(user["username"], mail_db.RECUPERAR)
 
 
-@router.post("/api/password/olvide")
+@router.post("/api/password/olvide", responses={429: {"description": "Demasiados pedidos"}})
 def olvide(body: Olvide, request: Request, tareas: BackgroundTasks):
     cuenta = body.usuario.strip().lower()[:CLAVE_LIMITE_MAX]  # la clave del tope no crece con lo que mande el cliente
     if not limites.olvide_ip.consumir(ip_cliente(request)) or not limites.olvide_cuenta.consumir(cuenta):
@@ -182,7 +188,8 @@ def olvide(body: Olvide, request: Request, tareas: BackgroundTasks):
     return {"ok": True, "mensaje": RESPUESTA_OLVIDE}
 
 
-@router.post("/api/password/restablecer")
+@router.post("/api/password/restablecer", responses={
+    400: {"description": "Link inválido, usado o vencido"}, 429: {"description": "Demasiados pedidos"}})
 def restablecer(body: Restablecer, request: Request):
     if not limites.restablecer_ip.consumir(ip_cliente(request)):
         raise limites.demasiados_intentos()
