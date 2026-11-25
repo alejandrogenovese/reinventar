@@ -97,5 +97,6 @@ def borrar(username: str, admin: str) -> dict:
         limite.limpiar(username)
     resumen["vuelve_al_reiniciar"] = db.en_bootstrap(username)
     db.registrar_auditoria(admin, "borrar_usuario", username, resumen)
-    log.warning("El admin %s borró al usuario %s: %s", admin, username, resumen)
+    # Sin el nombre del usuario en el log (viene de la URL): quién y a quién queda en auditoria_admin.
+    log.warning("Se borró un usuario desde admin (detalle en auditoria_admin): %s", resumen)
     return resumen
