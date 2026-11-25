@@ -42,14 +42,16 @@ def guardar_codigo(username: str, tipo: str, hash_: str, email: str, vigencia: f
 
 def sumar_intento(username: str, tipo: str, maximo: int) -> dict | None:
     """Anota un intento y devuelve el código vigente ({hash, email, vence, intentos}); None si no hay, venció o ya
-    se gastaron los intentos (en esos casos lo borra). Revisa y anota en una sola sentencia: dos pedidos a la vez no
-    se cuelan por el último intento."""
+    se gastaron los intentos. Revisa y anota en una sola sentencia: dos pedidos a la vez no se cuelan por el último
+    intento. Solo borra el vencido: uno sin intentos queda hasta que vence, así el anti-pisado lo sigue viendo y quien
+    gaste los intentos a propósito no puede pedir otro código en seguida para la víctima."""
+    ahora = time.time()
     with sandbox.real(), conn() as c:
         r = c.execute("UPDATE mail_codigos SET intentos = intentos + 1 WHERE username=%s AND tipo=%s AND intentos < %s "
                       "AND vence >= %s RETURNING hash, email, vence, intentos",
-                      (username, tipo, maximo, time.time())).fetchone()
+                      (username, tipo, maximo, ahora)).fetchone()
         if r is None:
-            c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s", (username, tipo))
+            c.execute("DELETE FROM mail_codigos WHERE username=%s AND tipo=%s AND vence < %s", (username, tipo, ahora))
     return dict(r) if r else None
 
 

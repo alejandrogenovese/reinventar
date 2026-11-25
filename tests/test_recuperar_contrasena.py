@@ -214,3 +214,34 @@ def test_el_codigo_vencido_se_borra_de_la_base(c):
     with db.conn() as conn:
         assert conn.execute("SELECT 1 FROM mail_codigos WHERE username=%s AND tipo='recuperar'",
                             (username,)).fetchone() is None
+
+
+def test_gastar_los_intentos_a_proposito_no_habilita_otro_codigo_en_seguida(c):
+    username, _ = _con_mail_verificado(c)
+    _pedir(c, username)
+    bueno = codigo_enviado()
+    for _ in range(mail_api.RECUPERAR_INTENTOS):
+        _restablecer(c, username, _otro_codigo(bueno))
+
+    _pedir(c, f" {username.upper()} ")
+
+    assert len(mail.enviados) == 1
+
+
+def test_pedir_la_cuenta_por_usuario_y_por_mail_no_duplica_el_tope(c):
+    username, email = _con_mail_verificado(c)
+
+    for i in range(limites.CODIGOS_RECUPERACION_POR_USUARIO + 1):
+        _pedir(c, username if i % 2 else email)
+        _mover(username, "creado", mail_api.RECUPERAR_ESPERA_SEGUNDOS + 1)
+
+    assert len(mail.enviados) == limites.CODIGOS_RECUPERACION_POR_USUARIO
+
+
+def test_las_claves_viejas_del_tope_se_purgan():
+    tope = limites.Limite(3, ventana=10)
+    tope.sumar("cuenta-tipeada", ahora=1.0)
+
+    tope.purgar(ahora=100.0)
+
+    assert "cuenta-tipeada" not in tope._eventos

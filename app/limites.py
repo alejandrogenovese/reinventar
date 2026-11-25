@@ -31,6 +31,13 @@ class Limite:
             eventos.popleft()
         return eventos
 
+    def purgar(self, ahora: float | None = None) -> None:
+        """Saca las claves sin eventos en la ventana: claves que manda el cliente (cuentas tipeadas) no se acumulan."""
+        with self._lock:
+            ahora = ahora or time.monotonic()
+            for clave in [k for k, ev in self._eventos.items() if not ev or ev[-1] <= ahora - self.ventana]:
+                del self._eventos[clave]
+
     def excedido(self, clave: str, ahora: float | None = None) -> bool:
         with self._lock:
             return len(self._vigentes(clave, ahora or time.monotonic())) >= self.maximo
@@ -96,12 +103,14 @@ MAILS_VERIFICACION_POR_USUARIO = 5
 MAILS_POR_DESTINO = 5
 OLVIDE_POR_IP = 10
 OLVIDE_POR_CUENTA = 3
+CODIGOS_RECUPERACION_POR_USUARIO = 3  # por cuenta ya resuelta: pedirla por usuario y por mail cuenta igual
 RESTABLECER_POR_IP = 20
 
 mails_verificacion = Limite(MAILS_VERIFICACION_POR_USUARIO, VENTANA_LARGA)
 mails_destino = Limite(MAILS_POR_DESTINO, VENTANA_LARGA)
 olvide_ip = Limite(OLVIDE_POR_IP)
 olvide_cuenta = Limite(OLVIDE_POR_CUENTA, VENTANA_LARGA)
+codigos_recuperacion = Limite(CODIGOS_RECUPERACION_POR_USUARIO, VENTANA_LARGA)
 restablecer_ip = Limite(RESTABLECER_POR_IP)
 
 
@@ -130,7 +139,7 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
          admin_links, links_grabacion, fotos_conversor, mails_verificacion, mails_destino, olvide_ip, olvide_cuenta,
-         restablecer_ip)
+         restablecer_ip, codigos_recuperacion)
 
 
 def reiniciar_todo() -> None:

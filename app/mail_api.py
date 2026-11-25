@@ -36,10 +36,11 @@ EMAIL_MAX = 254
 # Formato razonable (algo@dominio.tld), sin espacios ni saltos de línea: la verificación real es el código.
 # Solo caracteres comunes: nada de «,», «<», «"» o «;», que un cliente de mail lee como otro destinatario o un nombre.
 _EMAIL = re.compile(r"^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$")
-_CODIGO = re.compile(rf"^\d{{{CODIGO_DIGITOS}}}$")
+_CODIGO = re.compile(rf"^[0-9]{{{CODIGO_DIGITOS}}}$")
 # Un código de recuperación recién mandado no se pisa con otro pedido: nadie puede anularle el código a la víctima.
 RECUPERAR_ESPERA_SEGUNDOS = 120
 CLAVE_LIMITE_MAX = 64
+USUARIO_INEXISTENTE = " sin cuenta "  # ningún usuario real puede llamarse así (los nombres no tienen espacios)
 RESPUESTA_OLVIDE = ("Si hay una cuenta con ese usuario o mail y tiene el mail verificado, te mandamos un código de "
                     f"{CODIGO_DIGITOS} dígitos. Revisá tu correo (y el spam). Vence en {RECUPERAR_MINUTOS} minutos.")
 # Igual para todo lo que falle al restablecer: no dice si la cuenta existe ni qué parte estuvo mal.
@@ -175,6 +176,9 @@ def _mandar_codigo_recuperacion(cuenta: str, origen: Origen) -> None:
     user = _buscar_cuenta(cuenta)
     if user is None or mail_db.codigo_reciente(user["username"], mail_db.RECUPERAR, RECUPERAR_ESPERA_SEGUNDOS):
         return
+    # Tope por cuenta resuelta (además del de lo tipeado): pedirla por usuario y por mail no duplica los códigos.
+    if not limites.codigos_recuperacion.consumir(user["username"]):
+        return
     codigo = _nuevo_codigo()
     mail_db.guardar_codigo(user["username"], mail_db.RECUPERAR, mail_db.hash_codigo(user["username"], codigo),
                            user["email"], RECUPERAR_MINUTOS * 60)
@@ -187,6 +191,7 @@ def _mandar_codigo_recuperacion(cuenta: str, origen: Origen) -> None:
 @router.post("/api/password/olvide", responses={429: {"description": "Demasiados pedidos"}})
 def olvide(body: Olvide, request: Request, tareas: BackgroundTasks):
     cuenta = _clave_cuenta(body.usuario)
+    limites.olvide_cuenta.purgar()
     if not limites.olvide_ip.consumir(ip_cliente(request)) or not limites.olvide_cuenta.consumir(cuenta):
         raise limites.demasiados_intentos()
     if mail.activo():
@@ -196,12 +201,11 @@ def olvide(body: Olvide, request: Request, tareas: BackgroundTasks):
 
 def _validar_codigo_recuperacion(user: dict | None, codigo: str) -> bool:
     """Gasta un intento y consume el código si coincide (una sola vez). Solo vale para el mail al que se mandó."""
-    if user is None:
-        return False
-    username = user["username"]
+    # Sin cuenta se hace el mismo trabajo contra un usuario que no existe: el tiempo no dice si la cuenta existe.
+    username = user["username"] if user else USUARIO_INEXISTENTE
     vigente = mail_db.sumar_intento(username, mail_db.RECUPERAR, RECUPERAR_INTENTOS)
     hash_ = mail_db.hash_codigo(username, codigo)
-    if vigente is None or not secrets.compare_digest(vigente["hash"], hash_):
+    if user is None or vigente is None or not secrets.compare_digest(vigente["hash"], hash_):
         return False
     return mail_db.consumir_codigo(username, mail_db.RECUPERAR, hash_) == user["email"]
 
