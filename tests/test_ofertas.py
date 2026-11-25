@@ -86,6 +86,45 @@ def test_una_funcion_cancelada_o_que_ya_empezo_no_es_oferta():
     assert ofertas.ofertas_de_bajas([_funcion(inicio=AHORA - dt.timedelta(hours=1))], historial, AHORA) == []
 
 
+# ---------- la fuente Ticketmaster: con y sin precios ----------
+
+def _fuente_sin_base(monkeypatch, funciones):
+    """FuenteTicketmaster con las funciones dadas y sin tocar la base: devuelve los snapshots que intentó guardar."""
+    guardados = []
+    monkeypatch.setattr(ofertas, "guardar_snapshots", lambda fs, _ts: guardados.extend(f["id_funcion"] for f in fs))
+    monkeypatch.setattr(ofertas, "historial", lambda ids, _desde: {i: _historial(89, 89, 89, 62) for i in ids})
+    return ofertas.FuenteTicketmaster(lambda: funciones), guardados
+
+
+def test_si_ninguna_funcion_trae_precio_se_avisa_en_el_log_en_vez_de_quedar_en_silencio(monkeypatch, caplog):
+    fuente, guardados = _fuente_sin_base(monkeypatch, [_funcion(id_funcion=f"F{i}", precio_desde=None) for i in range(3)])
+
+    with caplog.at_level("WARNING", logger="reinventar.ofertas"):
+        assert fuente.ofertas(AHORA) == []
+
+    assert guardados == []
+    assert "3 funciones de la semana y ninguna con precio" in caplog.text
+
+
+def test_solo_las_funciones_con_precio_se_miran_y_sin_aviso_en_el_log(monkeypatch, caplog):
+    fuente, guardados = _fuente_sin_base(monkeypatch, [_funcion(), _funcion(id_funcion="F2", precio_desde=None)])
+
+    with caplog.at_level("WARNING", logger="reinventar.ofertas"):
+        [o] = fuente.ofertas(AHORA)
+
+    assert (guardados, o.id) == (["F1"], "tm-F1-6200")
+    assert "ninguna con precio" not in caplog.text
+
+
+def test_sin_funciones_en_la_semana_no_se_avisa_que_faltan_precios(monkeypatch, caplog):
+    fuente, _ = _fuente_sin_base(monkeypatch, [])
+
+    with caplog.at_level("WARNING", logger="reinventar.ofertas"):
+        assert fuente.ofertas(AHORA) == []
+
+    assert "ninguna con precio" not in caplog.text
+
+
 # ---------- qué ofertas corresponden avisar ----------
 
 def _oferta(id="m-1", categoria="comida", desde=AHORA, hasta=None, creado=None, **cambios):

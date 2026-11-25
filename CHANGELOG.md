@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Corregido
+- **Ofertas: se ve por qué no hay bajas de precio de shows.** Si Ticketmaster no publica precios para ninguna función
+  de la semana, el job de ofertas lo deja en el log en cada vuelta en vez de quedar vacío sin explicación.
+
 ## [1.3.2] - 2026-11-23
 
 ### Agregado

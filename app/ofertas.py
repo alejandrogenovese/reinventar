@@ -4,7 +4,8 @@ shows de Ticketmaster. Las lee la pantalla Ofertas (app/ofertas_api.py) y las av
 - Manuales: las carga un admin con su vigencia (desde/hasta). El push sale cuando arranca.
 - Bajas de precio: cada 6 h se guarda el precio mínimo (USD, de priceRanges: lo lee app/ticketmaster.py) de cada función
   de la semana. Es oferta si el mínimo actual bajó 15 % o US$ 20 contra el máximo de los últimos 7 días. Si Ticketmaster
-  no trae precio, no hay oferta: nada se inventa.
+  no trae precio, no hay oferta: nada se inventa. Si no lo trae para ninguna función (la Discovery API suele no mandar
+  priceRanges), el job lo deja en el log en cada vuelta: así la pantalla vacía tiene explicación.
 - Fuente: interfaz mínima (`Fuente`). Para sumar otra (Goldstar) alcanza con una clase con `nombre` y `ofertas(ahora)`
   y agregarla en `fuentes_activas()`.
 
@@ -185,13 +186,13 @@ def guardar_preferencias(username: str, activas: bool, categorias: list[str]) ->
 _FUNCIONES_SQL = """
 SELECT id_funcion, id_show, nombre, sala, url, estado, inicio, precio_desde
 FROM reinvent.show_funcion
-WHERE precio_desde IS NOT NULL AND inicio > now() AND inicio BETWEEN %s AND %s
+WHERE inicio > now() AND inicio BETWEEN %s AND %s
 """
 
 
 @sandbox.en_real
 def funciones_de_ticketmaster() -> list[dict]:
-    """Las funciones de la semana con precio (reinvent.show_funcion). Sin la key o sin la tabla, ninguna."""
+    """Las funciones de la semana, con o sin precio (reinvent.show_funcion). Sin la key o sin la tabla, ninguna."""
     if not config.TICKETMASTER_API_KEY:
         log.warning("sin TICKETMASTER_API_KEY: no hay ofertas de shows")
         return []
@@ -228,7 +229,11 @@ class FuenteTicketmaster:
         self._funciones = funciones
 
     def ofertas(self, ahora: dt.datetime) -> list[Oferta]:
-        funciones = self._funciones()
+        todas = self._funciones()
+        funciones = [f for f in todas if f.get("precio_desde") is not None]
+        if todas and not funciones:
+            log.warning("ticketmaster: %d funciones de la semana y ninguna con precio (sin priceRanges): no hay bajas "
+                        "de precio de shows que detectar", len(todas))
         ts = ahora.timestamp()
         guardar_snapshots(funciones, ts)
         ids = [f["id_funcion"] for f in funciones]
