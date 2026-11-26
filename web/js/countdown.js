@@ -97,24 +97,40 @@ async function paint() {
   const next = pinned.find((it) => it.end > now && it.start - now < HORIZON_MS);
   const ended = pinned.find((it) => it.kind === "talk" && it.end <= now && now - it.end < MISSED_WINDOW_MS);
   if (ended && read(HIDDEN, null) !== `missed:${ended.code}` && !(next && next.start - now < NEXT_PRIORITY_MS)) {
-    bar.hidden = false;
-    bar.className = "countdown-banner is-calm";
-    bar.replaceChildren(
-      h("a", { class: "countdown-text", href: `#/perdida/${encodeURIComponent(ended.code)}` },
-        `¿Llegaste a ${ended.title}? Si te la perdiste, mirá las opciones →`),
+    mostrarFranja(bar, "is-calm", `missed:${ended.code}`, `¿Llegaste a ${ended.title}? Si te la perdiste, mirá las opciones →`, () => [
+      h("a", { class: "countdown-text", href: `#/perdida/${encodeURIComponent(ended.code)}` }),
       h("button", { type: "button", class: "countdown-close", "aria-label": "Sí, llegué",
-        onclick: () => { write(HIDDEN, `missed:${ended.code}`); void paint(); } }, icon("cerrar", 16)));
+        onclick: () => { write(HIDDEN, `missed:${ended.code}`); void paint(); } }, icon("cerrar", 16))]);
     return;
   }
-  if (!next || read(HIDDEN, null) === next.code) { bar.hidden = true; return; }
+  if (!next || read(HIDDEN, null) === next.code) { ocultarFranja(bar); return; }
   const { tone, text } = state(next, now, await leadMinutes(next));
-  bar.hidden = false;
-  bar.className = `countdown-banner is-${tone}`;
-  bar.replaceChildren(
+  mostrarFranja(bar, `is-${tone}`, `${next.code}:${tone}`, text, () => [
     bannerIcon(next, tone),
-    h("a", { class: "countdown-text", href: link(next) }, text),
+    h("a", { class: "countdown-text", href: link(next) }),
     h("button", { type: "button", class: "countdown-close", "aria-label": "Ocultar hasta lo próximo",
-      onclick: () => { write(HIDDEN, next.code); bar.hidden = true; } }, icon("cerrar", 16)));
+      onclick: () => { write(HIDDEN, next.code); ocultarFranja(bar); } }, icon("cerrar", 16))]);
+}
+
+// La franja se repinta cada segundo: rehacerla entera hacía que VoiceOver perdiera el foco (y gastaba batería), y cada
+// cambio de clase despierta al banner de estado (estadoBanner.js). Así, mientras sea lo mismo (mismo fijado y mismo
+// tono) solo cambia el texto; la clase y los botones, solo cuando cambia el tono o lo que se muestra.
+let franja = { clave: null, texto: null };
+
+function mostrarFranja(bar, tono, clave, texto, armar) {
+  if (bar.hidden) bar.hidden = false;
+  const clase = `countdown-banner ${tono}`;
+  if (bar.className !== clase) bar.className = clase;
+  if (franja.clave !== clave || !franja.texto || bar.contains?.(franja.texto) === false) {
+    const hijos = armar();
+    franja = { clave, texto: hijos.find((n) => n?.className === "countdown-text") };
+    bar.replaceChildren(...hijos);
+  }
+  if (franja.texto && franja.texto.textContent !== texto) franja.texto.textContent = texto;
+}
+
+function ocultarFranja(bar) {
+  if (!bar.hidden) bar.hidden = true;
 }
 
 /** Arranca (o refresca) el countdown. Llamar al navegar y después de cambiar el itinerario ({ force: true }). */

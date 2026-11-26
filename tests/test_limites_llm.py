@@ -18,6 +18,8 @@ ENDPOINTS = [
     ("voz", limites.entrevista, "post", "/api/itinerary/interview/voz",
      {"content": b"x", "headers": {"content-type": "audio/webm"}}, TEST_USER),
     ("generate", limites.itinerarios, "post", "/api/itinerary/generate", {"json": PERFIL}, TEST_USER),
+    ("guiado", limites.guiado, "post", "/api/itinerary/guided/next", {"json": {"day": "2026-12-01"}}, TEST_USER),
+    ("autocompletar", limites.autocompletar, "get", "/api/places/autocomplete", {"params": {"q": "topgolf"}}, TEST_USER),
     ("vista-previa", limites.admin_links, "post", "/api/admin/eventos/link/vista-previa",
      {"json": {"url": "https://example.com/evento"}}, TEST_ADMIN),
     ("link", limites.admin_links, "post", "/api/admin/eventos/link",

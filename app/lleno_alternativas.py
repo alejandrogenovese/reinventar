@@ -40,7 +40,7 @@ def _sugerencia(session: dict, instance: dict, origen: int, minuto: int) -> dict
         return None
     venue = card["venue"] or {}
     return {"code": card["code"], "base": card["base"], "title": card["title"], "type": card["type"],
-            "start": card["start"], "walk_in": card["walk_in"],
+            "day": card["day"], "start": card["start"], "walk_in": card["walk_in"],
             "venue": {"hotel": venue.get("hotel"), "detail": venue.get("detail")},
             "minutos": viaje.minutos, "estimado": viaje.estimado, "misma_sede": origen == destino,
             "en_curso": inicio <= minuto}
@@ -60,16 +60,19 @@ def cercanas(origen: dict, sesiones: Iterable[dict], ahora: dt.datetime) -> list
 
 def con_rutas(origen: dict, alternativas: list[dict]) -> list[dict]:
     """Las alternativas con `ruta` (la recomendación corta o None) y, si Google respondió, los minutos caminando reales.
-    Una sola consulta para todas; sin Routes API quedan los minutos de app/travel.py."""
+    Una sola consulta para todas; sin Routes API quedan los minutos de app/travel.py. El shuttle se ofrece solo si corre
+    a la hora de inicio de cada charla sugerida, el día de esa charla (hoy, la hora del evento de app/sandbox.py)."""
     id_origen, nombre_origen = _id_sede(origen), (origen.get("venue") or {}).get("hotel")
     destinos = {a["code"]: venues.id_by_name(a["venue"]["hotel"]) for a in alternativas if not a["misma_sede"]}
-    medido = rutas.medir(id_origen, destinos.values()) if destinos else {}
+    cuandos = {a["code"]: rutas.momento(a.get("day"), a["start"]) for a in alternativas}
+    primera = min((c for c in cuandos.values() if c), default=None)
+    medido = rutas.medir(id_origen, destinos.values(), primera) if destinos else {}
     out = []
     for a in alternativas:
         m = medido.get(destinos.get(a["code"]))
         real = {"minutos": m.caminando_min, "estimado": False} if m and m.caminando_min else {}
         caminando = real.get("minutos", a["minutos"])
         ruta = None if a["misma_sede"] else rutas.recomendar(nombre_origen, a["venue"]["hotel"], caminando,
-                                                                m.transporte_min if m else None)
+                                                                m.transporte_min if m else None, cuandos[a["code"]])
         out.append({**a, **real, "ruta": ruta})
     return out

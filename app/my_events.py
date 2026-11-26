@@ -39,6 +39,11 @@ class EventoInexistente(LookupError):
     pass
 
 
+def pide_detalle_de_lugar(body: MiEvento, anterior: dict | None) -> bool:
+    """Si guardarlo va a consultar a Google Places (un lugar elegido que no estaba ya ubicado): eso tiene cupo."""
+    return body.id_sede is None and bool(body.place_id) and (anterior or {}).get("place_id") != body.place_id
+
+
 def _ubicar(body: MiEvento, anterior: dict | None) -> dict:
     """lugar, direccion, id_sede, place_id, lat y lng según lo que eligió."""
     if body.id_sede is not None:
@@ -48,7 +53,7 @@ def _ubicar(body: MiEvento, anterior: dict | None) -> dict:
         return {"lugar": sede["name"], "direccion": sede["address"], "id_sede": sede["id"], "place_id": None,
                 "lat": sede["lat"], "lng": sede["lng"]}
     if body.place_id:
-        if anterior and anterior.get("place_id") == body.place_id:  # ya estaba ubicado: no se vuelve a pedir
+        if not pide_detalle_de_lugar(body, anterior):  # ya estaba ubicado: no se vuelve a pedir
             return {k: anterior[k] for k in ("lugar", "direccion", "id_sede", "place_id", "lat", "lng")}
         p = places.details(body.place_id, body.sesion)
         return {"lugar": p["nombre"] or p["direccion"], "direccion": p["direccion"], "id_sede": None,

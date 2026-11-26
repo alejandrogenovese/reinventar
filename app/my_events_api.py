@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from . import my_events, places, venues
+from . import db, limites, my_events, places, venues
 from .auth import auth
 from .my_events import MiEvento
 
@@ -36,13 +36,20 @@ def venues_for_form():
                       for v in venues.all_venues() if v["lat"] is not None]}
 
 
+def _cupo_lugar(username: str, body: MiEvento, anterior: dict | None) -> None:
+    if my_events.pide_detalle_de_lugar(body, anterior):
+        limites.exigir_cupo(limites.lugares, username, "lugares de Google")
+
+
 @router.post("/api/my-events")
 def create_my_event(body: MiEvento, username: str = Depends(auth)):
+    _cupo_lugar(username, body, None)
     return _guardar(my_events.crear, username, body)
 
 
 @router.put("/api/my-events/{id_}")
 def edit_my_event(id_: str, body: MiEvento, username: str = Depends(auth)):
+    _cupo_lugar(username, body, db.get_user_event(username, id_))
     return _guardar(my_events.editar, username, id_, body)
 
 
@@ -56,7 +63,9 @@ def delete_my_event(id_: str, username: str = Depends(auth)):
 
 
 @router.get("/api/places/autocomplete")
-def autocomplete(q: str = Query(min_length=3, max_length=100), sesion: str | None = Query(None, max_length=64)):
+def autocomplete(q: str = Query(min_length=3, max_length=100), sesion: str | None = Query(None, max_length=64),
+                 username: str = Depends(auth)):
+    limites.exigir_cupo(limites.autocompletar, username, "búsqueda de lugares")
     try:
         return {"lugares": places.autocomplete(q.strip(), sesion)}
     except places.PlacesNoDisponible as e:
