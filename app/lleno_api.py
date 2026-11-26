@@ -68,10 +68,11 @@ def alternativas(code: str, username: str = Depends(auth)):
     motivo = _avisados([code]).get(code)
     if not motivo:
         return {"motivo": None, "alternativas": []}
-    cercanas = lleno_alternativas.cercanas(catalog.card(*found), catalog.all_sessions(), sandbox.ahora())
+    origen = catalog.card(*found)
+    cercanas = lleno_alternativas.cercanas(origen, catalog.all_sessions(), sandbox.ahora())
     llenas = _llenos([c["code"] for c in cercanas]) if cercanas else set()
-    libres = [c for c in cercanas if c["code"] not in llenas]
-    return {"motivo": motivo, "alternativas": libres[:lleno_alternativas.MAX_SUGERENCIAS]}
+    libres = [c for c in cercanas if c["code"] not in llenas][:lleno_alternativas.MAX_SUGERENCIAS]
+    return {"motivo": motivo, "alternativas": lleno_alternativas.con_rutas(origen, libres)}
 
 
 @router.post("/{code}")

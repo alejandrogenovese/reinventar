@@ -62,12 +62,15 @@ export const codigosDeCharlas = (items) => [...new Set(items.filter((s) => s && 
 /** Avisos de esos códigos; si falla (sin conexión) o no hay códigos, {}: las tarjetas se muestran igual. */
 export const avisosDe = (codes) => (codes.length ? Lleno.estado(codes).catch(() => ({})) : Promise.resolve({}));
 
-/** «14:30 · Caesars Forum · 9 min caminando»: cuándo, dónde y cuánto se camina desde la sala llena. */
+/**
+ * «14:30 · Caesars Forum · 9 min caminando»: cuándo, dónde y cuánto se camina desde la sala llena. Si hay una forma
+ * mejor de ir (app/rutas.py: shuttle, monorail, puente), va al final: «… · 34 min caminando · o shuttle de re:Invent».
+ */
 export function detalleAlternativa(a) {
   let camino = `${a.minutos} min caminando`;
   if (a.misma_sede) camino = "en el mismo edificio";
   else if (a.estimado) camino = `unos ${camino}`;
-  return [a.en_curso ? `Empezó ${a.start}` : a.start, a.venue?.hotel, camino].filter(Boolean).join(" · ");
+  return [a.en_curso ? `Empezó ${a.start}` : a.start, a.venue?.hotel, camino, a.misma_sede ? null : a.ruta].filter(Boolean).join(" · ");
 }
 
 const TITULO_ALTERNATIVAS = { lleno: "Está llena. Cerca y por empezar:", cola: "Hay mucha cola. Cerca y por empezar:" };

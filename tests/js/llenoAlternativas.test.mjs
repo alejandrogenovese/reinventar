@@ -17,6 +17,13 @@ test("cada sugerencia dice a qué hora, dónde y cuánto se camina", () => {
   assert.equal(detalleAlternativa(alt({ en_curso: true })), "Empezó 14:30 · Caesars Forum · 9 min caminando");
 });
 
+test("si hay una forma mejor de ir entre sedes, va al final y corta", () => {
+  assert.equal(detalleAlternativa(alt({ minutos: 34, venue: { hotel: "MGM Grand" }, ruta: "o shuttle de re:Invent (con badge)" })),
+    "14:30 · MGM Grand · 34 min caminando · o shuttle de re:Invent (con badge)");
+  assert.equal(detalleAlternativa(alt({ ruta: null })), "14:30 · Caesars Forum · 9 min caminando");
+  assert.equal(detalleAlternativa(alt({ misma_sede: true, ruta: "o shuttle" })), "14:30 · Caesars Forum · en el mismo edificio");
+});
+
 test("la lista lleva a la ficha de cada charla", () => {
   const lista = ListaAlternativas([alt(), alt({ base: "MISMA", title: "Otra" })]);
   const links = [];
