@@ -123,7 +123,7 @@ def _js(nombre):
 
 def test_la_ficha_muestra_los_avisos_en_cada_horario():
     js = _js("knowledge.js")
-    assert "avisosDe(s.instances.map((i) => i.code))" in js and "LlenoAvisos(i.code, aviso)" in js
+    assert "avisosDe(s.instances.map((i) => i.code))" in js and "LlenoAvisos(i.code, aviso, { onCambio: sugerencias?.mostrar })" in js
     lleno_js = _js("lleno.js")
     assert '"Está llena"' in lleno_js and '"Hay mucha cola"' in lleno_js
 

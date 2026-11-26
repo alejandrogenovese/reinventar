@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Las charlas cerca para aprovechar el rato aparecen también cuando avisan que hay mucha cola, no solo cuando está llena, y se abren en el momento en que tocás «Está llena» o «Hay mucha cola», sin recargar la ficha.
+
 ## [1.3.3] - 2026-11-25
 
 ### Agregado

@@ -72,6 +72,7 @@ function Slot(i, mine, onChange, aviso) {
     Button("Quitar", { onclick: remove, "aria-label": `Quitar el horario ${shortDay(i.day)} ${i.start} del itinerario` })];
   else if (other) action = Button("Cambiar a este", { onclick: swap, "aria-label": `Cambiar al horario ${shortDay(i.day)} ${i.start}` });
   else action = Button("Agregar", { onclick: async () => { await addToItinerary(i.code)(); onChange(); }, "aria-label": `Agregar el horario ${shortDay(i.day)} ${i.start} al itinerario` });
+  const sugerencias = SugerenciasLleno(i.code, aviso, Boolean(own));
   return h("li", { class: `ra-slot${i.cancelled ? " is-cancelled" : ""}` },
     h("div", { class: "ra-rail" }, h("span", { class: "ra-rail-time" }, i.start || "—"), h("span", { class: "ra-rail-day" }, shortDay(i.day))),
     h("div", { class: "ra-slot-body" },
@@ -81,8 +82,8 @@ function Slot(i, mine, onChange, aviso) {
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
     h("div", { class: "actions ra-slot-actions" }, action),  // una fila que envuelve: ninguna pastilla tapa a otra
-    LlenoAvisos(i.code, aviso),
-    SugerenciasLleno(i.code, aviso, Boolean(own)));
+    LlenoAvisos(i.code, aviso, { onCambio: sugerencias?.mostrar }),
+    sugerencias?.el);
 }
 
 function PersonLink(p, extra) {

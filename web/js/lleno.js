@@ -31,7 +31,7 @@ function LlenoResumen(a) {
  * Pista del catálogo + lo que avisó la gente + botones para avisar (solo mientras la charla está por empezar o en curso).
  * conPista: false donde la tarjeta ya dice si es sin reserva (Hoy). Sin nada que mostrar, devuelve null.
  */
-export function LlenoAvisos(code, a, { conPista = true } = {}) {
+export function LlenoAvisos(code, a, { conPista = true, onCambio = null } = {}) {
   if (!a) return null;
   const box = h("div", { class: "ra-lleno" });
   const pintar = (x) => {
@@ -40,7 +40,12 @@ export function LlenoAvisos(code, a, { conPista = true } = {}) {
         const mio = x.mio === estado;
         const btn = h("button", { type: "button", class: mio ? "ra-chip ra-chip-on" : "ra-chip", "aria-pressed": String(mio), onclick: async () => {
           btn.disabled = true;
-          try { pintar(mio ? await Lleno.retirar(code) : await Lleno.avisar(code, estado)); if (!mio) toast("Gracias: le avisamos al resto."); }
+          try {
+            const nuevo = mio ? await Lleno.retirar(code) : await Lleno.avisar(code, estado);
+            pintar(nuevo);
+            onCambio?.(nuevo);
+            if (!mio) toast("Gracias: le avisamos al resto.");
+          }
           catch (e) { toast(mensajeError(e)); btn.disabled = false; }
         } }, label);
         return btn;
@@ -65,25 +70,35 @@ export function detalleAlternativa(a) {
   return [a.en_curso ? `Empezó ${a.start}` : a.start, a.venue?.hotel, camino].filter(Boolean).join(" · ");
 }
 
-/** Las charlas cerca que empiezan ahora o en un rato, cada una con link a su ficha. */
-export function ListaAlternativas(alternativas) {
+const TITULO_ALTERNATIVAS = { lleno: "Está llena. Cerca y por empezar:", cola: "Hay mucha cola. Cerca y por empezar:" };
+
+/** Las charlas cerca que empiezan ahora o en un rato, cada una con link a su ficha. motivo: «lleno» o «cola». */
+export function ListaAlternativas(alternativas, motivo = "lleno") {
   if (!alternativas.length) return h("p", { class: "caption" }, "No encontramos otras charlas cerca que empiecen pronto.");
   return h("div", { class: "stack" },
-    h("strong", {}, "Está llena. Cerca y por empezar:"),
+    h("strong", {}, TITULO_ALTERNATIVAS[motivo] || TITULO_ALTERNATIVAS.lleno),
     h("ul", { class: "ra-people" }, alternativas.map((a) => h("li", {},
       h("a", { class: "ra-link", href: `#/charla/${encodeURIComponent(a.base)}` }, a.title),
       h("span", { class: "caption" }, ` · ${detalleAlternativa(a)}`)))));
 }
 
+/** Hay algún aviso de «llena» o «mucha cola» en ese horario. */
+const hayAviso = (a) => Boolean(a?.lleno || a?.cola);
+
 /**
- * En la ficha: si avisaron que el horario está lleno y no estás anotado, otras charlas cerca. Se carga aparte para no
- * demorar la ficha; si falla (sin conexión), no muestra nada. null si no corresponde.
+ * En la ficha: si avisaron que el horario está lleno o con mucha cola y no estás anotado, otras charlas cerca. Se carga
+ * aparte para no demorar la ficha; si falla (sin conexión), no muestra nada. `mostrar(aviso)` la vuelve a pedir cuando
+ * cambian los avisos (por ejemplo, al tocar «Está llena» o «Hay mucha cola»). null si estás anotado.
  */
 export function SugerenciasLleno(code, aviso, anotado) {
-  if (anotado || !aviso?.lleno) return null;
-  const box = h("div", { class: "ra-lleno-alternativas", "aria-live": "polite" });
-  void Lleno.alternativas(code)
-    .then((r) => box.replaceChildren(...(r.llena ? [ListaAlternativas(r.alternativas)] : [])))
-    .catch(() => box.replaceChildren());
-  return box;
+  if (anotado) return null;
+  const el = h("div", { class: "ra-lleno-alternativas", "aria-live": "polite" });
+  const mostrar = (a) => {
+    if (!hayAviso(a)) { el.replaceChildren(); return; }
+    void Lleno.alternativas(code)
+      .then((r) => el.replaceChildren(...(r.motivo ? [ListaAlternativas(r.alternativas, r.motivo)] : [])))
+      .catch(() => el.replaceChildren());
+  };
+  mostrar(aviso);
+  return { el, mostrar };
 }
