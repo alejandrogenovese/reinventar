@@ -24,7 +24,8 @@ const hhmm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${Strin
 function viaje(o) {
   if (o.viaje_min == null) return null;
   const t = `${o.viaje_estimado ? "~" : ""}${o.viaje_min} min`;
-  return o.misma_sede ? `misma sede (${t})` : `${t} caminando`;
+  if (o.misma_sede) return `misma sede (${t})`;
+  return [`${t} caminando`, o.ruta].filter(Boolean).join(" · "); // app/rutas.py: shuttle, monorail o puente
 }
 
 /** El aviso de traslado de cada estado (app/guided.py calcula las horas; acá solo se redactan). */

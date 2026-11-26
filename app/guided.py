@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from . import catalog, db, itinerary, llm, prompts, search, travel, trazas, venues
+from . import catalog, db, itinerary, llm, prompts, rutas, search, travel, trazas, venues
 from .interview import Ficha
 from .llm_router import Tarea
 
@@ -218,12 +218,15 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
     t = evaluar(ctx.fin_previa, minutos(card["start"]), v.minutos if v else None, reservada=False)
     af, motivos = afinidad(session, ctx.ficha, ctx.busqueda.get(session["base"], 0.0),
                            session["base"] in ctx.pendientes)
-    misma_sede = bool(ctx.previa) and (previa_lugar or {}).get("hotel") == (card.get("venue") or {}).get("hotel")
+    desde, hasta = (previa_lugar or {}).get("hotel"), (card.get("venue") or {}).get("hotel")
+    misma_sede = bool(ctx.previa) and desde == hasta
     puntaje = (af - (v.minutos if v else 0) * PENALIDAD_POR_MIN_CAMINANDO
                - t.salir_antes_min * PENALIDAD_POR_MIN_SALIR_ANTES + (BONO_MISMA_SEDE if misma_sede else 0))
     return {"card": card, "estado": t.estado, "llegada": t.llegada, "salir_a": t.salir_a,
             "salir_antes_min": t.salir_antes_min, "viaje_min": v.minutos if v else None,
-            "viaje_estimado": v.estimado if v else None, "misma_sede": misma_sede, "afinidad": round(af, 2),
+            "viaje_estimado": v.estimado if v else None, "misma_sede": misma_sede,
+            "ruta": rutas.atajo_fijo(desde, hasta, v.minutos) if v and not misma_sede else None,
+            "afinidad": round(af, 2),
             "puntaje": round(puntaje, 2), "motivos": motivos, "pendiente": ctx.pendientes.get(session["base"]),
             "razon": None}
 

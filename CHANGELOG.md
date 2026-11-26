@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- Entre sedes distintas, además de los minutos caminando, la forma más práctica de ir: el shuttle de re:Invent o el monorail gratis con el badge cuando queda lejos, o el puente Wynn–Venetian. En las charlas cerca de «está llena» el tiempo caminando sale en el momento de Google.
+
 ### Cambiado
 
 - Las charlas cerca para aprovechar el rato aparecen también cuando avisan que hay mucha cola, no solo cuando está llena, y se abren en el momento en que tocás «Está llena» o «Hay mucha cola», sin recargar la ficha.

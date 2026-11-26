@@ -98,6 +98,9 @@ GOOGLE_MAPS_API_KEY = _env("GOOGLE_MAPS_API_KEY")  # la del navegador (Maps Java
 # Key solo para el servidor (Places API New, restringida por API y sin exponerse al navegador). Si falta, Places usa la
 # del navegador fingiendo el Referer, como antes: funciona, pero quien vea la key del navegador puede usar Places.
 GOOGLE_PLACES_SERVER_KEY = _env("GOOGLE_PLACES_SERVER_KEY")
+# Cómo ir entre sedes (app/rutas.py): google (Routes API con GOOGLE_MAPS_API_KEY; sin key queda apagado), fake (tests) u
+# off. Sin Routes API quedan los atajos fijos y los minutos de app/travel.py.
+RUTAS_PROVIDER = _env("RUTAS_PROVIDER", "google").lower()
 
 # Web Push (notificaciones con la app cerrada): generar las claves con `python -m app.push`.
 VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")

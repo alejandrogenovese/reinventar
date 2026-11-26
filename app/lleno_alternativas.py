@@ -5,11 +5,13 @@ Cerca en el tiempo: hoy, que empiecen dentro de VENTANA_MIN o que hayan empezado
 llegues con no más de ATRASO_MAX_MIN de atraso y antes de que termine.
 Cerca en el espacio: la misma sede o una a MAX_TRASLADO_MIN caminando como mucho (app/travel.py: medido o estimado).
 Se supone que la persona está en la puerta de la charla llena, así que se camina desde esa sede.
+Cómo ir (con_rutas): a las pocas que se muestran se les agrega el tiempo real de Google y la recomendación corta
+(shuttle, monorail, puente) de app/rutas.py.
 """
 import datetime as dt
 from collections.abc import Iterable
 
-from . import catalog, itinerary, lleno, travel, venues
+from . import catalog, itinerary, lleno, rutas, travel, venues
 
 VENTANA_MIN = 60        # cuánto hacia adelante se buscan charlas que empiecen
 ATRASO_MAX_MIN = 15     # se puede entrar a una charla que empezó hace un rato, no más
@@ -54,3 +56,20 @@ def cercanas(origen: dict, sesiones: Iterable[dict], ahora: dt.datetime) -> list
     candidatas = (_sugerencia(s, i, id_origen, minuto) for s in sesiones if s["base"] != origen["base"]
                   for i in s.get("instances", []) if i.get("d") == hoy)
     return sorted((c for c in candidatas if c), key=lambda c: (itinerary._minutes(c["start"]), c["minutos"]))
+
+
+def con_rutas(origen: dict, alternativas: list[dict]) -> list[dict]:
+    """Las alternativas con `ruta` (la recomendación corta o None) y, si Google respondió, los minutos caminando reales.
+    Una sola consulta para todas; sin Routes API quedan los minutos de app/travel.py."""
+    id_origen, nombre_origen = _id_sede(origen), (origen.get("venue") or {}).get("hotel")
+    destinos = {a["code"]: venues.id_by_name(a["venue"]["hotel"]) for a in alternativas if not a["misma_sede"]}
+    medido = rutas.medir(id_origen, destinos.values()) if destinos else {}
+    out = []
+    for a in alternativas:
+        m = medido.get(destinos.get(a["code"]))
+        real = {"minutos": m.caminando_min, "estimado": False} if m and m.caminando_min else {}
+        caminando = real.get("minutos", a["minutos"])
+        ruta = None if a["misma_sede"] else rutas.recomendar(nombre_origen, a["venue"]["hotel"], caminando,
+                                                                m.transporte_min if m else None)
+        out.append({**a, **real, "ruta": ruta})
+    return out
