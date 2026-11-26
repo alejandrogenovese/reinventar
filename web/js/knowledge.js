@@ -6,6 +6,7 @@ import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
+import { GuiaSala, destinoDeSala } from "./salas.js";
 import { recordTalk } from "./today.js";
 import { Button, IconText, StatusPill, Tag, h, mensajeError, toast } from "./ui.js";
 
@@ -80,7 +81,8 @@ function Slot(i, mine, onChange, aviso) {
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
       AvisoBaja(i),
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
-      GoThere(i.venue?.lat != null ? { lat: i.venue.lat, lng: i.venue.lng, name: i.venue.hotel } : null)),
+      GoThere(destinoDeSala(i.venue)),  // a la entrada del área de convenciones, no al hotel en general
+      GuiaSala(i.venue)),
     h("div", { class: "actions ra-slot-actions" }, action),  // una fila que envuelve: ninguna pastilla tapa a otra
     LlenoAvisos(i.code, aviso, { onCambio: sugerencias?.mostrar }),
     sugerencias?.el);

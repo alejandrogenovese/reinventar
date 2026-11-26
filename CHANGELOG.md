@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- En la ficha de la charla, «Cómo llegar a la sala»: pasos cortos por sede y por piso para no perderte adentro del hotel (andan sin señal), y «Llevame» te lleva a la entrada del área de convenciones en vez del hotel en general (Venetian, Caesars Forum, Caesars Palace y MGM Grand).
+
 ### Cambiado
 
 - Las charlas cerca para aprovechar el rato aparecen también cuando avisan que hay mucha cola, no solo cuando está llena, y se abren en el momento en que tocás «Está llena» o «Hay mucha cola», sin recargar la ficha.

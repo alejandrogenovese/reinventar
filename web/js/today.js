@@ -5,6 +5,7 @@ import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { GoThereParts, startsAt } from "./location.js";
+import { destinoDeTarjeta } from "./salas.js";
 import { sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
 import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
@@ -60,8 +61,8 @@ export function TalkAction(s, recorded, variant) {
   return btn;
 }
 
-export const destination = (s) => (s.venue?.lat != null
-  ? { lat: s.venue.lat, lng: s.venue.lng, name: s.venue.hotel, placeId: s.venue.place_id, approx: s.venue.exact === false } : null);
+// Una charla de re:Invent va a la entrada del área de convenciones de su sede; eventos, shows y lo tuyo, a su lugar.
+export const destination = destinoDeTarjeta;
 
 // "Ahora" es un estado con punto (y la tarjeta lleva borde de marca); "Después"/"Próxima", texto de marca con la
 // cuenta regresiva en la misma línea ("Después · Empieza en 1:32:00").

@@ -637,6 +637,10 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-slot > :nth-child(n+4) { grid-column: 1 / -1; }
 .ra-slot-actions { justify-content: flex-start; }
 .ra-slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font: var(--t-small); min-width: 0; }
+/* «Cómo llegar a la sala»: desplegable con los pasos adentro de la sede (texto fijo, anda sin señal) */
+.ra-guia-sala { align-self: stretch; }
+.ra-guia-sala > summary { min-height: 44px; display: flex; align-items: center; }
+.ra-guia-pasos { margin: 0 0 var(--space-2); padding-left: var(--space-6); display: flex; flex-direction: column; gap: var(--space-1); }
 @media (min-width: 768px) {
   .ra-slot { grid-template-columns: 56px 1fr auto; align-items: center; }
   .ra-slot > .ra-rail { flex-direction: column; align-items: flex-start; gap: 2px; padding-right: var(--space-3); border-right: 2px solid var(--line); }
