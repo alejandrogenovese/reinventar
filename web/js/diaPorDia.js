@@ -1,6 +1,8 @@
 // re:Invent día por día (#/viaje/reinvent): badge, keynotes, shuttles, Expo, re:Play, comidas y tips de Las Vegas.
-// Es texto fijo, como salas.js: anda sin señal (el service worker precachea este archivo) y no pide nada a la red.
+// Es texto fijo, como salas.js: anda sin señal (el service worker precachea este archivo). Lo único que se pide a la red
+// es el pronóstico de la sección de clima (el mismo de Hoy, clima.js); sin señal va la última copia y, si no hay, nada.
 // Cada sección dice de dónde sale y cuándo se consultó. Lo que no se pudo respaldar con una fuente no está.
+import { cargarClima } from "./clima.js";
 import { icon } from "./icons.js";
 import { h } from "./ui.js";
 
@@ -139,11 +141,12 @@ function Fuentes(claves) {
     claves.flatMap((k, i) => [i ? " · " : null, LinkExterno(FUENTES[k].nombre, FUENTES[k].url)]).filter(Boolean));
 }
 
-/** Una sección de la ficha, con su título, la lista, los links y las fuentes. */
-export function Seccion(s) {
+/** Una sección de la ficha, con su título, lo `extra` (el pronóstico en la de clima), la lista, los links y las fuentes. */
+export function Seccion(s, extra = null) {
   const idTitulo = `dxd-${s.id}`;
   return h("section", { class: "ra-card stack", "aria-labelledby": idTitulo },
     h("h2", { class: "ra-card-title", id: idTitulo }, s.titulo),
+    extra,
     h("ul", { class: "ra-dxd-lista" }, s.items.map(Item)),
     s.nota ? h("p", { class: "caption" }, s.nota) : null,
     s.links?.length ? h("div", {}, s.links.map((l) =>
@@ -152,9 +155,11 @@ export function Seccion(s) {
 }
 
 export function viewDiaPorDia(view) {
+  const pronostico = h("div", { class: "ra-optional" });
+  void cargarClima(pronostico);
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" },
       h("h1", { class: "title" }, "re:Invent día por día"),
       h("p", { class: "caption" }, "Lo que conviene tener a mano en Las Vegas, del 29/11 al 4/12. Anda sin señal.")),
-    h("div", { class: "stack" }, SECCIONES.map(Seccion))));
+    h("div", { class: "stack" }, SECCIONES.map((s) => Seccion(s, s.id === "clima" ? pronostico : null)))));
 }

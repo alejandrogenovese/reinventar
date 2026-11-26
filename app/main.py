@@ -30,6 +30,7 @@ from . import (
     catalog,
     charlas_auto,
     charlas_nuevas_api,
+    clima_api,
     codigos_api,
     comer_api,
     config,
@@ -191,6 +192,7 @@ app.include_router(demos_api.router)
 app.include_router(comer_api.router)
 app.include_router(actividades_api.router)
 app.include_router(conversor_api.router)
+app.include_router(clima_api.router)
 app.include_router(estado_api.router)
 app.include_router(ficha_api.router)
 app.include_router(novedades_api.router)

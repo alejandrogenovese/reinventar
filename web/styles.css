@@ -1051,3 +1051,11 @@ a.ra-heat-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ra-dxd-link { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--touch); align-self: flex-start;
   color: var(--brand-ink); font: var(--t-small-strong); text-decoration: none; }
 .ra-dxd-link:hover, .ra-dxd-link:focus-visible { text-decoration: underline; }
+
+/* Clima de Las Vegas en Hoy (clima.js): una línea con lo de ahora, los consejos y mañana/pasado. */
+.ra-clima { display: flex; flex-direction: column; gap: var(--space-1); }
+.ra-clima p { margin: 0; }
+.ra-clima-ahora { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font: var(--t-body); color: var(--ink); }
+.ra-clima-ahora .ra-icon { flex: none; }
+.ra-clima-maxmin { font: var(--t-small); color: var(--ink-muted); }
+.ra-clima-consejo { font: var(--t-small-strong); color: var(--ink); }

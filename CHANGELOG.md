@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- Clima de Las Vegas en Hoy (y en «re:Invent día por día»): temperatura de ahora, máxima y mínima en °C, mañana y pasado, y un consejo cuando hace falta («Fresco a la noche: llevá abrigo», viento fuerte, lluvia). Sale del National Weather Service; sin señal se ve el último con su hora, y si no hay datos no se muestra.
+
 ## [1.3.5] - 2026-11-26
 
 ### Agregado
