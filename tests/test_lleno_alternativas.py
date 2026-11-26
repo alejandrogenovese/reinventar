@@ -117,19 +117,33 @@ def _alternativas(cli, code="ARC300"):
 def test_sin_avisos_de_llena_no_sugiere_nada(cli):
     r = _alternativas(cli)
     assert r.status_code == 200, r.text
-    assert r.json() == {"llena": False, "alternativas": []}
+    assert r.json() == {"motivo": None, "alternativas": []}
 
 
 def test_con_un_aviso_vigente_de_llena_sugiere_las_cercanas(cli):
     cli.post("/api/lleno/ARC300", headers=cli.H2, json={"estado": "lleno"})
     r = _alternativas(cli).json()
-    assert r["llena"] is True
+    assert r["motivo"] == "lleno"
     assert [a["base"] for a in r["alternativas"]] == ["ENCURSO", "MISMA", "CERCA"]
 
 
-def test_mucha_cola_no_alcanza_para_darla_por_llena(cli):
+def test_con_mucha_cola_tambien_sugiere_las_cercanas(cli):
     cli.post("/api/lleno/ARC300", headers=cli.H2, json={"estado": "cola"})
-    assert _alternativas(cli).json()["llena"] is False
+    r = _alternativas(cli).json()
+    assert r["motivo"] == "cola"
+    assert [a["base"] for a in r["alternativas"]] == ["ENCURSO", "MISMA", "CERCA"]
+
+
+def test_si_alguien_dijo_llena_gana_sobre_la_cola(cli):
+    cli.post("/api/lleno/ARC300", headers=cli.H, json={"estado": "cola"})
+    cli.post("/api/lleno/ARC300", headers=cli.H2, json={"estado": "lleno"})
+    assert _alternativas(cli).json()["motivo"] == "lleno"
+
+
+def test_una_cercana_con_mucha_cola_se_sigue_sugiriendo(cli):
+    cli.post("/api/lleno/ARC300", headers=cli.H2, json={"estado": "lleno"})
+    cli.post("/api/lleno/MISMA", headers=cli.H2, json={"estado": "cola"})
+    assert "MISMA" in [a["base"] for a in _alternativas(cli).json()["alternativas"]]
 
 
 def test_no_sugiere_otra_charla_que_tambien_esta_llena(cli):

@@ -30,13 +30,26 @@ test("sin sugerencias lo dice en lugar de dejar el hueco", () => {
   assert.ok(ListaAlternativas([]).textContent.includes("No encontramos otras charlas cerca"));
 });
 
-test("solo se piden si la sala está llena y no estás anotado", () => {
-  assert.equal(SugerenciasLleno("X", null, false), null);
-  assert.equal(SugerenciasLleno("X", { lleno: 0, cola: 3 }, false), null);
+test("con mucha cola el título lo dice", () => {
+  assert.ok(ListaAlternativas([alt()], "cola").textContent.includes("Hay mucha cola. Cerca y por empezar:"));
+});
+
+test("si estás anotado no se muestran", () => {
   assert.equal(SugerenciasLleno("X", { lleno: 2 }, true), null);
 });
 
-test("la ficha de la charla las muestra en cada horario", () => {
+test("sin avisos el lugar queda vacío y no se piden", () => {
+  const pedidos = [];
+  globalThis.fetch = async (url) => { pedidos.push(String(url)); return new Response("{}"); };
+  for (const aviso of [null, { lleno: 0, cola: 0 }]) {
+    const s = SugerenciasLleno("X", aviso, false);
+    assert.equal(s.el.children.length, 0);
+  }
+  assert.deepEqual(pedidos.filter((u) => u.includes("/alternativas")), []);
+});
+
+test("la ficha las muestra en cada horario y las vuelve a pedir al tocar «Está llena» o «Hay mucha cola»", () => {
   const ficha = readFileSync(new URL("../../web/js/knowledge.js", import.meta.url), "utf8");
   assert.ok(ficha.includes("SugerenciasLleno(i.code, aviso, Boolean(own))"));
+  assert.ok(ficha.includes("onCambio: sugerencias?.mostrar"));
 });
