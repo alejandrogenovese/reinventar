@@ -1,6 +1,7 @@
 """Cómo ir entre sedes (app/rutas.py): atajos fijos, la recomendación corta y Routes API sin red (httpx.post simulado).
 
 Con sedes y tiempos de prueba en memoria: no usa el catálogo y corre en CI."""
+import datetime as dt
 import logging
 
 import httpx
@@ -60,14 +61,62 @@ def test_atajos_fijos_entre_sedes():
     assert "puente Wynn–Venetian" in rutas.atajo_fijo("Venetian", "Wynn/Encore", 14)
 
 
+MARTES_11 = dt.datetime(2026, 12, 1, 11, 0)
+
+
 def test_shuttle_solo_si_es_lejos_y_hay_shuttle_entre_esas_sedes():
-    assert rutas.atajo_fijo("MGM Grand", "Venetian", 43) == rutas.TEXTO_SHUTTLE
-    assert rutas.atajo_fijo("Caesars Palace", "Wynn/Encore", 22) == rutas.TEXTO_SHUTTLE
-    assert rutas.atajo_fijo("Caesars Palace", "Venetian", 13) is None           # cerca: se camina
-    assert rutas.atajo_fijo("Caesars Forum", "Venetian", 40) is None            # sin shuttle entre estas dos (2025)
-    assert rutas.atajo_fijo("Allegiant Stadium", "MGM Grand", 34) is None       # fuera del campus de charlas
-    assert rutas.atajo_fijo("Venetian", "Venetian", 5) is None
-    assert rutas.atajo_fijo(None, "Venetian", 30) is None
+    assert rutas.atajo_fijo("MGM Grand", "Venetian", 43, MARTES_11) == rutas.TEXTO_SHUTTLE
+    assert rutas.atajo_fijo("Caesars Palace", "Wynn/Encore", 22, MARTES_11) == rutas.TEXTO_SHUTTLE
+    assert rutas.atajo_fijo("Caesars Palace", "Venetian", 13, MARTES_11) is None    # cerca: se camina
+    assert rutas.atajo_fijo("Caesars Forum", "Venetian", 40, MARTES_11) is None     # sin shuttle entre estas dos (2025)
+    assert rutas.atajo_fijo("Allegiant Stadium", "MGM Grand", 34, MARTES_11) is None  # fuera del campus de charlas
+    assert rutas.atajo_fijo("Venetian", "Venetian", 5, MARTES_11) is None
+    assert rutas.atajo_fijo(None, "Venetian", 30, MARTES_11) is None
+    assert rutas.atajo_fijo("MGM Grand", "Venetian", 43) is None                     # sin hora no se promete shuttle
+
+
+@pytest.mark.parametrize("cuando, hay", [
+    (dt.datetime(2026, 11, 29, 9, 29), False),    # domingo: desde las 9:30
+    (dt.datetime(2026, 11, 29, 12, 0), True),     # domingo, MGM ↔ Venetian está en el servicio limitado
+    (dt.datetime(2026, 11, 29, 20, 31), False),
+    (dt.datetime(2026, 11, 30, 5, 59), False),    # lunes 6:00 a 21:15
+    (dt.datetime(2026, 11, 30, 6, 0), True),
+    (dt.datetime(2026, 11, 30, 21, 15), True),
+    (dt.datetime(2026, 11, 30, 21, 16), False),
+    (dt.datetime(2026, 12, 1, 20, 30), True),     # martes 6:00 a 20:30
+    (dt.datetime(2026, 12, 1, 20, 45), False),
+    (dt.datetime(2026, 12, 2, 7, 0), True),       # miércoles 6:00 a 20:30
+    (dt.datetime(2026, 12, 2, 21, 0), False),
+    (dt.datetime(2026, 12, 3, 17, 45), True),     # jueves hasta las 17:45
+    (dt.datetime(2026, 12, 3, 18, 30), False),    # el de re:Play va a la fiesta, no entre sedes
+    (dt.datetime(2026, 12, 4, 9, 0), False),      # viernes: solo Venetian y Wynn/Encore
+    (dt.datetime(2026, 12, 5, 10, 0), False),     # el sábado ya no hay
+    (dt.datetime(2026, 11, 28, 10, 0), False),
+])
+def test_shuttle_mgm_venetian_segun_dia_y_hora(cuando, hay):
+    esperado = rutas.TEXTO_SHUTTLE if hay else None
+    assert rutas.atajo_fijo("MGM Grand", "Venetian", 43, cuando) == esperado
+
+
+def test_servicio_limitado_del_domingo_y_del_viernes():
+    domingo = dt.datetime(2026, 11, 29, 12, 0)
+    assert rutas.atajo_fijo("MGM Grand", "Caesars Forum", 34, domingo).startswith("o monorail")  # el atajo no depende
+    assert rutas.atajo_fijo("Caesars Palace", "Wynn/Encore", 22, domingo) is None   # no están en el domingo
+    viernes = dt.datetime(2026, 12, 4, 10, 0)
+    assert rutas.hay_shuttle(frozenset({"Caesars Palace", "Wynn/Encore"}), viernes) is False
+    assert "puente" in rutas.atajo_fijo("Venetian", "Wynn/Encore", 25, viernes)      # entre esas dos, el puente
+
+
+def test_horarios_shuttle_tienen_fuente_oficial():
+    assert rutas.FUENTE_AGENDA_2026.startswith("https://aws.amazon.com/events/reinvent/agenda")
+    assert all(h.desde < h.hasta and h.sedes <= rutas.CAMPUS for h in rutas.HORARIOS_SHUTTLE.values())
+
+
+def test_momento_arma_la_hora_de_las_vegas():
+    assert rutas.momento("2026-12-01", "14:30") == dt.datetime(2026, 12, 1, 14, 30)
+    assert rutas.momento("2026-12-01", "14:30:00") == dt.datetime(2026, 12, 1, 14, 30)
+    assert rutas.momento(None, "14:30") is None
+    assert rutas.momento("mañana", "14:30") is None
 
 
 def test_atajos_tienen_fuente_publica():
@@ -80,7 +129,8 @@ def test_transporte_publico_solo_si_ahorra_bastante_y_no_hay_atajo():
     assert rutas.recomendar("Allegiant Stadium", "MGM Grand", 34, 15) == "o transporte público ~15 min"
     assert rutas.recomendar("Allegiant Stadium", "MGM Grand", 34, 28) is None    # ahorra poco
     assert rutas.recomendar("Allegiant Stadium", "MGM Grand", 34, None) is None
-    assert rutas.recomendar("MGM Grand", "Venetian", 43, 10) == rutas.TEXTO_SHUTTLE  # el atajo fijo gana
+    assert rutas.recomendar("MGM Grand", "Venetian", 43, 10, MARTES_11) == rutas.TEXTO_SHUTTLE  # el atajo fijo gana
+    assert rutas.recomendar("MGM Grand", "Venetian", 43, 10, dt.datetime(2026, 12, 3, 19, 0)) == "o transporte público ~10 min"
 
 
 def test_leer_matriz_omite_sin_ruta_y_redondea_para_arriba():
@@ -113,7 +163,7 @@ def test_google_camina_y_pide_transporte_solo_donde_no_hay_atajo(google):
     respuestas += [httpx.Response(200, json=[_elemento(0, 14 * 60, 954), _elemento(1, 43 * 60, 3012),
                                              _elemento(2, 70 * 60, 4690)]),
                    httpx.Response(200, json=[_elemento(0, 20 * 60, 5000)])]
-    medido = rutas.medir(7, [3, 5, 1, 3])
+    medido = rutas.medir(7, [3, 5, 1, 3], MARTES_11)
     assert medido == {3: rutas.Medicion(14, 954, None), 5: rutas.Medicion(43, 3012, None),
                       1: rutas.Medicion(70, 4690, 20)}
     caminando, transporte = pedidos
@@ -191,7 +241,7 @@ def _alternativa(code, sede, minutos, misma_sede=False, estimado=False):
 def test_con_rutas_agrega_la_recomendacion_y_el_tiempo_real(google):
     _, respuestas = google
     respuestas += [httpx.Response(200, json=[_elemento(0, 12 * 60, 900), _elemento(1, 45 * 60, 3000)])]
-    origen = {"base": "LLENA", "venue": {"hotel": "Venetian", "detail": "Level 2"}}
+    origen = {"base": "LLENA", "day": "2026-12-01", "venue": {"hotel": "Venetian", "detail": "Level 2"}}
     out = lleno_alternativas.con_rutas(origen, [_alternativa("WYNN", "Wynn/Encore", 14, estimado=True),
                                                 _alternativa("MGM", "MGM Grand", 43),
                                                 _alternativa("MISMA", "Venetian", 5, misma_sede=True)])
@@ -203,7 +253,17 @@ def test_con_rutas_agrega_la_recomendacion_y_el_tiempo_real(google):
 
 def test_con_rutas_sin_google_deja_los_minutos_de_siempre(monkeypatch, maestro):
     monkeypatch.setattr(config, "RUTAS_PROVIDER", "off")
-    origen = {"base": "LLENA", "venue": {"hotel": "Venetian"}}
+    origen = {"base": "LLENA", "day": "2026-12-01", "venue": {"hotel": "Venetian"}}
     [a] = lleno_alternativas.con_rutas(origen, [_alternativa("MGM", "MGM Grand", 43, estimado=True)])
     assert (a["minutos"], a["estimado"], a["ruta"]) == (43, True, rutas.TEXTO_SHUTTLE)
+
+
+@pytest.mark.parametrize("dia, inicio", [("2026-12-03", "18:30"),   # jueves: el shuttle termina a las 17:45
+                                         ("2026-12-04", "10:00"),   # viernes: solo Venetian y Wynn/Encore
+                                         ("2026-12-01", "22:00")])  # martes de noche
+def test_con_rutas_sin_shuttle_a_esa_hora_no_lo_ofrece(monkeypatch, maestro, dia, inicio):
+    monkeypatch.setattr(config, "RUTAS_PROVIDER", "off")
+    origen = {"base": "LLENA", "day": dia, "venue": {"hotel": "Venetian"}}
+    [a] = lleno_alternativas.con_rutas(origen, [{**_alternativa("MGM", "MGM Grand", 43), "start": inicio}])
+    assert a["ruta"] is None
 

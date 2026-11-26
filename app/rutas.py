@@ -22,6 +22,7 @@ app/travel.py) u off. Si la API falla o tarda, se cae a lo de siempre (app/trave
 header X-Goog-Api-Key: nunca se loguea, los errores llevan solo el código HTTP y el logger de httpx queda en WARNING
 como en app/viator.py.
 """
+import datetime as dt
 import logging
 import math
 import threading
@@ -91,8 +92,53 @@ class Medicion:
     transporte_min: int | None
 
 
-def atajo_fijo(origen: str | None, destino: str | None, caminando_min: int | None) -> str | None:
-    """La recomendación sin API: el atajo del par, o el shuttle si es lejos y hay. None si conviene caminar y listo."""
+
+
+@dataclass(frozen=True)
+class HorarioShuttle:
+    desde: dt.time
+    hasta: dt.time
+    sedes: frozenset[str] = CAMPUS   # servicio limitado: solo entre estas
+
+
+# Horario de los shuttles por día (hora de Las Vegas), de la agenda oficial 2026, consultada el 25/11/2026:
+FUENTE_AGENDA_2026 = "https://aws.amazon.com/events/reinvent/agenda/"
+#   Domingo 29/11 «9:30 AM – 8:30 PM» «Limited service: Caesars Forum, MGM Grand, and The Venetian».
+#   Lunes 30/11 «6:00 AM – 9:15 PM». Martes 1/12 y miércoles 2/12 «6:00 AM – 8:30 PM». Jueves 3/12 «6:00 AM – 5:45 PM»
+#   (después, «6:15 PM – 11:00 PM re:Play shuttle service»: va a la fiesta, no entre sedes, así que no cuenta).
+#   Viernes 4/12 «6:30 AM – 1:00 PM» «Limited service: The Venetian and Wynn | Encore».
+#   «Download the AWS Events app or check signage during event week for the latest shuttle times and stop locations.»
+# Fuera de estos días y horarios no se ofrece shuttle: queda caminar, el puente o el monorail.
+HORARIOS_SHUTTLE = {
+    dt.date(2026, 11, 29): HorarioShuttle(dt.time(9, 30), dt.time(20, 30), frozenset({FORUM, MGM, VENETIAN})),
+    dt.date(2026, 11, 30): HorarioShuttle(dt.time(6, 0), dt.time(21, 15)),
+    dt.date(2026, 12, 1): HorarioShuttle(dt.time(6, 0), dt.time(20, 30)),
+    dt.date(2026, 12, 2): HorarioShuttle(dt.time(6, 0), dt.time(20, 30)),
+    dt.date(2026, 12, 3): HorarioShuttle(dt.time(6, 0), dt.time(17, 45)),
+    dt.date(2026, 12, 4): HorarioShuttle(dt.time(6, 30), dt.time(13, 0), frozenset({VENETIAN, WYNN})),
+}
+
+
+def momento(dia: str | None, hora: str | None) -> dt.datetime | None:
+    """«2026-12-01» y «14:30» (hora de Las Vegas) como datetime; None si falta o no se entiende."""
+    try:
+        return dt.datetime.strptime(f"{dia} {hora[:5]}", "%Y-%m-%d %H:%M") if dia and hora else None
+    except ValueError:
+        return None
+
+
+def hay_shuttle(par: frozenset[str], cuando: dt.datetime | None) -> bool:
+    """Si a esa hora (de Las Vegas) corre el shuttle entre esas dos sedes. Sin hora no se promete nada."""
+    horario = HORARIOS_SHUTTLE.get(cuando.date()) if cuando else None
+    if horario is None or not horario.desde <= cuando.time() <= horario.hasta:
+        return False
+    return par <= horario.sedes and par not in SIN_SHUTTLE
+
+
+def atajo_fijo(origen: str | None, destino: str | None, caminando_min: int | None,
+               cuando: dt.datetime | None = None) -> str | None:
+    """La recomendación sin API: el atajo del par, o el shuttle si es lejos y a esa hora corre (HORARIOS_SHUTTLE).
+    `cuando` es la hora de Las Vegas a la que hay que llegar (el inicio de la charla). None si conviene caminar y listo."""
     if not origen or not destino or origen == destino:
         return None
     par = frozenset({origen, destino})
@@ -100,15 +146,15 @@ def atajo_fijo(origen: str | None, destino: str | None, caminando_min: int | Non
     if atajo:
         return atajo.texto
     lejos = caminando_min is not None and caminando_min > UMBRAL_TRANSPORTE_MIN
-    if lejos and par <= CAMPUS and par not in SIN_SHUTTLE:
+    if lejos and hay_shuttle(par, cuando):
         return TEXTO_SHUTTLE
     return None
 
 
 def recomendar(origen: str | None, destino: str | None, caminando_min: int | None,
-               transporte_min: int | None = None) -> str | None:
+               transporte_min: int | None = None, cuando: dt.datetime | None = None) -> str | None:
     """El atajo fijo si hay; si no, el transporte público de Google cuando ahorra al menos AHORRO_MIN_COLECTIVO."""
-    fijo = atajo_fijo(origen, destino, caminando_min)
+    fijo = atajo_fijo(origen, destino, caminando_min, cuando)
     if fijo or caminando_min is None or transporte_min is None:
         return fijo
     if caminando_min > UMBRAL_TRANSPORTE_MIN and caminando_min - transporte_min >= AHORRO_MIN_COLECTIVO:
@@ -210,8 +256,10 @@ def _mediciones(destinos: list[dict], caminando: dict[int, tuple[int, int]],
     return {d["id"]: Medicion(*caminando.get(i, (None, None)), transporte_min.get(i)) for i, d in enumerate(destinos)}
 
 
-def medir(id_origen: int | None, ids_destino: Iterable[int | None]) -> dict[int, Medicion]:
-    """Caminando (y en transporte público donde ningún atajo fijo cubre el par) de una sede a otras, por id de destino.
+def medir(id_origen: int | None, ids_destino: Iterable[int | None],
+          cuando: dt.datetime | None = None) -> dict[int, Medicion]:
+    """Caminando (y en transporte público donde ningún atajo fijo cubre el par, con el shuttle de la hora `cuando`) de
+    una sede a otras, por id de destino.
     Sin proveedor, sin coordenadas o si Google falla: {} y quien llama sigue con app/travel.py."""
     proveedor, origen = _proveedor(), venues.by_id(id_origen)
     if proveedor == "off" or not origen or origen["lat"] is None:
@@ -230,7 +278,7 @@ def medir(id_origen: int | None, ids_destino: Iterable[int | None]) -> dict[int,
     # Transporte público solo donde es lejos y no hay atajo fijo (ni shuttle): así casi nunca se pide.
     lejos_sin_atajo = [i for i, d in enumerate(destinos) if i in caminando
                        and caminando[i][0] > UMBRAL_TRANSPORTE_MIN
-                       and atajo_fijo(origen["name"], d["name"], caminando[i][0]) is None]
+                       and atajo_fijo(origen["name"], d["name"], caminando[i][0], cuando) is None]
     transporte = _matriz(origen, [destinos[i] for i in lejos_sin_atajo], "TRANSIT") if lejos_sin_atajo else None
     transporte_min = {lejos_sin_atajo[j]: minutos for j, (minutos, _) in (transporte or {}).items()}
     return _mediciones(destinos, caminando, transporte_min)

@@ -60,16 +60,20 @@ def cercanas(origen: dict, sesiones: Iterable[dict], ahora: dt.datetime) -> list
 
 def con_rutas(origen: dict, alternativas: list[dict]) -> list[dict]:
     """Las alternativas con `ruta` (la recomendación corta o None) y, si Google respondió, los minutos caminando reales.
-    Una sola consulta para todas; sin Routes API quedan los minutos de app/travel.py."""
+    Una sola consulta para todas; sin Routes API quedan los minutos de app/travel.py. El shuttle se ofrece solo si corre
+    a la hora de inicio de cada charla sugerida (el día es el de la charla llena: las sugeridas son de hoy)."""
     id_origen, nombre_origen = _id_sede(origen), (origen.get("venue") or {}).get("hotel")
     destinos = {a["code"]: venues.id_by_name(a["venue"]["hotel"]) for a in alternativas if not a["misma_sede"]}
-    medido = rutas.medir(id_origen, destinos.values()) if destinos else {}
+    dia = origen.get("day")
+    cuandos = {a["code"]: rutas.momento(dia, a["start"]) for a in alternativas}
+    primera = min((c for c in cuandos.values() if c), default=None)
+    medido = rutas.medir(id_origen, destinos.values(), primera) if destinos else {}
     out = []
     for a in alternativas:
         m = medido.get(destinos.get(a["code"]))
         real = {"minutos": m.caminando_min, "estimado": False} if m and m.caminando_min else {}
         caminando = real.get("minutos", a["minutos"])
         ruta = None if a["misma_sede"] else rutas.recomendar(nombre_origen, a["venue"]["hotel"], caminando,
-                                                                m.transporte_min if m else None)
+                                                                m.transporte_min if m else None, cuandos[a["code"]])
         out.append({**a, **real, "ruta": ruta})
     return out
