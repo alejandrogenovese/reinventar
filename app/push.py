@@ -51,6 +51,13 @@ LEAVE_LEAD_MIN = 20
 START_NOTICE_MIN = 5
 RECORD_SIZE = 4096
 TTL_SECONDS = 3600
+RESUMEN_CADA_S = 3600  # cada cuánto se loguea cuántos avisos salieron (log.info)
+
+# Latido para /health (app/salud.py): time.monotonic() del último arranque o fin de una vuelta. Se marca al empezar
+# (así una vuelta larga, con ofertas o muchos usuarios, no parece un hilo muerto) y al terminar bien.
+_latido: float | None = None
+_enviados_desde_resumen = 0
+_ultimo_resumen: float | None = None
 
 
 # ---------- base64url y claves ----------
@@ -364,10 +371,34 @@ def tick() -> int:
     return sent
 
 
+def latido() -> float | None:
+    """time.monotonic() del último latido (arranque o fin de una vuelta); None si el hilo no arrancó."""
+    return _latido
+
+
+def marcar_latido(ahora: float | None = None) -> None:
+    global _latido
+    _latido = time.monotonic() if ahora is None else ahora
+
+
+def registrar_vuelta(enviados: int, ahora: float | None = None) -> None:
+    """Anota el latido y suma los avisos; una vez por hora deja en el log cuántos salieron."""
+    global _latido, _enviados_desde_resumen, _ultimo_resumen
+    ahora = time.monotonic() if ahora is None else ahora
+    _latido = ahora
+    _enviados_desde_resumen += enviados
+    if _ultimo_resumen is None:
+        _ultimo_resumen = ahora
+    elif ahora - _ultimo_resumen >= RESUMEN_CADA_S:
+        log.info("Avisos Web Push: %d enviados en la última hora", _enviados_desde_resumen)
+        _enviados_desde_resumen, _ultimo_resumen = 0, ahora
+
+
 def _loop():
     while True:
+        marcar_latido()
         try:
-            tick()
+            registrar_vuelta(tick())
         except Exception:  # noqa: BLE001 — un error de una vuelta no corta las siguientes
             log.exception("vuelta de avisos falló")
         time.sleep(TICK_SECONDS)
@@ -375,6 +406,7 @@ def _loop():
 
 def start_worker() -> None:
     if enabled():
+        marcar_latido()
         threading.Thread(target=_loop, name="push", daemon=True).start()
     else:
         log.info("Web Push deshabilitado: faltan VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY")

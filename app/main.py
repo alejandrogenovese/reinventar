@@ -67,6 +67,7 @@ from . import (
     pipeline,
     push,
     push_api,
+    salud,
     sandbox,
     search,
     shows,
@@ -301,14 +302,18 @@ async def _chequear(nombre: str, ejecutor: ThreadPoolExecutor, prueba) -> str | 
 
 @app.get("/health")
 async def health():
-    fallas = [f for f in await asyncio.gather(
+    *resultados, chequeos = await asyncio.gather(
         _chequear("postgres", _EJECUTOR_POSTGRES, _probar_postgres),
         _chequear("disco", _EJECUTOR_DISCO, _probar_disco),
-    ) if f]
-    # pipeline: si el hilo que procesa las grabaciones está vivo. No cambia el código de estado (sin él la app anda,
-    # pero lo grabado queda en cola): es para verlo en el monitoreo.
+        salud.chequeos_seguros(),
+    )
+    fallas = [f for f in resultados if f]
+    # El código de estado depende SOLO de Postgres y disco: los chequeos (hilos, catálogo, cotización, gateway LiteLLM)
+    # son para el monitoreo y no tumban deploys ni reinicios de Railway. "pipeline" queda también arriba por el monitor
+    # de siempre; "todo_ok" junta todo para un monitor por palabra clave.
     cuerpo = {"ok": not fallas, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER,
-              "pipeline": pipeline.vivo()}
+              "pipeline": chequeos.get("pipeline", pipeline.vivo()), "chequeos": chequeos,
+              "todo_ok": not fallas and bool(chequeos) and all(chequeos.values())}
     if fallas:
         return JSONResponse({**cuerpo, "fallas": fallas}, status_code=503)
     return cuerpo

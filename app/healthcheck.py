@@ -111,14 +111,19 @@ def _llm() -> str:
     if not configurado:
         raise AssertionError(f"LLM_PROVIDER={real} sin credenciales")
     if real == "litellm":
-        return f"gateway LiteLLM {_litellm_vivo()} (no se llamó a ningún modelo)"
+        return f"gateway LiteLLM {litellm_vivo()} (no se llamó a ningún modelo)"
     return f"proveedor {real} configurado (no se llamó a la API paga)"
 
 
-def _litellm_vivo() -> str:
+def url_liveliness() -> str:
+    """El endpoint de vida de LiteLLM (/health/liveliness, sin costo): va en la raíz del gateway, sin el /v1."""
+    return f"{config.LLM_BASE_URL.rstrip('/').removesuffix('/v1')}/health/liveliness"
+
+
+def litellm_vivo(timeout: float = LITELLM_TIMEOUT_S) -> str:
     """El gateway responde (endpoint de salud de LiteLLM, sin costo)."""
     try:
-        r = httpx.get(f"{config.LLM_BASE_URL.rstrip('/')}/health/liveliness", timeout=LITELLM_TIMEOUT_S)
+        r = httpx.get(url_liveliness(), timeout=timeout)
     except httpx.HTTPError as e:
         raise AssertionError(f"LiteLLM no responde en {config.LLM_BASE_URL}: {e}") from e
     if r.status_code != 200:
@@ -133,7 +138,7 @@ def _stt() -> str:
     if real == "litellm":
         if not (config.LLM_BASE_URL and config.LLM_API_KEY):
             raise AssertionError("STT_PROVIDER=litellm sin LLM_BASE_URL o LLM_API_KEY")
-        return f"gateway LiteLLM {_litellm_vivo()} (no se transcribió nada)"
+        return f"gateway LiteLLM {litellm_vivo()} (no se transcribió nada)"
     return f"proveedor {real} configurado"
 
 
