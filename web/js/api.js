@@ -62,6 +62,15 @@ async function leerJson(r) {
   }
 }
 
+// Un error sin `detail` (un 502 del proxy con su HTML, un 404 de otro lado) no muestra «HTTP 502» ni «Bad Gateway».
+export const MSG_SERVIDOR_NO_RESPONDE = "El servidor no responde. Probá en un rato.";
+export const MSG_NO_ENCONTRADO = "No encontramos eso.";
+export const MSG_ERROR_GENERICO = "Algo salió mal. Probá de nuevo.";
+function mensajeSinDetalle(status) {
+  if (status >= 500) return MSG_SERVIDOR_NO_RESPONDE;
+  return status === 404 ? MSG_NO_ENCONTRADO : MSG_ERROR_GENERICO;
+}
+
 async function pedir(path, init) {
   try { return await fetch(path, init); } catch (e) {
     if (e?.name === "AbortError") throw e; // cancelado a propósito: quien llama lo ignora
@@ -74,7 +83,8 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
   if (json !== undefined) { h["Content-Type"] = "application/json"; body = JSON.stringify(json); }
   const r = await pedir(path, { method, headers: h, body, signal });
   if (!r.ok) {
-    let detail; try { detail = (await r.json()).detail; } catch { detail = r.statusText; }
+    let detail; try { detail = (await r.json()).detail; } catch { /* sin JSON: proxy, gateway o página de error */ }
+    detail ??= mensajeSinDetalle(r.status);
     // El servidor exige cambiar la contraseña temporal antes de usar el resto de la API.
     if (r.status === 403 && detail === "must_change_password") { setMustChangePassword(true); location.hash = "#/password"; }
     throw new ApiError(r.status, detail);
@@ -85,6 +95,10 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
 // Sin señal en los salones: Hoy, Itinerario y grabaciones muestran la última respuesta buena en vez de quedar vacías.
 // Con copia guardada, la red tiene un tope: un Wi-Fi que conecta pero no responde no deja la pantalla esperando.
 const SIN_SENAL_TIMEOUT_MS = 8000;
+// /api/me se espera antes de dibujar (sandbox.js) y en Ajustes: con más de esto se sigue como sin red, con la copia guardada.
+export const ME_TIMEOUT_MS = 4000;
+/** Un AbortSignal que se cancela a los `ms` (TimeoutError), o undefined si el navegador no tiene AbortSignal.timeout. */
+export const conTope = (ms) => globalThis.AbortSignal?.timeout?.(ms);
 export const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
 
 // De quién es la copia: los primeros 12 hex del SHA-256 del token. El nombre de la clave queda a la vista (DevTools,
@@ -116,7 +130,7 @@ export async function apiConUltimaCopia(path) {
   const de = await duenoDeCopias();
   const copia = de ? loadLast(de, path) : null;
   try {
-    const data = await api(path, copia ? { signal: AbortSignal.timeout?.(SIN_SENAL_TIMEOUT_MS) } : {});
+    const data = await api(path, copia ? { signal: conTope(SIN_SENAL_TIMEOUT_MS) } : {});
     if (de) saveLast(de, path, data);
     avisarServicio(EVENTO_CON_SERVICIO, { path });
     return data;
@@ -225,7 +239,8 @@ export const Itinerary = {
 export const Auth = {
   login: (username, password) => api("/api/login", { method: "POST", json: { username, password } }),
   logout: () => api("/api/logout", { method: "POST" }),
-  me: () => api("/api/me").then((me) => { setDebeCargarMail(me.debe_cargar_mail === true); return me; }),
+  // `signal`: con un tope (ME_TIMEOUT_MS) un Wi-Fi que conecta pero no responde no deja la app en blanco esperando.
+  me: ({ signal } = {}) => api("/api/me", { signal }).then((me) => { setDebeCargarMail(me.debe_cargar_mail === true); return me; }),
   changePassword: (currentPassword, newPassword) =>
     api("/api/password", { method: "POST", json: { current_password: currentPassword, new_password: newPassword } }),
 };
@@ -256,7 +271,7 @@ export async function guardarCuenta(me) {
 export async function cuentaConCopia() {
   const de = await duenoDeCopias();
   try {
-    const me = await Auth.me();
+    const me = await Auth.me({ signal: conTope(ME_TIMEOUT_MS) });
     await guardarCuenta(me);
     return { estado: "ok", username: me.username, is_admin: Boolean(me.is_admin) };
   } catch (e) {

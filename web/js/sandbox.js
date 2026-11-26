@@ -1,6 +1,6 @@
 // Modo prueba: franja arriba de toda la app y la hora/ubicación simuladas para el resto de la PWA (countdown, Llevame).
 // Lo prende un admin por usuario (Admin › Usuarios); el usuario no lo puede apagar.
-import { Auth, duenoDeCopias, getToken, guardarCuenta, sinServicio } from "./api.js";
+import { Auth, conTope, duenoDeCopias, getToken, guardarCuenta, ME_TIMEOUT_MS, sinServicio } from "./api.js";
 import { loadLast, saveLast } from "./lastgood.js";
 
 // La última respuesta de /api/me (solo el modo prueba) se guarda en este celular por usuario, junto a las otras copias sin
@@ -64,15 +64,17 @@ export async function refreshSandbox({ force = false } = {}) {
   if (!getToken()) { info = null; paint(); return; }
   if (!force && Date.now() - fetchedAt < REFRESH_MS) { paint(); return; }
   try {
-    const me = await Auth.me();
+    // Se espera antes de dibujar (app.js): con tope, para que un Wi-Fi que no responde no deje la pantalla en blanco.
+    const me = await Auth.me({ signal: conTope(ME_TIMEOUT_MS) });
     const ahora = Date.now();
     aplicar(me.sandbox || null, ahora);
     fetchedAt = ahora;
     await guardarCopia(me.sandbox || null, ahora);
     await guardarCuenta(me);  // de paso, quién es: Ajustes sin señal sigue diciendo «Conectado como X»
   } catch (e) {
-    // Sesión vencida u otro error del servidor: se queda con lo último que sabía. Sin red (o servidor caído) y sin nada
-    // sabido todavía (app recién abierta), se usa la última copia. fetchedAt queda en 0: la próxima navegación reintenta.
+    // Sesión vencida u otro error del servidor: se queda con lo último que sabía. Sin red (o servidor caído, o sin
+    // respuesta en ME_TIMEOUT_MS) y sin nada sabido todavía (app recién abierta), se usa la última copia. fetchedAt queda
+    // en 0: la próxima navegación reintenta.
     if (info !== null || !sinServicio(e) || !(await usarCopia())) return;
   }
   paint();
