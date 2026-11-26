@@ -62,7 +62,9 @@ def test_todo_anda_devuelve_200_con_el_formato_de_siempre(cliente, monkeypatch):
     r = cliente.get("/health")
 
     assert r.status_code == 200
-    assert r.json() == {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
+    cuerpo = r.json()
+    assert isinstance(cuerpo.pop("pipeline"), bool)  # si el hilo de las grabaciones está vivo (no cambia el 200)
+    assert cuerpo == {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
     assert pool.consultas[-1] == "SELECT 1"
     assert pool.timeouts == [app_main.HEALTH_TIMEOUT_SEGUNDOS]
 

@@ -9,6 +9,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 - Ofertas suma «Excursiones con descuento»: las excursiones de Viator rebajadas para los días del viaje, con el precio de antes y el de ahora, el porcentaje y el link para reservar. Se consultan en el momento (el precio lo fija Viator y puede cambiar); si Viator no responde, Ofertas se ve como siempre.
 
+### Corregido
+
+- Grabaciones más seguras: solo quien grabó puede subirle audio y cerrarla (o un admin, cerrarla), así nadie corta ni pisa la grabación de otro. Cada grabación tiene un tope holgado de tamaño y de duración (6 horas), hay un tope de 40 grabaciones nuevas por día y de 15 reintentos por hora, y «Reintentar» avisa si la grabación ya se está procesando. Si algo falla al procesar se ve un mensaje claro en vez del error técnico, una falla de la base ya no deja todo trabado en «En cola», y el audio intermedio se borra cuando la grabación queda lista.
+
 ## [1.3.4] - 2026-11-25
 
 ### Agregado

@@ -6,6 +6,7 @@ forman un webm válido. Si la página se recarga y arranca otro MediaRecorder, e
 parte nueva con su propio header: por eso cada parte se decodifica por separado.
 """
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -46,7 +47,10 @@ def assemble(sid: str, parts: dict) -> Path:
                 out.write(chunk_path(sid, part, seq).read_bytes())
         wav = work / f"part-{part:03d}.wav"
         # -fflags +genpts: el webm de MediaRecorder no trae duración ni cues.
-        _run(["ffmpeg", "-y", "-v", "error", "-fflags", "+genpts", "-i", str(raw), "-ac", "1", "-ar", "16000", str(wav)])
+        try:
+            _run(["ffmpeg", "-y", "-v", "error", "-fflags", "+genpts", "-i", str(raw), "-ac", "1", "-ar", "16000", str(wav)])
+        finally:
+            raw.unlink(missing_ok=True)  # es una copia de chunks/: no se guarda (los originales siguen ahí)
         wavs.append(wav)
     full = work / "full.ogg"
     if len(wavs) == 1:
@@ -59,6 +63,12 @@ def assemble(sid: str, parts: dict) -> Path:
     for w in wavs:
         w.unlink(missing_ok=True)
     return full
+
+
+def limpiar_trabajo(sid: str) -> None:
+    """Borra work/ (full.ogg y lo que haya quedado) cuando la sesión ya está lista. chunks/ no se toca: es lo que usa
+    «Reintentar desde cero» para volver a armar el audio."""
+    shutil.rmtree(session_dir(sid) / "work", ignore_errors=True)
 
 
 def split(full: Path, seconds: int) -> list[tuple[float, Path]]:

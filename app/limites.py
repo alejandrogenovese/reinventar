@@ -91,6 +91,15 @@ itinerarios = Limite(ITINERARIOS_POR_USUARIO, VENTANA_LARGA)
 admin_links = Limite(ADMIN_LINKS_POR_USUARIO, VENTANA_LARGA)
 fotos_conversor = Limite(FOTOS_CONVERSOR_POR_USUARIO, VENTANA_LARGA)
 
+# Grabaciones (app/main.py). Cuota diaria de grabaciones nuevas: un día de re:Invent son 6-8 charlas y alguna que se
+# corta y se vuelve a empezar; 40 sobra. Los reintentos rehacen STT y LLM de una grabación entera: 15 por hora.
+VENTANA_DIA = 24 * 60 * 60
+GRABACIONES_NUEVAS_POR_DIA = 40
+REINTENTOS_GRABACION_POR_USUARIO = 15
+
+grabaciones_nuevas = Limite(GRABACIONES_NUEVAS_POR_DIA, VENTANA_DIA)
+reintentos_grabacion = Limite(REINTENTOS_GRABACION_POR_USUARIO, VENTANA_LARGA)
+
 # Páginas públicas del resumen de una grabación (/c/<token>), por IP: alcanza para que un grupo abra el link desde la misma
 # red del evento y frena a quien pruebe tokens al azar (igual no puede fabricar uno sin la clave).
 LINKS_GRABACION_POR_IP = 120
@@ -139,7 +148,7 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
          admin_links, links_grabacion, fotos_conversor, mails_verificacion, mails_destino, olvide_ip, olvide_cuenta,
-         restablecer_ip, codigos_recuperacion)
+         restablecer_ip, codigos_recuperacion, grabaciones_nuevas, reintentos_grabacion)
 
 
 def reiniciar_todo() -> None:
