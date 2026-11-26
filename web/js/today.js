@@ -122,7 +122,8 @@ export async function TodayPanel(sessions) {
   // La sección se nombra con el título y la fecha («Hoy martes, 2 dic»), aunque se vean separados.
   const el = h("section", { class: "stack", "aria-labelledby": "hoy-title hoy-fecha" },
     h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "hoy-title" }, "Hoy"),
-      h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), body);
+      h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), body,
+    h("a", { class: "ra-dxd-link", href: "#/viaje/reinvent" }, icon("eventos", 16), h("span", {}, "re:Invent día por día: badge, keynotes y shuttles")));
   return { el, hasTalk: Boolean(data.now || data.next), data };
 }
 
