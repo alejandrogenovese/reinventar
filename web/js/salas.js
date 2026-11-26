@@ -73,11 +73,17 @@ export const GUIAS = Object.freeze({
   },
 });
 
-const empiezaCon = (detalle, nivel) => (detalle || "").toLowerCase().startsWith(nivel.toLowerCase());
+// «Level 1» matchea «Level 1 · Chopin 4» pero no «Level 10»: el piso tiene que terminar ahí.
+const empiezaCon = (detalle, nivel) => {
+  const d = (detalle || "").toLowerCase(), n = nivel.toLowerCase();
+  return d.startsWith(n) && !/[\p{L}\p{N}]/u.test(d.charAt(n.length));
+};
+// Búsquedas por nombre de sede solo en claves propias: «constructor» o «toString» no son sedes.
+const propio = (tabla, clave) => (typeof clave === "string" && Object.hasOwn(tabla, clave) ? tabla[clave] : null);
 
 /** Pasos que aplican a una sala: los generales y los de su piso. [] si la sede no tiene guía. */
 export function pasosDeSala(hotel, detalle) {
-  const guia = GUIAS[hotel];
+  const guia = propio(GUIAS, hotel);
   if (!guia) return [];
   return guia.pasos.filter((p) => !p.nivel || empiezaCon(detalle, p.nivel));
 }
@@ -88,7 +94,7 @@ export function pasosDeSala(hotel, detalle) {
  */
 export function destinoDeSala(venue) {
   if (venue?.lat == null) return null;
-  const entrada = ENTRADAS[venue.hotel];
+  const entrada = propio(ENTRADAS, venue.hotel);
   return entrada ? { ...entrada } : { lat: venue.lat, lng: venue.lng, name: venue.hotel };
 }
 
@@ -99,7 +105,7 @@ export function destinoDeSala(venue) {
 export function destinoDeTarjeta(s) {
   const v = s?.venue;
   if (v?.lat == null) return null;
-  if ((s.kind ?? "talk") === "talk" && ENTRADAS[v.hotel]) return destinoDeSala(v);
+  if ((s.kind ?? "talk") === "talk" && propio(ENTRADAS, v.hotel)) return destinoDeSala(v);
   return { lat: v.lat, lng: v.lng, name: v.hotel, placeId: v.place_id, approx: v.exact === false };
 }
 
@@ -107,7 +113,7 @@ export function destinoDeTarjeta(s) {
 export function GuiaSala(venue) {
   const pasos = pasosDeSala(venue?.hotel, venue?.detail);
   if (!pasos.length) return null;
-  const terceros = GUIAS[venue.hotel].terceros;
+  const terceros = propio(GUIAS, venue.hotel).terceros;
   return h("details", { class: "ra-guia-sala" },
     h("summary", { class: "label" }, "Cómo llegar a la sala"),
     h("ol", { class: "ra-guia-pasos" }, pasos.map((p) =>

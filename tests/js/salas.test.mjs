@@ -74,3 +74,47 @@ test("en Hoy, una charla va a la entrada de convenciones; un evento con su lugar
   const evento = { kind: "event", venue: { ...MGM, hotel: "Venetian", place_id: "abc", exact: true } };
   assert.deepEqual(destination(evento), { lat: MGM.lat, lng: MGM.lng, name: "Venetian", placeId: "abc", approx: false });
 });
+
+test("un piso no matchea otro que empieza igual: «Level 1» no es «Level 10»", () => {
+  const nivel10 = textos(pasosDeSala("Venetian", "Level 10 · x"));
+  assert.ok(!nivel10.some((t) => t.includes("Level 1 ")));
+  assert.ok(textos(pasosDeSala("Venetian", "Level 1")).some((t) => t.includes("Level 1 ")));
+  assert.ok(textos(pasosDeSala("Venetian", "Level 1 · Casanova Foyer")).some((t) => t.includes("Level 1 ")));
+});
+
+test("sin detalle de sala quedan solo los pasos generales", () => {
+  const generales = pasosDeSala("Venetian", null);
+  assert.ok(generales.length >= 3);
+  assert.ok(generales.every((p) => !p.nivel));
+  assert.ok(GuiaSala({ hotel: "Venetian", detail: null }));
+});
+
+test("nombres que son propiedades de Object no se toman como sedes", () => {
+  for (const hotel of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    assert.deepEqual(pasosDeSala(hotel, ""), []);
+    assert.equal(GuiaSala({ hotel, detail: "" }), null);
+    assert.deepEqual(destinoDeSala({ hotel, lat: 1, lng: 2 }), { lat: 1, lng: 2, name: hotel });
+    assert.equal(destination({ venue: { hotel, lat: 1, lng: 2 } }).lat, 1);
+  }
+});
+
+test("en una sede con entrada, show y lo tuyo siguen yendo a su lugar", () => {
+  const VEN = { hotel: "Venetian", detail: "", lat: 36.1216, lng: -115.1691, exact: true };
+  for (const kind of ["show", "mine", "event"]) {
+    const d = destination({ kind, venue: VEN });
+    assert.equal(d.lat, VEN.lat, kind);
+    assert.equal(d.name, "Venetian", kind);
+  }
+  assert.equal(destination({ kind: "talk", venue: VEN }).name, "Venetian Expo");
+  assert.equal(destination({ venue: VEN }).name, "Venetian Expo"); // sin kind: es una charla
+});
+
+test("sin hotel la tarjeta va al punto que trae", () => {
+  for (const hotel of [null, undefined]) {
+    const d = destination({ venue: { hotel, lat: 36.1, lng: -115.1 } });
+    assert.equal(d.lat, 36.1);
+    assert.equal(d.lng, -115.1);
+  }
+  assert.equal(destination({ venue: { hotel: "Venetian", lat: null } }), null);
+  assert.equal(destination({}), null);
+});
