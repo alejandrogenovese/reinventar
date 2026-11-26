@@ -3,6 +3,8 @@
 - Búsqueda: POST /products/search en el destino Las Vegas, para los días de la estadía (app/estadia.py), de a 50
   productos por página. Los términos piden paginar solo cuando la persona pide más: la primera página sale al abrir la
   pestaña y las siguientes con «Ver más», hasta MAX_PAGINAS.
+- Ofertas: la misma búsqueda con el flag SPECIAL_OFFER (productos con descuento) para la pantalla Ofertas; entra si
+  pricing.summary.fromPriceBeforeDiscount es mayor que fromPrice. Va en vivo, nunca a la tabla de ofertas.
 - Cache: solo en memoria y por 1 h, que es lo máximo que dejan guardar una búsqueda. Nada va a la base.
 - Categorías: GET /products/tags (los términos dejan cachearlo una semana) da el árbol de tags; cada producto cae en la
   primera categoría que matchee alguno de sus tags o sus ancestros. Si no hay tags, la lista va sin agrupar.
@@ -42,6 +44,9 @@ TTL_FALLO_S = 60                               # un error o una lista vacía se 
 TTL_TAGS_FALLO_S = 10 * 60                     # si los tags fallan, se lista sin agrupar diez minutos
 ANCHO_FOTO = 480                               # la variante de foto más chica que llegue a este ancho
 HOSTS_VIATOR = ("viator.com", "www.viator.com")
+FLAG_OFERTA = "SPECIAL_OFFER"                  # productos con un descuento vigente
+CLAVE_OFERTAS = "ofertas"                      # la entrada de la cache de búsquedas para las ofertas
+MAX_OFERTAS = 20                               # las de mayor descuento: la pantalla no es un catálogo
 
 # (clave, nombre en pantalla, palabras del nombre en inglés del tag o de sus ancestros). Gana la primera que matchea.
 CATEGORIAS = (
@@ -62,7 +67,7 @@ class SinClave(ViatorNoDisponible):
 
 
 # Cada entrada es (vence, valor); en la búsqueda el valor puede ser el error, que se vuelve a levantar hasta que vence.
-_cache_busqueda: dict[int, tuple[float, dict | ViatorNoDisponible]] = {}
+_cache_busqueda: dict[int | str, tuple[float, dict | list | ViatorNoDisponible]] = {}
 _cache_tags: dict[str, tuple[float, dict[int, dict]]] = {}
 _lock = threading.Lock()
 
@@ -153,6 +158,32 @@ def leer_busqueda(data: dict) -> dict:
         raise ViatorNoDisponible(f"Viator respondió con un formato inesperado ({type(e).__name__})") from e
 
 
+def leer_oferta(p: dict) -> dict | None:
+    """Un producto con descuento real (antes > ahora > 0), o None. Los términos piden mostrar el precio que da Viator."""
+    producto = leer_producto(p)
+    resumen = (p.get("pricing") or {}).get("summary") or {}
+    ahora, antes = resumen.get("fromPrice"), resumen.get("fromPriceBeforeDiscount")
+    if not producto or not all(isinstance(x, int | float) and not isinstance(x, bool) for x in (ahora, antes)):
+        return None
+    if not 0 < ahora < antes:
+        return None
+    return {"codigo": producto["codigo"], "titulo": producto["titulo"], "foto": producto["foto"], "url": producto["url"],
+            "moneda": producto["moneda"], "precio_antes": antes, "precio_ahora": ahora,
+            "descuento": round((1 - ahora / antes) * 100)}
+
+
+def leer_ofertas(data: dict) -> list[dict]:
+    """Las de mayor descuento primero, hasta MAX_OFERTAS. Levanta ViatorNoDisponible si la forma no es la documentada."""
+    try:
+        crudos = data.get("products") or []
+        if not isinstance(crudos, list):
+            raise TypeError("products no es una lista")
+        ofertas = [x for p in crudos if isinstance(p, dict) and (x := leer_oferta(p))]
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ViatorNoDisponible(f"Viator respondió con un formato inesperado ({type(e).__name__})") from e
+    return sorted(ofertas, key=lambda o: -o["descuento"])[:MAX_OFERTAS]
+
+
 def leer_tags(data: dict | list) -> dict[int, dict]:
     """{tagId: {nombre (en inglés, para clasificar), padres}}. Acepta la lista sola o {"tags": [...]}."""
     tags = data.get("tags") if isinstance(data, dict) else data
@@ -214,6 +245,12 @@ def cuerpo_busqueda(pagina: int, hoy: dt.date) -> dict:
             "currency": MONEDA}
 
 
+def cuerpo_ofertas(hoy: dt.date) -> dict:
+    """La primera página de la búsqueda de excursiones, solo con las que tienen descuento."""
+    cuerpo = cuerpo_busqueda(1, hoy)
+    return {**cuerpo, "filtering": {**cuerpo["filtering"], "flags": [FLAG_OFERTA]}}
+
+
 def _post(url: str, body: dict) -> dict:
     try:
         r = httpx.post(url, json=body, headers=_headers(), timeout=TIMEOUT_S)
@@ -246,33 +283,54 @@ def _arbol_de_tags(reloj: Callable[[], float]) -> dict[int, dict]:
     return arbol
 
 
+def _con_cache(clave: int | str, reloj: Callable[[], float], buscar: Callable[[], tuple[dict | list, bool]]):
+    """Una búsqueda cacheada en memoria: 1 h si trajo algo; un minuto si vino vacía o falló (sin ráfagas contra Viator).
+    `buscar` devuelve (resultado, trajo_algo) o levanta ViatorNoDisponible."""
+    with _lock:
+        hit = _cache_busqueda.get(clave)
+    if hit and reloj() < hit[0]:
+        if isinstance(hit[1], ViatorNoDisponible):
+            raise ViatorNoDisponible(f"{hit[1]} (reciente, no se vuelve a pedir todavía)")
+        return hit[1]
+    try:
+        resultado, trajo_algo = buscar()
+    except SinClave:
+        raise
+    except ViatorNoDisponible as e:
+        _guardar(clave, e, reloj() + TTL_FALLO_S)
+        raise
+    # Una respuesta vacía puede ser un hipo: no se queda una hora, solo lo justo para no repetir el pedido en ráfaga.
+    _guardar(clave, resultado, reloj() + (TTL_BUSQUEDA_S if trajo_algo else TTL_FALLO_S))
+    return resultado
+
+
 def excursiones(pagina: int = 1, reloj: Callable[[], float] = time.monotonic,
                 hoy: dt.date | None = None) -> dict:
     """Una página de excursiones, agrupadas si se puede. Levanta SinClave o ViatorNoDisponible."""
     if not 1 <= pagina <= MAX_PAGINAS:
         raise ValueError("página fuera de rango")
-    with _lock:
-        hit = _cache_busqueda.get(pagina)
-    if hit and reloj() < hit[0]:
-        if isinstance(hit[1], ViatorNoDisponible):
-            raise ViatorNoDisponible(f"{hit[1]} (reciente, no se vuelve a pedir todavía)")
-        return hit[1]
-    hoy = hoy or dt.datetime.now(TZ_VEGAS).date()
-    try:
-        busqueda = leer_busqueda(_post(URL_BUSQUEDA, cuerpo_busqueda(pagina, hoy)))
-    except SinClave:
-        raise
-    except ViatorNoDisponible as e:
-        _guardar(pagina, e, reloj() + TTL_FALLO_S)
-        raise
-    hay_mas = pagina < MAX_PAGINAS and pagina * POR_PAGINA < busqueda["total"]
-    resultado = {**busqueda, "pagina": pagina, "hay_mas": hay_mas,
-                 "grupos": agrupar(busqueda["productos"], _arbol_de_tags(reloj))}
-    # Una respuesta vacía puede ser un hipo: no se queda una hora, solo lo justo para no repetir el pedido en ráfaga.
-    _guardar(pagina, resultado, reloj() + (TTL_BUSQUEDA_S if busqueda["productos"] else TTL_FALLO_S))
-    return resultado
+    dia = hoy or dt.datetime.now(TZ_VEGAS).date()
+
+    def buscar() -> tuple[dict, bool]:
+        busqueda = leer_busqueda(_post(URL_BUSQUEDA, cuerpo_busqueda(pagina, dia)))
+        hay_mas = pagina < MAX_PAGINAS and pagina * POR_PAGINA < busqueda["total"]
+        return ({**busqueda, "pagina": pagina, "hay_mas": hay_mas,
+                 "grupos": agrupar(busqueda["productos"], _arbol_de_tags(reloj))}, bool(busqueda["productos"]))
+
+    return _con_cache(pagina, reloj, buscar)
 
 
-def _guardar(pagina: int, valor: dict | ViatorNoDisponible, vence: float) -> None:
+def ofertas(reloj: Callable[[], float] = time.monotonic, hoy: dt.date | None = None) -> list[dict]:
+    """Excursiones con descuento para los días de la estadía, en vivo. Levanta SinClave o ViatorNoDisponible."""
+    dia = hoy or dt.datetime.now(TZ_VEGAS).date()
+
+    def buscar() -> tuple[list, bool]:
+        lista = leer_ofertas(_post(URL_BUSQUEDA, cuerpo_ofertas(dia)))
+        return lista, bool(lista)
+
+    return _con_cache(CLAVE_OFERTAS, reloj, buscar)
+
+
+def _guardar(clave: int | str, valor: dict | list | ViatorNoDisponible, vence: float) -> None:
     with _lock:
-        _cache_busqueda[pagina] = (vence, valor)
+        _cache_busqueda[clave] = (vence, valor)

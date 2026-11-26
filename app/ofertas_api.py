@@ -1,13 +1,19 @@
-"""API de ofertas: la lista de vigentes, el detalle, las preferencias de alertas y la carga manual (solo admin)."""
+"""API de ofertas: la lista de vigentes, el detalle, las preferencias de alertas y la carga manual (solo admin).
+
+Aparte, `/en-vivo`: excursiones de Viator con descuento (app/viator.py). Los términos de Viator solo dejan cachear una
+búsqueda 1 h y en memoria, así que no pasan por los snapshots ni por la tabla de ofertas: se piden al abrir la pantalla.
+"""
 import datetime as dt
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from . import ofertas, sandbox
+from . import ofertas, sandbox, viator
 from .auth import admin, auth, is_admin
 
+log = logging.getLogger("reinventar.ofertas")
 router = APIRouter(prefix="/api/ofertas")
 
 Categoria = Literal["shows", "comida", "compras", "otros"]
@@ -71,6 +77,18 @@ def dar_de_baja(id_oferta: str, _admin: str = Depends(admin)):
     if not ofertas.borrar(id_oferta):
         raise HTTPException(404, "Oferta inexistente")
     return {"ok": True}
+
+
+@router.get("/en-vivo")
+def en_vivo(_username: str = Depends(auth)):
+    """Excursiones de Viator con descuento. Sin clave o si Viator falla, lista vacía: la pantalla sigue como siempre."""
+    if not viator.habilitado():
+        return {"ofertas": []}
+    try:
+        return {"ofertas": viator.ofertas()}
+    except viator.ViatorNoDisponible as e:
+        log.warning("Ofertas de Viator no disponibles: %s", e)
+        return {"ofertas": []}
 
 
 @router.get("/{id_oferta}")

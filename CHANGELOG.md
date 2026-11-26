@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- Ofertas suma «Excursiones con descuento»: las excursiones de Viator rebajadas para los días del viaje, con el precio de antes y el de ahora, el porcentaje y el link para reservar. Se consultan en el momento (el precio lo fija Viator y puede cambiar); si Viator no responde, Ofertas se ve como siempre.
+
 ## [1.3.4] - 2026-11-25
 
 ### Agregado
