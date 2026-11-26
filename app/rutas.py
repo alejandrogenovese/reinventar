@@ -38,8 +38,12 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 URL_MATRIZ = "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix"
 CAMPOS = "originIndex,destinationIndex,duration,distanceMeters,condition"
-TIMEOUT_S = 4                 # es para una pantalla que ya está abierta: mejor sin dato que tarde
-PAUSA_FALLO_S = 60            # después de un error no se insiste por un minuto
+# Es para una pantalla que ya está abierta: mejor sin dato que tarde. httpx aplica el timeout por fase (conectar, leer),
+# así que además hay un presupuesto total: si a pie ya lo gastó, no se pide transporte público.
+TIMEOUT = httpx.Timeout(2.5, connect=1.5)
+LENTO_S = 2.0                 # una respuesta más lenta que esto también pausa ese modo
+PRESUPUESTO_S = 2.0           # tiempo total para las dos consultas (a pie y transporte público)
+PAUSA_FALLO_S = 60            # después de un error (o una respuesta lenta) ese modo no se pide por un minuto
 UMBRAL_TRANSPORTE_MIN = 20    # hasta acá se camina; más lejos se busca otra forma
 AHORRO_MIN_COLECTIVO = 10     # el transporte público se sugiere solo si ahorra al menos esto
 
@@ -113,15 +117,19 @@ def recomendar(origen: str | None, destino: str | None, caminando_min: int | Non
 
 
 # ---- Google Routes API ---------------------------------------------------------------------------------------------
-_fallo_hasta = 0.0
+_fallo_hasta: dict[str, float] = {}   # por modo (WALK, TRANSIT): si falla transporte público, a pie sigue
 _lock = threading.Lock()
 
 
 def reiniciar() -> None:
     """Para los tests."""
-    global _fallo_hasta
     with _lock:
-        _fallo_hasta = 0.0
+        _fallo_hasta.clear()
+
+
+def _pausar(modo: str) -> None:
+    with _lock:
+        _fallo_hasta[modo] = time.monotonic() + PAUSA_FALLO_S
 
 
 def _proveedor() -> str:
@@ -158,7 +166,7 @@ def leer_matriz(elementos: list[dict]) -> dict[int, tuple[int, int]]:
 
 
 def _pedir(pedido: dict) -> list[dict]:
-    r = httpx.post(URL_MATRIZ, json=pedido, headers=_headers(), timeout=TIMEOUT_S)
+    r = httpx.post(URL_MATRIZ, json=pedido, headers=_headers(), timeout=TIMEOUT)
     if r.status_code != 200:
         raise RuntimeError(f"Routes API respondió {r.status_code}")
     datos = r.json()
@@ -168,18 +176,22 @@ def _pedir(pedido: dict) -> list[dict]:
 
 
 def _matriz(origen: dict, destinos: list[dict], modo: str) -> dict[int, tuple[int, int]] | None:
-    """La matriz 1×N, o None si Google falla (y por un minuto no se vuelve a probar)."""
-    global _fallo_hasta
-    if time.monotonic() < _fallo_hasta:
+    """La matriz 1×N, o None si Google falla (y por un minuto ese modo no se vuelve a probar). Si responde pero tarda más
+    de LENTO_S, se usa la respuesta y el modo igual se pausa."""
+    inicio = time.monotonic()
+    if inicio < _fallo_hasta.get(modo, 0.0):
         return None
     try:
-        return leer_matriz(_pedir(armar_pedido(origen, destinos, modo)))
+        matriz = leer_matriz(_pedir(armar_pedido(origen, destinos, modo)))
     except (httpx.HTTPError, RuntimeError, ValueError, TypeError, AttributeError) as e:
         # Solo el tipo y el código: ni la clave ni el pedido.
-        log.warning("Routes API no disponible: %s", e if isinstance(e, RuntimeError) else type(e).__name__)
-        with _lock:
-            _fallo_hasta = time.monotonic() + PAUSA_FALLO_S
+        log.warning("Routes API (%s) no disponible: %s", modo, e if isinstance(e, RuntimeError) else type(e).__name__)
+        _pausar(modo)
         return None
+    if time.monotonic() - inicio > LENTO_S:
+        log.warning("Routes API (%s) lenta: se pausa un minuto", modo)
+        _pausar(modo)
+    return matriz
 
 
 def _fake(origen: dict, destinos: list[dict]) -> dict[int, Medicion]:
@@ -193,6 +205,11 @@ def _fake(origen: dict, destinos: list[dict]) -> dict[int, Medicion]:
     return out
 
 
+def _mediciones(destinos: list[dict], caminando: dict[int, tuple[int, int]],
+                transporte_min: dict[int, int]) -> dict[int, Medicion]:
+    return {d["id"]: Medicion(*caminando.get(i, (None, None)), transporte_min.get(i)) for i, d in enumerate(destinos)}
+
+
 def medir(id_origen: int | None, ids_destino: Iterable[int | None]) -> dict[int, Medicion]:
     """Caminando (y en transporte público donde ningún atajo fijo cubre el par) de una sede a otras, por id de destino.
     Sin proveedor, sin coordenadas o si Google falla: {} y quien llama sigue con app/travel.py."""
@@ -204,13 +221,16 @@ def medir(id_origen: int | None, ids_destino: Iterable[int | None]) -> dict[int,
         return {}
     if proveedor == "fake":
         return _fake(origen, destinos)
+    inicio = time.monotonic()
     caminando = _matriz(origen, destinos, "WALK")
     if caminando is None:
         return {}
+    if time.monotonic() - inicio > PRESUPUESTO_S:   # a pie ya gastó el tiempo: sin transporte público
+        return _mediciones(destinos, caminando, {})
     # Transporte público solo donde es lejos y no hay atajo fijo (ni shuttle): así casi nunca se pide.
     lejos_sin_atajo = [i for i, d in enumerate(destinos) if i in caminando
                        and caminando[i][0] > UMBRAL_TRANSPORTE_MIN
                        and atajo_fijo(origen["name"], d["name"], caminando[i][0]) is None]
     transporte = _matriz(origen, [destinos[i] for i in lejos_sin_atajo], "TRANSIT") if lejos_sin_atajo else None
     transporte_min = {lejos_sin_atajo[j]: minutos for j, (minutos, _) in (transporte or {}).items()}
-    return {d["id"]: Medicion(*caminando.get(i, (None, None)), transporte_min.get(i)) for i, d in enumerate(destinos)}
+    return _mediciones(destinos, caminando, transporte_min)
