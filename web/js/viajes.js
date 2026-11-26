@@ -1,6 +1,7 @@
 // Viajes: vuelos y hoteles cargados a mano. Los avisos (check-in web, check-in/out del hotel, demora y puerta) los manda
 // el servidor por Web Push (app/viajes_avisos.py); tocar uno abre #/viajes/vuelo/ID o #/viajes/hotel/ID.
 import { Viajes } from "./api.js";
+import { DondeTeLevanta, zonaDeTerminal } from "./rideshare.js";
 import { Button, Hint, h, mensajeError, toast } from "./ui.js";
 
 const ZONA_HOTEL = "America/Los_Angeles"; // los hoteles son de re:Invent: horas de Las Vegas
@@ -39,6 +40,13 @@ function datosDelVuelo(v) {
   return [avion, v.checkin_desk ? `Mostrador de check-in ${v.checkin_desk}` : "", llegada.filter(Boolean).join(" · ")].filter(Boolean);
 }
 
+/** Llegando a Las Vegas: dónde te levanta el Uber o el Lyft en la terminal (si no se sabe cuál, las dos). */
+export function rideshareAlLlegar(v) {
+  if ((v?.destino_iata || "").toUpperCase() !== "LAS") return null;
+  const zona = zonaDeTerminal(v.llegada_terminal);
+  return DondeTeLevanta(zona ? [zona] : ["lasT1", "lasT3"], "Uber o Lyft al aterrizar");
+}
+
 function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
   const sale = v.salida ? `${cuando(v.salida)} (${v.zona_nombre})` : `${dia(v.fecha)} · sin hora`;
   const puerta = v.puerta ? `Puerta ${v.puerta}${v.terminal ? ` · Terminal ${v.terminal}` : ""}` : "";
@@ -51,6 +59,7 @@ function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
     llega ? h("div", { class: "ra-card-meta" }, h("span", {}, llega)) : null,
     detalle ? datosDelVuelo(v).map((linea) => h("p", { class: "caption" }, linea)) : null,
     v.checkin_abre ? h("p", { class: "caption" }, `Check-in web desde el ${cuando(v.checkin_abre)} (${v.checkin_horas} h antes)`) : null,
+    detalle ? rideshareAlLlegar(v) : null,
     detalle ? h("div", { class: "actions" },
       linkSeguro(v.checkin_url) ? h("a", { class: "ra-btn ra-btn-secondary", href: linkSeguro(v.checkin_url), target: "_blank", rel: "noopener" }, "Hacer check-in") : null,
       Button("Editar", { onclick: onEditar }),

@@ -273,6 +273,13 @@ html { scroll-padding-top: var(--masthead-h, 0px); }  /* lo que se lleva a la vi
 .ra-go-info { font: var(--t-small); color: var(--ink-muted); }
 .ra-go-info:empty, .ra-go-info[hidden] { display: none; }
 .ra-go-btn { flex: 0 0 auto; text-decoration: none; }
+/* «Uber» y «Lyft» al lado de «Llevame» (web/js/rideshare.js) y dónde te levanta el auto en cada sede */
+.ra-go-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; }
+.ra-auto-btn { flex: 0 0 auto; text-decoration: none; padding-inline: var(--space-4); }
+.ra-auto-info { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--space-1); }
+.ra-auto-info:empty, .ra-auto-aca[hidden] { display: none; }
+.ra-auto-zona { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--space-2); }
+.ra-auto-zona > p { margin: 0; }
 
 /* Eventos (web/js/events.js) */
 .ra-event { background: var(--surface-1); border-radius: var(--radius-m); box-shadow: var(--edge), var(--shadow-1); overflow: hidden; display: flex; flex-direction: column; }

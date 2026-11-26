@@ -5,6 +5,10 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- «Uber» y «Lyft» al lado de «Llevame» (ficha de la charla, eventos, shows y «¿Te perdiste…?»): abren la app con el destino ya cargado. Abajo, «Dónde te levanta el auto» en cada sede de re:Invent y en el aeropuerto (nivel del garage, puerta y carteles, con su fuente), y en el vuelo que llega a Las Vegas, dónde pedirlo en tu terminal.
+
 ## [1.3.4] - 2026-11-25
 
 ### Agregado
