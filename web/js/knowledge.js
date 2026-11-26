@@ -81,7 +81,7 @@ function Slot(i, mine, onChange, aviso) {
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
       AvisoBaja(i),
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
-      GoThere(destinoDeSala(i.venue)),  // a la entrada del área de convenciones, no al hotel en general
+      GoThere(destinoDeSala(i.venue), { aca: true }),  // a la entrada del área de convenciones, no al hotel en general
       GuiaSala(i.venue)),
     h("div", { class: "actions ra-slot-actions" }, action),  // una fila que envuelve: ninguna pastilla tapa a otra
     LlenoAvisos(i.code, aviso, { onCambio: sugerencias?.mostrar }),

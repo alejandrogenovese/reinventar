@@ -18,6 +18,7 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - La franja del countdown ya no se rehace cada segundo: VoiceOver no pierde el foco y gasta menos batería.
 - El límite de intentos de login ya no se esquiva con muchos pedidos a la vez, y la contraseña actual al cambiarla tiene el mismo límite.
 - El armado guiado, la búsqueda de lugares y Mis eventos con un lugar de Google tienen un tope por persona contra el abuso; con uso normal no se nota.
+- «Uber» y «Lyft» al lado de «Llevame» (ficha de la charla, eventos, shows y «¿Te perdiste…?»): abren la app con el destino ya cargado. Abajo, «Dónde te levanta el auto» en cada sede de re:Invent y en el aeropuerto (nivel del garage, puerta y carteles, con su fuente), y en el vuelo que llega a Las Vegas, dónde pedirlo en tu terminal.
 
 ## [1.3.4] - 2026-11-25
 
