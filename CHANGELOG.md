@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.4] - 2026-11-25
+
 ### Agregado
 
 - Las charlas que AWS sumó al catálogo en los últimos 7 días dicen «Nueva · agregada el …» en la tarjeta y en la ficha, con un aviso de cuándo se sumó; las canceladas llevan la etiqueta «Cancelada» arriba del título.
@@ -624,7 +626,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...HEAD
+[1.3.4]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.0...v1.3.1
