@@ -133,6 +133,50 @@ def test_google_falla_cae_a_lo_de_siempre_sin_loguear_la_clave(google, caplog):
     assert rutas.medir(7, [5]) == {}           # durante la pausa no se insiste (no quedan respuestas para dar)
 
 
+LEJOS = [_elemento(0, 70 * 60, 4690)]   # Venetian → Allegiant: lejos y sin atajo, pide transporte público
+
+
+def test_si_falla_transporte_publico_a_pie_sigue_andando(google):
+    pedidos, respuestas = google
+    respuestas += [httpx.Response(200, json=LEJOS), httpx.Response(500, json={}), httpx.Response(200, json=LEJOS)]
+    assert rutas.medir(7, [1]) == {1: rutas.Medicion(70, 4690, None)}
+    assert rutas.medir(7, [1]) == {1: rutas.Medicion(70, 4690, None)}     # a pie sigue; transporte, en pausa
+    assert [p["json"]["travelMode"] for p in pedidos] == ["WALK", "TRANSIT", "WALK"]
+
+
+@pytest.mark.parametrize("respuesta", [httpx.Response(200, json={"error": "no es una lista"}),
+                                       httpx.Response(200, content=b"<html>no es JSON</html>"),
+                                       httpx.Response(200, json=["no es un elemento"])])
+def test_200_con_cuerpo_invalido_cae_a_lo_de_siempre_y_pausa(google, respuesta):
+    pedidos, respuestas = google
+    respuestas.append(respuesta)
+    assert rutas.medir(7, [5]) == {}
+    assert rutas.medir(7, [5]) == {}           # en pausa: no se vuelve a pedir
+    assert len(pedidos) == 1
+
+
+def test_timeout_chico_por_fase():
+    assert rutas.TIMEOUT.connect <= 1.5 and rutas.TIMEOUT.read <= 2.5
+
+
+def test_a_pie_lento_saltea_transporte_publico_y_pausa(google, monkeypatch):
+    pedidos, respuestas = google
+    reloj = [1000.0]
+    monkeypatch.setattr(rutas.time, "monotonic", lambda: reloj[0])
+    post = rutas.httpx.post
+
+    def lento(*a, **k):
+        reloj[0] += rutas.PRESUPUESTO_S + 1
+        return post(*a, **k)
+
+    monkeypatch.setattr(rutas.httpx, "post", lento)
+    respuestas.append(httpx.Response(200, json=LEJOS))
+    assert rutas.medir(7, [1]) == {1: rutas.Medicion(70, 4690, None)}     # se usa, pero sin transporte público
+    assert [p["json"]["travelMode"] for p in pedidos] == ["WALK"]
+    assert rutas.medir(7, [1]) == {}                                      # y a pie queda en pausa un minuto
+    assert len(pedidos) == 1
+
+
 def test_google_sin_conexion(google):
     _, respuestas = google
     respuestas += [httpx.ConnectTimeout("timeout")]
