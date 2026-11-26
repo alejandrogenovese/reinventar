@@ -28,6 +28,13 @@ SUGERIDOS = (
     ("vuelos_hotel", "Cargar los vuelos y el hotel en la app"),
     ("dolares", "Llevar dólares en efectivo"),
     ("documentos", "Subir los documentos del viaje a la app"),
+    # Fuentes consultadas el 25/11/2026: know-before-you-go de re:Invent (la foto), formulario OM-121 de ARCA
+    # (https://arca.gob.ar/viajeros/ayuda/regimen-equipaje.asp) y enchufes de EE. UU.: tipos A y B, 120 V.
+    ("enchufe", "Llevar un adaptador de enchufe tipo A (en EE. UU. son tipo A y B, 120 V)"),
+    ("foto_reinvent", "Subir tu foto al portal de registro de re:Invent: el retiro del badge es más rápido"),
+    ("om121", "Declarar la notebook y los equipos en la Aduana al salir (formulario OM-121 de ARCA)"),
+    ("tarjeta_dolares", "Pagar el resumen de la tarjeta con dólares propios para evitar la percepción"),
+    ("swag", "Dejar lugar en la valija para el swag"),
 )
 
 _COLUMNAS = "id, texto, fecha_limite, hecho_en, orden, origen, clave_sugerido, vuelo_id, documento_id"
