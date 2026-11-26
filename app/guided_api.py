@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import cuerpo, db, guided, itinerary, reservas_aws
+from . import cuerpo, db, guided, itinerary, limites, reservas_aws
 from .auth import auth
 
 router = APIRouter(dependencies=[Depends(auth)])
@@ -34,6 +34,7 @@ class Booked(BaseModel):
 
 @router.post("/api/itinerary/guided/next")
 def guided_next(body: Next, username: str = Depends(auth)):
+    limites.exigir_cupo(limites.guiado, username, "armado guiado")
     try:
         return guided.opciones(username, body.day, body.after, body.desde)
     except guided.SinFicha as e:
