@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "./domMinimo.mjs";
 
-const { ZONAS, coordenadasValidas, uberUrl, lyftUrl, zonaCercana, zonaDeTerminal, PedirAuto, DondeTeLevanta } =
+const { ZONAS, coordenadasValidas, uberUrl, lyftUrl, zonaCercana, zonaDeTerminal, PedirAuto, DondeTeLevanta, textoAca } =
   await import("../../web/js/rideshare.js");
 const { GoThere } = await import("../../web/js/location.js");
 
@@ -114,9 +114,25 @@ test("PedirAuto: sin coordenadas o con destino aproximado no aparece", () => {
   assert.equal(PedirAuto({ ...VENETIAN_EXPO, approx: true }), null);
 });
 
-test("PedirAuto: fuera de las sedes no hay desplegable de zona", () => {
-  const { zonas } = PedirAuto({ lat: 36.1447, lng: -115.1567, name: "The STRAT" });
-  assert.equal(buscar(zonas, (n) => n.tag === "details").length, 0);
+test("PedirAuto: fuera de las sedes y en una lista no se agrega nada debajo de los botones", () => {
+  assert.equal(PedirAuto({ lat: 36.1447, lng: -115.1567, name: "The STRAT" }).zonas, null);
+});
+
+test("PedirAuto en una lista (sin «aca»): solo el desplegable del destino, sin «Estás en…»", () => {
+  const { zonas } = PedirAuto(VENETIAN_EXPO);
+  assert.equal(buscar(zonas, (n) => (n.className || "").includes("ra-auto-aca")).length, 0);
+});
+
+test("PedirAuto en una ficha fuera de las sedes: el contenedor arranca oculto hasta saber dónde estás", () => {
+  const { zonas } = PedirAuto({ lat: 36.1447, lng: -115.1567, name: "The STRAT" }, { aca: true });
+  assert.equal(zonas.hidden, true);
+});
+
+test("textoAca: dice dónde te levanta si estás en otra sede; nada si estás en el destino o en ningún lado", () => {
+  assert.match(textoAca({ lat: 36.0801, lng: -115.1524 }, "venetian"), /^Estás en Aeropuerto LAS, Terminal 1\. El auto te levanta en: Nivel 2/);
+  assert.match(textoAca({ lat: 36.102219, lng: -115.169517 }, null), /\(a confirmar\)$/);
+  assert.equal(textoAca({ lat: 36.1216, lng: -115.1691 }, "venetian"), "");
+  assert.equal(textoAca(null, "venetian"), "");
 });
 
 test("DondeTeLevanta marca «a confirmar» y no arma nada sin zonas", () => {
@@ -135,9 +151,20 @@ test("pedir desde acá: si el celular está en una sede, se muestra la zona de e
   // GPS de mentira en Caesars Palace (Node trae un navigator de solo lectura: se lo pisa con defineProperty).
   Object.defineProperty(globalThis, "navigator", { configurable: true, writable: true,
     value: { geolocation: { getCurrentPosition: (ok) => ok({ coords: { latitude: 36.11778, longitude: -115.175 } }) } } });
-  const { zonas } = PedirAuto(VENETIAN_EXPO);
+  const { zonas } = PedirAuto(VENETIAN_EXPO, { aca: true });
   const aca = zonas.children[0];
   for (let i = 0; i < 50 && aca.hidden; i++) await new Promise((r) => setTimeout(r, 10));
   assert.equal(aca.hidden, false, "la zona de acá nunca apareció");
   assert.match(aca.textContent, /^Estás en Caesars Palace\. El auto te levanta en: En el garage/);
+});
+
+test("currentPosition: muchas tarjetas a la vez comparten un solo pedido al GPS", async () => {
+  // Módulo nuevo (sin la posición cacheada de las pruebas anteriores) y un GPS que cuenta los pedidos.
+  let pedidos = 0;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, writable: true,
+    value: { geolocation: { getCurrentPosition: (ok) => { pedidos++; setTimeout(() => ok({ coords: { latitude: 36.1, longitude: -115.1 } }), 5); } } } });
+  const loc = await import("../../web/js/location.js?gps-compartido");
+  const posiciones = await Promise.all(Array.from({ length: 30 }, () => loc.currentPosition()));
+  assert.equal(pedidos, 1);
+  assert.ok(posiciones.every((p) => p.lat === 36.1));
 });

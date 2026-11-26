@@ -29,6 +29,7 @@ export const alertSettings = () => {
 export const saveAlertSettings = (s) => { try { localStorage.setItem(ALERTS, JSON.stringify({ ...alertSettings(), ...s })); } catch {} };
 
 let lastPosition = null;                 // { lat, lng, at }
+let pendingPosition = null;              // el pedido al GPS en vuelo: lo comparten todas las tarjetas
 let denied = false;
 const etaCache = new Map();
 
@@ -41,6 +42,12 @@ export async function currentPosition() {
   if (simulated?.lat != null) return { lat: simulated.lat, lng: simulated.lng, simulated: true };
   if (!locationEnabled() || denied || !navigator.geolocation) return null;
   if (lastPosition && Date.now() - lastPosition.at < POSITION_MAX_AGE_MS) return lastPosition;
+  // Una lista con 30 tarjetas pide la ubicación 30 veces a la vez: todas esperan el mismo pedido al GPS.
+  pendingPosition = pendingPosition || pedirPosicion().finally(() => { pendingPosition = null; });
+  return pendingPosition;
+}
+
+function pedirPosicion() {
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (p) => { lastPosition = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() }; resolve(lastPosition); },
@@ -118,7 +125,8 @@ const hhmm = (date) => date.toLocaleTimeString("es-AR", { timeZone: "America/Los
 export function GoThere(dest, opts = {}) {
   const parts = GoThereParts(dest, opts);
   if (!parts) return null;
-  const auto = parts.link ? PedirAuto(dest) : null; // «Uber» y «Lyft» al lado de «Llevame» (web/js/rideshare.js)
+  // «Uber» y «Lyft» al lado de «Llevame» (web/js/rideshare.js); opts.aca: en las fichas, la zona de la sede donde estás.
+  const auto = parts.link ? PedirAuto(dest, { aca: Boolean(opts.aca) }) : null;
   if (!auto) return h("div", { class: "ra-go" }, parts.info, parts.link);
   return h("div", { class: "ra-go" }, parts.info, h("div", { class: "ra-go-acts" }, parts.link, auto.botones), auto.zonas);
 }

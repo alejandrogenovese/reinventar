@@ -168,7 +168,7 @@ export async function viewEvento(view, code) {
       row("Dónde", e.venue?.exact ? [e.venue.hotel, e.venue.address].filter(Boolean).join(" · ")
         : e.platform === "luma" ? "Las Vegas · la dirección exacta aparece al anotarte en Luma" : place(e)),
       e.near?.meters != null ? row("Cerca de", `${e.near.name} (${Math.round(e.near.meters / 100) / 10} km)`) : null,
-      GoThere(destination(e), { start: startsAt(e.day, e.start), eta: true })),
+      GoThere(destination(e), { start: startsAt(e.day, e.start), eta: true, aca: true })),
     section("Detalles",
       row("Organizan", e.organizers?.join(" · ")),
       row("Entrada", [e.price, e.approval ? "requiere aprobación" : null].filter(Boolean).join(" · ")),

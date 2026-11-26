@@ -159,27 +159,37 @@ const botonAuto = (servicio, href, nombre) => h("a", {
   "aria-label": `Pedir ${servicio} a ${nombre}`,
 }, icon("auto", 20), servicio);
 
+/** «Estás en X. El auto te levanta en: …» si la posición cae en una sede o en el aeropuerto distinto del destino. */
+export function textoAca(aqui, zonaDestino) {
+  const clave = aqui ? zonaCercana(aqui) : null;
+  if (!clave || clave === zonaDestino) return "";
+  const zona = ZONAS[clave];
+  return `Estás en ${zona.nombre}. El auto te levanta en: ${zona.subida[0]}${zona.aConfirmar ? " (a confirmar)" : ""}`;
+}
+
 /**
  * Botones «Uber» y «Lyft» con el destino cargado, más dónde te levanta el auto: la zona del destino (para la vuelta)
- * en un desplegable y, si la app sabe que estás en una sede o en el aeropuerto, la zona de ahí a la vista.
- * dest: { lat, lng, name }. null sin coordenadas o con destino aproximado.
- * @returns {{ botones: HTMLElement[], zonas: HTMLElement } | null}
+ * en un desplegable y, con `aca` (solo en las fichas de detalle, no en las listas), la zona de la sede donde estás.
+ * dest: { lat, lng, name }. null sin coordenadas o con destino aproximado. `zonas` es null si no hay nada que mostrar.
+ * @returns {{ botones: HTMLElement[], zonas: HTMLElement|null } | null}
  */
-export function PedirAuto(dest) {
+export function PedirAuto(dest, { aca = false } = {}) {
   if (!coordenadasValidas(dest) || dest.approx) return null;
   const nombre = nombreLimpio(dest.name) || "el destino";
   const botones = [botonAuto("Uber", uberUrl(dest), nombre), botonAuto("Lyft", lyftUrl(dest), nombre)];
   const zonaDestino = zonaCercana(dest);
-  const aca = h("p", { class: "caption ra-auto-aca" });
-  aca.hidden = true; // aparece solo si la app sabe que estás en una sede o en el aeropuerto
-  const zonas = h("div", { class: "ra-auto-info" }, aca,
-    zonaDestino ? DondeTeLevanta([zonaDestino], `Dónde te levanta el auto en ${ZONAS[zonaDestino].nombre}`) : null);
+  const desplegable = zonaDestino ? DondeTeLevanta([zonaDestino], `Dónde te levanta el auto en ${ZONAS[zonaDestino].nombre}`) : null;
+  if (!aca) return { botones, zonas: desplegable ? h("div", { class: "ra-auto-info" }, desplegable) : null };
+  const lineaAca = h("p", { class: "caption ra-auto-aca" });
+  lineaAca.hidden = true; // aparece solo si la app sabe que estás en una sede o en el aeropuerto
+  const zonas = h("div", { class: "ra-auto-info" }, lineaAca, desplegable);
+  zonas.hidden = !desplegable; // sin desplegable, el contenedor no ocupa lugar hasta que haya un «Estás en…»
   void (async () => {
-    const aqui = await currentPosition();
-    const zonaAca = aqui ? zonaCercana(aqui) : null;
-    if (!zonaAca || zonaAca === zonaDestino) return;
-    aca.textContent = `Estás en ${ZONAS[zonaAca].nombre}. El auto te levanta en: ${ZONAS[zonaAca].subida[0]}${ZONAS[zonaAca].aConfirmar ? " (a confirmar)" : ""}`;
-    aca.hidden = false;
+    const texto = textoAca(await currentPosition(), zonaDestino);
+    if (!texto) return;
+    lineaAca.textContent = texto;
+    lineaAca.hidden = false;
+    zonas.hidden = false;
   })();
   return { botones, zonas };
 }
