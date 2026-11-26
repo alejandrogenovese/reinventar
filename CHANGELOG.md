@@ -5,6 +5,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- «re:Invent día por día» (Viaje y link desde Hoy): retiro del badge, keynotes, shuttles, Expo, certificaciones, re:Play, comidas, propinas, clima y enchufes, cada dato con su fuente. Anda sin señal.
+- Las keynotes en Inicio dicen que hay traducción simultánea al español y traen el link al livestream.
+- El aviso «Salí para…» de una charla reservada dice hasta qué hora entrar antes de que se libere el lugar (10 min antes).
+- Pendientes nuevos: adaptador de enchufe tipo A, subir la foto a re:Invent, declarar la notebook (OM-121), pagar la tarjeta con dólares propios y lugar para el swag.
+- La cotización de respaldo (cuando nunca se pudo consultar) pasa a valores de noviembre de 2026.
+
 ## [1.3.4] - 2026-11-25
 
 ### Agregado
