@@ -587,6 +587,11 @@ details.notice > summary { min-height: 32px; display: flex; align-items: center;
 .ra-ann .ra-card-meta .ra-icotext > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ra-ann .ra-card-meta .ra-mono { flex: none; }
 .ra-ann-space { flex: 1; }
+/* Keynote: overflow, livestream y traducción; el texto se parte en renglones en vez de cortarse. */
+.ra-ann-extras { gap: var(--space-1); }
+.ra-ann .ra-ann-extras .ra-card-meta { flex-wrap: wrap; }
+.ra-ann .ra-ann-extras .ra-icotext > span { white-space: normal; }
+.ra-ann-extras .ra-link { display: inline-flex; align-items: center; min-height: var(--touch); }
 .ra-ann-acts { display: flex; align-items: center; gap: var(--space-2); }
 .ra-ann-acts .ra-btn { min-height: var(--touch); }
 .ra-ann-acts .ra-btn-icon { width: var(--touch); min-width: var(--touch); }
@@ -1039,3 +1044,10 @@ a.ra-heat-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ra-voto > .caption:first-child { flex-basis: 100%; }
 .ra-voto-botones { display: flex; gap: var(--space-2); }
 .ra-lleno-dato { align-self: flex-start; font: var(--t-micro); font-weight: 600; background: var(--warning-soft); color: var(--on-warning-soft); border-radius: var(--radius-s); padding: 2px 8px; }
+
+/* re:Invent día por día (#/viaje/reinvent, diaPorDia.js) y su link desde Hoy. */
+.ra-dxd-lista { margin: 0; padding-left: var(--space-6); display: flex; flex-direction: column; gap: var(--space-2); }
+.ra-dxd-fuente .ra-link { overflow-wrap: anywhere; }
+.ra-dxd-link { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--touch); align-self: flex-start;
+  color: var(--brand-ink); font: var(--t-small-strong); text-decoration: none; }
+.ra-dxd-link:hover, .ra-dxd-link:focus-visible { text-decoration: underline; }

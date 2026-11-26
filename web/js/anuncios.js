@@ -3,6 +3,7 @@
 import { Anuncios, Itinerary } from "./api.js";
 import { refreshCountdown } from "./countdown.js";
 import { icon } from "./icons.js";
+import { LIVESTREAM_URL, TRADUCCION_KEYNOTES } from "./diaPorDia.js";
 import { AddButton } from "./itinerary.js";
 import { GoThereParts, startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
@@ -47,6 +48,12 @@ const addToItinerary = (code) => async () => {
   } catch (e) { toast(mensajeError(e)); return false; }
 };
 
+/** Keynote: overflow, livestream oficial y traducción al español (FAQ de re:Invent, ver diaPorDia.js). */
+export const KeynoteExtras = () => h("div", { class: "stack ra-ann-extras" },
+  h("div", { class: "ra-card-meta" }, IconText("pantalla", "También en overflow y por"),
+    h("a", { class: "ra-link", href: LIVESTREAM_URL, target: "_blank", rel: "noopener noreferrer" }, "livestream", icon("externo", 16))),
+  h("div", { class: "ra-card-meta" }, IconText("pantalla", TRADUCCION_KEYNOTES)));
+
 function AnnCard(s, { isToday, recorded }) {
   const hero = NIVELES_HERO.has(s.nivel);
   const go = GoThereParts(destination(s), { iconOnly: true });
@@ -66,7 +73,7 @@ function AnnCard(s, { isToday, recorded }) {
     summary ? h("p", { class: "ra-ann-es" }, summary) : null,
     h("div", { class: "ra-card-meta" }, place(s) ? IconText("ubicacion", place(s)) : null, h("span", { class: "ra-mono" }, s.code)),
     h("div", { class: "ra-card-meta" }, IconText("reloj", queueText(s, isToday))),
-    s.nivel === NIVEL_KEYNOTE ? h("div", { class: "ra-card-meta" }, IconText("pantalla", "También por streaming y en overflow")) : null,
+    s.nivel === NIVEL_KEYNOTE ? KeynoteExtras() : null,
     h("div", { class: "ra-ann-space" }),
     h("div", { class: "ra-ann-acts" }, action, go ? go.link : null));
 }

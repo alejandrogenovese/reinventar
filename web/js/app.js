@@ -49,6 +49,7 @@ import { viewActividades } from "./actividades.js";
 import { viewViaje } from "./viaje.js";
 import { viewFicha as viewMiFicha } from "./ficha.js";
 import { viewConversor } from "./conversor.js";
+import { viewDiaPorDia } from "./diaPorDia.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
@@ -133,6 +134,7 @@ const routes = [
   [/^#\/actividades(?:\/(cerca))?$/, (tab) => viewActividades(view, tab || "excursiones")],
   [/^#\/viaje$/, () => viewViaje(view)],
   [/^#\/viaje\/conversor$/, () => viewConversor(view)],
+  [/^#\/viaje\/reinvent$/, () => viewDiaPorDia(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],

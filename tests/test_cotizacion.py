@@ -151,3 +151,9 @@ def test_cotizacion_auto_no_depende_de_stt_provider():
 
 def test_en_los_tests_la_cotizacion_automatica_esta_apagada():
     assert config.COTIZACION_AUTO is False
+
+
+def test_el_respaldo_es_reciente_y_la_tarjeta_sale_del_oficial():
+    r = cotizacion.RESPALDO
+    assert r["oficial"] >= 1600 and r["blue"] >= r["oficial"]          # nov 2026: el oficial pasó los $ 1.600
+    assert r["tarjeta"] == cotizacion.tarjeta_desde_oficial(r["oficial"])

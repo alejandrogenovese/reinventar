@@ -241,3 +241,18 @@ def test_la_preferencia_apagada_no_avisa_y_la_app_vieja_no_la_pisa(cli):
 
     assert cli.get("/api/viajes/preferencias", headers=cli.H).json()["viajes_pendientes"] is False
     assert [k for k, _ in push.due(TEST_USER, _ahora("2026-11-27T08:00")) if k.startswith("pend")] == []
+
+
+def test_los_sugeridos_tienen_clave_unica_y_entran_en_el_largo_maximo():
+    claves = [k for k, _ in vp.SUGERIDOS]
+    assert len(claves) == len(set(claves))
+    assert all(len(t) <= vp.LARGO_MAX_TEXTO for _, t in vp.SUGERIDOS)
+
+
+def test_los_sugeridos_incluyen_enchufe_foto_aduana_tarjeta_y_swag():
+    textos = dict(vp.SUGERIDOS)
+    assert "tipo A" in textos["enchufe"]
+    assert "portal de registro" in textos["foto_reinvent"]
+    assert "OM-121" in textos["om121"]
+    assert "dólares propios" in textos["tarjeta_dolares"] and "confirmalo con tu banco" in textos["tarjeta_dolares"]
+    assert "swag" in textos["swag"]
