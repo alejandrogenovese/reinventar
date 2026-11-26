@@ -170,6 +170,15 @@ def _url(c: dict) -> str:
             "mine": "/#/itinerario"}.get(c.get("kind"), f"/#/charla/{c['base']}")
 
 
+def _cuando_llegar(c: dict) -> str:
+    """El cuerpo del "Salí para…": la cola si no está reservada; con reserva, hasta qué hora se puede entrar."""
+    if leave.needs_queue(c):
+        return f"Sin reserva: hacé la cola desde las {leave.arrive_by(c)}"
+    limite = leave.entrar_antes(c)
+    empieza = f"Empieza a las {c['start']}"
+    return f"{empieza}. Con reserva: entrá antes de las {limite} o se libera" if limite else empieza
+
+
 def _notice(c: dict, now: dt.datetime, grabar: bool = False) -> tuple[str, dict] | None:
     """Aviso de "salí" (contra la hora de la cola si no está reservada) o "empieza" para algo fijado, si corresponde.
     grabar: el "empieza" de una charla suma "¿La grabás?" y abre su grabación (regla A de app/recordatorio.py)."""
@@ -179,8 +188,7 @@ def _notice(c: dict, now: dt.datetime, grabar: bool = False) -> tuple[str, dict]
     where = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail"))))
     to_arrive = (_at(c["day"], leave.arrive_by(c)) - now).total_seconds() / 60
     if START_NOTICE_MIN < to_arrive <= LEAVE_LEAD_MIN:
-        cuando = (f"Sin reserva: hacé la cola desde las {leave.arrive_by(c)}" if leave.needs_queue(c)
-                  else f"Empieza a las {c['start']}")
+        cuando = _cuando_llegar(c)
         return (f"leave:{c['code']}:{c['day']}",
                 {"title": f"Salí para {c['title']}", "body": f"{cuando} · {where}", "url": _url(c)})
     to_start = (_at(c["day"], c["start"]) - now).total_seconds() / 60

@@ -63,6 +63,25 @@ def test_con_reserva_el_aviso_es_contra_el_inicio():
     assert _titulos(cards, "09:45") == ["Salí para Charla B"]
 
 
+def test_con_reserva_hay_que_entrar_10_min_antes_o_se_libera():
+    assert leave.entrar_antes(_card("B", "10:00", "11:00", reservada=True)) == "09:50"
+    assert leave.entrar_antes(_card("B", "10:00", "11:00")) is None                        # sin reserva: la cola
+    assert leave.entrar_antes(_card("E", "18:00", "21:00", kind="event", reservada=True)) is None
+
+
+def test_el_aviso_de_salir_de_una_reservada_dice_hasta_cuando_entrar():
+    cards = [_card("B", "10:00", "11:00", reservada=True)]
+
+    _, msg = push.day_notices(cards, _ahora("09:45"))[0]
+
+    assert msg["body"].startswith("Empieza a las 10:00. Con reserva: entrá antes de las 09:50 o se libera")
+
+
+def test_el_aviso_de_salir_sin_reserva_no_habla_de_la_reserva():
+    _, msg = push.day_notices([_card("B", "10:00", "11:00")], _ahora("09:15"))[0]
+    assert "Con reserva" not in msg["body"]
+
+
 def test_avisa_salir_antes_para_llegar_a_la_siguiente():
     cards = [_card("A", "08:30", "09:30", salir_antes=4), _card("B", "09:30", "10:30", reservada=True, title="GraphRAG")]
 
