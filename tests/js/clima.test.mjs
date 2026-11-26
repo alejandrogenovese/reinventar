@@ -13,7 +13,7 @@ globalThis.localStorage = {
   get length() { return memoria.size; },
 };
 
-const { ClimaHoy, cargarClima, horaLasVegas, lineaProximos, maxMin, nombreDia } = await import("../../web/js/clima.js");
+const { ClimaHoy, cargarClima, copiaVieja, horaLasVegas, lineaProximos, maxMin, nombreDia } = await import("../../web/js/clima.js");
 const { Clima, setToken } = await import("../../web/js/api.js");
 const { markStale } = await import("../../web/js/lastgood.js");
 
@@ -29,6 +29,7 @@ const DATOS = Object.freeze({
 });
 
 const texto = (nodo) => nodo.textContent;
+const AL_RATO = Date.parse("2026-11-30T19:44-08:00"); // una hora después de actualizado
 
 test("la hora va en hora de Las Vegas, no la del celular", () => {
   assert.equal(horaLasVegas("2026-11-30T18:44-08:00"), "18:44");
@@ -68,7 +69,17 @@ test("el bloque muestra lo de ahora, máx/mín, el consejo, los próximos días 
 
 test("sin señal dice que es la copia y de qué hora", () => {
   const copia = markStale(JSON.parse(JSON.stringify(DATOS)), Date.now() - 60_000);
-  assert.match(texto(ClimaHoy(copia)), /Sin señal: actualizado a las 18:44 \(hora de Las Vegas\)/);
+  assert.match(texto(ClimaHoy(copia, AL_RATO)), /Sin señal: actualizado a las 18:44 \(hora de Las Vegas\)/);
+});
+
+test("una copia sin señal de hace más de 6 h no se muestra; lo fresco del servidor, sí", () => {
+  const copia = markStale(JSON.parse(JSON.stringify(DATOS)), AL_RATO);
+  const despues = AL_RATO + 6 * 60 * 60 * 1000;
+  assert.equal(copiaVieja(copia, despues), true);
+  assert.equal(ClimaHoy(copia, despues), null);
+  assert.equal(copiaVieja(DATOS, despues), false);
+  assert.notEqual(ClimaHoy(DATOS, despues), null);
+  assert.equal(copiaVieja(markStale({ ...DATOS, actualizado: null }, AL_RATO), AL_RATO), true);
 });
 
 test("sin datos no hay bloque", () => {
@@ -94,5 +105,18 @@ test("pide /api/clima y sin red devuelve la última copia marcada", async () => 
   globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
   const copia = await Clima.get();
   assert.equal(copia.ahora.temp_c, 14);
-  assert.match(texto(ClimaHoy(copia)), /Sin señal/);
+  assert.match(texto(ClimaHoy(copia, AL_RATO)), /Sin señal/);
+});
+
+test("el clima tiene tope propio y no avisa al banner de estado si falla", async () => {
+  setToken("tok-clima-bbbbbbbb");
+  const eventos = [];
+  globalThis.window = { dispatchEvent: (e) => { eventos.push(e.type); return true; }, addEventListener() {} };
+  let senal = null;
+  globalThis.fetch = async (_url, opciones) => { senal = opciones?.signal; return { ok: true, status: 200, json: async () => DATOS }; };
+  await Clima.get();
+  assert.ok(senal, "sin copia igual va con tope");
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  await Clima.get();
+  assert.deepEqual(eventos, []);
 });

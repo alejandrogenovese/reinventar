@@ -9,7 +9,9 @@ clave. Pide un User-Agent que identifique a la app: va uno genérico, sin mails 
 Caché: solo pide el servidor (el navegador nunca llama a NWS) y guarda el resumen en memoria. Respeta el Cache-Control
 de NWS (max-age): no vuelve a pedir antes de que venza, y tampoco antes de CACHE_MIN ni después de CACHE_MAX. El punto
 (/points) se guarda lo que diga su max-age (hoy, un día). Si NWS falla, sigue con el último resumen mientras tenga menos
-de VIGENCIA_MAX; si no hay, devuelve None (Hoy no muestra el clima) y no insiste hasta PAUSA_FALLO.
+de VIGENCIA_MAX; si no hay, devuelve None (Hoy no muestra el clima) y no insiste hasta PAUSA_FALLO. Un solo pedido a NWS a
+la vez y con PRESUPUESTO_S para los tres GET: mientras tanto, los demás se llevan lo guardado (aunque esté vencido) sin
+esperar. Si un período viene con una forma rara, sigue con el último resumen bueno en vez de dar 500.
 
 Proveedor (CLIMA_PROVIDER): nws (default), fake (tests: datos fijos, no sale nada) u off. El logger de httpx queda en
 WARNING, como en app/rutas.py.
@@ -17,6 +19,7 @@ WARNING, como en app/rutas.py.
 import logging
 import re
 import threading
+import time
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
@@ -38,6 +41,8 @@ USER_AGENT = "ReinventAR/1.3 (app del viaje)"
 CABECERAS = {"User-Agent": USER_AGENT, "Accept": "application/geo+json"}
 ZONA = ZoneInfo("America/Los_Angeles")
 TIMEOUT = httpx.Timeout(5.0, connect=3.0)
+PRESUPUESTO_S = 6.0                   # tope total para los tres GET: el teléfono corta antes y el clima es accesorio
+ESPERA_LOCK_S = PRESUPUESTO_S + 1     # sin nada guardado, cuánto espera un pedido a que otro termine de traerlo
 
 CACHE_MIN = timedelta(minutes=30)     # no se pide más seguido que esto, aunque NWS diga menos
 CACHE_MAX = timedelta(hours=3)        # ni se espera más que esto, aunque NWS diga más
@@ -180,8 +185,13 @@ def max_age(respuesta: httpx.Response) -> timedelta | None:
         return None
 
 
-def _get(cliente: httpx.Client, url: str) -> tuple[dict, timedelta | None]:
-    r = cliente.get(url, headers=CABECERAS)
+def _get(cliente: httpx.Client, url: str, limite: float) -> tuple[dict, timedelta | None]:
+    """GET con lo que queda del presupuesto total (`limite`, en time.monotonic)."""
+    restante = limite - time.monotonic()
+    if restante <= 0:
+        raise httpx.TimeoutException("Se pasó el presupuesto de tiempo para NWS")
+    r = cliente.get(url, headers=CABECERAS, timeout=httpx.Timeout(min(TIMEOUT.read, restante),
+                                                                   connect=min(TIMEOUT.connect, restante)))
     r.raise_for_status()
     return r.json()["properties"], max_age(r)
 
@@ -195,6 +205,7 @@ class _Estado:
         self.datos_at: datetime | None = None
         self.datos_vence: datetime | None = None
         self.pausa_hasta: datetime | None = None
+        self.resumen_ok: dict | None = None     # el último resumen que salió bien, por si uno nuevo no se puede armar
 
 
 _estado = _Estado()
@@ -211,43 +222,67 @@ def _entre(valor: timedelta | None, minimo: timedelta, maximo: timedelta) -> tim
 
 
 def _pedir_nws(cliente: httpx.Client, ahora: datetime) -> None:
+    """Trae punto, pronóstico y por hora dentro de PRESUPUESTO_S. Solo toca el estado si salió todo bien."""
     e = _estado
-    if e.punto is None or e.punto_vence is None or ahora >= e.punto_vence:
-        props, edad = _get(cliente, URL_PUNTO)
+    limite = time.monotonic() + PRESUPUESTO_S
+    punto, punto_vence = e.punto, e.punto_vence
+    if punto is None or punto_vence is None or ahora >= punto_vence:
+        props, edad = _get(cliente, URL_PUNTO, limite)
         punto = {"forecast": props["forecast"], "forecastHourly": props["forecastHourly"]}
         if not all(isinstance(u, str) and u.startswith(BASE_NWS) for u in punto.values()):
             raise ValueError("URL de pronóstico fuera de api.weather.gov")  # solo se sigue lo que apunta a NWS
-        e.punto = punto
-        e.punto_vence = ahora + _entre(edad, CACHE_MIN, PUNTO_MAX)
-    pronostico, edad_p = _get(cliente, e.punto["forecast"])
-    por_hora, edad_h = _get(cliente, e.punto["forecastHourly"])
+        punto_vence = ahora + _entre(edad, CACHE_MIN, PUNTO_MAX)
+        e.punto, e.punto_vence = punto, punto_vence
+    pronostico, edad_p = _get(cliente, punto["forecast"], limite)
+    por_hora, edad_h = _get(cliente, punto["forecastHourly"], limite)
     edades = [x for x in (edad_p, edad_h) if x is not None]
-    e.datos = (list(pronostico["periods"]), list(por_hora["periods"]))
-    e.datos_at = ahora
+    nuevos = (list(pronostico["periods"]), list(por_hora["periods"]))
+    e.datos, e.datos_at = nuevos, ahora
     e.datos_vence = ahora + _entre(max(edades) if edades else None, CACHE_MIN, CACHE_MAX)
 
 
-def _datos_nws(ahora: datetime, cliente: httpx.Client | None) -> tuple[list, list] | None:
+def _reciente(ahora: datetime) -> tuple[list, list] | None:
     e = _estado
-    with e.lock:
-        if e.datos and e.datos_vence and ahora < e.datos_vence:
-            return e.datos
-        if e.pausa_hasta and ahora < e.pausa_hasta:
-            return e.datos if e.datos_at and ahora - e.datos_at < VIGENCIA_MAX else None
-        propio = cliente is None
-        cliente = cliente or httpx.Client(timeout=TIMEOUT)
-        try:
-            _pedir_nws(cliente, ahora)
-            e.pausa_hasta = None
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as err:
-            log.warning("No se pudo actualizar el clima de NWS (%s): sigo con el último", type(err).__name__)
-            e.pausa_hasta = ahora + PAUSA_FALLO
-            if isinstance(err, httpx.HTTPStatusError) and err.response.status_code == 404:
-                e.punto = None  # la grilla cambió: la próxima vez se vuelve a preguntar a /points
-        finally:
-            if propio:
-                cliente.close()
-        return e.datos if e.datos_at and ahora - e.datos_at < VIGENCIA_MAX else None
+    return e.datos if e.datos and e.datos_at and ahora - e.datos_at < VIGENCIA_MAX else None
+
+
+def _refrescar(ahora: datetime, cliente: httpx.Client | None) -> None:
+    e = _estado
+    propio = cliente is None
+    # Sin redirecciones: solo se habla con api.weather.gov, y un 3xx a otro lado cuenta como falla.
+    cliente = cliente or httpx.Client(timeout=TIMEOUT, follow_redirects=False)
+    try:
+        _pedir_nws(cliente, ahora)
+        e.pausa_hasta = None
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as err:
+        log.warning("No se pudo actualizar el clima de NWS (%s): sigo con el último", type(err).__name__)
+        e.pausa_hasta = ahora + PAUSA_FALLO
+        if isinstance(err, httpx.HTTPStatusError) and err.response.status_code == 404:
+            e.punto = None  # la grilla cambió: la próxima vez se vuelve a preguntar a /points
+    finally:
+        if propio:
+            cliente.close()
+
+
+def _datos_nws(ahora: datetime, cliente: httpx.Client | None) -> tuple[list, list] | None:
+    """Lo guardado si vale; si no, lo trae. Un solo pedido a NWS a la vez: con algo guardado (aunque vencido) los demás
+    no esperan y se llevan eso; sin nada, esperan un rato corto a que el que está pidiendo termine."""
+    e = _estado
+    if e.datos and e.datos_vence and ahora < e.datos_vence:
+        return e.datos
+    if e.pausa_hasta and ahora < e.pausa_hasta:
+        return _reciente(ahora)
+    hay_algo = _reciente(ahora) is not None
+    if not (e.lock.acquire(blocking=False) if hay_algo else e.lock.acquire(timeout=ESPERA_LOCK_S)):
+        return _reciente(ahora)
+    try:
+        vigente = e.datos and e.datos_vence and ahora < e.datos_vence   # otro lo trajo mientras se esperaba
+        en_pausa = e.pausa_hasta and ahora < e.pausa_hasta
+        if not vigente and not en_pausa:
+            _refrescar(ahora, cliente)
+    finally:
+        e.lock.release()
+    return _reciente(ahora)
 
 
 def _periodo(inicio: datetime, horas: int, temp: int, dia: bool, corto: str, viento: str, lluvia: int = 0) -> dict:
@@ -269,16 +304,30 @@ def datos_fake(ahora: datetime) -> tuple[list, list]:
     return pronostico, por_hora
 
 
+def _resumen_bueno(ahora: datetime) -> dict | None:
+    ok = _estado.resumen_ok
+    return ok if ok and ahora - datetime.fromisoformat(ok["actualizado"]) < VIGENCIA_MAX else None
+
+
 def obtener(ahora: datetime | None = None, cliente: httpx.Client | None = None) -> dict | None:
     """El resumen del clima (ver resumir) o None si está apagado o NWS no respondió y no hay uno reciente."""
     ahora = ahora or datetime.now(ZONA)
     proveedor = config.CLIMA_PROVIDER
     if proveedor == "off":
         return None
-    datos = datos_fake(ahora) if proveedor == "fake" else _datos_nws(ahora, cliente)
-    if not datos:
+    if proveedor == "fake":
+        return resumir(*datos_fake(ahora), ahora)
+    datos = _datos_nws(ahora, cliente)
+    datos_at = _estado.datos_at
+    if not datos or datos_at is None:
         return None
-    resumen = resumir(*datos, ahora)
-    if resumen and proveedor != "fake":
-        resumen["actualizado"] = _estado.datos_at.astimezone(ZONA).isoformat(timespec="minutes")
+    try:
+        resumen = resumir(*datos, ahora)
+    except (KeyError, TypeError, ValueError, AttributeError) as err:  # un período con forma rara no da 500
+        log.warning("No se pudo armar el resumen del clima (%s): sigo con el último", type(err).__name__)
+        return _resumen_bueno(ahora)
+    if resumen is None:
+        return None
+    resumen = {**resumen, "actualizado": datos_at.astimezone(ZONA).isoformat(timespec="minutes")}
+    _estado.resumen_ok = resumen
     return resumen

@@ -7,6 +7,7 @@ import { staleAt } from "./lastgood.js";
 import { h } from "./ui.js";
 
 const ZONA = "America/Los_Angeles";
+const COPIA_MAX_MS = 6 * 60 * 60 * 1000; // una copia sin señal con datos más viejos que esto ya no dice nada útil
 
 const grados = (c) => (Number.isFinite(c) ? `${c}°` : "");
 
@@ -38,13 +39,20 @@ export function lineaProximos(dias) {
   }).join(" · ");
 }
 
-/** El bloque compacto para Hoy, o null si no hay datos que mostrar. */
-export function ClimaHoy(data) {
-  if (!data || typeof data !== "object" || (!data.ahora && !data.dias?.length)) return null;
+/** ¿Es una copia sin señal con datos de hace más de 6 h (o sin hora)? */
+export function copiaVieja(data, ahora = Date.now()) {
+  if (staleAt(data) === null) return false;
+  const de = Date.parse(data.actualizado ?? "");
+  return !Number.isFinite(de) || ahora - de > COPIA_MAX_MS;
+}
+
+/** El bloque compacto para Hoy, o null si no hay datos que mostrar (o son una copia vieja). */
+export function ClimaHoy(data, ahora = Date.now()) {
+  if (!data || typeof data !== "object" || (!data.ahora && !data.dias?.length) || copiaVieja(data, ahora)) return null;
   const hoy = data.dias?.[0];
-  const ahora = data.ahora;
-  const principal = Number.isFinite(ahora?.temp_c) ? `${ahora.temp_c} °C` : null;
-  const descripcion = ahora?.descripcion || hoy?.descripcion || "";
+  const actual = data.ahora;
+  const principal = Number.isFinite(actual?.temp_c) ? `${actual.temp_c} °C` : null;
+  const descripcion = actual?.descripcion || hoy?.descripcion || "";
   const hora = horaLasVegas(data.actualizado);
   const sinSenal = staleAt(data) !== null;
   const proximos = lineaProximos(data.dias);

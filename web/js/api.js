@@ -143,18 +143,24 @@ function avisarServicio(tipo, detail) {
   try { globalThis.window?.dispatchEvent(new CustomEvent(tipo, { detail })); } catch { /* sin banner: no pasa nada */ }
 }
 
-/** GET que guarda la respuesta buena y, si no hay señal, devuelve la última (marcada con staleAt). */
-export async function apiConUltimaCopia(path) {
+/**
+ * GET que guarda la respuesta buena y, si no hay señal, devuelve la última (marcada con staleAt).
+ * `topeMs`: corta siempre a ese tiempo (sin él, solo con copia y a SIN_SENAL_TIMEOUT_MS). `avisar: false`: no le avisa
+ * al banner de estado; para lo accesorio (el clima), que no debe decir «sin servicio» por tardar o fallar.
+ */
+export async function apiConUltimaCopia(path, { topeMs = null, avisar = true } = {}) {
   const de = await duenoDeCopias();
   const copia = de ? loadLast(de, path) : null;
+  const tope = topeMs ?? (copia ? SIN_SENAL_TIMEOUT_MS : null);
+  const aviso = avisar ? avisarServicio : () => {};
   try {
-    const data = copia ? await conTope(SIN_SENAL_TIMEOUT_MS, (signal) => api(path, { signal })) : await api(path);
+    const data = tope ? await conTope(tope, (signal) => api(path, { signal })) : await api(path);
     if (de) saveLast(de, path, data);
-    avisarServicio(EVENTO_CON_SERVICIO, { path });
+    aviso(EVENTO_CON_SERVICIO, { path });
     return data;
   } catch (e) {
     if (!copia || !sinServicio(e)) throw e;
-    avisarServicio(EVENTO_SIN_SERVICIO, { path, at: copia.at, status: e.status });
+    aviso(EVENTO_SIN_SERVICIO, { path, at: copia.at, status: e.status });
     return markStale(copia.data, copia.at);
   }
 }
@@ -230,9 +236,11 @@ export const Pendientes = {
   borrar: (id) => api(urlPendiente(id), { method: "DELETE" }),
 };
 
-// Clima de Las Vegas para Hoy (app/clima.py): null si NWS no respondió.
+// Clima de Las Vegas para Hoy (app/clima.py): null si NWS no respondió. Es accesorio: tope corto propio y sin avisar al
+// banner de estado (si tarda o falla, no es que el servidor esté caído).
+const CLIMA_TOPE_MS = 5000;
 export const Clima = {
-  get: () => apiConUltimaCopia("/api/clima"),
+  get: () => apiConUltimaCopia("/api/clima", { topeMs: CLIMA_TOPE_MS, avisar: false }),
 };
 
 export const Today = {

@@ -1,5 +1,7 @@
 """Clima de Las Vegas para Hoy (app/clima.py, app/clima_api.py). Sin red: el proveedor fake o un httpx.MockTransport que
 hace de NWS. Sin catálogo (corre en CI)."""
+import threading
+import time
 from datetime import datetime, timedelta
 
 import httpx
@@ -109,11 +111,13 @@ def test_consejos_de_viento_fuerte_y_lluvia():
 # ---------- NWS con caché (MockTransport: no sale a la red) ----------
 
 class NwsFalso:
-    def __init__(self, edad=3600, falla=False):
+    def __init__(self, edad=3600, falla=False, demora=0.0):
         self.pedidos, self.edad, self.falla, self.user_agents = [], edad, falla, set()
+        self.demora, self.horas = demora, None
 
     def __call__(self, request: httpx.Request):
         self.pedidos.append(str(request.url))
+        time.sleep(self.demora)
         self.user_agents.add(request.headers.get("user-agent"))
         if self.falla:
             return httpx.Response(503, json={"title": "caído"})
@@ -122,7 +126,7 @@ class NwsFalso:
             return httpx.Response(200, headers={"cache-control": "public, max-age=86400"},
                                   json={"properties": {"forecast": URL_PRONOSTICO, "forecastHourly": URL_HORAS}})
         if request.url.path.endswith("/hourly"):
-            return httpx.Response(200, headers=cache, json={"properties": {"periods": horas_desde(a_las(1, 9))}})
+            return httpx.Response(200, headers=cache, json={"properties": {"periods": self.horas or horas_desde(a_las(1, 9))}})
         return httpx.Response(200, headers=cache, json={"properties": {"periods": pronostico_semana()}})
 
     def cliente(self):
@@ -179,6 +183,55 @@ def test_si_nws_falla_sigue_con_el_ultimo_mientras_sea_reciente(nws):
     assert r["dias"][0]["max_c"] == 16
     assert r["actualizado"].startswith("2026-12-01T09:30")   # la hora del dato, no la del pedido
     assert clima.obtener(AHORA + clima.VIGENCIA_MAX + timedelta(minutes=10), nws.cliente()) is None
+
+
+def test_varios_pedidos_a_la_vez_hacen_una_sola_consulta_a_nws(nws):
+    nws.demora = 0.1
+    cliente = nws.cliente()
+    resultados = []
+    hilos = [threading.Thread(target=lambda: resultados.append(clima.obtener(AHORA, cliente))) for _ in range(8)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+
+    assert len(nws.pedidos) == 3
+    assert len(resultados) == 8 and all(r and r["dias"][0]["max_c"] == 16 for r in resultados)
+
+
+def test_con_algo_guardado_no_espera_al_que_esta_pidiendo(nws):
+    clima.obtener(AHORA, nws.cliente())
+    clima._estado.lock.acquire()   # otro pedido está hablando con NWS
+    try:
+        inicio = time.monotonic()
+        r = clima.obtener(AHORA + timedelta(minutes=61), nws.cliente())   # vencido pero reciente
+        assert time.monotonic() - inicio < 0.5
+    finally:
+        clima._estado.lock.release()
+    assert r["dias"][0]["max_c"] == 16 and len(nws.pedidos) == 3
+
+
+def test_nws_lento_corta_por_el_presupuesto_total(nws, monkeypatch):
+    monkeypatch.setattr(clima, "PRESUPUESTO_S", 0.3)
+    nws.demora = 0.2
+
+    assert clima.obtener(AHORA, nws.cliente()) is None
+    assert nws.pedidos == [clima.URL_PUNTO, URL_PRONOSTICO]   # el tercero ya no se pide
+
+
+def test_periodo_raro_no_da_500_y_sigue_con_el_ultimo_resumen(nws):
+    bueno = clima.obtener(AHORA, nws.cliente())
+    nws.horas = [{"startTime": "2026-12-01T10:00:00-08:00"}]   # sin endTime
+
+    assert clima.obtener(AHORA + timedelta(minutes=61), nws.cliente()) == bueno
+    clima.reiniciar()
+    assert clima.obtener(AHORA, nws.cliente()) is None
+
+
+def test_no_sigue_redirecciones(monkeypatch):
+    monkeypatch.setattr(config, "CLIMA_PROVIDER", "nws")
+    redirige = httpx.MockTransport(lambda r: httpx.Response(301, headers={"location": "https://otro.example/"}))
+    assert clima.obtener(AHORA, httpx.Client(transport=redirige, follow_redirects=False)) is None
 
 
 def test_respuesta_inservible_cuenta_como_falla(monkeypatch):
