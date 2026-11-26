@@ -150,6 +150,9 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 .ra-disclaimer { background: var(--warning-soft); color: var(--on-warning-soft); font: var(--t-small); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }
 .ra-tag { font: var(--t-micro); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 8px; white-space: nowrap; }
 .ra-tag.is-new { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+/* Estado de la charla en el catálogo oficial: recién sumada por AWS o cancelada (web/js/lleno.js EtiquetaEstado). */
+.ra-tag.is-nueva { align-self: flex-start; background: var(--info-soft); color: var(--on-info-soft); font-weight: 600; }
+.ra-tag.is-cancelada { align-self: flex-start; background: var(--error-soft); color: var(--on-error-soft); font-weight: 600; }
 
 /* --- resumen ------------------------------------------------------------- */
 .ra-sum { background: var(--surface-1); border-radius: var(--radius-m); padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; gap: var(--space-6); box-shadow: var(--edge), var(--shadow-1); }

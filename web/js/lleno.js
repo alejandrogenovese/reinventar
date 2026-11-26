@@ -18,6 +18,30 @@ export function AvisoBaja(s) {
   return null;
 }
 
+/** "2026-11-24" → "lun 24/11" (a mediodía, para que la zona horaria no corra el día). */
+const diaCorto = (iso) => {
+  const d = new Date(`${iso}T12:00:00`);
+  const dia = d.toLocaleDateString("es-AR", { weekday: "short" }).replace(/[.,]/g, "");
+  return `${dia} ${d.getDate()}/${d.getMonth() + 1}`;
+};
+
+/**
+ * Etiqueta de estado arriba del título: «Cancelada» si se canceló, «Nueva · agregada el lun 24/11» si AWS la sumó al
+ * catálogo hace poco (app/catalog.agregada). null si no hay nada que marcar.
+ */
+export function EtiquetaEstado(s) {
+  if (s?.cancelled) return h("span", { class: "ra-tag is-cancelada" }, "Cancelada");
+  if (s?.added) return h("span", { class: "ra-tag is-nueva" }, `Nueva · agregada el ${diaCorto(s.added)}`);
+  return null;
+}
+
+/** En la ficha de una charla nueva: cuándo la sumó AWS y que el resumen puede estar en inglés. */
+export function AvisoNueva(s) {
+  if (!s?.added || s.cancelled) return null;
+  const resumen = s.abstract_es ? "" : " El resumen está en inglés hasta la próxima traducción.";
+  return Hint(`Charla nueva: AWS la sumó al catálogo el ${diaCorto(s.added)}. Fijate que no se superponga con tu agenda.${resumen}`);
+}
+
 /** Lo que avisó la gente en la puerta: «Llena según 3 personas · hace 5 min». */
 function LlenoResumen(a) {
   const partes = [a.lleno ? `Llena según ${personas(a.lleno)}` : null, a.cola ? `mucha cola según ${personas(a.cola)}` : null].filter(Boolean);

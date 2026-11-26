@@ -1,6 +1,6 @@
 // Fichas navegables: charla → speaker → empresa → otras charlas, y resultados de personas/empresas para Buscar.
 import { Itinerary, Knowledge } from "./api.js";
-import { AvisoBaja, LlenoAvisos, SugerenciasLleno, avisosDe } from "./lleno.js";
+import { AvisoBaja, AvisoNueva, EtiquetaEstado, LlenoAvisos, SugerenciasLleno, avisosDe } from "./lleno.js";
 import { BriefingPanel } from "./briefing.js";
 import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
@@ -103,14 +103,18 @@ export async function viewCharla(view, base) {
   // Si falla (sin conexión), la ficha se muestra igual, sin avisos de lleno.
   const avisos = await avisosDe(s.instances.map((i) => i.code));
   const rerender = () => { view.replaceChildren(); void viewCharla(view, base); };
+  // «Cancelada» arriba del título solo si se cancelaron todos sus horarios; si es uno solo, lo dice ese horario.
+  const estado = { ...s, cancelled: s.instances.length > 0 && s.instances.every((i) => i.cancelled) };
   view.append(h("div", { class: "stack-lg" },
     h("header", { class: "stack" },
+      EtiquetaEstado(estado),
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h1", { class: "title" }, s.title),
       s.newlaunch || s.en_youtube || s.topic?.length || s.aoi?.length ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         EtiquetaYoutube(s),
         [...(s.topic || []), ...(s.aoi || [])].map(Tag)) : null,
+      AvisoNueva(estado),
       h("div", { class: "actions" }, TalkRecordAction(s))),
     s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
