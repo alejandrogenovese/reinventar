@@ -3,7 +3,7 @@ Usa un catálogo chico en memoria (no el schema reinvent) y el LLM fake: corre e
 import pytest
 from fastapi.testclient import TestClient
 
-from app import catalog, db, guided, travel, venues
+from app import catalog, db, guided, rutas, travel, venues
 from app.interview import Ficha
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, login_headers
@@ -193,6 +193,9 @@ def test_despues_de_una_charla_propone_las_que_siguen_con_su_estado(client, con_
     assert por_base["FORUM"]["salir_a"] == "08:45"
     assert por_base["LEJOS"]["estado"] == "se_superpone"          # cola 08:30 - 25 min = salir 08:05
     assert r["opciones"][-1]["estado"] == "se_superpone"          # las rojas van al final
+    assert por_base["MISMA"]["ruta"] is None                      # cómo ir (app/rutas.py): nada en la misma sede;
+    assert "monorail" in por_base["FORUM"]["ruta"]                # MGM Grand ↔ Caesars Forum
+    assert por_base["LEJOS"]["ruta"] == rutas.TEXTO_SHUTTLE        # y lejos, el shuttle
     assert all(o["razon"] for o in r["opciones"])                 # razones del LLM (fake)
 
 
