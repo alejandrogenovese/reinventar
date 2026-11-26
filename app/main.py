@@ -53,6 +53,7 @@ from . import (
     interview_api,
     itinerary_api,
     knowledge_api,
+    limites,
     lleno_api,
     mail_api,
     my_events_api,
@@ -251,6 +252,11 @@ def _hora_de_grabacion(recorded_at: AwareDatetime | None) -> float | None:
 MAX_PARTES = 1000
 MAX_PEDAZOS = 100_000
 MAX_PARTES_POR_GRABACION = 200
+SOLO_QUIEN_GRABA = "Solo quien grabó esta sesión puede subirle audio."
+GRABACION_DEMASIADO_GRANDE = "La grabación llegó al tope de audio que se puede subir: terminala y empezá otra."
+GRABACIONES_DEL_DIA = (f"Llegaste al tope de {limites.GRABACIONES_NUEVAS_POR_DIA} grabaciones nuevas en 24 horas. "
+                       "Si necesitás más, avisale a un admin.")
+YA_SE_PROCESA = "La grabación ya se está procesando: esperá a que termine antes de reintentar."
 MAX_FALTANTES_INFORMADOS = 1000  # por parte: la PWA solo muestra la cantidad y vuelve a subir lo que tenga
 
 
@@ -297,7 +303,10 @@ async def health():
         _chequear("postgres", _EJECUTOR_POSTGRES, _probar_postgres),
         _chequear("disco", _EJECUTOR_DISCO, _probar_disco),
     ) if f]
-    cuerpo = {"ok": not fallas, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
+    # pipeline: si el hilo que procesa las grabaciones está vivo. No cambia el código de estado (sin él la app anda,
+    # pero lo grabado queda en cola): es para verlo en el monitoreo.
+    cuerpo = {"ok": not fallas, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER,
+              "pipeline": pipeline.vivo()}
     if fallas:
         return JSONResponse({**cuerpo, "fallas": fallas}, status_code=503)
     return cuerpo
@@ -307,6 +316,9 @@ async def health():
 def create_session(body: NewSession, username: str = Depends(auth)):
     if body.kind not in db.KINDS:
         raise HTTPException(422, f"kind debe ser uno de {db.KINDS}")
+    # Un reintento del mismo client_id no es una grabación nueva: no gasta cuota.
+    if not db.existe_session_de_cliente(username, body.client_id) and not limites.grabaciones_nuevas.consumir(username):
+        raise HTTPException(429, GRABACIONES_DEL_DIA)
     return db.create_session(body.title.strip(), body.kind, talks.normalize_code(body.code), body.venue, body.speaker,
                              created_by=username, client_id=body.client_id, recorded_at=_hora_de_grabacion(body.recorded_at))
 
@@ -333,24 +345,40 @@ def get_session(sid: str, username: str = Depends(auth)):
     return s
 
 
-@app.put("/api/sessions/{sid}/chunks/{part}/{seq}", dependencies=[Depends(auth)])
-async def put_chunk(sid: str, part: int, seq: int, request: Request):
+@app.put("/api/sessions/{sid}/chunks/{part}/{seq}")
+async def put_chunk(sid: str, part: int, seq: int, request: Request, username: str = Depends(auth)):
     if not (0 <= part < MAX_PARTES and 0 <= seq < MAX_PEDAZOS):
         raise HTTPException(422, "part/seq fuera de rango")
     data = await cuerpo.leer_con_tope(request, config.MAX_CHUNK_BYTES, "Pedazo demasiado grande")
     if not data:
         raise HTTPException(422, "Pedazo vacío")
     # Base y disco en el threadpool: en el event loop frenarían todos los demás pedidos (hay un solo worker).
-    return await run_in_threadpool(_guardar_pedazo, sid, part, seq, data)
+    return await run_in_threadpool(_guardar_pedazo, sid, part, seq, data, username)
 
 
-def _guardar_pedazo(sid: str, part: int, seq: int, data: bytes) -> dict:
+def _exigir_que_grabo(s: dict, username: str) -> None:
+    """Subir audio: solo quien grabó (ni un admin, ni nadie en las viejas sin created_by, que ya no se graban)."""
+    if s.get("created_by") is None or s["created_by"] != username:
+        raise HTTPException(403, SOLO_QUIEN_GRABA)
+
+
+def _exigir_topes(s: dict, part: int, seq: int, nuevos: int) -> None:
+    """413 si el pedazo pasa el tope de pedazos o de bytes de la grabación. Reemplazar un pedazo que ya estaba no suma."""
+    if s["chunks_received"] < config.MAX_GRABACION_PEDAZOS and s["bytes_received"] + nuevos <= config.MAX_GRABACION_BYTES:
+        return
+    if seq not in db.chunk_index(s["id"]).get(part, set()):
+        raise HTTPException(413, GRABACION_DEMASIADO_GRANDE)
+
+
+def _guardar_pedazo(sid: str, part: int, seq: int, data: bytes, username: str) -> dict:
     s = _session_or_404(sid)
+    _exigir_que_grabo(s, username)
     if s["status"] not in ("recording", "uploading", "error"):
         # Ya se está procesando: un pedazo tardío solo se acepta si ya lo teníamos (reintento idempotente).
         if seq in db.chunk_index(sid).get(part, set()):
             return {"ok": True, "duplicate": True}
         raise HTTPException(409, "La sesión ya se cerró")
+    _exigir_topes(s, part, seq, len(data))
     path = audio.chunk_path(sid, part, seq)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -360,9 +388,9 @@ def _guardar_pedazo(sid: str, part: int, seq: int, data: bytes) -> dict:
     return {"ok": True}
 
 
-@app.post("/api/sessions/{sid}/finish", dependencies=[Depends(auth)])
-def finish(sid: str, body: Finish):
-    s = _session_or_404(sid)
+@app.post("/api/sessions/{sid}/finish")
+def finish(sid: str, body: Finish, username: str = Depends(auth)):
+    s = grabaciones_api.sesion_gestionable(sid, username)  # quien grabó o un admin (cerrar una que quedó colgada)
     if s["status"] in db.PROCESSING or s["status"] == "ready":
         return s
     have = db.chunk_index(sid)
@@ -379,7 +407,10 @@ def finish(sid: str, body: Finish):
 
 @app.post("/api/sessions/{sid}/retry")
 def retry(sid: str, from_scratch: bool = False, username: str = Depends(auth)):
-    grabaciones_api.sesion_gestionable(sid, username)
+    s = grabaciones_api.sesion_gestionable(sid, username)
+    if s["status"] in db.PROCESSING:
+        raise HTTPException(409, YA_SE_PROCESA)
+    limites.exigir_cupo(limites.reintentos_grabacion, username, "reintentos de grabaciones")
     if from_scratch:
         db.replace_blocks(sid, [])
     pipeline.enqueue(sid)

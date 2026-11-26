@@ -562,6 +562,15 @@ def create_session(title, kind, code=None, venue=None, speaker=None, created_by=
     return get_session(sid)
 
 
+def existe_session_de_cliente(created_by, client_id) -> bool:
+    """Si ese usuario ya creó una sesión con ese client_id (el POST es un reintento y no es una grabación nueva)."""
+    if not client_id:
+        return False
+    with conn() as c:
+        return c.execute("SELECT 1 FROM sessions WHERE created_by=%s AND client_id=%s",
+                         (created_by, client_id)).fetchone() is not None
+
+
 def get_session(sid):
     with conn() as c:
         r = c.execute("SELECT * FROM sessions WHERE id=%s", (sid,)).fetchone()
