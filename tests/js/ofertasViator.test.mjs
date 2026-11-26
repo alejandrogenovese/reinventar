@@ -63,6 +63,21 @@ test("con ofertas de Viator se ve la sección y no el estado vacío", async () =
   assert.doesNotMatch(view.textContent, /Todavía no hay ofertas/);
 });
 
+test("al pasar a «Shows» se oculta la sección de Viator ya pintada, y vuelve con «Todas»", async () => {
+  conApi({ "/api/ofertas": LISTA_VACIA, "/api/ofertas/en-vivo": { ofertas: [OFERTA] } });
+  const view = new Nodo("main");
+  await viewOfertas(view);
+  await esperar();
+  assert.match(view.textContent, /Excursiones con descuento/);
+  const boton = (valor) => todos(view).find((n) => n.tag === "button" && n.attrs["data-valor"] === valor);
+  boton("shows").on.click();
+  await esperar();
+  assert.doesNotMatch(view.textContent, /Excursiones con descuento/);
+  boton("todas").on.click();
+  await esperar();
+  assert.match(view.textContent, /Excursiones con descuento/);
+});
+
 for (const [caso, enVivo] of [["falla", { status: 503 }], ["no trae nada", { ofertas: [] }], ["sin red", new TypeError("Failed to fetch")]]) {
   test(`si Viator ${caso}, Ofertas queda como siempre`, async () => {
     conApi({ "/api/ofertas": LISTA_VACIA, "/api/ofertas/en-vivo": enVivo });

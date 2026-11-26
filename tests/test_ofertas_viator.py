@@ -2,6 +2,8 @@
 fromPrice), cache de 1 h en memoria (nada en la base) y que la pantalla Ofertas no se rompa si Viator falla o no hay
 clave. httpx va mockeado con el mismo falso de tests/test_viator.py: nunca se le pega a Viator."""
 import logging
+import threading
+import time
 
 import httpx
 import pytest
@@ -40,9 +42,28 @@ def test_solo_entran_las_rebajadas_y_primero_las_de_mayor_descuento():
                           "moneda": "USD", "precio_antes": 200, "precio_ahora": 120, "descuento": 40}
 
 
-def test_el_link_tiene_que_ser_de_viator():
-    otro = _producto("X", 100, 50, productUrl="https://estafa.example.com/x")
-    assert viator.leer_oferta(otro) is None
+@pytest.mark.parametrize("url", [
+    "https://estafa.example.com/x", "https://viator.com.evil.com/x", "https://evil.com/?viator.com",
+    "http://www.viator.com/x", "https://evil.com\\@viator.com/x", "https://usuario@www.viator.com/x",
+    "https://www.viator.com/x y", "https://www.viator.com\\x",
+])
+def test_el_link_tiene_que_ser_de_viator_sin_disfraces(url):
+    assert viator.leer_oferta(_producto("X", 100, 50, productUrl=url)) is None
+
+
+def test_un_link_de_viator_comun_pasa():
+    assert viator.leer_oferta(_producto("X", 100, 50))["url"] == URL_AFILIADO
+
+
+@pytest.mark.parametrize(("antes", "ahora"), [
+    (100, 0), (100, -5), (True, 0.5), (100, True), (100, 99.6),  # 99.6 sobre 100 redondea a «-0 %»
+])
+def test_precios_raros_o_descuento_menor_al_minimo_no_entran(antes, ahora):
+    assert viator.leer_oferta(_producto("X", antes, ahora)) is None
+
+
+def test_un_uno_por_ciento_si_entra():
+    assert viator.leer_oferta(_producto("X", 100, 99))["descuento"] == 1
 
 
 def test_se_queda_con_las_de_mayor_descuento_hasta_el_tope():
@@ -97,6 +118,27 @@ def test_sin_descuentos_o_con_error_se_recuerda_solo_un_minuto(api_viator):
         with pytest.raises(viator.ViatorNoDisponible):
             viator.ofertas(reloj=reloj, hoy=ANTES_DEL_VIAJE)
     assert len(_posts(api_viator)) == 2
+
+
+def test_con_la_cache_fria_dos_pedidos_a_la_vez_hacen_un_solo_post(monkeypatch):
+    posts, timeouts = [], []
+
+    def post_lento(url, json=None, headers=None, timeout=None):
+        posts.append(url)
+        timeouts.append(timeout)
+        time.sleep(0.2)  # mientras tanto llega el segundo pedido
+        return Resp(200, CON_DESCUENTOS)
+
+    monkeypatch.setattr(viator.httpx, "post", post_lento)
+    resultados = []
+    hilos = [threading.Thread(target=lambda: resultados.append(viator.ofertas(hoy=ANTES_DEL_VIAJE))) for _ in range(2)]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join()
+    assert len(posts) == 1
+    assert len(resultados) == 2 and resultados[0] == resultados[1] and resultados[0]
+    assert timeouts == [viator.TIMEOUT_OFERTAS_S] and viator.TIMEOUT_OFERTAS_S <= 6
 
 
 # ---- endpoint -----------------------------------------------------------------------------------------------------
