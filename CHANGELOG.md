@@ -8,6 +8,7 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ### Agregado
 
 - Entre sedes distintas, además de los minutos caminando, la forma más práctica de ir: el shuttle de re:Invent o el monorail gratis con el badge cuando queda lejos, o el puente Wynn–Venetian. En las charlas cerca de «está llena» el tiempo caminando sale en el momento de Google.
+- En la ficha de la charla, «Cómo llegar a la sala»: pasos cortos por sede y por piso para no perderte adentro del hotel (andan sin señal), y «Llevame» te lleva a la entrada del área de convenciones en vez del hotel en general (Venetian, Caesars Forum, Caesars Palace y MGM Grand).
 
 ### Cambiado
 
