@@ -117,6 +117,11 @@ def _data() -> list[dict]:
     return _sessions
 
 
+def cargadas() -> int:
+    """Cuántas sesiones hay en memoria, sin ir a la base (lo mira /health)."""
+    return len(_sessions or [])
+
+
 def all_sessions() -> list[dict]:
     """Todas las sesiones cargadas (solo lectura: no modificar los dicts)."""
     return _data()

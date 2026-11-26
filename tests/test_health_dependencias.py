@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import pytest
 from fastapi.testclient import TestClient
 
-from app import __version__, config, pg
+from app import __version__, config, pg, salud
 from app import main as app_main
 from app.main import app
 
@@ -38,6 +38,15 @@ class _PoolFalso:
         yield _ConexionFalsa(self.consultas)
 
 
+@pytest.fixture(autouse=True)
+def _chequeos_sin_base(monkeypatch):
+    """La cotización de /health consulta la base: acá se aísla para medir solo Postgres y disco."""
+    salud.limpiar_cache()
+    monkeypatch.setattr(salud, "_probar_cotizacion", lambda: True)
+    yield
+    salud.limpiar_cache()
+
+
 @pytest.fixture
 def cliente(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
@@ -64,6 +73,8 @@ def test_todo_anda_devuelve_200_con_el_formato_de_siempre(cliente, monkeypatch):
     assert r.status_code == 200
     cuerpo = r.json()
     assert isinstance(cuerpo.pop("pipeline"), bool)  # si el hilo de las grabaciones está vivo (no cambia el 200)
+    assert isinstance(cuerpo.pop("todo_ok"), bool)  # los chequeos de monitoreo: ver tests/test_health_chequeos.py
+    assert all(isinstance(v, bool) for v in cuerpo.pop("chequeos").values())
     assert cuerpo == {"ok": True, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER}
     assert pool.consultas[-1] == "SELECT 1"
     assert pool.timeouts == [app_main.HEALTH_TIMEOUT_SEGUNDOS]
