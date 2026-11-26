@@ -5,15 +5,17 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.6] - 2026-11-26
+
 ### Agregado
 
-- Clima de Las Vegas en Hoy (y en «re:Invent día por día»): temperatura de ahora, máxima y mínima en °C, mañana y pasado, y un consejo cuando hace falta («Fresco a la noche: llevá abrigo», viento fuerte, lluvia). Sale del National Weather Service; sin señal se ve el último con su hora, y si no hay datos no se muestra.
 - Para admins: `/health` suma `chequeos` y `todo_ok`: si siguen corriendo los avisos push, el procesamiento de grabaciones y las revisiones automáticas de charlas y eventos, si hay catálogo cargado y cotización, y si el gateway LiteLLM responde. El código de estado sigue dependiendo solo de la base y el disco.
 
 ## [1.3.5] - 2026-11-26
 
 ### Agregado
 
+- Clima de Las Vegas en Hoy (y en «re:Invent día por día»): temperatura de ahora, máxima y mínima en °C, mañana y pasado, y un consejo cuando hace falta («Fresco a la noche: llevá abrigo», viento fuerte, lluvia). Sale del National Weather Service; sin señal se ve el último con su hora, y si no hay datos no se muestra.
 - Ofertas suma «Excursiones con descuento»: las excursiones de Viator rebajadas para los días del viaje, con el precio de antes y el de ahora, el porcentaje y el link para reservar. Se consultan en el momento (el precio lo fija Viator y puede cambiar); si Viator no responde, Ofertas se ve como siempre.
 - «Uber» y «Lyft» al lado de «Llevame» (ficha de la charla, eventos, shows y «¿Te perdiste…?»): abren la app con el destino ya cargado. Abajo, «Dónde te levanta el auto» en cada sede de re:Invent y en el aeropuerto (nivel del garage, puerta y carteles, con su fuente), y en el vuelo que llega a Las Vegas, dónde pedirlo en tu terminal.
 - «re:Invent día por día» (Viaje y link desde Hoy): retiro del badge, keynotes, shuttles, Expo, certificaciones, re:Play, comidas, propinas, clima y enchufes, cada dato con su fuente. Anda sin señal.
@@ -653,7 +655,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.5...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.6...HEAD
+[1.3.6]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...v1.3.3
