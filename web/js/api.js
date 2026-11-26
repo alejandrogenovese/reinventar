@@ -152,15 +152,14 @@ export async function apiConUltimaCopia(path, { topeMs = null, avisar = true } =
   const de = await duenoDeCopias();
   const copia = de ? loadLast(de, path) : null;
   const tope = topeMs ?? (copia ? SIN_SENAL_TIMEOUT_MS : null);
-  const aviso = avisar ? avisarServicio : () => {};
   try {
     const data = tope ? await conTope(tope, (signal) => api(path, { signal })) : await api(path);
     if (de) saveLast(de, path, data);
-    aviso(EVENTO_CON_SERVICIO, { path });
+    if (avisar) avisarServicio(EVENTO_CON_SERVICIO, { path });
     return data;
   } catch (e) {
     if (!copia || !sinServicio(e)) throw e;
-    aviso(EVENTO_SIN_SERVICIO, { path, at: copia.at, status: e.status });
+    if (avisar) avisarServicio(EVENTO_SIN_SERVICIO, { path, at: copia.at, status: e.status });
     return markStale(copia.data, copia.at);
   }
 }
