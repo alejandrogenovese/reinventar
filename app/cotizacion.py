@@ -23,8 +23,9 @@ MOVIMIENTO_MINIMO = Decimal("0.001")   # 0,1 %: por debajo no vale la pena sumar
 DECIMALES = Decimal("0.0001")
 EDAD_MAXIMA = timedelta(hours=48)      # más vieja que esto (o el respaldo), el gasto queda marcado como estimado
 ZONA = ZoneInfo("America/Argentina/Buenos_Aires")   # el día del gasto es el de Argentina
-# Respaldo si la API nunca respondió y la base está vacía (primer arranque sin red). Valores de orden de magnitud.
-RESPALDO = {"oficial": Decimal("1450"), "blue": Decimal("1480"), "tarjeta": Decimal("1885")}
+# Respaldo si la API nunca respondió y la base está vacía (primer arranque sin red). Valores de venta de Bluelytics (la
+# misma API) consultados el 25/11/2026: oficial 1630 y blue 1710; tarjeta = oficial × TARJETA_FACTOR (1,30) = 2119.
+RESPALDO = {"oficial": Decimal("1630"), "blue": Decimal("1710"), "tarjeta": Decimal("2119")}
 
 
 _ultima_consulta_ok: datetime | None = None   # última vez que la API respondió bien, haya o no movimiento

@@ -8,9 +8,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, db, gastos, gastos_api, gastos_links, limites, tickets_almacen
+from app import config, cotizacion, db, gastos, gastos_api, gastos_links, limites, tickets_almacen
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
+
+TARJETA_RESPALDO = float(cotizacion.RESPALDO["tarjeta"])
 
 # Relativo a hoy: el servidor recorta los updated_at adelantados (reloj mal puesto), así que no puede ser una fecha futura.
 T0 = datetime.now(UTC).replace(microsecond=0) - timedelta(days=3)
@@ -595,7 +597,7 @@ def test_con_la_tabla_vacia_se_usa_el_respaldo_y_el_gasto_queda_marcado(cli):
     with db.conn() as c:
         c.execute("DELETE FROM cotizaciones")
     g = sync(cli, cli.A, entrada())["cambios"][0]
-    assert g["cotizacion_tarjeta"] == 1885 and g["cotizacion_estimada"] is True
+    assert g["cotizacion_tarjeta"] == TARJETA_RESPALDO and g["cotizacion_estimada"] is True
 
 
 def test_una_cotizacion_fresca_no_marca_el_gasto(cli):
@@ -616,7 +618,7 @@ def test_el_gasto_ya_guardado_conserva_su_marca_al_editarlo(cli):
     sync(cli, cli.A, g)
     poner_cotizacion()
     r = sync(cli, cli.A, {**g, "monto": 11, "updated_at": (T0 + timedelta(hours=1)).isoformat()})
-    assert r["cambios"][0]["cotizacion_estimada"] is True and r["cambios"][0]["cotizacion_tarjeta"] == 1885
+    assert r["cambios"][0]["cotizacion_estimada"] is True and r["cambios"][0]["cotizacion_tarjeta"] == TARJETA_RESPALDO
 
 
 def test_la_cotizacion_informa_su_antiguedad_y_si_es_de_respaldo(cli):
@@ -625,7 +627,7 @@ def test_la_cotizacion_informa_su_antiguedad_y_si_es_de_respaldo(cli):
     with db.conn() as c:
         c.execute("DELETE FROM cotizaciones")
     vacia = cli.get("/api/gastos/cotizacion", headers=cli.A).json()
-    assert vacia["es_respaldo"] is True and vacia["edad_min"] is None and vacia["tarjeta"] == 1885
+    assert vacia["es_respaldo"] is True and vacia["edad_min"] is None and vacia["tarjeta"] == TARJETA_RESPALDO
 
 
 # ---------- fotos: ?v=, borrado y orden de reemplazo ----------
