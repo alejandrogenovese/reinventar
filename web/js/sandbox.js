@@ -65,7 +65,7 @@ export async function refreshSandbox({ force = false } = {}) {
   if (!force && Date.now() - fetchedAt < REFRESH_MS) { paint(); return; }
   try {
     // Se espera antes de dibujar (app.js): con tope, para que un Wi-Fi que no responde no deje la pantalla en blanco.
-    const me = await Auth.me({ signal: conTope(ME_TIMEOUT_MS) });
+    const me = await conTope(ME_TIMEOUT_MS, (signal) => Auth.me({ signal }));
     const ahora = Date.now();
     aplicar(me.sandbox || null, ahora);
     fetchedAt = ahora;

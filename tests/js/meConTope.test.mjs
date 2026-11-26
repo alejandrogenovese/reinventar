@@ -73,3 +73,56 @@ test("Ajustes con /api/me colgado muestra la cuenta guardada en vez de quedar ca
   assert.deepEqual(await cuentaConCopia(), { estado: "copia", username: "ale", is_admin: false });
   assert.deepEqual(topes, [ME_TIMEOUT_MS]);
 });
+
+// iOS 15 y anteriores no tienen AbortSignal.timeout: el tope se arma con AbortController y setTimeout.
+const { ApiError, conTope } = await import("../../web/js/api.js");
+
+async function sinAbortSignalTimeout(fn) {
+  const guardado = AbortSignal.timeout;
+  delete AbortSignal.timeout;
+  try { return await fn(); } finally { AbortSignal.timeout = guardado; }
+}
+
+test("sin AbortSignal.timeout, un pedido colgado igual se corta y sale como sin red", async () => {
+  await sinAbortSignalTimeout(async () => {
+    const colgadoConSenal = (signal) => colgado("/api/me", { signal });
+    await assert.rejects(conTope(5, colgadoConSenal), (e) => e instanceof ApiError && e.status === 0);
+  });
+});
+
+test("sin AbortSignal.timeout y con un abort que pierde el motivo (AbortError), igual es sin red", async () => {
+  await sinAbortSignalTimeout(async () => {
+    const pierdeMotivo = (signal) => new Promise((_, rechazar) => {
+      signal.addEventListener("abort", () => rechazar(new DOMException("Aborted", "AbortError")));
+    });
+    await assert.rejects(conTope(5, pierdeMotivo), (e) => e instanceof ApiError && e.status === 0);
+  });
+});
+
+test("sin AbortSignal.timeout, al terminar a tiempo se limpia el timer y un AbortError ajeno sale tal cual", async () => {
+  await sinAbortSignalTimeout(async () => {
+    const limpiar = globalThis.clearTimeout;
+    const limpiados = [];
+    globalThis.clearTimeout = (t) => { limpiados.push(t); limpiar(t); };
+    try {
+      assert.equal(await conTope(60_000, async () => "ok"), "ok");
+      assert.equal(limpiados.length, 1);
+      const cancelado = async () => { throw new DOMException("cancelado", "AbortError"); };
+      await assert.rejects(conTope(60_000, cancelado), (e) => e.name === "AbortError");
+      assert.equal(limpiados.length, 2);
+    } finally { globalThis.clearTimeout = limpiar; }
+  });
+});
+
+test("sin AbortSignal.timeout, Ajustes con /api/me colgado muestra la cuenta guardada", async () => {
+  globalThis.fetch = async () => respuesta(ME);
+  await cuentaConCopia();
+  globalThis.fetch = colgado;
+  const esperar = globalThis.setTimeout;
+  globalThis.setTimeout = (fn, ms, ...args) => esperar(fn, ms === ME_TIMEOUT_MS ? 5 : ms, ...args);
+  try {
+    await sinAbortSignalTimeout(async () => {
+      assert.deepEqual(await cuentaConCopia(), { estado: "copia", username: "ale", is_admin: false });
+    });
+  } finally { globalThis.setTimeout = esperar; }
+});

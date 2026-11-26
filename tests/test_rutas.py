@@ -233,15 +233,15 @@ def test_google_sin_conexion(google):
     assert rutas.medir(7, [5]) == {}
 
 
-def _alternativa(code, sede, minutos, misma_sede=False, estimado=False):
-    return {"code": code, "base": code, "title": code, "start": "14:30", "minutos": minutos, "estimado": estimado,
+def _alternativa(code, sede, minutos, misma_sede=False, estimado=False, dia="2026-12-01"):
+    return {"code": code, "base": code, "title": code, "day": dia, "start": "14:30", "minutos": minutos, "estimado": estimado,
             "misma_sede": misma_sede, "en_curso": False, "venue": {"hotel": sede, "detail": "Level 2"}}
 
 
 def test_con_rutas_agrega_la_recomendacion_y_el_tiempo_real(google):
     _, respuestas = google
     respuestas += [httpx.Response(200, json=[_elemento(0, 12 * 60, 900), _elemento(1, 45 * 60, 3000)])]
-    origen = {"base": "LLENA", "day": "2026-12-01", "venue": {"hotel": "Venetian", "detail": "Level 2"}}
+    origen = {"base": "LLENA", "venue": {"hotel": "Venetian", "detail": "Level 2"}}
     out = lleno_alternativas.con_rutas(origen, [_alternativa("WYNN", "Wynn/Encore", 14, estimado=True),
                                                 _alternativa("MGM", "MGM Grand", 43),
                                                 _alternativa("MISMA", "Venetian", 5, misma_sede=True)])
@@ -253,9 +253,21 @@ def test_con_rutas_agrega_la_recomendacion_y_el_tiempo_real(google):
 
 def test_con_rutas_sin_google_deja_los_minutos_de_siempre(monkeypatch, maestro):
     monkeypatch.setattr(config, "RUTAS_PROVIDER", "off")
-    origen = {"base": "LLENA", "day": "2026-12-01", "venue": {"hotel": "Venetian"}}
+    origen = {"base": "LLENA", "venue": {"hotel": "Venetian"}}
     [a] = lleno_alternativas.con_rutas(origen, [_alternativa("MGM", "MGM Grand", 43, estimado=True)])
     assert (a["minutos"], a["estimado"], a["ruta"]) == (43, True, rutas.TEXTO_SHUTTLE)
+
+
+def test_con_rutas_usa_el_dia_de_la_alternativa_y_no_el_de_la_charla_llena(monkeypatch, maestro):
+    """La llena puede ser de otro día (el aviso se ve hoy): el shuttle se decide con el día de la sugerida, que es hoy."""
+    monkeypatch.setattr(config, "RUTAS_PROVIDER", "off")
+    jueves = {"base": "LLENA", "day": "2026-12-03", "venue": {"hotel": "Venetian"}}
+    [martes] = lleno_alternativas.con_rutas(jueves, [{**_alternativa("MGM", "MGM Grand", 43), "start": "19:00"}])
+    assert martes["ruta"] == rutas.TEXTO_SHUTTLE          # martes 19:00 corre; el jueves a esa hora ya no
+    martes_origen = {**jueves, "day": "2026-12-01"}
+    [jue] = lleno_alternativas.con_rutas(martes_origen, [{**_alternativa("MGM", "MGM Grand", 43, dia="2026-12-03"),
+                                                          "start": "19:00"}])
+    assert jue["ruta"] is None
 
 
 @pytest.mark.parametrize("dia, inicio", [("2026-12-03", "18:30"),   # jueves: el shuttle termina a las 17:45
@@ -263,7 +275,7 @@ def test_con_rutas_sin_google_deja_los_minutos_de_siempre(monkeypatch, maestro):
                                          ("2026-12-01", "22:00")])  # martes de noche
 def test_con_rutas_sin_shuttle_a_esa_hora_no_lo_ofrece(monkeypatch, maestro, dia, inicio):
     monkeypatch.setattr(config, "RUTAS_PROVIDER", "off")
-    origen = {"base": "LLENA", "day": dia, "venue": {"hotel": "Venetian"}}
-    [a] = lleno_alternativas.con_rutas(origen, [{**_alternativa("MGM", "MGM Grand", 43), "start": inicio}])
+    origen = {"base": "LLENA", "venue": {"hotel": "Venetian"}}
+    [a] = lleno_alternativas.con_rutas(origen, [{**_alternativa("MGM", "MGM Grand", 43, dia=dia), "start": inicio}])
     assert a["ruta"] is None
 

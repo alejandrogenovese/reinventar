@@ -97,8 +97,26 @@ export async function api(path, { method = "GET", json, body, headers = {}, raw 
 const SIN_SENAL_TIMEOUT_MS = 8000;
 // /api/me se espera antes de dibujar (sandbox.js) y en Ajustes: con más de esto se sigue como sin red, con la copia guardada.
 export const ME_TIMEOUT_MS = 4000;
-/** Un AbortSignal que se cancela a los `ms` (TimeoutError), o undefined si el navegador no tiene AbortSignal.timeout. */
-export const conTope = (ms) => globalThis.AbortSignal?.timeout?.(ms);
+/**
+ * Corre `pedido(signal)` con un tope de `ms`: pasado ese tiempo se cancela y sale como sin red (ApiError status 0).
+ * Sin AbortSignal.timeout (iOS 15 y anteriores) se arma con AbortController y setTimeout, y el timer se limpia al
+ * terminar. Ahí abort(motivo) puede no conservar el motivo y llegar como AbortError: se reconoce porque venció el tope.
+ */
+export async function conTope(ms, pedido) {
+  if (typeof globalThis.AbortSignal?.timeout === "function") return pedido(AbortSignal.timeout(ms));
+  if (typeof globalThis.AbortController !== "function") return pedido(undefined);
+  const control = new AbortController();
+  let vencio = false;
+  const timer = setTimeout(() => { vencio = true; control.abort(new DOMException("Tardó demasiado", "TimeoutError")); }, ms);
+  try {
+    return await pedido(control.signal);
+  } catch (e) {
+    if (vencio) throw new ApiError(0, MSG_SIN_CONEXION);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 export const sinServicio = (e) => e instanceof ApiError && (e.status === 0 || e.status >= 500); // sin red o servidor caído (no 401/403/404)
 
 // De quién es la copia: los primeros 12 hex del SHA-256 del token. El nombre de la clave queda a la vista (DevTools,
@@ -130,7 +148,7 @@ export async function apiConUltimaCopia(path) {
   const de = await duenoDeCopias();
   const copia = de ? loadLast(de, path) : null;
   try {
-    const data = await api(path, copia ? { signal: conTope(SIN_SENAL_TIMEOUT_MS) } : {});
+    const data = copia ? await conTope(SIN_SENAL_TIMEOUT_MS, (signal) => api(path, { signal })) : await api(path);
     if (de) saveLast(de, path, data);
     avisarServicio(EVENTO_CON_SERVICIO, { path });
     return data;
@@ -271,7 +289,7 @@ export async function guardarCuenta(me) {
 export async function cuentaConCopia() {
   const de = await duenoDeCopias();
   try {
-    const me = await Auth.me({ signal: conTope(ME_TIMEOUT_MS) });
+    const me = await conTope(ME_TIMEOUT_MS, (signal) => Auth.me({ signal }));
     await guardarCuenta(me);
     return { estado: "ok", username: me.username, is_admin: Boolean(me.is_admin) };
   } catch (e) {
