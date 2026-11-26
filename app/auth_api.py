@@ -73,18 +73,32 @@ def ip_cliente(request: Request) -> str:
         return request.client.host if request.client else "?"
 
 
+def reservar_intento(username: str, ip: str) -> None:
+    """Anota el intento como fallido ANTES de verificar la contraseña (PBKDF2 tarda): así una ráfaga de pedidos en
+    paralelo no se cuela entre la consulta del límite y la suma del fallo. Si la contraseña resulta correcta, se
+    devuelve con devolver_intento. Sin cupo, 429 sin gastar nada."""
+    if not limites.fallos_usuario.consumir(username):
+        raise limites.demasiados_intentos()
+    if not limites.fallos_ip.consumir(ip):
+        limites.fallos_usuario.devolver(username)
+        raise limites.demasiados_intentos()
+
+
+def devolver_intento(username: str, ip: str) -> None:
+    limites.fallos_usuario.devolver(username)
+    limites.fallos_ip.devolver(ip)
+
+
 @router.post("/api/login")
 def login(body: Login, request: Request):
     username, ip = body.username.strip().lower(), ip_cliente(request)
-    if limites.fallos_usuario.excedido(username) or limites.fallos_ip.excedido(ip):
-        raise limites.demasiados_intentos()
+    reservar_intento(username, ip)
     user = db.get_user(body.username.strip())
     salt, password_hash = (user["salt"], user["password_hash"]) if user else (_SALT_RELLENO, _HASH_RELLENO)
     valida = passwords.verify_password(body.password, salt, password_hash)
     if not user or not user["is_active"] or not valida:
-        limites.fallos_usuario.sumar(username)
-        limites.fallos_ip.sumar(ip)
         raise HTTPException(401, "Usuario o contraseña inválidos")
+    devolver_intento(username, ip)
     limites.fallos_usuario.limpiar(username)
     return issue_session(user)
 
@@ -103,11 +117,15 @@ def me(username: str = Depends(auth_pendiente)):
 
 
 @router.post("/api/password")
-def change_password(body: PasswordChange, username: str = Depends(auth_pendiente),
+def change_password(body: PasswordChange, request: Request, username: str = Depends(auth_pendiente),
                     authorization: str | None = Header(None)):
+    # Con una sesión robada no se puede adivinar la contraseña actual a fuerza bruta: mismo límite que el login.
+    ip = ip_cliente(request)
+    reservar_intento(username, ip)
     user = db.get_user(username)
     if not passwords.verify_password(body.current_password, user["salt"], user["password_hash"]):
         raise HTTPException(400, "La contraseña actual no es correcta")
+    devolver_intento(username, ip)
     if body.new_password == body.current_password:
         raise HTTPException(400, "La contraseña nueva tiene que ser distinta de la actual")
     cambiar_contrasena(username, body.new_password, conservar_token=bearer(authorization))

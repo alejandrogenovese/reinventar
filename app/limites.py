@@ -57,6 +57,13 @@ class Limite:
             eventos.append(ahora)
             return True
 
+    def devolver(self, clave: str) -> None:
+        """Deshace un consumir(): el uso reservado no contó (por ejemplo, la contraseña era correcta)."""
+        with self._lock:
+            eventos = self._eventos.get(clave)
+            if eventos:
+                eventos.pop()
+
     def limpiar(self, clave: str) -> None:
         with self._lock:
             self._eventos.pop(clave, None)

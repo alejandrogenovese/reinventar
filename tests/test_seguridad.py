@@ -2,6 +2,7 @@
 import re
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -125,6 +126,65 @@ def test_si_el_usuario_no_existe_igual_se_verifica_una_contrasena(c, monkeypatch
 
     assert c.post("/api/login", json={"username": "no_existe_x", "password": "algo"}).status_code == 401
     assert llamadas == [1]  # mismo trabajo que con un usuario real: el tiempo no delata qué usuarios existen
+
+
+def test_logins_en_paralelo_no_esquivan_el_limite(c, monkeypatch):
+    """Cada intento se reserva antes del PBKDF2: una ráfaga simultánea no pasa de FALLOS_POR_USUARIO verificaciones."""
+    username, _ = _usuario()
+    verificaciones = []
+    original = passwords.verify_password
+
+    def lenta(*a):
+        verificaciones.append(1)
+        time.sleep(0.2)   # todos los pedidos llegan mientras los primeros todavía verifican
+        return original(*a)
+
+    monkeypatch.setattr(passwords, "verify_password", lenta)
+    cantidad = limites.FALLOS_POR_USUARIO * 3
+    with ThreadPoolExecutor(cantidad) as pool:
+        codigos = list(pool.map(lambda _: c.post("/api/login", json={"username": username, "password": "mala"})
+                                .status_code, range(cantidad)))
+
+    assert codigos.count(401) == limites.FALLOS_POR_USUARIO
+    assert codigos.count(429) == cantidad - limites.FALLOS_POR_USUARIO
+    assert len(verificaciones) == limites.FALLOS_POR_USUARIO
+
+
+def test_un_login_bueno_no_cuenta_para_el_limite_de_la_ip(c):
+    username, password = _usuario()
+    for _ in range(limites.FALLOS_POR_IP + 2):
+        _login(c, username, password)
+    assert not any(limites.fallos_ip._eventos.values())   # la IP no tiene fallos anotados
+
+
+def test_la_contrasena_actual_tiene_el_mismo_limite_que_el_login(c):
+    username, password = _usuario()
+    _, headers = _login(c, username, password)
+    malo = {"current_password": "mala", "new_password": "definitiva99"}
+    for _ in range(limites.FALLOS_POR_USUARIO):
+        assert c.post("/api/password", headers=headers, json=malo).status_code == 400
+
+    bueno = {"current_password": password, "new_password": "definitiva99"}
+    assert c.post("/api/password", headers=headers, json=bueno).status_code == 429
+
+
+def test_la_contrasena_actual_correcta_no_gasta_intentos(c):
+    username, password = _usuario()
+    _, headers = _login(c, username, password)
+    for i in range(limites.FALLOS_POR_USUARIO + 1):
+        nueva = f"definitiva{i:02d}x"
+        r = c.post("/api/password", headers=headers, json={"current_password": password, "new_password": nueva})
+        assert r.status_code == 200, r.text
+        password = nueva
+
+
+def test_devolver_deshace_un_consumir():
+    limite = limites.Limite(1, ventana=60)
+    assert limite.consumir("x")
+    assert not limite.consumir("x")
+    limite.devolver("x")
+    assert limite.consumir("x")
+    limite.devolver("nadie")   # sin nada anotado no rompe
 
 
 def test_la_ventana_del_limite_se_vacia_con_el_tiempo():
