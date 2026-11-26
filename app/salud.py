@@ -16,9 +16,10 @@ from . import catalog, config, cotizacion, healthcheck, pipeline, push
 
 log = logging.getLogger("reinventar.salud")
 
-# El hilo de avisos da una vuelta cada push.TICK_SECONDS (60 s); una vuelta con muchos usuarios tarda más. 10 min sin
-# una vuelta buena es que se trabó o se murió.
-PUSH_SIN_VUELTA_MAX_S = 10 * 60
+# El hilo de avisos late al empezar y al terminar cada vuelta, y espera push.TICK_SECONDS (60 s) entre vueltas. Una
+# vuelta larga (ofertas cada 6 h con red, muchos usuarios) puede tardar minutos: 20 min sin latido es que se trabó o
+# se murió.
+PUSH_SIN_VUELTA_MAX_S = 20 * 60
 # Lo que se espera al gateway LiteLLM (/health/liveliness) y a la cotización (una consulta a la base).
 LLM_GATEWAY_TIMEOUT_S = 2
 COTIZACION_TIMEOUT_S = 2
@@ -93,6 +94,15 @@ async def llm_gateway() -> bool:
 
 async def cotizacion_disponible() -> bool:
     return await _cacheado("cotizacion", _EJECUTOR_COTIZACION, _probar_cotizacion, COTIZACION_TIMEOUT_S)
+
+
+async def chequeos_seguros() -> dict[str, bool]:
+    """Los chequeos, o {} si algo explota: /health nunca da 500 por el monitoreo (todo_ok queda en false)."""
+    try:
+        return await chequeos()
+    except Exception:  # noqa: BLE001 - el detalle va al log; el status sigue dependiendo de Postgres y disco
+        log.exception("Health: fallaron los chequeos de monitoreo")
+        return {}
 
 
 async def chequeos() -> dict[str, bool]:

@@ -53,8 +53,8 @@ RECORD_SIZE = 4096
 TTL_SECONDS = 3600
 RESUMEN_CADA_S = 3600  # cada cuánto se loguea cuántos avisos salieron (log.info)
 
-# Latido para /health (app/salud.py): time.monotonic() de la última vuelta sin error. Al arrancar el hilo cuenta como
-# latido, así el chequeo no da falla mientras la primera vuelta todavía corre.
+# Latido para /health (app/salud.py): time.monotonic() del último arranque o fin de una vuelta. Se marca al empezar
+# (así una vuelta larga, con ofertas o muchos usuarios, no parece un hilo muerto) y al terminar bien.
 _latido: float | None = None
 _enviados_desde_resumen = 0
 _ultimo_resumen: float | None = None
@@ -372,8 +372,13 @@ def tick() -> int:
 
 
 def latido() -> float | None:
-    """time.monotonic() de la última vuelta que terminó bien (o del arranque del hilo); None si el hilo no arrancó."""
+    """time.monotonic() del último latido (arranque o fin de una vuelta); None si el hilo no arrancó."""
     return _latido
+
+
+def marcar_latido(ahora: float | None = None) -> None:
+    global _latido
+    _latido = time.monotonic() if ahora is None else ahora
 
 
 def registrar_vuelta(enviados: int, ahora: float | None = None) -> None:
@@ -391,6 +396,7 @@ def registrar_vuelta(enviados: int, ahora: float | None = None) -> None:
 
 def _loop():
     while True:
+        marcar_latido()
         try:
             registrar_vuelta(tick())
         except Exception:  # noqa: BLE001 — un error de una vuelta no corta las siguientes
@@ -399,9 +405,8 @@ def _loop():
 
 
 def start_worker() -> None:
-    global _latido
     if enabled():
-        _latido = time.monotonic()
+        marcar_latido()
         threading.Thread(target=_loop, name="push", daemon=True).start()
     else:
         log.info("Web Push deshabilitado: faltan VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY")

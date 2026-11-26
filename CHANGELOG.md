@@ -8,7 +8,7 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ### Agregado
 
 - Clima de Las Vegas en Hoy (y en «re:Invent día por día»): temperatura de ahora, máxima y mínima en °C, mañana y pasado, y un consejo cuando hace falta («Fresco a la noche: llevá abrigo», viento fuerte, lluvia). Sale del National Weather Service; sin señal se ve el último con su hora, y si no hay datos no se muestra.
-- Para admins: `/health` suma `chequeos` (avisos push, catálogo cargado, revisiones automáticas de charlas y eventos, cotización, gateway LiteLLM y grabaciones) y `todo_ok`, para que el monitoreo avise si algo de fondo se frena. El código de estado sigue dependiendo solo de la base y el disco.
+- Para admins: `/health` suma `chequeos` y `todo_ok`: si siguen corriendo los avisos push, el procesamiento de grabaciones y las revisiones automáticas de charlas y eventos, si hay catálogo cargado y cotización, y si el gateway LiteLLM responde. El código de estado sigue dependiendo solo de la base y el disco.
 
 ## [1.3.5] - 2026-11-26
 

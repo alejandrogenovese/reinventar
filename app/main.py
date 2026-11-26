@@ -305,15 +305,15 @@ async def health():
     *resultados, chequeos = await asyncio.gather(
         _chequear("postgres", _EJECUTOR_POSTGRES, _probar_postgres),
         _chequear("disco", _EJECUTOR_DISCO, _probar_disco),
-        salud.chequeos(),
+        salud.chequeos_seguros(),
     )
     fallas = [f for f in resultados if f]
     # El código de estado depende SOLO de Postgres y disco: los chequeos (hilos, catálogo, cotización, gateway LiteLLM)
     # son para el monitoreo y no tumban deploys ni reinicios de Railway. "pipeline" queda también arriba por el monitor
     # de siempre; "todo_ok" junta todo para un monitor por palabra clave.
     cuerpo = {"ok": not fallas, "version": __version__, "stt": config.STT_PROVIDER, "llm": config.LLM_PROVIDER,
-              "pipeline": chequeos["pipeline"], "chequeos": chequeos,
-              "todo_ok": not fallas and all(chequeos.values())}
+              "pipeline": chequeos.get("pipeline", pipeline.vivo()), "chequeos": chequeos,
+              "todo_ok": not fallas and bool(chequeos) and all(chequeos.values())}
     if fallas:
         return JSONResponse({**cuerpo, "fallas": fallas}, status_code=503)
     return cuerpo

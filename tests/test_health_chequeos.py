@@ -136,6 +136,27 @@ def test_push_con_latido_reciente_esta_al_dia(monkeypatch):
     assert salud.push_al_dia(ahora=1000.0 + salud.PUSH_SIN_VUELTA_MAX_S) is False
 
 
+def test_push_late_al_empezar_la_vuelta_aunque_tarde(monkeypatch):
+    monkeypatch.setattr(push, "enabled", lambda: True)
+    monkeypatch.setattr(push, "_latido", None)
+    monkeypatch.setattr(push, "TICK_SECONDS", 0)
+    reloj = [1000.0]
+    monkeypatch.setattr(push.time, "monotonic", lambda: reloj[0])
+    vista_en_la_vuelta = []
+
+    def vuelta_larga():
+        vista_en_la_vuelta.append(push.latido())
+        raise SystemExit  # corta el while True del hilo después de una vuelta
+
+    monkeypatch.setattr(push, "tick", vuelta_larga)
+    with pytest.raises(SystemExit):
+        push._loop()
+
+    assert vista_en_la_vuelta == [1000.0]  # latió antes de empezar
+    assert salud.push_al_dia(ahora=1000.0 + 15 * 60) is True  # una vuelta de 15 min no es un hilo muerto
+    assert salud.PUSH_SIN_VUELTA_MAX_S == 20 * 60
+
+
 def test_push_prendido_sin_hilo_es_falla(monkeypatch):
     monkeypatch.setattr(push, "enabled", lambda: True)
     monkeypatch.setattr(push, "_latido", None)
@@ -256,22 +277,37 @@ def test_gateway_caido_tambien_queda_cacheado_y_se_reprueba_al_vencer(cliente, m
 
 
 def test_gateway_colgado_no_cuelga_el_health(cliente, monkeypatch):
-    monkeypatch.setattr(salud, "LLM_GATEWAY_TIMEOUT_S", 0.2)
-    _con_litellm(monkeypatch, lambda url, timeout=None: time.sleep(1) or httpx.Response(200))
+    monkeypatch.setattr(salud, "LLM_GATEWAY_TIMEOUT_S", 0.1)
+    soltar = threading.Event()
+    _con_litellm(monkeypatch, lambda url, timeout=None: soltar.wait(30) and httpx.Response(200))
 
     inicio = time.monotonic()
-    r = cliente.get("/health")
+    try:
+        r = cliente.get("/health")
+    finally:
+        soltar.set()  # libera el ejecutor del gateway para los demás tests
 
-    assert time.monotonic() - inicio < 0.9
+    assert time.monotonic() - inicio < 10  # colgado de verdad serían 30 s: con margen para una máquina lenta
     assert r.status_code == 200
     assert r.json()["chequeos"]["llm_gateway"] is False
 
 
-def test_health_con_cache_es_rapido(cliente, monkeypatch):
-    _con_litellm(monkeypatch, _Gateway())
+def test_health_con_cache_no_espera_al_gateway(cliente, monkeypatch):
+    gateway = _con_litellm(monkeypatch, _Gateway())
     cliente.get("/health")  # llena el caché
+    monkeypatch.setattr(healthcheck.httpx, "get", lambda *a, **k: pytest.fail("con caché no se llama al gateway"))
 
-    inicio = time.monotonic()
-    cliente.get("/health")
+    assert cliente.get("/health").json()["chequeos"]["llm_gateway"] is True
+    assert len(gateway.urls) == 1
 
-    assert time.monotonic() - inicio < 0.3
+
+def test_si_los_chequeos_explotan_da_200_con_todo_ok_false(cliente, monkeypatch):
+    monkeypatch.setattr(catalog, "cargadas", lambda: 1 / 0)
+
+    r = cliente.get("/health")
+
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    assert r.json()["chequeos"] == {}
+    assert r.json()["todo_ok"] is False
+    assert isinstance(r.json()["pipeline"], bool)
