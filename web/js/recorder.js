@@ -255,6 +255,7 @@ document.addEventListener("visibilitychange", () => {
 // Qué hacer con un pedazo según la respuesta del servidor.
 export const MSG_PEDAZO_GRANDE = "Pedazo demasiado grande (o la grabación llegó a su tope), no se pudo subir";
 export const MSG_PEDAZO_AJENO = "Esta grabación es de otra cuenta: no se puede subir con la tuya";
+export const DETALLE_OTRA_CUENTA = "otra_cuenta";  // el código que manda el servidor (app/main.py, OTRA_CUENTA)
 export const MSG_PEDAZO_RECHAZADO = "El servidor rechazó un pedazo, no se pudo subir";
 export function clasificarFalloDeSubida(status, detalle) {
   // La sesión no existe o ya cerró: ese pedazo no se va a aceptar nunca y no hay nada que mostrar.
@@ -263,9 +264,9 @@ export function clasificarFalloDeSubida(status, detalle) {
   // Queda en la cola marcado con error (y no frena a los demás) hasta que el usuario decida.
   if (status === 413) return { accion: "fallido", mensaje: MSG_PEDAZO_GRANDE };
   if (status === 422) return { accion: "fallido", mensaje: MSG_PEDAZO_RECHAZADO };
-  // La sesión es de otra cuenta (se cambió de usuario con pedazos pendientes). El 403 de la contraseña temporal no:
-  // ese se resuelve cambiándola y el pedazo se sube después.
-  if (status === 403 && detalle !== "must_change_password") return { accion: "fallido", mensaje: MSG_PEDAZO_AJENO };
+  // La sesión es de otra cuenta (se cambió de usuario con pedazos pendientes). Cualquier otro 403 (la contraseña
+  // temporal, un proxy) se reintenta: se resuelve solo y el pedazo se sube después.
+  if (status === 403 && detalle === DETALLE_OTRA_CUENTA) return { accion: "fallido", mensaje: MSG_PEDAZO_AJENO };
   return { accion: "reintentar" };
 }
 

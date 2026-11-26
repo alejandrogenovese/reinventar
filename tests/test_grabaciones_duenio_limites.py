@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import audio, config, db, limites, pipeline
-from app.main import GRABACION_DEMASIADO_GRANDE, GRABACIONES_DEL_DIA, SOLO_QUIEN_GRABA, YA_SE_PROCESA, app
+from app.main import GRABACION_DEMASIADO_GRANDE, GRABACIONES_DEL_DIA, OTRA_CUENTA, YA_SE_PROCESA, app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_USER, login_headers
 
 PASSWORD = "otrapass1234"
@@ -52,7 +52,7 @@ def test_subir_audio_solo_quien_grabo(cli, quien, esperado):
 
     assert r.status_code == esperado, r.text
     if esperado == 403:
-        assert r.json()["detail"] == SOLO_QUIEN_GRABA
+        assert r.json()["detail"] == OTRA_CUENTA
         assert db.chunk_index(sid) == {}
 
 
@@ -138,12 +138,41 @@ def test_cuota_diaria_de_grabaciones_nuevas(cli, monkeypatch):
 
 
 @pytest.mark.parametrize("status", sorted(db.PROCESSING))
-def test_reintentar_mientras_se_procesa_da_409(cli, status):
+def test_reintentar_mientras_el_worker_la_procesa_da_409(cli, monkeypatch, status):
     sid = _grabacion(cli, status=status)
+    monkeypatch.setitem(pipeline._en_el_worker, sid, 1)
 
     r = cli.post(f"/api/sessions/{sid}/retry", headers=cli.user)
 
     assert r.status_code == 409 and r.json()["detail"] == YA_SE_PROCESA
+
+
+@pytest.mark.parametrize("status", sorted(db.PROCESSING))
+def test_una_colgada_en_proceso_que_el_worker_no_tiene_se_puede_reintentar(cli, status):
+    sid = _grabacion(cli, status=status)
+
+    assert cli.post(f"/api/sessions/{sid}/retry", headers=cli.user).status_code == 200
+    assert db.get_session(sid)["status"] == "queued"
+
+
+def test_el_worker_anota_lo_encolado_y_lo_saca_al_terminar(monkeypatch):
+    cola = queue.Queue()
+    monkeypatch.setattr(pipeline, "_q", cola)
+    monkeypatch.setattr(pipeline, "_procesar", lambda *_: None)
+    monkeypatch.setattr(db, "update_session", lambda *_a, **_k: None)
+
+    pipeline.enqueue("abc123")
+    assert pipeline.en_el_worker("abc123")
+    threading.Thread(target=pipeline._loop, args=(cola,), name="pipeline-test", daemon=True).start()
+    cola.join()
+
+    assert not pipeline.en_el_worker("abc123")
+
+
+def test_todo_lo_que_se_deja_subir_entra_en_la_duracion_maxima():
+    segundos_por_pedazo = 10  # TIMESLICE_MS de web/js/recorder.js
+
+    assert config.MAX_GRABACION_PEDAZOS * segundos_por_pedazo <= config.MAX_GRABACION_SEGUNDOS
 
 
 def test_los_reintentos_tienen_tope(cli, monkeypatch):

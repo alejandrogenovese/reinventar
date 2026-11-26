@@ -252,7 +252,7 @@ def _hora_de_grabacion(recorded_at: AwareDatetime | None) -> float | None:
 MAX_PARTES = 1000
 MAX_PEDAZOS = 100_000
 MAX_PARTES_POR_GRABACION = 200
-SOLO_QUIEN_GRABA = "Solo quien grabó esta sesión puede subirle audio."
+OTRA_CUENTA = "otra_cuenta"  # código estable (como must_change_password): la PWA lo compara para marcar el pedazo
 GRABACION_DEMASIADO_GRANDE = "La grabación llegó al tope de audio que se puede subir: terminala y empezá otra."
 GRABACIONES_DEL_DIA = (f"Llegaste al tope de {limites.GRABACIONES_NUEVAS_POR_DIA} grabaciones nuevas en 24 horas. "
                        "Si necesitás más, avisale a un admin.")
@@ -359,7 +359,7 @@ async def put_chunk(sid: str, part: int, seq: int, request: Request, username: s
 def _exigir_que_grabo(s: dict, username: str) -> None:
     """Subir audio: solo quien grabó (ni un admin, ni nadie en las viejas sin created_by, que ya no se graban)."""
     if s.get("created_by") is None or s["created_by"] != username:
-        raise HTTPException(403, SOLO_QUIEN_GRABA)
+        raise HTTPException(403, OTRA_CUENTA)
 
 
 def _exigir_topes(s: dict, part: int, seq: int, nuevos: int) -> None:
@@ -408,7 +408,8 @@ def finish(sid: str, body: Finish, username: str = Depends(auth)):
 @app.post("/api/sessions/{sid}/retry")
 def retry(sid: str, from_scratch: bool = False, username: str = Depends(auth)):
     s = grabaciones_api.sesion_gestionable(sid, username)
-    if s["status"] in db.PROCESSING:
+    # 409 solo si el worker la tiene de verdad: una que quedó colgada en un estado de proceso se puede reintentar.
+    if s["status"] in db.PROCESSING and pipeline.en_el_worker(sid):
         raise HTTPException(409, YA_SE_PROCESA)
     limites.exigir_cupo(limites.reintentos_grabacion, username, "reintentos de grabaciones")
     if from_scratch:

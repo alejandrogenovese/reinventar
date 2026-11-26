@@ -9,7 +9,7 @@ globalThis.window = { addEventListener() {}, MediaRecorder: undefined };
 globalThis.document = { addEventListener() {}, visibilityState: "visible" };
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 
-const { InterruptionTracker, clasificarFalloDeSubida, MSG_PEDAZO_GRANDE, MSG_PEDAZO_AJENO } = await import("../../web/js/recorder.js");
+const { InterruptionTracker, clasificarFalloDeSubida, MSG_PEDAZO_GRANDE, MSG_PEDAZO_AJENO, DETALLE_OTRA_CUENTA } = await import("../../web/js/recorder.js");
 const { atFaltante } = await import("../../web/js/store.js");
 
 test("un 413 queda como fallido con el mensaje de pedazo grande y no se descarta", () => {
@@ -20,9 +20,12 @@ test("un 422 también queda fallido para no trabar la cola", () => {
   assert.equal(clasificarFalloDeSubida(422).accion, "fallido");
 });
 
-test("un 403 por grabación ajena queda fallido; el de la contraseña temporal se reintenta", () => {
-  assert.deepEqual(clasificarFalloDeSubida(403, "Solo quien grabó esta sesión puede subirle audio."), { accion: "fallido", mensaje: MSG_PEDAZO_AJENO });
-  assert.equal(clasificarFalloDeSubida(403, "must_change_password").accion, "reintentar");
+test("un 403 por grabación ajena queda fallido; cualquier otro 403 se reintenta", () => {
+  assert.equal(DETALLE_OTRA_CUENTA, "otra_cuenta");
+  assert.deepEqual(clasificarFalloDeSubida(403, "otra_cuenta"), { accion: "fallido", mensaje: MSG_PEDAZO_AJENO });
+  for (const detalle of ["must_change_password", "Forbidden", undefined]) {
+    assert.equal(clasificarFalloDeSubida(403, detalle).accion, "reintentar");
+  }
 });
 
 test("404 y 409 se descartan: la sesión ya no existe o cerró", () => {

@@ -8,6 +8,7 @@ import queue
 import re
 import threading
 import traceback
+from collections import Counter
 
 from . import (
     audio,
@@ -31,6 +32,10 @@ log = logging.getLogger("reinventar.pipeline")
 # las llamadas al STT y al LLM quedan a nombre de quien grabó (gasto por persona en el gateway).
 _q: "queue.Queue[tuple[str, sandbox.Sandbox | None, str | None]]" = queue.Queue()
 _started = False
+# Las sesiones que el worker tiene en la cola o procesando (con repeticiones: la misma puede estar encolada dos veces).
+# Una sesión en un estado de proceso que no está acá quedó colgada (el worker falló y no pudo marcar el error).
+_en_el_worker: Counter[str] = Counter()
+_en_el_worker_lock = threading.Lock()
 SIN_VOZ = ("No se escuchó voz en la grabación. Revisá que el medidor del micrófono se mueva mientras grabás "
            "(con auriculares, el micrófono no oye lo que suena en el mismo equipo) y volvé a grabar.")
 SIN_AUDIO = "La sesión no tiene audio"
@@ -48,9 +53,28 @@ def duracion_maxima_texto() -> str:
     return f"{config.MAX_GRABACION_SEGUNDOS // 3600} horas"
 
 
+def _encolar(trabajo: tuple) -> None:
+    with _en_el_worker_lock:
+        _en_el_worker[trabajo[0]] += 1
+    _q.put(trabajo)
+
+
+def _sacar(sid: str) -> None:
+    with _en_el_worker_lock:
+        _en_el_worker[sid] -= 1
+        if _en_el_worker[sid] <= 0:
+            del _en_el_worker[sid]
+
+
+def en_el_worker(sid: str) -> bool:
+    """Si la sesión está en la cola o procesándose ahora (para no encolarla dos veces al reintentar)."""
+    with _en_el_worker_lock:
+        return _en_el_worker[sid] > 0
+
+
 def enqueue(sid: str):
     db.update_session(sid, status="queued", error=None, progress=None)
-    _q.put((sid, sandbox.actual(), llm_router.usuario_actual()))
+    _encolar((sid, sandbox.actual(), llm_router.usuario_actual()))
 
 
 def _dueno(sid: str) -> str:
@@ -64,12 +88,12 @@ def reencolar_pendientes():
     reintento quedarían sin usuario)."""
     with sandbox.real():
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, None, _dueno(sid)))
+            _encolar((sid, None, _dueno(sid)))
     # Las de prueba que quedaron a medias se terminan con proveedores fake.
     prueba = sandbox.Sandbox(username="pipeline")
     with sandbox.activar(prueba):
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, prueba, _dueno(sid)))
+            _encolar((sid, prueba, _dueno(sid)))
 
 
 def start_worker():
@@ -95,6 +119,7 @@ def _loop(cola: "queue.Queue | None" = None):
         except Exception:  # el hilo no puede morir: si muere, todo lo que se grabe queda en «queued» para siempre
             log.exception("El pipeline no pudo terminar el trabajo %s", trabajo[0])
         finally:
+            _sacar(trabajo[0])
             cola.task_done()
 
 

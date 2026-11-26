@@ -77,7 +77,9 @@ MAX_CHUNK_BYTES = int(_env("MAX_CHUNK_BYTES", str(5 * 1024 * 1024)))
 # quiera llenar el disco o quemar STT con una sola grabación.
 MAX_GRABACION_BYTES = int(_env("MAX_GRABACION_BYTES", str(200 * 1024 * 1024)))
 MAX_GRABACION_PEDAZOS = int(_env("MAX_GRABACION_PEDAZOS", "2000"))  # ~5,5 h a 10 s por pedazo
-MAX_GRABACION_SEGUNDOS = int(_env("MAX_GRABACION_SEGUNDOS", str(4 * 3600)))  # se mide al armar el audio, antes del STT
+# Se mide al armar el audio, antes del STT. Va alineado con el tope de pedazos (2000 × 10 s < 6 h): todo lo que se
+# deja subir se puede procesar; solo queda afuera un cliente que mande pedazos más largos que los de la PWA.
+MAX_GRABACION_SEGUNDOS = int(_env("MAX_GRABACION_SEGUNDOS", str(6 * 3600)))
 TRANSLATE_BATCH = int(_env("TRANSLATE_BATCH", "60"))  # bloques por llamada (~15 min de charla)
 BLOCK_SECONDS = float(_env("BLOCK_SECONDS", "15"))  # largo objetivo de cada bloque de lectura (estilo subtítulos)
 
