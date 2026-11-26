@@ -22,7 +22,7 @@ export const FUENTES = Object.freeze({
 /** Livestream oficial de las keynotes (gratis, con registro). Lo usa también la tarjeta de anuncios (anuncios.js). */
 export const LIVESTREAM_URL = "https://aws.amazon.com/events/reinvent/livestream/";
 /** Lo que dice el FAQ sobre traducción en las keynotes (no aclara cómo se accede). */
-export const TRADUCCION_KEYNOTES = "Traducción simultánea al español (latinoamericano), sin pedirla antes";
+export const TRADUCCION_KEYNOTES = "Traducción al español (latinoamericano), sin pedirla antes";
 
 /**
  * Secciones de la ficha: { id, titulo, items, nota?, fuentes }. Cada item es { cuando?, texto }: `cuando` es el día

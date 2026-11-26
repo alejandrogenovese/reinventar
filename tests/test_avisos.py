@@ -77,6 +77,20 @@ def test_el_aviso_de_salir_de_una_reservada_dice_hasta_cuando_entrar():
     assert msg["body"].startswith("Empieza a las 10:00. Con reserva: entrá antes de las 09:50 o se libera")
 
 
+def test_si_el_aviso_sale_tarde_no_promete_un_limite_que_ya_paso():
+    cards = [_card("B", "10:00", "11:00", reservada=True)]
+
+    _, msg = push.day_notices(cards, _ahora("09:52"))[0]                    # el límite era 09:50
+
+    assert "entrá antes de las 09:50" not in msg["body"]
+    assert msg["body"].startswith("Empieza a las 10:00. Con reserva: apurate, ya pasó el límite de la reserva")
+
+
+def test_las_horas_dan_la_vuelta_al_dia_cerca_de_medianoche():
+    assert leave.entrar_antes(_card("B", "00:05", "01:00", reservada=True)) == "23:55"
+    assert leave.arrive_by(_card("A", "00:05", "01:00")) == "23:35"
+
+
 def test_el_aviso_de_salir_sin_reserva_no_habla_de_la_reserva():
     _, msg = push.day_notices([_card("B", "10:00", "11:00")], _ahora("09:15"))[0]
     assert "Con reserva" not in msg["body"]

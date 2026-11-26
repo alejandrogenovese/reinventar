@@ -48,7 +48,7 @@ const addToItinerary = (code) => async () => {
   } catch (e) { toast(mensajeError(e)); return false; }
 };
 
-/** Keynote: overflow, livestream oficial y traducción simultánea al español (FAQ de re:Invent, ver diaPorDia.js). */
+/** Keynote: overflow, livestream oficial y traducción al español (FAQ de re:Invent, ver diaPorDia.js). */
 export const KeynoteExtras = () => h("div", { class: "stack ra-ann-extras" },
   h("div", { class: "ra-card-meta" }, IconText("pantalla", "También en overflow y por"),
     h("a", { class: "ra-link", href: LIVESTREAM_URL, target: "_blank", rel: "noopener noreferrer" }, "livestream", icon("externo", 16))),

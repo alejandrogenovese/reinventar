@@ -254,5 +254,5 @@ def test_los_sugeridos_incluyen_enchufe_foto_aduana_tarjeta_y_swag():
     assert "tipo A" in textos["enchufe"]
     assert "portal de registro" in textos["foto_reinvent"]
     assert "OM-121" in textos["om121"]
-    assert "dólares propios" in textos["tarjeta_dolares"]
+    assert "dólares propios" in textos["tarjeta_dolares"] and "confirmalo con tu banco" in textos["tarjeta_dolares"]
     assert "swag" in textos["swag"]
