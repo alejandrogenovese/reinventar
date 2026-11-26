@@ -10,7 +10,7 @@ import { ShowFunctionCard } from "./shows.js";
 import { CharlasNuevasAviso } from "./charlasNuevas.js";
 import { icon } from "./icons.js";
 import { EtiquetaYoutube } from "./avisoYoutube.js";
-import { AvisoBaja, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
+import { AvisoBaja, EtiquetaEstado, LlenoAvisos, avisosDe, codigosDeCharlas } from "./lleno.js";
 import { Button, Hint, IconText, Tag, h, mensajeError, toast, toastOnError, withUndo } from "./ui.js";
 
 const INTEREST_TOPICS_LIMIT = 14;
@@ -139,6 +139,7 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, ex
       h("span", { class: "ra-rail-time" }, s.start || "—"),
       h("span", { class: "ra-rail-day" }, shortDay(s.day))),
     h("div", { class: "ra-minicard-body" },
+      EtiquetaEstado(s),
       h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
       h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
       h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),

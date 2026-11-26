@@ -56,7 +56,7 @@ SELECT s.id_speech AS base, s.titulo AS title, s.tipo AS type, coalesce(s.nivel:
        array_to_string(s.tecnologias, ';') AS tech, array_to_string(s.conceptos, ';') AS concepts,
        array_to_string(s.conceptos_en, ';') AS concepts_en, array_to_string(s.enfoque, ';') AS focus,
        coalesce(s.area_interes, '') AS aoi, s.formato AS features, s.es_lanzamiento AS newlaunch,
-       s.es_sponsoreada AS sponsored,
+       s.es_sponsoreada AS sponsored /*ALTA*/,
        s.speakers_original AS speakers, s.resumen AS abstract, s.resumen_es AS abstract_es,
        coalesce(i.instances, '[]'::jsonb) AS instances, coalesce(p.people, '[]'::jsonb) AS people
 FROM reinvent.speech s
@@ -66,17 +66,24 @@ ORDER BY i.first_at NULLS LAST, s.id_speech
 """
 
 
-# Charlas que se bajan (migración 008, app/charlas_auto.py): sin esas columnas (base sin migrar) la app sigue igual.
+# Charlas que se bajan o que se sumaron (migración 008, app/charlas_auto.py): sin esas columnas (base sin migrar) la
+# app sigue igual, sin avisos de baja ni etiqueta «Nueva».
 _BAJAS = ", 'falta', h.falta_desde, 'cancelada', h.cancelado_desde IS NOT NULL"
+_ALTA = ", s.alta AS alta"
+DIAS_NUEVA = 7  # «Nueva» en la tarjeta: los mismos días que la lista de charlas nuevas (app/charlas_nuevas.DIAS_VISIBLES)
 
 
 def _filas(c) -> list:
-    try:
-        with c.transaction():  # savepoint: si falla, lo anterior (sectors.ensure) sigue en pie
-            return c.execute(pg.catalogo(_LOAD_SQL.replace("/*BAJAS*/", _BAJAS))).fetchall()
-    except psycopg.errors.UndefinedColumn:
-        log.warning("reinvent.speech_horario sin las columnas de bajas (falta la migración 008)")
-        return c.execute(pg.catalogo(_LOAD_SQL)).fetchall()
+    consultas = (_LOAD_SQL.replace("/*BAJAS*/", _BAJAS).replace("/*ALTA*/", _ALTA),
+                 _LOAD_SQL.replace("/*BAJAS*/", _BAJAS))
+    for sql in consultas:
+        try:
+            with c.transaction():  # savepoint: si falla, lo anterior (sectors.ensure) sigue en pie
+                return c.execute(pg.catalogo(sql)).fetchall()
+        except psycopg.errors.UndefinedColumn:
+            continue
+    log.warning("reinvent.speech_horario sin las columnas de bajas y altas (falta la migración 008)")
+    return c.execute(pg.catalogo(_LOAD_SQL)).fetchall()
 
 
 class CatalogUnavailable(Exception):
@@ -180,7 +187,22 @@ def card(session: dict, instance: dict) -> dict:
         "venue": venues.resolve(instance.get("v", "")),
         "cancelled": bool(instance.get("cancelada")),
         "missing_since": None if instance.get("cancelada") else _hora_vegas(instance.get("falta")),
+        "added": agregada(session.get("alta")),
     }
+
+
+def agregada(alta, ahora: dt.datetime | None = None) -> str | None:
+    """Día (de Las Vegas, '2026-11-24') en que la revisión del catálogo oficial sumó la charla, si fue en los últimos
+    DIAS_NUEVA días; si no, o si vino en la carga manual (sin alta), None. Se compara con el reloj real, como
+    app/charlas_nuevas.py."""
+    if not alta:
+        return None
+    if isinstance(alta, str):
+        alta = dt.datetime.fromisoformat(alta)
+    ahora = ahora or dt.datetime.now(dt.UTC)
+    if ahora - alta > dt.timedelta(days=DIAS_NUEVA):
+        return None
+    return alta.astimezone(sandbox.EVENT_TZ).date().isoformat()
 
 
 def _hora_vegas(cuando: str | None) -> str | None:
