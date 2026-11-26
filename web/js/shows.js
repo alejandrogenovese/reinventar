@@ -189,7 +189,7 @@ export async function viewShow(view, id, query = "") {
         row("Cuándo", `${dayLabel(f.day)} · ${f.start}–${f.end}`),
         row("Dónde", [f.venue.hotel, f.venue.address].filter(Boolean).join(" · ")),
         f.near ? row("Cerca de", `${f.near.name} (${Math.round(f.near.meters / 100) / 10} km)`.replace(".", ",")) : null,
-        GoThere(destination(f), { start: startsAt(f.day, f.start), eta: true })),
+        GoThere(destination(f), { start: startsAt(f.day, f.start), eta: true, aca: true })),
       section("Entradas",
         row("Desde", f.price_from != null ? `US$ ${money(f.price_from)}` : null),
         row("Estado", STATUS[f.status]?.label || STATUS.onsale.label),

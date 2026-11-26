@@ -62,8 +62,9 @@ def _cercanas(ahora="14:05"):
 
 # --- lógica ------------------------------------------------------------------
 def test_sugiere_solo_charlas_de_hoy_por_empezar_y_a_pocos_minutos(maestro):
-    bases = [a["base"] for a in _cercanas()]
-    assert bases == ["ENCURSO", "MISMA", "CERCA"]  # la que ya empezó primero, después por hora de inicio
+    cercanas = _cercanas()
+    assert [a["base"] for a in cercanas] == ["ENCURSO", "MISMA", "CERCA"]  # la que ya empezó primero, después por hora
+    assert {a["day"] for a in cercanas} == {MARTES}   # con su día: el shuttle se decide con el de hoy
 
 
 def test_cada_sugerencia_dice_cuanto_se_camina_y_si_ya_empezo(maestro):

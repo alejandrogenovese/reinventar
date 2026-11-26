@@ -5,7 +5,7 @@ import datetime as dt
 import pytest
 from fastapi.testclient import TestClient
 
-from app import changes, db, itinerary, places, push, sandbox, venues
+from app import changes, db, itinerary, limites, places, push, sandbox, venues
 from app.main import app
 from tests.conftest import TEST_ADMIN, TEST_ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER, login_headers
 
@@ -175,3 +175,28 @@ def test_el_itinerario_se_descarga_como_calendario(client, headers):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/calendar")
     assert "attachment" in r.headers["content-disposition"]
     assert "SUMMARY:Cena Datadog" in r.text and "Llevar tarjetas" in r.text
+
+
+# ---------- cupos de Google Places ----------
+
+def test_un_lugar_de_google_nuevo_gasta_cupo_y_sin_cupo_corta_con_429(client, headers, monkeypatch):
+    monkeypatch.setattr(limites.lugares, "maximo", 1)
+    ev = _alta(client, headers, id_sede=None, place_id="ChIJtopgolf123").json()
+
+    r = _alta(client, headers, id_sede=None, place_id="ChIJotro456")
+    assert r.status_code == 429 and "Esperá" in r.json()["detail"]
+    assert client.llamadas_places == ["ChIJtopgolf123"]   # el segundo no llegó a Google
+    # Editar sin cambiar de lugar no consulta a Google, así que no gasta cupo; una sede tampoco.
+    cuerpo = {"nombre": "Topgolf (VIP)", "dia": DIA, "inicio": "20:00", "id_sede": None, "place_id": "ChIJtopgolf123"}
+    assert client.put(f"/api/my-events/{ev['id']}", headers=headers, json=cuerpo).status_code == 200
+    assert _alta(client, headers).status_code == 200
+    r = client.put(f"/api/my-events/{ev['id']}", headers=headers, json={**cuerpo, "place_id": "ChIJotro456"})
+    assert r.status_code == 429
+
+
+def test_el_autocompletar_de_lugares_tiene_cupo_por_usuario(client, headers, monkeypatch):
+    monkeypatch.setattr(limites.autocompletar, "maximo", 2)
+    pedir = lambda: client.get("/api/places/autocomplete", headers=headers, params={"q": "topgolf"}).status_code  # noqa: E731
+    assert [pedir(), pedir(), pedir()] == [200, 200, 429]
+    otro = login_headers(client, TEST_USER, TEST_PASSWORD)
+    assert client.get("/api/places/autocomplete", headers=otro, params={"q": "topgolf"}).status_code == 200

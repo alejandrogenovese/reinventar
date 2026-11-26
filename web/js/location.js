@@ -4,6 +4,7 @@
 import { MyEvents, Ubicacion } from "./api.js";
 import { abrirLlevame, sePuedeEmbeber } from "./llevame.js";
 import { loadGoogleMaps } from "./map.js";
+import { PedirAuto } from "./rideshare.js";
 import { sandboxLocation, sandboxNow } from "./sandbox.js";
 import { icon } from "./icons.js";
 import { h } from "./ui.js";
@@ -28,6 +29,7 @@ export const alertSettings = () => {
 export const saveAlertSettings = (s) => { try { localStorage.setItem(ALERTS, JSON.stringify({ ...alertSettings(), ...s })); } catch {} };
 
 let lastPosition = null;                 // { lat, lng, at }
+let pendingPosition = null;              // el pedido al GPS en vuelo: lo comparten todas las tarjetas
 let denied = false;
 const etaCache = new Map();
 
@@ -40,6 +42,12 @@ export async function currentPosition() {
   if (simulated?.lat != null) return { lat: simulated.lat, lng: simulated.lng, simulated: true };
   if (!locationEnabled() || denied || !navigator.geolocation) return null;
   if (lastPosition && Date.now() - lastPosition.at < POSITION_MAX_AGE_MS) return lastPosition;
+  // Una lista con 30 tarjetas pide la ubicación 30 veces a la vez: todas esperan el mismo pedido al GPS.
+  pendingPosition = pendingPosition || pedirPosicion().finally(() => { pendingPosition = null; });
+  return pendingPosition;
+}
+
+function pedirPosicion() {
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (p) => { lastPosition = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() }; resolve(lastPosition); },
@@ -110,14 +118,17 @@ export const startsAt = (day, hhmm) => new Date(`${day}T${hhmm}:00-08:00`);
 const hhmm = (date) => date.toLocaleTimeString("es-AR", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /**
- * "(ubicación) a 1,4 km · 18 min caminando · salí 13:40  [Llevame]". Se completa sola cuando hay ubicación.
+ * "(ubicación) a 1,4 km · 18 min caminando · salí 13:40  [Llevame] [Uber] [Lyft]". Se completa sola cuando hay ubicación.
  * dest: { lat, lng, name, placeId?, approx? }; opts.start: Date del inicio (para "salí a las"); opts.eta: pedir tiempo a pie.
  * approx = la fuente solo da una zona (Luma muestra la dirección al anotarte): no se muestran distancia ni horarios.
  */
 export function GoThere(dest, opts = {}) {
   const parts = GoThereParts(dest, opts);
   if (!parts) return null;
-  return h("div", { class: "ra-go" }, parts.info, parts.link);
+  // «Uber» y «Lyft» al lado de «Llevame» (web/js/rideshare.js); opts.aca: en las fichas, la zona de la sede donde estás.
+  const auto = parts.link ? PedirAuto(dest, { aca: Boolean(opts.aca) }) : null;
+  if (!auto) return h("div", { class: "ra-go" }, parts.info, parts.link);
+  return h("div", { class: "ra-go" }, parts.info, h("div", { class: "ra-go-acts" }, parts.link, auto.botones), auto.zonas);
 }
 
 /**

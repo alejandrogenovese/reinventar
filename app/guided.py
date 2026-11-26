@@ -225,7 +225,8 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
     return {"card": card, "estado": t.estado, "llegada": t.llegada, "salir_a": t.salir_a,
             "salir_antes_min": t.salir_antes_min, "viaje_min": v.minutos if v else None,
             "viaje_estimado": v.estimado if v else None, "misma_sede": misma_sede,
-            "ruta": rutas.atajo_fijo(desde, hasta, v.minutos) if v and not misma_sede else None,
+            "ruta": (rutas.atajo_fijo(desde, hasta, v.minutos, rutas.momento(card.get("day"), card["start"]))
+                     if v and not misma_sede else None),
             "afinidad": round(af, 2),
             "puntaje": round(puntaje, 2), "motivos": motivos, "pendiente": ctx.pendientes.get(session["base"]),
             "razon": None}

@@ -1,5 +1,6 @@
 // Ofertas de la semana: la lista de vigentes con filtro por categoría (#/ofertas), la ficha de una (#/ofertas/<id>, a donde
 // abre el push) y los interruptores de Ajustes para recibir alertas. Ver app/ofertas.py y app/ofertas_avisos.py.
+// Abajo, «Excursiones con descuento»: ofertas de Viator consultadas en vivo (/api/ofertas/en-vivo, ver app/viator.py).
 import { api } from "./api.js";
 import { Hint, h, mensajeError, toast } from "./ui.js";
 
@@ -12,7 +13,15 @@ export const Ofertas = {
   get: (id) => api(`/api/ofertas/${encodeURIComponent(id)}`),
   prefs: () => api("/api/ofertas/preferencias"),
   savePrefs: (prefs) => api("/api/ofertas/preferencias", { method: "PUT", json: prefs }),
+  enVivo: () => api("/api/ofertas/en-vivo"),
 };
+
+export const AVISO_VIATOR = "El precio lo fija Viator y puede cambiar: confirmalo antes de reservar.";
+// Las excursiones de Viator no tienen categoría propia: salen en «Todas» y en «Otros».
+const CATEGORIAS_CON_VIATOR = new Set([TODAS, "otros"]);
+
+/** Las ofertas de Viator que se ven con este filtro (ninguna si el filtro es de shows, comida o compras). */
+export const ofertasViatorVisibles = (vivas, categoria) => (CATEGORIAS_CON_VIATOR.has(categoria) && Array.isArray(vivas) ? vivas : []);
 
 const cuando = (iso) => (iso ? new Date(iso).toLocaleString("es-AR", { timeZone: TZ, weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }).replaceAll(".", "") : "");
 const usd = (n) => `US$ ${Number.isInteger(n) ? n : n.toFixed(2)}`;
@@ -72,6 +81,23 @@ function Tarjeta(o, nombres) {
       link ? h("div", { class: "actions" }, h("a", { class: "ra-link", href: link, target: "_blank", rel: "noopener noreferrer" }, "Ver la oferta")) : null));
 }
 
+/** Una excursión de Viator con descuento: el link es el de afiliado que arma el servidor (solo https). */
+export function TarjetaViator(o) {
+  const link = linkSeguro(o.url);
+  return h("article", { class: "ra-event", id: `oferta-viator-${o.codigo}` },
+    h("div", { class: "ra-event-body" },
+      h("span", { class: "ra-kind" }, "EXCURSIÓN · VIATOR"),
+      h("h3", { class: "ra-card-title" }, o.titulo),
+      Precio(o),
+      h("p", { class: "caption" }, AVISO_VIATOR),
+      link ? h("div", { class: "actions" }, h("a", { class: "ra-link", href: link, target: "_blank", rel: "noopener noreferrer" }, "Ver en Viator")) : null));
+}
+
+function SeccionViator(vivas) {
+  if (!vivas.length) return null;
+  return h("section", { class: "stack" }, h("h2", { class: "label" }, "Excursiones con descuento"), ...vivas.map(TarjetaViator));
+}
+
 function Filtros(nombres, actual, onPick) {
   return h("div", { class: "ra-segtabs", role: "group", "aria-label": "Categoría" },
     [[TODAS, "Todas"], ...Object.entries(nombres)].map(([valor, nombre]) => h("button", { type: "button", class: "ra-segtab",
@@ -86,7 +112,10 @@ export async function viewOfertas(view, id = null) {
   const lista = h("div", { class: "stack" });
   const filtros = h("div");
   const admin = h("div", { class: "actions" });
+  const viator = h("div");
   let pedido = 0;
+  let ultima = null; // la última respuesta de la lista, para repintar cuando llegan las de Viator
+  let vivas = [];
   // Los botones se repintan en el lugar (sin rehacerlos), así el foco no se pierde al elegir un filtro.
   const marcar = () => { for (const b of filtros.querySelectorAll("button[data-valor]")) b.setAttribute("aria-pressed", String(b.dataset.valor === categoria)); };
   async function pintar() {
@@ -97,17 +126,29 @@ export async function viewOfertas(view, id = null) {
       return;
     }
     if (mio !== pedido) return; // llegó una respuesta más nueva: esta ya no vale
+    ultima = d;
+    mostrar(d);
+  }
+  function mostrar(d) {
     const nombres = d.categorias || CATEGORIAS_FALLBACK;
     if (!filtros.firstChild) filtros.replaceChildren(Filtros(nombres, categoria, (c) => { categoria = c; marcar(); void pintar(); }));
     marcar();
-    const vacio = !d.ofertas.length;
+    const visibles = ofertasViatorVisibles(vivas, categoria);
+    viator.replaceChildren(...[SeccionViator(visibles)].filter(Boolean));
+    // Con excursiones en oferta la pantalla no está vacía: no se muestra el estado vacío.
+    const vacio = !d.ofertas.length && !visibles.length;
     const vacioConAdmin = vacio && categoria === TODAS; // el estado vacío ya trae «Cargar una oferta»: no se repite abajo
     admin.replaceChildren(...(d.es_admin && !vacioConAdmin ? [h("a", { class: "ra-btn", href: "#/admin/ofertas" }, "Cargar ofertas")] : []));
     lista.replaceChildren(...(vacio ? [Vacio(estadoVacio({ categoria, esAdmin: d.es_admin }))] : d.ofertas.map((o) => Tarjeta(o, nombres))));
   }
   view.append(h("div", { class: "stack-lg" }, h("h1", { class: "title" }, "Ofertas"),
-    h("p", { class: "caption" }, "Bajas de precio de shows y ofertas de comida y compras en Las Vegas. Podés recibir avisos desde Ajustes."),
-    filtros, lista, admin));
+    h("p", { class: "caption" }, "Bajas de precio de shows, excursiones con descuento y ofertas de comida y compras en Las Vegas. Podés recibir avisos desde Ajustes."),
+    filtros, lista, viator, admin));
+  // Viator va aparte y sin apuro: si tarda o falla, la lista de siempre ya está pintada.
+  void Ofertas.enVivo().then((r) => {
+    vivas = Array.isArray(r?.ofertas) ? r.ofertas : [];
+    if (vivas.length && ultima) mostrar(ultima);
+  }).catch(() => {});
   await pintar();
 }
 

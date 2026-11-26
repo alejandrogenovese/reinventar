@@ -8,6 +8,7 @@ import queue
 import re
 import threading
 import traceback
+from collections import Counter
 
 from . import (
     audio,
@@ -31,14 +32,49 @@ log = logging.getLogger("reinventar.pipeline")
 # las llamadas al STT y al LLM quedan a nombre de quien grabó (gasto por persona en el gateway).
 _q: "queue.Queue[tuple[str, sandbox.Sandbox | None, str | None]]" = queue.Queue()
 _started = False
+# Las sesiones que el worker tiene en la cola o procesando (con repeticiones: la misma puede estar encolada dos veces).
+# Una sesión en un estado de proceso que no está acá quedó colgada (el worker falló y no pudo marcar el error).
+_en_el_worker: Counter[str] = Counter()
+_en_el_worker_lock = threading.Lock()
 SIN_VOZ = ("No se escuchó voz en la grabación. Revisá que el medidor del micrófono se mueva mientras grabás "
            "(con auriculares, el micrófono no oye lo que suena en el mismo equipo) y volvé a grabar.")
+SIN_AUDIO = "La sesión no tiene audio"
+# Lo que ve cualquiera cuando falla algo interno (ffmpeg, el STT, el LLM, la base): el detalle crudo va al log.
+ERROR_GENERICO = ("No se pudo procesar la grabación. Probá «Reintentar» en un rato; si vuelve a fallar, "
+                  "avisale a un admin.")
 SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
+
+
+class ErrorParaMostrar(RuntimeError):
+    """Un error con un mensaje pensado para quien graba (sin voz, sin audio, demasiado larga): se muestra tal cual."""
+
+
+def duracion_maxima_texto() -> str:
+    return f"{config.MAX_GRABACION_SEGUNDOS // 3600} horas"
+
+
+def _encolar(trabajo: tuple) -> None:
+    with _en_el_worker_lock:
+        _en_el_worker[trabajo[0]] += 1
+    _q.put(trabajo)
+
+
+def _sacar(sid: str) -> None:
+    with _en_el_worker_lock:
+        _en_el_worker[sid] -= 1
+        if _en_el_worker[sid] <= 0:
+            del _en_el_worker[sid]
+
+
+def en_el_worker(sid: str) -> bool:
+    """Si la sesión está en la cola o procesándose ahora (para no encolarla dos veces al reintentar)."""
+    with _en_el_worker_lock:
+        return _en_el_worker[sid] > 0
 
 
 def enqueue(sid: str):
     db.update_session(sid, status="queued", error=None, progress=None)
-    _q.put((sid, sandbox.actual(), llm_router.usuario_actual()))
+    _encolar((sid, sandbox.actual(), llm_router.usuario_actual()))
 
 
 def _dueno(sid: str) -> str:
@@ -52,12 +88,12 @@ def reencolar_pendientes():
     reintento quedarían sin usuario)."""
     with sandbox.real():
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, None, _dueno(sid)))
+            _encolar((sid, None, _dueno(sid)))
     # Las de prueba que quedaron a medias se terminan con proveedores fake.
     prueba = sandbox.Sandbox(username="pipeline")
     with sandbox.activar(prueba):
         for sid in db.sessions_in(db.PROCESSING):
-            _q.put((sid, prueba, _dueno(sid)))
+            _encolar((sid, prueba, _dueno(sid)))
 
 
 def start_worker():
@@ -74,13 +110,23 @@ def vivo() -> bool:
     return any(t.name == "pipeline" and t.is_alive() for t in threading.enumerate())
 
 
-def _loop():
+def _loop(cola: "queue.Queue | None" = None):
+    cola = cola or _q
     while True:
-        trabajo = _q.get()
+        trabajo = cola.get()
         try:
             _procesar(*trabajo)
+        except Exception:  # el hilo no puede morir: si muere, todo lo que se grabe queda en «queued» para siempre
+            log.exception("El pipeline no pudo terminar el trabajo %s", trabajo[0])
         finally:
-            _q.task_done()
+            _sacar(trabajo[0])
+            cola.task_done()
+
+
+def mensaje_de_error(e: Exception) -> str:
+    """Lo que se guarda en sessions.error (lo ve cualquiera con sesión): el texto de los errores pensados para mostrar,
+    o uno genérico para el resto (salida de ffmpeg, respuestas del STT o del LLM, rutas del disco)."""
+    return str(e)[:1000] if isinstance(e, ErrorParaMostrar) else ERROR_GENERICO
 
 
 def _procesar(sid: str, contexto: "sandbox.Sandbox | None", usuario: str | None):
@@ -89,7 +135,10 @@ def _procesar(sid: str, contexto: "sandbox.Sandbox | None", usuario: str | None)
             process(sid)
         except Exception as e:  # noqa: BLE001
             log.error("sesión %s falló: %s", sid, traceback.format_exc())
-            db.update_session(sid, status="error", error=str(e)[:1000], progress=None)
+            try:
+                db.update_session(sid, status="error", error=mensaje_de_error(e), progress=None)
+            except Exception:  # una base caída (PoolTimeout) no tiene que matar al worker; al reiniciar se re-encola
+                log.exception("sesión %s: no se pudo marcar el error en la base", sid)
 
 
 def hms(t: float) -> str:
@@ -137,9 +186,12 @@ def _etapas(sid: str, s: dict):
         db.update_session(sid, status="transcribing", progress="Uniendo audio")
         parts = db.chunk_index(sid)
         if not parts:
-            raise RuntimeError("La sesión no tiene audio")
+            raise ErrorParaMostrar(SIN_AUDIO)
         full = audio.assemble(sid, parts)
-        db.update_session(sid, duration_s=audio.duration(full))
+        duracion = audio.duration(full)
+        if duracion > config.MAX_GRABACION_SEGUNDOS:  # antes del STT, que es lo caro
+            raise ErrorParaMostrar(f"La grabación dura más de {duracion_maxima_texto()}: es demasiado larga para procesarla.")
+        db.update_session(sid, duration_s=duracion)
         pieces = audio.split(full, config.STT_SEGMENT_SECONDS)
         segs = []
         for n, (offset, path) in enumerate(pieces, 1):
@@ -147,7 +199,7 @@ def _etapas(sid: str, s: dict):
             segs += stt.transcribe(path, offset)
             path.unlink(missing_ok=True)
         if not segs:
-            raise RuntimeError(SIN_VOZ)
+            raise ErrorParaMostrar(SIN_VOZ)
         db.replace_blocks(sid, group_blocks(segs, config.BLOCK_SECONDS))
         blocks = db.get_blocks(sid)
 
@@ -177,6 +229,7 @@ def _etapas(sid: str, s: dict):
     # 5. Fragmentos para buscar en lo grabado, antes de marcarla lista (si falla, la grabación igual queda lista).
     fragmentos.indexar_sin_fallar(sid)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
+    audio.limpiar_trabajo(sid)  # full.ogg ya no hace falta; los pedazos (chunks/) quedan para «Reintentar desde cero»
 
 
 def _textos(valor) -> list[str]:

@@ -57,6 +57,13 @@ class Limite:
             eventos.append(ahora)
             return True
 
+    def devolver(self, clave: str) -> None:
+        """Deshace un consumir(): el uso reservado no contó (por ejemplo, la contraseña era correcta)."""
+        with self._lock:
+            eventos = self._eventos.get(clave)
+            if eventos:
+                eventos.pop()
+
     def limpiar(self, clave: str) -> None:
         with self._lock:
             self._eventos.pop(clave, None)
@@ -83,6 +90,11 @@ ITINERARIOS_POR_USUARIO = 10       # /api/itinerary/generate: cada uno es una ll
 ADMIN_LINKS_POR_USUARIO = 30       # vista previa y guardado de eventos por link (admin)
 FOTOS_CONVERSOR_POR_USUARIO = 30   # /api/conversor/foto: una llamada con imagen al LLM por foto
 
+# Endpoints que consultan APIs pagas de Google o el LLM sin ser búsquedas: topes para uso humano, no para scripts.
+GUIADO_POR_USUARIO = 60            # /api/itinerary/guided/next: razones del LLM por cada paso del armado guiado
+AUTOCOMPLETAR_POR_USUARIO = 200    # /api/places/autocomplete: una consulta cada pocas letras tipeadas
+LUGARES_POR_USUARIO = 40           # Mis eventos con un lugar de Google nuevo: un Place Details por alta o edición
+
 busquedas_nl = Limite(BUSQUEDAS_NL_POR_USUARIO, VENTANA_CORTA)
 preguntas = Limite(PREGUNTAS_POR_USUARIO, VENTANA_CORTA)
 briefings = Limite(FICHAS_POR_USUARIO, VENTANA_LARGA)
@@ -90,6 +102,18 @@ entrevista = Limite(ENTREVISTA_POR_USUARIO, VENTANA_LARGA)
 itinerarios = Limite(ITINERARIOS_POR_USUARIO, VENTANA_LARGA)
 admin_links = Limite(ADMIN_LINKS_POR_USUARIO, VENTANA_LARGA)
 fotos_conversor = Limite(FOTOS_CONVERSOR_POR_USUARIO, VENTANA_LARGA)
+guiado = Limite(GUIADO_POR_USUARIO, VENTANA_CORTA)
+autocompletar = Limite(AUTOCOMPLETAR_POR_USUARIO, VENTANA_CORTA)
+lugares = Limite(LUGARES_POR_USUARIO, VENTANA_LARGA)
+
+# Grabaciones (app/main.py). Cuota diaria de grabaciones nuevas: un día de re:Invent son 6-8 charlas y alguna que se
+# corta y se vuelve a empezar; 40 sobra. Los reintentos rehacen STT y LLM de una grabación entera: 15 por hora.
+VENTANA_DIA = 24 * 60 * 60
+GRABACIONES_NUEVAS_POR_DIA = 40
+REINTENTOS_GRABACION_POR_USUARIO = 15
+
+grabaciones_nuevas = Limite(GRABACIONES_NUEVAS_POR_DIA, VENTANA_DIA)
+reintentos_grabacion = Limite(REINTENTOS_GRABACION_POR_USUARIO, VENTANA_LARGA)
 
 # Páginas públicas del resumen de una grabación (/c/<token>), por IP: alcanza para que un grupo abra el link desde la misma
 # red del evento y frena a quien pruebe tokens al azar (igual no puede fabricar uno sin la clave).
@@ -139,7 +163,8 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
          admin_links, links_grabacion, fotos_conversor, mails_verificacion, mails_destino, olvide_ip, olvide_cuenta,
-         restablecer_ip, codigos_recuperacion)
+         restablecer_ip, codigos_recuperacion, grabaciones_nuevas, reintentos_grabacion, guiado, autocompletar,
+         lugares)
 
 
 def reiniciar_todo() -> None:

@@ -6,6 +6,7 @@ import { ProgresoPendientes } from "./pendientes.js";
 import { h } from "./ui.js";
 
 export const SECCIONES = [
+  { href: "#/viaje/reinvent", icono: () => icon("eventos", 20), titulo: "re:Invent día por día", bajada: "Badge, keynotes, shuttles, Expo, re:Play y tips de Las Vegas, sin señal" },
   { href: "#/viajes/pendientes", icono: () => icon("listo", 20), titulo: "Pendientes del viaje", bajada: "ESTA, seguro, eSIM y lo que falte antes de salir" },
   { href: "#/comer", icono: () => icon("ubicacion", 20), titulo: "Dónde comer barato", bajada: "Cerca de tu próxima charla, con precio y reseñas" },
   { href: "#/actividades", icono: () => icon("explorar", 20), titulo: "Actividades", bajada: "Excursiones de Viator y atracciones cerca tuyo" },

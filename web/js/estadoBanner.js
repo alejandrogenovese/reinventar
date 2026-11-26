@@ -374,7 +374,12 @@ export function iniciarEstado() {
   });
   // Con «Salí ya» solo quedan las prioridades 1 a 3: se repinta cuando el countdown cambia de tono o se oculta.
   const cd = document.getElementById("countdown-banner");
-  if (cd && "MutationObserver" in window) new MutationObserver(paint).observe(cd, { attributes: true, attributeFilter: ["class", "hidden"] });
+  // Solo si de verdad cambió (asignar el mismo valor también genera un registro): no se recalcula cada segundo.
+  const cambioDeVerdad = (registros) => registros.some((r) => r.oldValue !== r.target.getAttribute(r.attributeName));
+  if (cd && "MutationObserver" in window) {
+    new MutationObserver((registros) => { if (cambioDeVerdad(registros)) paint(); })
+      .observe(cd, { attributes: true, attributeOldValue: true, attributeFilter: ["class", "hidden"] });
+  }
   setInterval(() => { void consultarEstado(); }, CONSULTA_CADA_MS);
   void consultarEstado();
   programarRecalculo();

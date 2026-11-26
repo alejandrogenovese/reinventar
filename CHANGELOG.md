@@ -5,6 +5,28 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.5] - 2026-11-26
+
+### Agregado
+
+- Ofertas suma «Excursiones con descuento»: las excursiones de Viator rebajadas para los días del viaje, con el precio de antes y el de ahora, el porcentaje y el link para reservar. Se consultan en el momento (el precio lo fija Viator y puede cambiar); si Viator no responde, Ofertas se ve como siempre.
+- «Uber» y «Lyft» al lado de «Llevame» (ficha de la charla, eventos, shows y «¿Te perdiste…?»): abren la app con el destino ya cargado. Abajo, «Dónde te levanta el auto» en cada sede de re:Invent y en el aeropuerto (nivel del garage, puerta y carteles, con su fuente), y en el vuelo que llega a Las Vegas, dónde pedirlo en tu terminal.
+- «re:Invent día por día» (Viaje y link desde Hoy): retiro del badge, keynotes, shuttles, Expo, certificaciones, re:Play, comidas, propinas, clima y enchufes, cada dato con su fuente. Anda sin señal.
+- Las keynotes en Inicio dicen que hay traducción al español (latinoamericano) y traen el link al livestream.
+- El aviso «Salí para…» de una charla reservada dice hasta qué hora entrar antes de que se libere el lugar (10 min antes).
+- Pendientes nuevos: adaptador de enchufe tipo A, subir la foto a re:Invent, declarar la notebook (OM-121), evaluar pagar la tarjeta con dólares propios (a confirmar con el banco) y lugar para el swag.
+
+### Corregido
+
+- Grabaciones más seguras: solo quien grabó puede subirle audio y cerrarla (o un admin, cerrarla), así nadie corta ni pisa la grabación de otro. Cada grabación tiene un tope holgado de tamaño y de duración (6 horas), hay un tope de 40 grabaciones nuevas por día y de 15 reintentos por hora, y «Reintentar» avisa si la grabación ya se está procesando. Si algo falla al procesar se ve un mensaje claro en vez del error técnico, una falla de la base ya no deja todo trabado en «En cola», y el audio intermedio se borra cuando la grabación queda lista.
+- El shuttle de re:Invent se sugiere solo cuando corre a la hora de la charla, según la agenda oficial 2026: el jueves termina a las 17:45 y el domingo y el viernes van solo a algunas sedes. Fuera de horario queda caminar, el puente o el monorail.
+- Con un Wi-Fi que conecta pero no responde, la app ya no queda en blanco: a los 4 segundos sigue con lo último guardado, como sin señal (también Ajustes).
+- Si el servidor está caído, el error dice «El servidor no responde. Probá en un rato.» en vez de «HTTP 502» o «Bad Gateway».
+- La franja del countdown ya no se rehace cada segundo: VoiceOver no pierde el foco y gasta menos batería.
+- El límite de intentos de login ya no se esquiva con muchos pedidos a la vez, y la contraseña actual al cambiarla tiene el mismo límite.
+- El armado guiado, la búsqueda de lugares y Mis eventos con un lugar de Google tienen un tope por persona contra el abuso; con uso normal no se nota.
+- La cotización de respaldo (cuando nunca se pudo consultar) pasa a valores de noviembre de 2026.
+
 ## [1.3.4] - 2026-11-25
 
 ### Agregado
@@ -626,7 +648,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...v1.3.2
