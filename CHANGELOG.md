@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.3.5] - 2026-11-26
+
 ### Agregado
 
 - Ofertas suma «Excursiones con descuento»: las excursiones de Viator rebajadas para los días del viaje, con el precio de antes y el de ahora, el porcentaje y el link para reservar. Se consultan en el momento (el precio lo fija Viator y puede cambiar); si Viator no responde, Ofertas se ve como siempre.
@@ -646,7 +648,8 @@ Lo que se sumó en ese período:
 - Búsqueda híbrida (embeddings + BM25), chat Preguntar, explorador por facetas, filtros en lenguaje natural y temas emergentes.
 - Briefing para preparar una conversación y bloques de transcripción de 15 s.
 
-[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...HEAD
+[Sin publicar]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/alejandrogenovese/reinventar/compare/v1.3.1...v1.3.2
