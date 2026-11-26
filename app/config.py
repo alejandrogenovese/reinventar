@@ -109,6 +109,8 @@ GOOGLE_PLACES_SERVER_KEY = _env("GOOGLE_PLACES_SERVER_KEY")
 # Cómo ir entre sedes (app/rutas.py): google (Routes API con GOOGLE_MAPS_API_KEY; sin key queda apagado), fake (tests) u
 # off. Sin Routes API quedan los atajos fijos y los minutos de app/travel.py.
 RUTAS_PROVIDER = _env("RUTAS_PROVIDER", "google").lower()
+# Clima de Las Vegas en Hoy (app/clima.py): nws (API del National Weather Service, gratis y sin clave), fake (tests) u off.
+CLIMA_PROVIDER = _env("CLIMA_PROVIDER", "nws").lower()
 
 # Web Push (notificaciones con la app cerrada): generar las claves con `python -m app.push`.
 VAPID_PUBLIC_KEY = _env("VAPID_PUBLIC_KEY")

@@ -230,6 +230,11 @@ export const Pendientes = {
   borrar: (id) => api(urlPendiente(id), { method: "DELETE" }),
 };
 
+// Clima de Las Vegas para Hoy (app/clima.py): null si NWS no respondió.
+export const Clima = {
+  get: () => apiConUltimaCopia("/api/clima"),
+};
+
 export const Today = {
   get: () => apiConUltimaCopia("/api/today"),
 };

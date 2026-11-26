@@ -1,5 +1,6 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
 import { Today } from "./api.js";
+import { cargarClima } from "./clima.js";
 import { CountdownBadge } from "./countdown.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { empezarSesion } from "./recorder.js";
@@ -101,6 +102,8 @@ const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { c
  * Devuelve { el, hasTalk, data }: hasTalk dice si hay una charla ahora o a continuación; data, lo que trajo /api/today.
  */
 export async function TodayPanel(sessions) {
+  const climaSlot = h("div", { class: "ra-optional" });
+  void cargarClima(climaSlot);  // en paralelo: si tarda o falla, Hoy no lo espera y el lugar queda vacío
   const data = await Today.get();
   const avisos = await avisosDe(codigosDeCharlas([data.now, data.next]));
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
@@ -122,7 +125,7 @@ export async function TodayPanel(sessions) {
   // La sección se nombra con el título y la fecha («Hoy martes, 2 dic»), aunque se vean separados.
   const el = h("section", { class: "stack", "aria-labelledby": "hoy-title hoy-fecha" },
     h("div", { class: "ra-sec-head" }, h("h2", { class: "label", id: "hoy-title" }, "Hoy"),
-      h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), body,
+      h("span", { class: "caption", id: "hoy-fecha" }, dayLabel(data.date))), climaSlot, body,
     h("a", { class: "ra-dxd-link", href: "#/viaje/reinvent" }, icon("eventos", 16), h("span", {}, "re:Invent día por día: badge, keynotes y shuttles")));
   return { el, hasTalk: Boolean(data.now || data.next), data };
 }

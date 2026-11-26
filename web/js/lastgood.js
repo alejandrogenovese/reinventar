@@ -1,4 +1,4 @@
-// Última copia buena de las pantallas que más se miran en los salones (Hoy, Itinerario, grabaciones), para mostrarla
+// Última copia buena de las pantallas que más se miran en los salones (Hoy y su clima, Itinerario, grabaciones), para mostrarla
 // cuando no hay señal. Vive en localStorage de este celular, no en el service worker: la API nunca se cachea ahí.
 // Cada copia es de quien tenía la sesión abierta (owner) y se borra al cerrar sesión (clearLast).
 const PREFIX = "reinventar.last.";
@@ -8,7 +8,8 @@ const PREFIX = "reinventar.last.";
 // «/api/me/sandbox» y «/api/me/cuenta» no son rutas del servidor: son las claves de las copias del modo prueba y de quién es
 // la persona (usuario e is_admin) que trae /api/me.
 const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox", "/api/me/cuenta",
-  "/api/viajes/documentos"]); // documentos: solo la lista de metadatos, nunca un archivo
+  "/api/viajes/documentos", // documentos: solo la lista de metadatos, nunca un archivo
+  "/api/clima"]);
 const DUENO_VALIDO = /^[0-9a-f]{12}$/;
 const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope es para que no llene el almacenamiento
 
