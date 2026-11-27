@@ -7,6 +7,7 @@ import logging
 import queue
 import re
 import threading
+import time
 import traceback
 from collections import Counter
 
@@ -42,6 +43,13 @@ SIN_AUDIO = "La sesión no tiene audio"
 # Lo que ve cualquiera cuando falla algo interno (ffmpeg, el STT, el LLM, la base): el detalle crudo va al log.
 ERROR_GENERICO = ("No se pudo procesar la grabación. Probá «Reintentar» en un rato; si vuelve a fallar, "
                   "avisale a un admin.")
+# Mientras espera un reintento automático: que no parezca que hay que hacer algo.
+ERROR_REINTENTO_AUTO = ("No se pudo procesar la grabación por un problema momentáneo. Se reintenta sola en unos "
+                        "minutos: no hace falta que hagas nada.")
+# Reintentos automáticos de un error transitorio: la espera antes de cada uno (crece) y cada cuánto se revisa.
+ESPERAS_REINTENTO_AUTO_MIN = (15, 30, 60)
+MAX_REINTENTOS_AUTO = len(ESPERAS_REINTENTO_AUTO_MIN)
+BARRIDO_REINTENTOS_MIN = 5
 SUMMARY_MAX_TOKENS = 16000  # incluye el thinking de modelos que no lo pueden apagar (Opus 5.5)
 
 
@@ -73,7 +81,8 @@ def en_el_worker(sid: str) -> bool:
 
 
 def enqueue(sid: str):
-    db.update_session(sid, status="queued", error=None, progress=None)
+    # Un reintento a mano (o el cierre) se lleva el automático que estuviera pendiente: no se procesa dos veces.
+    db.update_session(sid, status="queued", error=None, progress=None, reintento_auto_at=None)
     _encolar((sid, sandbox.actual(), llm_router.usuario_actual()))
 
 
@@ -103,6 +112,44 @@ def start_worker():
     _started = True
     reencolar_pendientes()
     threading.Thread(target=_loop, name="pipeline", daemon=True).start()
+    if config.PIPELINE_REINTENTOS_AUTO:
+        threading.Thread(target=_loop_reintentos, name="pipeline-reintentos", daemon=True).start()
+    else:
+        log.info("Reintentos automáticos de grabaciones apagados (PIPELINE_REINTENTOS_AUTO)")
+
+
+def _reintentar_vencidas(contexto: "sandbox.Sandbox | None", ahora: float) -> list[str]:
+    """Encola las grabaciones del schema activo cuyo reintento automático ya venció. Las que el worker ya tiene se
+    saltean; tomar_reintento_auto no pisa un «Reintentar» a mano que haya llegado en el medio."""
+    encoladas = []
+    for sid in db.reintentos_auto_vencidos(ahora):
+        if en_el_worker(sid) or not db.tomar_reintento_auto(sid):
+            continue
+        log.info("sesión %s: reintento automático", sid)
+        _encolar((sid, contexto, _dueno(sid)))
+        encoladas.append(sid)
+    return encoladas
+
+
+def barrer_reintentos(ahora: float | None = None) -> list[str]:
+    """Una vuelta del barrido: vuelve a encolar las grabaciones con error transitorio cuyo reintento ya toca (las
+    reales y las de modo prueba, como reencolar_pendientes). No pasa por el cupo de «Reintentar» (app/limites.py)."""
+    ahora = time.time() if ahora is None else ahora
+    with sandbox.real():
+        encoladas = _reintentar_vencidas(None, ahora)
+    prueba = sandbox.Sandbox(username="pipeline")
+    with sandbox.activar(prueba):
+        encoladas += _reintentar_vencidas(prueba, ahora)
+    return encoladas
+
+
+def _loop_reintentos(parar: "threading.Event | None" = None):
+    parar = parar or threading.Event()
+    while not parar.wait(BARRIDO_REINTENTOS_MIN * 60):
+        try:
+            barrer_reintentos()
+        except Exception:  # el hilo no puede morir: una base caída no corta las próximas vueltas
+            log.exception("Falló el barrido de reintentos automáticos de grabaciones")
 
 
 def vivo() -> bool:
@@ -129,6 +176,23 @@ def mensaje_de_error(e: Exception) -> str:
     return str(e)[:1000] if isinstance(e, ErrorParaMostrar) else ERROR_GENERICO
 
 
+def es_definitivo(e: Exception) -> bool:
+    """Un ErrorParaMostrar (sin audio, sin voz, demasiado larga) no se arregla reintentando: es definitivo. El resto
+    (429 o 5xx del STT o del LLM, red, ffmpeg, la base) se toma como transitorio y se reintenta solo, con tope."""
+    return isinstance(e, ErrorParaMostrar)
+
+
+def _campos_de_error(sid: str, e: Exception, ahora: float) -> dict:
+    """Cómo queda la sesión tras fallar: con el reintento automático agendado si el error es transitorio y quedan."""
+    if es_definitivo(e):
+        return {"status": "error", "error": mensaje_de_error(e), "progress": None, "reintento_auto_at": None}
+    hechos = (db.get_session(sid) or {}).get("reintentos_auto") or 0
+    if hechos >= MAX_REINTENTOS_AUTO:
+        return {"status": "error", "error": ERROR_GENERICO, "progress": None, "reintento_auto_at": None}
+    return {"status": "error", "error": ERROR_REINTENTO_AUTO, "progress": None,
+            "reintento_auto_at": ahora + ESPERAS_REINTENTO_AUTO_MIN[hechos] * 60}
+
+
 def _procesar(sid: str, contexto: "sandbox.Sandbox | None", usuario: str | None):
     with sandbox.activar(contexto), llm_router.como_usuario(usuario):
         try:
@@ -136,7 +200,7 @@ def _procesar(sid: str, contexto: "sandbox.Sandbox | None", usuario: str | None)
         except Exception as e:  # noqa: BLE001
             log.error("sesión %s falló: %s", sid, traceback.format_exc())
             try:
-                db.update_session(sid, status="error", error=mensaje_de_error(e), progress=None)
+                db.update_session(sid, **_campos_de_error(sid, e, time.time()))
             except Exception:  # una base caída (PoolTimeout) no tiene que matar al worker; al reiniciar se re-encola
                 log.exception("sesión %s: no se pudo marcar el error en la base", sid)
 
@@ -192,12 +256,7 @@ def _etapas(sid: str, s: dict):
         if duracion > config.MAX_GRABACION_SEGUNDOS:  # antes del STT, que es lo caro
             raise ErrorParaMostrar(f"La grabación dura más de {duracion_maxima_texto()}: es demasiado larga para procesarla.")
         db.update_session(sid, duration_s=duracion)
-        pieces = audio.split(full, config.STT_SEGMENT_SECONDS)
-        segs = []
-        for n, (offset, path) in enumerate(pieces, 1):
-            db.update_session(sid, progress=f"Transcribiendo {n}/{len(pieces)}")
-            segs += stt.transcribe(path, offset)
-            path.unlink(missing_ok=True)
+        segs = _transcribir_pedazos(sid, s, audio.split(full, config.STT_SEGMENT_SECONDS))
         if not segs:
             raise ErrorParaMostrar(SIN_VOZ)
         db.replace_blocks(sid, group_blocks(segs, config.BLOCK_SECONDS))
@@ -230,6 +289,30 @@ def _etapas(sid: str, s: dict):
     fragmentos.indexar_sin_fallar(sid)
     db.update_session(sid, status="ready", summary=summary, progress=None, error=None)
     audio.limpiar_trabajo(sid)  # full.ogg ya no hace falta; los pedazos (chunks/) quedan para «Reintentar desde cero»
+
+
+def firma_audio(s: dict) -> str:
+    """Identifica el audio que se partió: pedazos recibidos, bytes y largo de cada pedazo de STT. Si llega un pedazo
+    tardío (se aceptan con la sesión en error) la firma cambia y no se reusa una transcripción de otro audio."""
+    return f"{s.get('chunks_received') or 0}:{s.get('bytes_received') or 0}:{config.STT_SEGMENT_SECONDS}"
+
+
+def _transcribir_pedazos(sid: str, s: dict, pieces: list) -> list[dict]:
+    """Transcribe cada pedazo y lo guarda apenas vuelve del STT; los que ya estaban transcriptos (una corrida anterior
+    que falló a mitad de camino) se reusan sin volver a gastar cupo. Los segmentos ya traen el offset de su pedazo."""
+    firma = firma_audio(s)
+    hechos = db.stt_pedazos(sid, firma)
+    segs = []
+    for n, (offset, path) in enumerate(pieces, 1):
+        if n in hechos:
+            segs += hechos[n]
+        else:
+            db.update_session(sid, progress=f"Transcribiendo {n}/{len(pieces)}")
+            nuevos = stt.transcribe(path, offset)
+            db.guardar_stt_pedazo(sid, n, firma, nuevos)
+            segs += nuevos
+        path.unlink(missing_ok=True)
+    return segs
 
 
 def _textos(valor) -> list[str]:

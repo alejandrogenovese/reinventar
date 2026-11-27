@@ -1,8 +1,11 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
-import { Today } from "./api.js";
+import { Today, duenoDeCopias } from "./api.js";
 import { cargarClima } from "./clima.js";
 import { CountdownBadge } from "./countdown.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
+import { hoyEnReinvent } from "./diaPorDia.js";
+import { hoySinSenal, mensajeSinCharlas } from "./hoyPlan.js";
+import { loadLast, staleAt } from "./lastgood.js";
 import { empezarSesion } from "./recorder.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { GoThereParts, startsAt } from "./location.js";
@@ -95,7 +98,29 @@ const LaterList = (items) => items.length ? h("ul", { class: "ra-today-later" },
     h("a", { class: "ra-link", href: itemHref(s) }, itemTitle(s)))),
   items.length > LATER_LIMIT ? h("li", { class: "caption" }, h("a", { class: "ra-link", href: "#/itinerario" }, `y ${items.length - LATER_LIMIT} más en tu itinerario`)) : null) : null;
 
-const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { class: "caption" }, text), action);
+// Sin nada ahora ni a continuación: el mensaje de hoyPlan.js (día libre, la próxima, sin señal) con sus accesos.
+const Empty = ({ titulo, texto, acciones }) => h("div", { class: "ra-today-empty" },
+  titulo ? h("p", { class: "ra-card-title" }, titulo) : null, h("p", { class: "caption" }, texto),
+  acciones.length ? h("div", { class: "ra-today-actions" },
+    acciones.map((a) => h("a", { class: "ra-btn ra-btn-secondary", href: a.href }, a.texto))) : null);
+
+/** Lo propio de re:Invent para esa fecha (badge, keynotes, receptions, re:Play, shuttles), de diaPorDia.js: anda sin señal. */
+function HoyEnReinvent(fecha) {
+  const items = hoyEnReinvent(fecha);
+  if (!items.length) return null;
+  return h("section", { class: "stack", "aria-labelledby": "hoy-reinvent" },
+    h("h3", { class: "label", id: "hoy-reinvent" }, "Hoy en re:Invent"),
+    h("ul", { class: "ra-dxd-lista" }, items.map((i) => h("li", {}, h("strong", {}, `${i.seccion}: `), i.texto))));
+}
+
+/** /api/today; si vino la copia sin señal, recalculado con la hora de Las Vegas y el itinerario guardado (hoyPlan.js). */
+async function hoyActual() {
+  const data = await Today.get();
+  if (staleAt(data) === null) return data;
+  const dueno = await duenoDeCopias();
+  const itinerario = dueno ? loadLast(dueno, "/api/itinerary")?.data ?? null : null;
+  return hoySinSenal(data, itinerario, sandboxNow());
+}
 
 /**
  * Panel Hoy para el inicio. `sessions` son las grabaciones del usuario (para no duplicar una charla ya grabada).
@@ -104,7 +129,7 @@ const Empty = (text, action) => h("div", { class: "ra-today-empty" }, h("p", { c
 export async function TodayPanel(sessions) {
   const climaSlot = h("div", { class: "ra-optional" });
   void cargarClima(climaSlot);  // en paralelo: si tarda o falla, Hoy no lo espera y el lugar queda vacío
-  const data = await Today.get();
+  const data = await hoyActual();
   const avisos = await avisosDe(codigosDeCharlas([data.now, data.next]));
   const recorded = new Map(sessions.filter((s) => s.code).map((s) => [s.code, s]));
   const body = [];
@@ -114,13 +139,10 @@ export async function TodayPanel(sessions) {
   body.push(LaterList(data.later));
 
   if (!data.now && !data.next) {
-    const up = data.upcoming;
-    body.push(up
-      ? Empty(`No tenés más charlas hoy. La próxima es el ${dayLabel(up.day)} a las ${up.first.start}: ${up.first.title}.`,
-        Button("Ver itinerario", { onclick: () => (location.hash = "#/itinerario") }))
-      : Empty("No tenés charlas en el itinerario para hoy.",
-        Button("Armar itinerario", { onclick: () => (location.hash = "#/itinerario") })));
+    body.push(Empty(mensajeSinCharlas({ tipoDia: diaDeEvento(sandboxNow())?.tipo, upcoming: data.upcoming,
+      sinItinerario: data.sinItinerario, etiquetaDia: dayLabel })));
   }
+  body.push(HoyEnReinvent(data.date));
 
   // La sección se nombra con el título y la fecha («Hoy martes, 2 dic»), aunque se vean separados.
   const el = h("section", { class: "stack", "aria-labelledby": "hoy-title hoy-fecha" },
@@ -151,6 +173,7 @@ export async function FranjaDia({ hoy, anuncios }) {
     keynote && !keynote.enVivo ? h("span", {}, "Keynote ", Num(keynote.hora)) : null,
     charlas ? h("span", {}, Num(charlas), charlas === 1 ? " charla en tu agenda" : " charlas en tu agenda") : null,
     ...dia.detalles.map((d) => h("span", {}, d)),
+    dia.enlace ? h("a", { class: "ra-link", href: dia.enlace.href }, dia.enlace.texto) : null,
   ].filter(Boolean);
   return h("p", { class: "dia" }, h("strong", {}, dia.titulo),
     keynote?.enVivo ? h("span", { class: "vivo" }, "Keynote en vivo") : null,

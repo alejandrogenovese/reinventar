@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { MARGEN_DIAS, RANGO_REINVENT, diaDeEvento, enVegas, fechaLarga, resumenDelDia } = await import("../../web/js/dia.js");
+const { MARGEN_DIAS, RANGO_REINVENT, VUELTA, diaDeEvento, enVegas, fechaLarga, resumenDelDia } = await import("../../web/js/dia.js");
 
 // Una hora de Las Vegas (PST, UTC−8 en noviembre y diciembre) como Date.
 const vegas = (fecha, hora = "10:00") => new Date(`${fecha}T${hora}:00-08:00`);
@@ -32,11 +32,18 @@ test("el domingo 29/11 es la llegada: re:Invent arranca mañana", () => {
     tipo: "llegada", titulo: "Domingo 29/11", detalles: ["Llegada", "re:Invent arranca mañana"] });
 });
 
-test("del 5/12 al lunes 7/12 a las 13:00 es después de re:Invent, con la estadía", () => {
+test("el 5/12 y el 6/12 son después de re:Invent, con la estadía", () => {
   const esperado = (titulo) => ({ tipo: "despues", titulo, detalles: ["re:Invent terminó", "la estadía sigue hasta el lunes 7/12 a las 13:00"] });
   assert.deepEqual(diaDeEvento(vegas("2026-12-05")), esperado("Sábado 5/12"));
-  assert.deepEqual(diaDeEvento(vegas("2026-12-07", "12:59")), esperado("Lunes 7/12"));
-  assert.deepEqual(diaDeEvento(vegas("2026-12-07", "13:00")), { tipo: "terminado", titulo: "Lunes 7/12", detalles: ["re:Invent terminó"] });
+  assert.deepEqual(diaDeEvento(vegas("2026-12-06", "23:59")), esperado("Domingo 6/12"));
+});
+
+test("el lunes 7/12 (salida) dice «Hoy volvés» con enlace a Viajes, antes y después del check-out", () => {
+  const vuelta = { texto: "Hoy volvés · check-out y vuelo", href: "#/viajes" };
+  assert.deepEqual(VUELTA, vuelta);
+  assert.deepEqual(diaDeEvento(vegas("2026-12-07", "08:00")), { tipo: "despues", titulo: "Lunes 7/12", detalles: [], enlace: vuelta });
+  assert.deepEqual(diaDeEvento(vegas("2026-12-07", "13:00")), { tipo: "terminado", titulo: "Lunes 7/12", detalles: [], enlace: vuelta });
+  assert.deepEqual(diaDeEvento(vegas("2026-12-08")), { tipo: "terminado", titulo: "Martes 8/12", detalles: ["re:Invent terminó"] });
 });
 
 test("fuera del margen (más de 14 días antes o después) no hay franja", () => {

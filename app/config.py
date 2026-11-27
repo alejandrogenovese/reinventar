@@ -55,6 +55,9 @@ STT_API_KEY = _env("STT_API_KEY")
 STT_MODEL = _env("STT_MODEL", "whisper-large-v3-turbo")
 STT_LANGUAGE = _env("STT_LANGUAGE", "en")
 STT_SEGMENT_SECONDS = int(_env("STT_SEGMENT_SECONDS", "600"))  # pedazos de 10 min (< 25 MB)
+# Reintento automático de las grabaciones con error transitorio (429 del STT, gateway caído): un hilo que las vuelve a
+# encolar cada tanto (app/pipeline.py). Prendido salvo PIPELINE_REINTENTOS_AUTO=0; tests/conftest.py lo apaga.
+PIPELINE_REINTENTOS_AUTO = _env("PIPELINE_REINTENTOS_AUTO", "1") == "1"
 
 # LLM para traducción y resumen.
 #   anthropic → API de Claude directa

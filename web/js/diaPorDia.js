@@ -46,15 +46,16 @@ export const TRADUCCION_KEYNOTES = "Traducción al español (latinoamericano), s
 
 /**
  * Secciones de la ficha: { id, titulo, items, nota?, links?, fuentes, consulta? }. `consulta`: fecha de las fuentes si
- * no es CONSULTA. Un link con `interno` lleva a otra pantalla de la app. Cada item es { cuando?, texto }: `cuando` es el día
- * (o la etiqueta) que va en negrita adelante. `fuentes` son claves de FUENTES.
+ * no es CONSULTA. Un link con `interno` lleva a otra pantalla de la app. Cada item es { cuando?, dias?, texto }: `cuando`
+ * es el día (o la etiqueta) que va en negrita adelante; `dias` (fechas de Las Vegas, «2026-12-03»), los días en que el
+ * ítem sale también en «Hoy en re:Invent» de Inicio (hoyEnReinvent). `fuentes` son claves de FUENTES.
  */
 export const SECCIONES = Object.freeze([
   {
     id: "badge", titulo: "Retiro del badge",
     items: [
-      { cuando: "Dom 29/11", texto: "Aeropuerto Harry Reid, terminales 1 y 3: 7:00 a 23:59. MGM Grand y Venetian: 10:00 a 20:00." },
-      { cuando: "Lun 30/11", texto: "Aeropuerto, terminales 1 y 3: 7:00 a 23:59. Venetian: 6:30 a 17:30. MGM Grand: 6:30 a 21:00." },
+      { cuando: "Dom 29/11", dias: ["2026-11-29"], texto: "Aeropuerto Harry Reid, terminales 1 y 3: 7:00 a 23:59. MGM Grand y Venetian: 10:00 a 20:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Aeropuerto, terminales 1 y 3: 7:00 a 23:59. Venetian: 6:30 a 17:30. MGM Grand: 6:30 a 21:00." },
       { cuando: "Mar 1/12 a jue 3/12", texto: "MGM Grand y Venetian: 6:30 a 20:00." },
       { cuando: "Vie 4/12", texto: "No hay retiro de badge." },
       { texto: "Llevá un documento con foto emitido por un gobierno (el pasaporte) y usá el badge toda la semana." },
@@ -65,10 +66,10 @@ export const SECCIONES = Object.freeze([
   {
     id: "keynotes", titulo: "Keynotes",
     items: [
-      { cuando: "Lun 30/11", texto: "Developer Keynote, 19:30 a 20:45." },
-      { cuando: "Mar 1/12", texto: "CEO Keynote con Matt Garman, 8:30 a 10:45." },
-      { cuando: "Mié 2/12", texto: "Data & AI Keynote, 8:30 a 10:00. Partner Keynote, 15:00 a 16:00." },
-      { cuando: "Jue 3/12", texto: "Technical Innovations Keynote, 8:30 a 10:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Developer Keynote, 19:30 a 20:45." },
+      { cuando: "Mar 1/12", dias: ["2026-12-01"], texto: "CEO Keynote con Matt Garman, 8:30 a 10:45." },
+      { cuando: "Mié 2/12", dias: ["2026-12-02"], texto: "Data & AI Keynote, 8:30 a 10:00. Partner Keynote, 15:00 a 16:00." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "Technical Innovations Keynote, 8:30 a 10:00." },
       { texto: "Todas en el Venetian. No hace falta reservar lugar." },
       { texto: `${TRADUCCION_KEYNOTES}; también hay japonés, coreano y mandarín. La fuente no dice cómo se accede.` },
       { texto: "Livestream gratis del 29/11 al 3/12, con registro." },
@@ -79,11 +80,11 @@ export const SECCIONES = Object.freeze([
   {
     id: "shuttles", titulo: "Shuttles",
     items: [
-      { cuando: "Dom 29/11", texto: "9:30 a 20:30, servicio limitado: Caesars Forum, MGM Grand y Venetian." },
+      { cuando: "Dom 29/11", dias: ["2026-11-29"], texto: "9:30 a 20:30, servicio limitado: Caesars Forum, MGM Grand y Venetian." },
       { cuando: "Lun 30/11", texto: "6:00 a 21:15." },
       { cuando: "Mar 1/12 y mié 2/12", texto: "6:00 a 20:30." },
-      { cuando: "Jue 3/12", texto: "6:00 a 17:45. Para re:Play, 18:15 a 23:00." },
-      { cuando: "Vie 4/12", texto: "6:30 a 13:00, servicio limitado: Venetian y Wynn/Encore." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "6:00 a 17:45. Para re:Play, 18:15 a 23:00." },
+      { cuando: "Vie 4/12", dias: ["2026-12-04"], texto: "6:30 a 13:00, servicio limitado: Venetian y Wynn/Encore." },
       { texto: "Shuttles y monorail son gratis con el badge. Entre sedes calculá de 30 a 45 minutos." },
     ],
     fuentes: ["agenda", "faq", "kbyg"],
@@ -91,7 +92,7 @@ export const SECCIONES = Object.freeze([
   {
     id: "expo", titulo: "Expo (Venetian)",
     items: [
-      { cuando: "Lun 30/11", texto: "Welcome Reception, 16:00 a 19:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Welcome Reception, 16:00 a 19:00." },
       { cuando: "Mar 1/12", texto: "10:00 a 18:00." },
       { cuando: "Mié 2/12", texto: "10:00 a 18:00, con happy hour de 16:30 a 18:00." },
       { cuando: "Jue 3/12", texto: "10:00 a 16:00." },
@@ -110,7 +111,7 @@ export const SECCIONES = Object.freeze([
   {
     id: "replay", titulo: "re:Play",
     items: [
-      { cuando: "Jue 3/12", texto: "18:30 a 22:30 en el Allegiant Stadium. Shuttle de 18:15 a 23:00. Entrás con el badge." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "18:30 a 22:30 en el Allegiant Stadium. Shuttle de 18:15 a 23:00. Entrás con el badge." },
     ],
     fuentes: ["agenda", "faq"],
   },
@@ -118,7 +119,7 @@ export const SECCIONES = Object.freeze([
     id: "comidas", titulo: "Comidas",
     items: [
       { texto: "Desayuno, almuerzo y snacks los días completos de conferencia. Halal y kosher hasta agotar: se piden antes por soporte." },
-      { cuando: "Mar 1/12 y mié 2/12", texto: "Networking receptions con comida y bebida, 18:00 a 20:00." },
+      { cuando: "Mar 1/12 y mié 2/12", dias: ["2026-12-01", "2026-12-02"], texto: "Networking receptions con comida y bebida, 18:00 a 20:00." },
     ],
     fuentes: ["faq", "agenda"],
   },
@@ -175,6 +176,11 @@ export const SECCIONES = Object.freeze([
   },
 ]);
 
+/** Lo propio de re:Invent en esa fecha de Las Vegas («2026-12-03»): [{ seccion, texto }], en el orden de la ficha. */
+export function hoyEnReinvent(fecha, secciones = SECCIONES) {
+  return secciones.flatMap((s) => s.items.filter((i) => i.dias?.includes(fecha)).map((i) => ({ seccion: s.titulo, texto: i.texto })));
+}
+
 const LinkExterno = (texto, url) =>
   h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, texto, icon("externo", 16));
 
@@ -210,6 +216,6 @@ export function viewDiaPorDia(view) {
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" },
       h("h1", { class: "title" }, "re:Invent día por día"),
-      h("p", { class: "caption" }, "Lo que conviene tener a mano en Las Vegas, del 29/11 al 4/12. Anda sin señal.")),
+      h("p", { class: "caption" }, "Lo que conviene tener a mano durante la estadía en Las Vegas. Anda sin señal.")),
     h("div", { class: "stack" }, SECCIONES.map((s) => Seccion(s, s.id === "clima" ? pronostico : null)))));
 }
