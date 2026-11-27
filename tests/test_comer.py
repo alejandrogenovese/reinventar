@@ -323,6 +323,7 @@ def test_se_pueden_elegir_varios_niveles_de_precio_salteados(client, google):
     assert ids(_pedir(client, precios=[2])) == {"medio", "sindato"}
     assert _pedir(client, precios=[5]).status_code == 422
     assert _pedir(client, precios=[0]).status_code == 422
+    assert _pedir(client, precios=[1, 2, 3, 4, 1]).status_code == 422  # más niveles de los que hay
 
 
 def test_precio_llega_hasta_cuatro_signos(client, google):

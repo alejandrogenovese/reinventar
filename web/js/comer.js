@@ -33,7 +33,7 @@ const puntaje = (n) => Number(n).toLocaleString("es-AR", { minimumFractionDigits
  * está en su valor por defecto no viaja. `precios`: los niveles elegidos (pueden ser salteados: $ y $$$). */
 export function consulta({ precios = DEFAULT.precios, minutos, tipo = "todo", abierto = false, puntaje = 0, orden = "recomendado" }, pos) {
   const params = new URLSearchParams();
-  for (const p of [...precios].sort()) params.append("precios", p);
+  for (const p of [...precios].sort((a, b) => a - b)) params.append("precios", p);
   params.set("minutos", minutos);
   if (tipo !== "todo") params.set("tipo", tipo);
   if (abierto) params.set("abierto", "true");
@@ -51,7 +51,7 @@ export const llenoPct = (rating) => Math.round(Math.min(5, Math.max(0, Number(ra
 
 /** Prende o apaga un nivel de precio; siempre queda al menos uno elegido. */
 export function alternarPrecio(precios, nivel) {
-  const nuevos = precios.includes(nivel) ? precios.filter((p) => p !== nivel) : [...precios, nivel].sort();
+  const nuevos = precios.includes(nivel) ? precios.filter((p) => p !== nivel) : [...precios, nivel].sort((a, b) => a - b);
   return nuevos.length ? nuevos : precios;
 }
 

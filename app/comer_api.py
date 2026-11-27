@@ -28,6 +28,7 @@ MAX_CACHE = 500              # cuadrados guardados; al pasarse se descartan los 
 BUSQUEDAS_POR_HORA = 20      # llamadas reales a Google por usuario
 PRECIO_MAXIMO_DEFAULT = 2
 PRECIO_MAXIMO = 4            # $$$$
+NIVELES = (1, 2, 3, 4)       # $ … $$$$
 MINUTOS_MAXIMOS = 30
 MINUTOS_DEFAULT = 10
 MAX_LUGARES = 20
@@ -196,7 +197,8 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
                 minutos: int = Query(MINUTOS_DEFAULT, ge=1, le=MINUTOS_MAXIMOS), tipo: Tipo = "todo",
                 abierto: bool = False, puntaje: float = Query(0, ge=0, le=5), orden: Orden = "recomendado",
                 username: str = Depends(auth),
-                precios: Annotated[list[Annotated[int, Field(ge=1, le=PRECIO_MAXIMO)]] | None, Query()] = None):
+                precios: Annotated[list[Annotated[int, Field(ge=1, le=PRECIO_MAXIMO)]] | None,
+                                  Query(max_length=PRECIO_MAXIMO)] = None):
     """Con lat y lng (el celular), desde ahí; sin ellos, desde la sede de la próxima sesión del itinerario y, si no hay
     (un día libre), desde el hotel cargado en Viajes.
     `precios`: los niveles que sirven, se pueden elegir varios (?precios=1&precios=3); sin él, `precio` es el máximo
@@ -210,6 +212,6 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
     elif not (origen := _origen_de_la_sesion(username) or _origen_del_hotel(username)):
         raise HTTPException(404, SIN_ORIGEN)
     lugares = _cercanos(origen["lat"], origen["lng"], username, tipo, minutos, fresco=abierto)
-    niveles = frozenset(precios) if precios else frozenset(range(1, precio + 1))
+    niveles = frozenset(precios) if precios else frozenset(n for n in NIVELES if n <= precio)
     return {"origen": origen, "lugares": _armar(lugares, (origen["lat"], origen["lng"]), niveles, minutos, abierto,
                                                 puntaje, orden)}
