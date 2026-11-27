@@ -4,18 +4,24 @@ import assert from "node:assert/strict";
 
 import "./domMinimo.mjs";
 
-const { consulta, Estrellas, llenoPct, LugarCard, MINUTOS, minutosTexto, Precio, textoOrigen } = await import("../../web/js/comer.js");
+const { alternarPrecio, consulta, Estrellas, llenoPct, LugarCard, MINUTOS, minutosTexto, Precio, textoOrigen } = await import("../../web/js/comer.js");
 
 const lugar = (extra = {}) => ({ place_id: "p1", nombre: "Hershey's Chocolate World", lat: 36.1, lng: -115.17, rating: 4.6,
   resenas: 9000, precio: 1, minutos: 6, abierto: true, direccion: "Las Vegas Blvd", extracto: [], ...extra });
 
-test("sin tipo, la consulta queda como antes", () => {
-  assert.equal(consulta({ precio: 2, minutos: 10 }), "/api/comer?precio=2&minutos=10");
-  assert.equal(consulta({ precio: 2, minutos: 10, tipo: "todo" }), "/api/comer?precio=2&minutos=10");
+test("sin tipo, la consulta manda los precios elegidos y los minutos", () => {
+  assert.equal(consulta({ precios: [1, 2], minutos: 10 }), "/api/comer?precios=1&precios=2&minutos=10");
+  assert.equal(consulta({ precios: [3, 1], minutos: 10, tipo: "todo" }), "/api/comer?precios=1&precios=3&minutos=10");
+});
+
+test("los precios se eligen de a varios y nunca queda ninguno", () => {
+  assert.deepEqual(alternarPrecio([1, 2], 4), [1, 2, 4]);
+  assert.deepEqual(alternarPrecio([1, 2], 1), [2]);
+  assert.deepEqual(alternarPrecio([2], 2), [2]);
 });
 
 test("con tipo, lo manda junto con la ubicación", () => {
-  const url = new URL(consulta({ precio: 1, minutos: 5, tipo: "dulces" }, { lat: 36.1, lng: -115.17 }), "https://x");
+  const url = new URL(consulta({ precios: [1], minutos: 5, tipo: "dulces" }, { lat: 36.1, lng: -115.17 }), "https://x");
   assert.equal(url.searchParams.get("tipo"), "dulces");
   assert.equal(url.searchParams.get("lat"), "36.1");
 });
@@ -26,10 +32,10 @@ test("la tarjeta muestra el tipo de lugar si Google lo trae", () => {
 });
 
 test("los filtros nuevos viajan solo si no están en su valor por defecto", () => {
-  const base = { precio: 2, minutos: 10 };
-  assert.equal(consulta({ ...base, abierto: false, puntaje: 0, orden: "recomendado" }), "/api/comer?precio=2&minutos=10");
-  const url = new URL(consulta({ precio: 4, minutos: 25, abierto: true, puntaje: 4.5, orden: "cerca" }), "https://x");
-  assert.deepEqual(Object.fromEntries(url.searchParams), { precio: "4", minutos: "25", abierto: "true", puntaje: "4.5", orden: "cerca" });
+  const base = { precios: [2], minutos: 10 };
+  assert.equal(consulta({ ...base, abierto: false, puntaje: 0, orden: "recomendado" }), "/api/comer?precios=2&minutos=10");
+  const url = new URL(consulta({ precios: [4], minutos: 25, abierto: true, puntaje: 4.5, orden: "cerca" }), "https://x");
+  assert.deepEqual(Object.fromEntries(url.searchParams), { precios: "4", minutos: "25", abierto: "true", puntaje: "4.5", orden: "cerca" });
 });
 
 test("el deslizador va de 5 a 30 minutos, como acepta el servidor", () => {

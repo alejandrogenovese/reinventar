@@ -7,9 +7,10 @@ import logging
 import math
 import threading
 import time
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import Field
 
 from . import limites, places, sandbox, today, travel, venues, vuelos
 from .auth import auth
@@ -169,21 +170,21 @@ _ORDENES = {
 }
 
 
-def _pasa(lugar: dict, precio_max: int, solo_abiertos: bool, puntaje_min: float) -> bool:
-    if lugar["precio"] is not None and lugar["precio"] > precio_max:
+def _pasa(lugar: dict, precios: frozenset[int], solo_abiertos: bool, puntaje_min: float) -> bool:
+    if lugar["precio"] is not None and lugar["precio"] not in precios:
         return False
     if solo_abiertos and lugar["abierto"] is not True:
         return False
     return not puntaje_min or (lugar["rating"] or 0) >= puntaje_min
 
 
-def _armar(lugares: list[dict], origen: tuple[float, float], precio_max: int, minutos_max: int,
+def _armar(lugares: list[dict], origen: tuple[float, float], precios: frozenset[int], minutos_max: int,
            solo_abiertos: bool = False, puntaje_min: float = 0, orden: str = "recomendado") -> list[dict]:
     out = []
     for lugar in lugares:
         destino = (lugar["lat"], lugar["lng"])
         minutos = travel.estimar_minutos(origen, destino)
-        if minutos > minutos_max or not _pasa(lugar, precio_max, solo_abiertos, puntaje_min):
+        if minutos > minutos_max or not _pasa(lugar, precios, solo_abiertos, puntaje_min):
             continue
         out.append({**lugar, "minutos": minutos, "metros": round(travel.metros(origen, destino) * travel.FACTOR_RODEO)})
     return sorted(out, key=_ORDENES[orden])[:MAX_LUGARES]
@@ -194,10 +195,12 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
                 precio: int = Query(PRECIO_MAXIMO_DEFAULT, ge=1, le=PRECIO_MAXIMO),
                 minutos: int = Query(MINUTOS_DEFAULT, ge=1, le=MINUTOS_MAXIMOS), tipo: Tipo = "todo",
                 abierto: bool = False, puntaje: float = Query(0, ge=0, le=5), orden: Orden = "recomendado",
-                username: str = Depends(auth)):
+                username: str = Depends(auth),
+                precios: Annotated[list[Annotated[int, Field(ge=1, le=PRECIO_MAXIMO)]] | None, Query()] = None):
     """Con lat y lng (el celular), desde ahí; sin ellos, desde la sede de la próxima sesión del itinerario y, si no hay
     (un día libre), desde el hotel cargado en Viajes.
-    `precio`: máximo ($ = 1 … $$$$ = 4); los lugares sin dato de precio entran igual. `minutos`: máximo caminando.
+    `precios`: los niveles que sirven, se pueden elegir varios (?precios=1&precios=3); sin él, `precio` es el máximo
+    ($ = 1 … $$$$ = 4). Los lugares sin dato de precio entran igual. `minutos`: máximo caminando.
     `tipo`: comida rápida, dulces, café o restaurantes (cada uno es otra búsqueda). `abierto`: solo los abiertos ahora.
     `puntaje`: mínimo de estrellas. `orden`: recomendado (puntaje y distancia), más cerca o mejor puntaje."""
     if (lat is None) != (lng is None):
@@ -207,5 +210,6 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
     elif not (origen := _origen_de_la_sesion(username) or _origen_del_hotel(username)):
         raise HTTPException(404, SIN_ORIGEN)
     lugares = _cercanos(origen["lat"], origen["lng"], username, tipo, minutos, fresco=abierto)
-    return {"origen": origen, "lugares": _armar(lugares, (origen["lat"], origen["lng"]), precio, minutos, abierto,
+    niveles = frozenset(precios) if precios else frozenset(range(1, precio + 1))
+    return {"origen": origen, "lugares": _armar(lugares, (origen["lat"], origen["lng"]), niveles, minutos, abierto,
                                                 puntaje, orden)}

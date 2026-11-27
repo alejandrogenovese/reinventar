@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.2] - 2026-11-27
+
+### Cambiado
+
+- Dónde comer: los filtros están en un panel «Filtros» que se puede plegar, cada grupo con su título (Tipo de lugar, Precio, Distancia, Puntaje mínimo, Ordenar por, Horario). En Precio se pueden elegir varios niveles a la vez, también salteados (por ejemplo $ y $$$).
+
 ## [1.4.1] - 2026-11-27
 
 ### Cambiado
