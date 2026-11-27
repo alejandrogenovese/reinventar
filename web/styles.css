@@ -1073,3 +1073,10 @@ a.ra-heat-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ra-precio-off { color: var(--line-strong); }
 .ra-resena { margin: 0; padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius-m); display: flex; flex-direction: column; gap: var(--space-1); }
 .ra-resena p { margin: 0; }
+
+/* Dónde comer: los filtros en un panel plegable, cada grupo con su título y separados por una línea. */
+.ra-filtros { background: var(--surface-1); border-radius: var(--radius-l); box-shadow: var(--edge); padding: var(--space-2) var(--space-4); }
+.ra-filtros > summary { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; font: var(--t-small-strong); cursor: pointer; }
+.ra-filtro { display: grid; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.ra-filtro-titulo { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.ra-filtro-titulo .label { font: var(--t-small-strong); color: var(--ink); }

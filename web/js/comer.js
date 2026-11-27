@@ -24,15 +24,17 @@ const ESPERA_DESLIZADOR_MS = 300; // mientras se arrastra no se pide nada: se pi
 // Las claves son las de places.TIPOS_POR_CATEGORIA (app/places.py); cada tipo es otra búsqueda a Google, cacheada aparte.
 const TIPOS = [["todo", "Todo"], ["rapida", "Comida rápida"], ["dulces", "Dulces y postres"], ["cafe", "Café y panadería"],
   ["restaurantes", "Restaurantes"]];
-const DEFAULT = { tipo: "todo", precio: 2, minutos: 10, abierto: false, puntaje: 0, orden: "recomendado" };
+const DEFAULT = { tipo: "todo", precios: [1, 2], minutos: 10, abierto: false, puntaje: 0, orden: "recomendado" };
 
 const int = (n) => Number(n || 0).toLocaleString("es-AR");
 const puntaje = (n) => Number(n).toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Querystring del pedido: con ubicación del teléfono manda lat/lng; sin ella el servidor usa la próxima sesión. Lo que
- * está en su valor por defecto no viaja. */
-export function consulta({ precio, minutos, tipo = "todo", abierto = false, puntaje = 0, orden = "recomendado" }, pos) {
-  const params = new URLSearchParams({ precio, minutos });
+ * está en su valor por defecto no viaja. `precios`: los niveles elegidos (pueden ser salteados: $ y $$$). */
+export function consulta({ precios = DEFAULT.precios, minutos, tipo = "todo", abierto = false, puntaje = 0, orden = "recomendado" }, pos) {
+  const params = new URLSearchParams();
+  for (const p of [...precios].sort((a, b) => a - b)) params.append("precios", p);
+  params.set("minutos", minutos);
   if (tipo !== "todo") params.set("tipo", tipo);
   if (abierto) params.set("abierto", "true");
   if (puntaje) params.set("puntaje", puntaje);
@@ -46,6 +48,12 @@ export const minutosTexto = (m) => `Hasta ${m} min caminando`;
 
 /** Ancho de la capa dorada: 4,3 → 86 %. Redondeado a la décima de estrella, como Google. */
 export const llenoPct = (rating) => Math.round(Math.min(5, Math.max(0, Number(rating) || 0)) * 10) * 2;
+
+/** Prende o apaga un nivel de precio; siempre queda al menos uno elegido. */
+export function alternarPrecio(precios, nivel) {
+  const nuevos = precios.includes(nivel) ? precios.filter((p) => p !== nivel) : [...precios, nivel].sort((a, b) => a - b);
+  return nuevos.length ? nuevos : precios;
+}
 
 /** «4,5 ★★★★⯪ (1.234)»: el número, cinco estrellas (la última parcial) y las reseñas. chica: sin número ni reseñas. */
 export function Estrellas(rating, { resenas = null, chica = false } = {}) {
@@ -96,20 +104,29 @@ export async function viewComer(view) {
   const origenEl = h("p", { class: "caption" });
   const abiertoBtn = h("button", { type: "button", class: "ra-chip", "aria-pressed": "false",
     onclick: () => { filtros.abierto = !filtros.abierto; pintarChips(); void cargar(); } }, "Abierto ahora");
-  const grupo = (titulo, opciones, clave) => h("div", { class: "ra-chips", role: "group", "aria-label": titulo },
+  const elegir = (clave, valor) => {
+    filtros[clave] = clave === "precios" ? alternarPrecio(filtros.precios, valor) : valor;
+    pintarChips(); void cargar();
+  };
+  const chipsDe = (titulo, opciones, clave) => h("div", { class: "ra-chips", role: "group", "aria-label": titulo },
     opciones.map(([valor, texto, aria]) => {
       const b = h("button", { type: "button", class: "ra-chip", "aria-pressed": "false", "aria-label": aria || null,
-        onclick: () => { filtros[clave] = valor; pintarChips(); void cargar(); } }, texto);
+        onclick: () => elegir(clave, valor) }, texto);
       b.dataset.clave = clave; b.dataset.valor = valor;
       return b;
     }));
-  const chips = [
-    grupo("Tipo de lugar", TIPOS, "tipo"),
-    grupo("Precio", PRECIOS, "precio"),
-    Deslizador(),
-    grupo("Puntaje", PUNTAJES, "puntaje"),
-    grupo("Ordenar", ORDENES, "orden"),
-    h("div", { class: "ra-chips" }, abiertoBtn)];
+  const seccion = (titulo, ayuda, ...contenido) => h("div", { class: "ra-filtro" },
+    h("div", { class: "ra-filtro-titulo" }, h("span", { class: "label" }, titulo), ayuda ? h("span", { class: "caption" }, ayuda) : null),
+    ...contenido);
+  const panel = h("details", { class: "ra-filtros" },
+    h("summary", {}, icon("filtrar", 16), h("span", {}, "Filtros")),
+    seccion("Tipo de lugar", null, chipsDe("Tipo de lugar", TIPOS, "tipo")),
+    seccion("Precio", "Podés elegir varios", chipsDe("Precio", PRECIOS, "precios")),
+    seccion("Distancia", null, Deslizador()),
+    seccion("Puntaje mínimo", null, chipsDe("Puntaje", PUNTAJES, "puntaje")),
+    seccion("Ordenar por", null, chipsDe("Ordenar", ORDENES, "orden")),
+    seccion("Horario", null, h("div", { class: "ra-chips" }, abiertoBtn)));
+  panel.open = true; // h() toma «open» como evento (empieza con «on»)
 
   function Deslizador() {
     const etiqueta = h("span", { class: "label" }, minutosTexto(filtros.minutos));
@@ -130,7 +147,8 @@ export async function viewComer(view) {
     abiertoBtn.classList.toggle("ra-chip-on", filtros.abierto);
     abiertoBtn.setAttribute("aria-pressed", String(filtros.abierto));
     for (const b of view.querySelectorAll("button.ra-chip[data-clave]")) {
-      const on = String(filtros[b.dataset.clave]) === b.dataset.valor;
+      const actual = filtros[b.dataset.clave];
+      const on = Array.isArray(actual) ? actual.map(String).includes(b.dataset.valor) : String(actual) === b.dataset.valor;
       b.classList.toggle("ra-chip-on", on);
       b.setAttribute("aria-pressed", String(on));
     }
@@ -139,7 +157,7 @@ export async function viewComer(view) {
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" },
       h("a", { class: "ra-btn ra-btn-ghost ra-back", href: "#/viaje" }, icon("volver", 16), h("span", {}, "Viaje")),
-      h("h1", { class: "title" }, "Dónde comer barato"), origenEl, ...chips),
+      h("h1", { class: "title" }, "Dónde comer barato"), origenEl, panel),
     lista));
   pintarChips();
 

@@ -311,6 +311,21 @@ def test_cada_lugar_dice_que_tipo_de_lugar_es(client, google):
 
 # ---------- filtros flexibles: hasta $$$$, hasta 30 min, abierto ahora, puntaje mínimo y orden ----------
 
+def test_se_pueden_elegir_varios_niveles_de_precio_salteados(client, google):
+    google.respuesta = _respuesta(
+        _lugar("barato", "Barato", 36.1150, -115.1728, precio="PRICE_LEVEL_INEXPENSIVE"),
+        _lugar("medio", "Medio", 36.1152, -115.1728, precio="PRICE_LEVEL_MODERATE"),
+        _lugar("caro", "Caro", 36.1150, -115.1730, precio="PRICE_LEVEL_EXPENSIVE"),
+        _lugar("sindato", "Sin dato", 36.1150, -115.1727, precio=None))
+    ids = lambda r: {lugar["place_id"] for lugar in r.json()["lugares"]}  # noqa: E731
+
+    assert ids(_pedir(client, precios=[1, 3])) == {"barato", "caro", "sindato"}
+    assert ids(_pedir(client, precios=[2])) == {"medio", "sindato"}
+    assert _pedir(client, precios=[5]).status_code == 422
+    assert _pedir(client, precios=[0]).status_code == 422
+    assert _pedir(client, precios=[1, 2, 3, 4, 1]).status_code == 422  # más niveles de los que hay
+
+
 def test_precio_llega_hasta_cuatro_signos(client, google):
     google.respuesta = _respuesta(
         _lugar("barato", "Barato", 36.1150, -115.1728),
