@@ -23,13 +23,20 @@ def _with_end(card: dict) -> dict:
             "salis_a": leave.leave_early_at(full)}
 
 
+def _en_curso(card: dict, minute: int) -> bool:
+    """Si está pasando a esta hora. Lo que pasa la medianoche (un show de 22:00 a 00:30) cuenta hasta el final del día,
+    con el mismo criterio que el itinerario (itinerary._span)."""
+    start, end = itinerary._span(card)
+    return start <= minute < end
+
+
 def plan(days: list[dict], now: datetime) -> dict:
     """`days` es el itinerario (`[{day, sessions}]`); `now`, la hora local del evento."""
     date, time = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
     minute = now.hour * 60 + now.minute
 
     todays = [_with_end(s) for d in days if d["day"] == date for s in d["sessions"] if s.get("start")]
-    current = [s for s in todays if itinerary._minutes(s["start"]) <= minute < itinerary._minutes(s["end"])]
+    current = [s for s in todays if _en_curso(s, minute)]
     pending = [s for s in todays if itinerary._minutes(s["start"]) > minute]
 
     upcoming = None
