@@ -144,7 +144,7 @@ def _origen_del_hotel(usuario: str) -> dict | None:
     try:
         hoteles = vuelos.listar_hoteles(usuario)
     except Exception:  # la base caída no tiene que tapar el mensaje útil de «prendé la ubicación»
-        log.warning("no se pudieron leer los hoteles de %s para dónde comer", usuario, exc_info=True)
+        log.warning("no se pudieron leer los hoteles para dónde comer", exc_info=True)  # sin el usuario: viene del pedido
         return None
     ahora = sandbox.ahora(vuelos.zona(vuelos.ZONA_HOTEL_DEFECTO)).strftime("%Y-%m-%dT%H:%M")
     hotel = _hotel_vigente(hoteles, ahora)
