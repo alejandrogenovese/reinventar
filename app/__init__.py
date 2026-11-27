@@ -2,4 +2,4 @@
 
 # Versión única de la app (SemVer). Al cambiarla, actualizá también VERSION en web/sw.js, VERSION en web/js/version.js y el CHANGELOG
 # (tests/test_version.py lo verifica).
-__version__ = "1.4.0"
+__version__ = "1.4.1"

@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.1] - 2026-11-27
+
 ### Cambiado
 
 - Charla que se reserva y no tenés reservada: el aviso para salir, Hoy, la franja y el calendario cuentan 45 minutos de cola (antes 30), porque la fila de walk-up entra con los lugares que sobran. El armado guiado lo tiene en cuenta y te sugiere irte antes de la anterior. Las charlas solo por cola siguen en 30 y las reservadas, contra el inicio.
