@@ -3,7 +3,7 @@ import { Itinerary, Knowledge } from "./api.js";
 import { AvisoBaja, AvisoNueva, EtiquetaEstado, LlenoAvisos, SugerenciasLleno, avisosDe } from "./lleno.js";
 import { BriefingPanel } from "./briefing.js";
 import { EtiquetaYoutube } from "./avisoYoutube.js";
-import { EtiquetaReserva } from "./reservaEtiqueta.js";
+import { EstadoEnLinea } from "./reservaEtiqueta.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
@@ -81,7 +81,7 @@ function Slot(i, mine, onChange, aviso, grupo) {
     h("div", { class: "ra-slot-body" },
       h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
-      EtiquetaReserva({ ...i, reservada: own?.reservada }),
+      EstadoEnLinea({ ...i, reservada: own?.reservada }),
       AvisoBaja(i),
       TambienVan(grupo),  // otros del grupo con este horario en su itinerario (app/grupo_api.py)
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,

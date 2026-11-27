@@ -152,6 +152,25 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 .ra-tag.is-new { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 /* Estado de la charla en el catálogo oficial: recién sumada por AWS o cancelada (web/js/lleno.js EtiquetaEstado). */
 .ra-tag.is-reserva { align-self: flex-start; background: var(--warning-soft); color: var(--on-warning-soft); font-weight: 600; }
+/* Reserva de charlas: en línea (listas), insignia + hora (itinerario) y aviso con la acción (Hoy). */
+.ra-kind-fila { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.ra-reserva-linea, .ra-insignia-reserva { display: inline-flex; align-items: center; gap: var(--space-1); font: var(--t-small-strong); }
+.ra-reserva-linea { margin-left: var(--space-2); }
+.ra-reserva-linea.is-reserva { color: var(--on-warning-soft); }
+.ra-reserva-linea.is-reservada { color: var(--on-success-soft); }
+.ra-reserva-linea.is-libre { color: var(--ink-muted); font-weight: 400; }
+.ra-insignia-reserva { padding: 2px var(--space-2); border-radius: var(--radius-pill); }
+.ra-insignia-reserva.is-reserva, .ra-aviso-reserva.is-reserva { background: var(--warning-soft); color: var(--on-warning-soft); }
+.ra-insignia-reserva.is-reservada, .ra-aviso-reserva.is-reservada { background: var(--success-soft); color: var(--on-success-soft); }
+.ra-insignia-reserva.is-libre { background: var(--surface-3); color: var(--ink); }
+.ra-reserva-cuando { font: var(--t-small); color: var(--ink); overflow-wrap: anywhere; }
+.ra-reserva-hora { font: var(--t-time); font-variant-numeric: tabular-nums; }
+.ra-aviso-reserva { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-m); font: var(--t-small); }
+.ra-aviso-reserva.is-libre { background: var(--surface-3); color: var(--ink); }
+.ra-aviso-reserva .ra-icon { margin-top: 2px; flex: none; }
+.ra-aviso-cuerpo { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.ra-aviso-cuerpo strong { font: var(--t-small-strong); }
+.ra-aviso-cuerpo .ra-btn { color: inherit; border-color: currentColor; background: transparent; }
 .ra-tag.is-nueva { align-self: flex-start; background: var(--info-soft); color: var(--on-info-soft); font-weight: 600; }
 .ra-tag.is-cancelada { align-self: flex-start; background: var(--error-soft); color: var(--on-error-soft); font-weight: 600; }
 

@@ -13,6 +13,9 @@ const minutos = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); 
 /** HH:MM dando la vuelta al día (como app/leave.py: 00:05 menos 30 min da 23:35). */
 const hora = (total) => { const t = ((total % MINUTOS_DIA) + MINUTOS_DIA) % MINUTOS_DIA; return `${dos(Math.floor(t / 60))}:${dos(t % 60)}`; };
 
+/** La hora HH:MM que queda restando minutos a otra (para «cola desde las…» y «entrá antes de las…»). */
+export const horaMenos = (hhmm, min) => hora(minutos(hhmm) - min);
+
 /** Minutos antes del inicio en que hay que estar en la puerta (app/guided.py cola_min). */
 export function colaMin(card) {
   if ((card?.kind ?? "talk") !== "talk" || card.reservada) return 0;

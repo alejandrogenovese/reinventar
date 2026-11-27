@@ -1,6 +1,6 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Guided, Interview, Itinerary } from "./api.js";
-import { EtiquetaReserva, ayudaReserva } from "./reservaEtiqueta.js";
+import { BotonReserva, EstadoEnLinea, InsigniaReserva, LineaHoraReserva } from "./reservaEtiqueta.js";
 import { refreshCountdown } from "./countdown.js";
 import { startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
@@ -89,10 +89,6 @@ const minusMinutes = (hhmm, minutes) => {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 };
 
-/** Reservada (con tilde): sin reserva en el portal de AWS hay que hacer la cola 30 min antes (lo usa el armado guiado). */
-const BookedButton = (booked, onclick) => Button(booked ? IconText("listo", "Reservada") : "Marcar reservada",
-  { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 45 min antes a ver si queda lugar (30 si es solo por cola)" });
-
 // Códigos que ya están en tu itinerario: se piden una vez por pantalla y se olvidan al agregar o quitar.
 let codesPromise = null;
 export const itineraryCodes = () => (codesPromise ??= Itinerary.get()
@@ -141,26 +137,29 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, ex
       h("span", { class: "ra-rail-day" }, shortDay(s.day))),
     h("div", { class: "ra-minicard-body" },
       EtiquetaEstado(s),
-      h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · ")),
+      // En el itinerario (onBook) la reserva va como insignia en la fila del tipo y abajo la hora; en las listas, en línea.
+      h("div", { class: "ra-kind-fila" },
+        onBook ? InsigniaReserva(s) : null,
+        h("span", { class: "ra-kind" }, [s.type, s.level ? `Nivel ${s.level}` : null, s.base].filter(Boolean).join(" · "))),
       h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
-      h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
+      h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · "),
+        onBook ? null : EstadoEnLinea(s)),
       AvisoBaja(s),
-      tags.length || s.newlaunch || s.en_youtube || EtiquetaReserva(s) ? h("div", { class: "ra-chips" },
-        EtiquetaReserva(s),
+      tags.length || s.newlaunch || s.en_youtube ? h("div", { class: "ra-chips" },
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         EtiquetaYoutube(s),
         tags.slice(0, 6).map(Tag)) : null,
       People(s),
       Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
-      onBook && ayudaReserva(s) ? h("p", { class: "caption" }, ayudaReserva(s)) : null,
+      onBook ? LineaHoraReserva(s) : null,
       s.salir_antes && s.end ? Hint(`Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
       s.overlaps?.length ? Hint(`Se superpone con ${s.overlaps.join(", ")}`, { tone: "error" }) : null,
       extra,
       h("div", { class: "actions" },
         onAdd ? AddButton(s.code, onAdd) : null,
         onLock ? PinButton(locked, onLock) : null,
-        onBook ? BookedButton(s.reservada, onBook) : null,
+        BotonReserva(s, onBook),
         onRemove && isOver(s) ? Button("Me la perdí", { onclick: () => (location.hash = `#/perdida/${encodeURIComponent(s.code)}`) }) : null,
         onRemove ? Button("Quitar", { variant: "danger", onclick: onRemove }) : null)));
 }
