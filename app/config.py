@@ -142,6 +142,9 @@ LANGFUSE_HOST = _env("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
 EVENTOS_AUTO = _env("EVENTOS_AUTO") == "1"
 EVENTOS_AUTO_HORAS = float(_env("EVENTOS_AUTO_HORAS", "3"))
 EVENTOS_AUTO_TOPE = int(_env("EVENTOS_AUTO_TOPE", "50"))  # eventos al LLM por revisión; lo que sobra, a la próxima
+# Vigía de procesos de fondo (app/vigia.py): reinicia el contenedor si el pipeline o los avisos push se mueren o se
+# traban. Prendido salvo VIGIA=0; tests/conftest.py lo apaga.
+VIGIA = _env("VIGIA", "1") == "1"
 
 # Control de gastos del viaje (app/gastos.py, app/cotizacion.py, app/tickets_almacen.py).
 # Dólar tarjeta = dólar oficial (venta) × este factor. Es el recargo de percepciones sobre los consumos en dólares con
