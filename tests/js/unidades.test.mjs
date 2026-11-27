@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ATAJOS_COMIDA, PARES, TALLES, UNIDADES, buscarTalle, calcularPropina, conUnidad, convertir, convertirDetectada, discos,
+  ATAJOS_COMIDA, PARES, ZONA_ARGENTINA, horaEnArgentina, TALLES, UNIDADES, buscarTalle, calcularPropina, conUnidad, convertir, convertirDetectada, discos,
   parsearNumero, resultadoDe, textoAtajo, tiraClima, unidadConocida, usdAArs,
 } from "../../web/js/unidades.js";
 
@@ -139,4 +139,13 @@ test("unidades leídas en la foto: alias y conversión al sistema métrico", () 
   assert.equal(convertirDetectada({ valor: Number.MAX_VALUE, unidad: "mi" }), null);
   assert.equal(convertirDetectada({ valor: Number.MAX_VALUE, unidad: "$" }, { tarjeta: 1885 }), null);
   assert.equal(conUnidad(0.5, "kg"), "0,5 kg");
+});
+
+test("hora de Argentina: UTC−3 todo el año, en 24 h", () => {
+  assert.equal(ZONA_ARGENTINA, "America/Argentina/Buenos_Aires");
+  // Lun 7/12 13:00 en Las Vegas (UTC−8) son las 21:00 UTC: en la Argentina, las 18:00.
+  assert.equal(horaEnArgentina(new Date("2026-12-07T21:00:00Z")), "18:00");
+  // Pasada la medianoche UTC sigue el día anterior allá, sin «a. m.» ni «p. m.».
+  assert.equal(horaEnArgentina(new Date("2026-12-01T02:05:00Z")), "23:05");
+  assert.match(horaEnArgentina(), /^\d{2}:\d{2}$/);
 });

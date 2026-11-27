@@ -59,3 +59,9 @@ def test_los_estados_de_la_camara_tienen_su_texto():
     assert "No pude leer la foto. Probá de nuevo." in FOTO
     assert "MSG_FOTO_SIN_SENAL" in FOTO and "estadoLecturaFoto(" in FOTO
     assert '"/api/conversor/estado"' in FOTO  # con el kill switch apagado, el botón no se muestra
+
+
+def test_el_conversor_muestra_la_hora_de_argentina():
+    conversor = (JS / "conversor.js").read_text()
+    assert "En Argentina son las ${horaEnArgentina()}" in conversor
+    assert "HoraArgentina()" in conversor

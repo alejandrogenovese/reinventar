@@ -3,14 +3,18 @@ vez que la persona abre la pantalla, más los que agrega ella. Todo se edita y s
 
 Los sugeridos se siembran con su clave estable: el UNIQUE (username, clave_sugerido) hace que sembrar de nuevo no los
 duplique. Borrar un sugerido no lo elimina: le pone borrado_en, así la próxima siembra lo encuentra y no lo vuelve a
-agregar. Un sugerido nuevo que se sume acá le aparece a todos la próxima vez que abran la pantalla.
+agregar. Un sugerido nuevo que se sume acá le aparece a todos la próxima vez que abran la pantalla y, a quienes ya tienen
+lista, también al arrancar el servidor (sembrar_a_quienes_tienen_lista): así entra en los avisos aunque no la abran.
 Los avisos (fecha límite y el resumen de los días previos) los arma app/viajes_avisos.pendientes.
 """
 import datetime as dt
+import logging
 import time
 import uuid
 
 from . import db
+
+log = logging.getLogger("reinventar.viajes_pendientes")
 
 LARGO_MAX_TEXTO = 120
 TOPE_POR_PERSONA = 100
@@ -36,6 +40,11 @@ SUGERIDOS = (
     ("om121", "Declarar la notebook y los equipos en la Aduana al salir (formulario OM-121 de ARCA)"),
     ("tarjeta_dolares", "Evaluar pagar el resumen de la tarjeta con dólares propios (puede evitar la percepción: confirmalo con tu banco)"),
     ("swag", "Dejar lugar en la valija para el swag"),
+    # La vuelta (lun 7/12). El de Aduana es sobre lo comprado afuera: la franquicia y la declaración, en la sección
+    # «Vuelta» de re:Invent día por día (web/js/diaPorDia.js), con su fuente.
+    ("checkin_vuelta", "Hacer el check-in web del vuelo de vuelta"),
+    ("aduana_vuelta", "Declarar en la Aduana lo que compraste afuera si pasás la franquicia"),
+    ("facturas", "Guardar las facturas y tickets de lo que compres (para la Aduana y los reintegros)"),
 )
 
 _COLUMNAS = "id, texto, fecha_limite, hecho_en, orden, origen, clave_sugerido, vuelo_id, documento_id"
@@ -60,6 +69,28 @@ def sembrar(username: str) -> None:
     with db.conn() as c, c.cursor() as cur:
         cur.executemany("INSERT INTO viajes_pendientes (username,id,texto,orden,origen,clave_sugerido,creado) "
                         "VALUES (%s,%s,%s,%s,'sugerido',%s,%s) ON CONFLICT (username, clave_sugerido) DO NOTHING", filas)
+
+
+def sembrar_a_quienes_tienen_lista() -> int:
+    """Migración idempotente al arrancar: los sugeridos que falten (los nuevos, como los de la vuelta) a cada persona
+    que ya tiene lista. La primera siembra es al abrir la pantalla; sin esto, quien no la vuelve a abrir no los tendría
+    en los avisos. No duplica (UNIQUE por clave) ni revive los borrados (quedan con borrado_en). Devuelve las filas
+    agregadas; si la base falla, lo registra y sigue (no tumba el arranque)."""
+    try:
+        with db.conn() as c:
+            total = 0
+            for i, (clave, texto) in enumerate(SUGERIDOS):
+                total += c.execute(
+                    "INSERT INTO viajes_pendientes (username,id,texto,orden,origen,clave_sugerido,creado) "
+                    "SELECT u.username, substr(md5(random()::text || u.username || %s), 1, 12), %s, %s, 'sugerido', %s, %s "
+                    "FROM (SELECT DISTINCT username FROM viajes_pendientes) u "
+                    "ON CONFLICT DO NOTHING", (clave, texto, i, clave, time.time())).rowcount
+    except Exception:
+        log.warning("no se pudieron sumar los pendientes sugeridos nuevos a las listas existentes", exc_info=True)
+        return 0
+    if total:
+        log.info("pendientes sugeridos nuevos agregados a listas existentes: %d", total)
+    return total
 
 
 def listar_filas(username: str) -> list[dict]:

@@ -12,6 +12,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - El lunes 7/12 la franja del día dice «Hoy volvés · check-out y vuelo», con link a tus viajes.
 - Para admins: `/health` suma tres chequeos: `llm_reciente` (en false si el LLM falló 3 veces o más en 15 minutos, aunque el gateway responda: sin saldo, límite de pedidos), `grabaciones_error` (en false si 3 grabaciones o más terminaron con error en la última hora) y `disco_libre` (en false si el volumen de datos pasa el 85 % de uso). Un error aislado no da alarma.
 - Si el procesamiento de grabaciones o los avisos push se caen o se traban, la app se reinicia sola a los pocos minutos y retoma lo pendiente (con 5 minutos de gracia al arrancar). Se apaga con `VIGIA=0`.
+- En la tarjeta del vuelo que sale de Las Vegas: «Salí del hotel antes de las…» (3 h antes si es internacional, 2 h si es doméstico, más ~25 min desde el Strip) y, en la ficha, Uber y Lyft a la terminal de LAS. El banner «Próximo» avisa «Salí al aeropuerto» con esa hora.
+- «re:Invent día por día» suma Emergencias (911, qué hacer primero con el seguro, una farmacia que abre las 24 h en el Strip y el consulado argentino en Los Ángeles con su guardia) y Vuelta (check-out, anticipación y terminales en el aeropuerto, y la franquicia de la Aduana al volver), cada dato con su fuente.
+- Pendientes de la vuelta: check-in web del vuelo de vuelta, declarar compras en la Aduana y guardar las facturas. Aparecen también en las listas que ya existían.
+- «Documentos de viaje» en Viaje.
+- El conversor muestra la hora de Argentina.
 
 ### Corregido
 
@@ -22,6 +27,9 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Un audio corrupto ya no traba el procesamiento de todas las grabaciones: a los 10 minutos esa grabación queda con error y la cola sigue.
 - Los avisos «Salí para…», «Salí a las…» y «Empieza en 5 min» ya no llegan tarde: si el celular estuvo sin señal más de 15 minutos, se descartan.
 - Después de un reinicio de la base, el primer pedido ya no falla por una conexión vieja.
+- Actividades ya no ofrece excursiones para el día de la vuelta.
+- Dónde comer, sin ubicación en un día sin sesiones, busca cerca del hotel cargado en Viajes (si es una sede conocida) o pide prender la ubicación, en vez de decir que agendes una sesión.
+- La pestaña Viaje queda marcada también en Actividades.
 - Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.
 - Una grabación que falla por un problema momentáneo (cupo de transcripción agotado, servicio caído) se reintenta sola hasta tres veces, a los 15, 30 y 60 minutos, y mientras tanto dice «Se reintenta sola en unos minutos». Los reintentos automáticos no cuentan para el tope de «Reintentar». Los errores que no se arreglan reintentando (sin audio, sin voz, demasiado larga) siguen mostrándose como hasta ahora.
 - Si la transcripción se corta a mitad de una grabación, al reintentar se retoma desde el pedazo que falló: los ya transcriptos no se vuelven a mandar (ni gastan cupo), y el resultado es el mismo que sin el corte.

@@ -242,10 +242,14 @@ def agrupar(productos: list[dict], arbol: dict[int, dict]) -> list[dict] | None:
 
 
 # ---- pedidos ------------------------------------------------------------------------------------------------------
+# El día de la vuelta (lun 7/12, salida 13:00) no hay tiempo para una excursión: el último día es el anterior.
+ULTIMO_DIA_DE_EXCURSIONES = FIN_DE_LA_ESTADIA.date() - dt.timedelta(days=1)
+
+
 def _fechas(hoy: dt.date) -> tuple[str, str]:
-    """Del primer día de la estadía (o de hoy, si ya arrancó) al último."""
+    """Del primer día de la estadía (o de hoy, si ya arrancó) al anterior a la vuelta."""
     desde = max(INICIO_DE_LA_ESTADIA.date(), hoy)
-    return desde.isoformat(), max(desde, FIN_DE_LA_ESTADIA.date()).isoformat()
+    return desde.isoformat(), max(desde, ULTIMO_DIA_DE_EXCURSIONES).isoformat()
 
 
 def cuerpo_busqueda(pagina: int, hoy: dt.date) -> dict:

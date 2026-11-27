@@ -75,6 +75,7 @@ from . import (
     talks,
     ubicacion_api,
     viajes_api,
+    viajes_pendientes,
     vigia,
     voto_resumen_api,
 )
@@ -89,6 +90,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(_app):
     db.init()
+    viajes_pendientes.sembrar_a_quienes_tienen_lista()  # los sugeridos nuevos, a quien ya tiene lista
     if not config.BOOTSTRAP_USERS:
         logging.warning("BOOTSTRAP_USERS vacío: nadie va a poder loguearse hasta que lo configures")
     try:

@@ -125,7 +125,7 @@ def test_tag_desconocido_va_a_otras():
 
 def test_cuerpo_de_la_busqueda_pagina_de_a_50_en_las_fechas_de_la_estadia():
     cuerpo = viator.cuerpo_busqueda(2, ANTES_DEL_VIAJE)
-    assert cuerpo["filtering"] == {"destination": "684", "startDate": "2026-11-29", "endDate": "2026-12-07"}
+    assert cuerpo["filtering"] == {"destination": "684", "startDate": "2026-11-29", "endDate": "2026-12-06"}
     assert cuerpo["pagination"] == {"start": 51, "count": 50}
     assert cuerpo["currency"] == "USD"
     # Ya en Las Vegas no se buscan días que pasaron.
@@ -312,3 +312,10 @@ def test_endpoint_con_json_inesperado_da_503(client, api_viator):
 def test_endpoint_pide_login():
     with TestClient(app) as c:
         assert c.get("/api/actividades/excursiones").status_code == 401
+
+
+def test_el_dia_de_la_vuelta_no_se_ofrecen_excursiones():
+    # La vuelta es el lun 7/12 a las 13:00: el último día que se busca es el domingo 6/12.
+    assert viator.cuerpo_busqueda(1, ANTES_DEL_VIAJE)["filtering"]["endDate"] == "2026-12-06"
+    # Si ya es el 7/12, el rango queda en ese día y no en uno anterior a «desde».
+    assert viator.cuerpo_busqueda(1, dt.date(2026, 12, 7))["filtering"]["startDate"] == "2026-12-07"
