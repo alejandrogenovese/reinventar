@@ -3,6 +3,7 @@
 // ahora, puntaje mínimo y orden. «Llevame» reusa el botón de location.js. El servidor cachea la búsqueda a Google, así
 // que cambiar un filtro es barato. Si no hay clave de Places, la pantalla lo dice.
 import { api } from "./api.js";
+import { AppsPedidos } from "./appsPedidos.js";
 import { icon } from "./icons.js";
 import { GoThereParts, currentPosition } from "./location.js";
 import { Hint, h, mensajeError } from "./ui.js";
@@ -21,9 +22,10 @@ export const MINUTOS = { min: 5, max: 30, paso: 5 };
 const PUNTAJES = [[0, "Cualquier puntaje"], [4, "4 ★ o más"], [4.5, "4,5 ★ o más"]];
 const ORDENES = [["recomendado", "Recomendados"], ["cerca", "Más cerca"], ["puntaje", "Mejor puntaje"]];
 const ESPERA_DESLIZADOR_MS = 300; // mientras se arrastra no se pide nada: se pide al quedarse quieto
+export const APPS = "apps"; // no busca en Google: muestra las apps de delivery (appsPedidos.js)
 // Las claves son las de places.TIPOS_POR_CATEGORIA (app/places.py); cada tipo es otra búsqueda a Google, cacheada aparte.
 const TIPOS = [["todo", "Todo"], ["rapida", "Comida rápida"], ["dulces", "Dulces y postres"], ["cafe", "Café y panadería"],
-  ["restaurantes", "Restaurantes"]];
+  ["restaurantes", "Restaurantes"], [APPS, "Apps de pedidos"]];
 const DEFAULT = { tipo: "todo", precios: [1, 2], minutos: 10, abierto: false, puntaje: 0, orden: "recomendado" };
 
 const int = (n) => Number(n || 0).toLocaleString("es-AR");
@@ -118,14 +120,17 @@ export async function viewComer(view) {
   const seccion = (titulo, ayuda, ...contenido) => h("div", { class: "ra-filtro" },
     h("div", { class: "ra-filtro-titulo" }, h("span", { class: "label" }, titulo), ayuda ? h("span", { class: "caption" }, ayuda) : null),
     ...contenido);
-  const panel = h("details", { class: "ra-filtros" },
-    h("summary", {}, icon("filtrar", 16), h("span", {}, "Filtros")),
-    seccion("Tipo de lugar", null, chipsDe("Tipo de lugar", TIPOS, "tipo")),
+  // Con «Apps de pedidos» el resto de los filtros no aplica: se ocultan.
+  const deLugares = [
     seccion("Precio", "Podés elegir varios", chipsDe("Precio", PRECIOS, "precios")),
     seccion("Distancia", null, Deslizador()),
     seccion("Puntaje mínimo", null, chipsDe("Puntaje", PUNTAJES, "puntaje")),
     seccion("Ordenar por", null, chipsDe("Ordenar", ORDENES, "orden")),
-    seccion("Horario", null, h("div", { class: "ra-chips" }, abiertoBtn)));
+    seccion("Horario", null, h("div", { class: "ra-chips" }, abiertoBtn))];
+  const panel = h("details", { class: "ra-filtros" },
+    h("summary", {}, icon("filtrar", 16), h("span", {}, "Filtros")),
+    seccion("Tipo de lugar", null, chipsDe("Tipo de lugar", TIPOS, "tipo")),
+    ...deLugares);
   panel.open = true; // h() toma «open» como evento (empieza con «on»)
 
   function Deslizador() {
@@ -164,6 +169,13 @@ export async function viewComer(view) {
   let pedido = 0;
   async function cargar() {
     const mio = ++pedido;
+    const apps = filtros.tipo === APPS;
+    for (const s of deLugares) s.hidden = apps;
+    if (apps) {
+      origenEl.textContent = "Delivery al hotel o adonde estés";
+      lista.replaceChildren(...AppsPedidos());
+      return;
+    }
     lista.replaceChildren(h("p", { class: "caption", role: "status" }, "Buscando lugares…"));
     try {
       const pos = await currentPosition();
