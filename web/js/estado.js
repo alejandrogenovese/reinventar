@@ -147,7 +147,7 @@ function avisoActualizada(version) {
 
 // ---------- «Próximo» (/api/viajes/proximo, app/proximo.py) ----------
 
-const TIPOS_PROXIMO = { vuelo: ["viaje", "Ver vuelo"], hotel: ["viaje", "Ver hotel"], charla: ["reloj", "Ver"] };
+const TIPOS_PROXIMO = { aeropuerto: ["viaje", "Ver vuelo"], vuelo: ["viaje", "Ver vuelo"], hotel: ["viaje", "Ver hotel"], charla: ["reloj", "Ver"] };
 const texto = (x) => (typeof x === "string" && x.trim() ? x.trim() : null);
 
 /**
