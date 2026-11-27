@@ -75,6 +75,7 @@ from . import (
     talks,
     ubicacion_api,
     viajes_api,
+    vigia,
     voto_resumen_api,
 )
 from .auth import auth, bearer, context_for_token
@@ -104,6 +105,7 @@ async def lifespan(_app):
     eventos_auto.start_worker()
     charlas_auto.start_worker()
     cotizacion.start_worker()
+    vigia.start_worker()  # después de pipeline y push: los mira a ellos
     gastos_api.al_arrancar()
     documentos_api.al_arrancar()
     yield

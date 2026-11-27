@@ -42,8 +42,11 @@ def _crear(en_prueba: bool) -> ConnectionPool:
         c.execute(f"SET search_path TO {path}")
         c.commit()
 
+    # check: cada conexión se prueba antes de prestarla. Si Postgres se reinició o Railway cortó una conexión ociosa, el
+    # pool la descarta y abre otra en vez de entregar una muerta (que haría fallar el pedido).
     return ConnectionPool(config.DATABASE_URL, min_size=1, max_size=config.DB_POOL_SIZE,
-                          kwargs={"row_factory": dict_row}, configure=configure, open=True)
+                          kwargs={"row_factory": dict_row}, configure=configure,
+                          check=ConnectionPool.check_connection, open=True)
 
 
 def pool() -> ConnectionPool:

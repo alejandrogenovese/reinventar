@@ -23,8 +23,16 @@ def chunk_path(sid: str, part: int, seq: int) -> Path:
     return session_dir(sid) / "chunks" / f"{part:03d}" / f"{seq:06d}.webm"
 
 
+# Tope por llamada a ffmpeg/ffprobe: el pedazo más pesado (pasar a opus una charla larga) tarda bastante menos. Un audio
+# corrupto que deja a ffmpeg colgado trabaría el único worker del pipeline y toda la cola detrás.
+FFMPEG_TIMEOUT_S = 600
+
+
 def _run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT_S)
+    except subprocess.TimeoutExpired as e:  # subprocess.run ya mató al proceso; la sesión termina en error, la cola sigue
+        raise RuntimeError(f"ffmpeg tardó más de {FFMPEG_TIMEOUT_S} s: {' '.join(cmd[:3])}…") from e
     if p.returncode != 0:
         raise RuntimeError(f"ffmpeg falló: {' '.join(cmd[:3])}…\n{p.stderr[-1500:]}")
     return p
