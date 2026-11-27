@@ -63,7 +63,8 @@ def _tarjeta(session: dict, instance: dict, nivel_: int, minuto: int | None) -> 
     end = _fin(session, instance)
     inicio = itinerary._minutes(card["start"])
     en_curso = minuto is not None and inicio <= minuto < itinerary._minutes(end)
-    return {**card, "nivel": nivel_, "end": end, "cola_desde": leave.arrive_by(card), "en_curso": en_curso,
+    # Los anuncios no se reservan: la cola es la de walk-up.
+    return {**card, "nivel": nivel_, "end": end, "cola_desde": leave.arrive_by({**card, "walk_in": True}), "en_curso": en_curso,
             "recording_kind": talks.recording_kind(card.get("type"))}
 
 

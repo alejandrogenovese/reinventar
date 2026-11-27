@@ -90,7 +90,7 @@ const minusMinutes = (hhmm, minutes) => {
 
 /** Reservada (con tilde): sin reserva en el portal de AWS hay que hacer la cola 30 min antes (lo usa el armado guiado). */
 const BookedButton = (booked, onclick) => Button(booked ? IconText("listo", "Reservada") : "Marcar reservada",
-  { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 30 min antes" });
+  { onclick, "aria-pressed": String(Boolean(booked)), title: "Si no la tenés reservada, hay que hacer la cola 45 min antes a ver si queda lugar (30 si es solo por cola)" });
 
 // Códigos que ya están en tu itinerario: se piden una vez por pantalla y se olvidan al agregar o quitar.
 let codesPromise = null;

@@ -35,7 +35,8 @@ function aviso(o, previa) {
     case "justo": return `Llegás justo para la cola de las ${o.llegada}, sin margen.`;
     case "salir_antes": return `Empieza mientras estás en ${anterior}. Si te vas ${o.salir_antes_min} min antes (${o.salir_a}), llegás a la cola de las ${o.llegada}.`;
     case "se_superpone": return `Ojo: para llegar tenés que salir a las ${o.salir_a}, así que se superpone ${o.salir_antes_min} min con ${anterior}. Si te interesa más, cambiala.`;
-    default: return `Sin reserva: hacé la cola desde las ${o.llegada}.`;
+    default: return o.card?.walk_in ? `Sin reserva: hacé la cola desde las ${o.llegada}.`
+      : `Se reserva: si no tenés lugar, hacé la cola desde las ${o.llegada} a ver si queda.`;
   }
 }
 
@@ -79,7 +80,7 @@ function ChosenRow(s, onChanged) {
   const fin = s.salir_antes && s.end ? hhmm(toMin(s.end) - s.salir_antes) : s.end;
   const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Marcar reservada", {
     variant: "ghost", "aria-pressed": String(Boolean(s.reservada)),
-    title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 30 min antes",
+    title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 45 min antes a ver si queda lugar (30 si es solo por cola)",
     onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(mensajeError(err))) });
   return h("li", { class: "ra-chosen" },
     h("span", { class: "ra-chosen-time" }, `${s.start}–${fin || "?"}`),

@@ -7,9 +7,11 @@ from app import ics, leave, push, sandbox, today
 DIA = "2026-12-01"
 
 
-def _card(code, start, end, *, kind="talk", reservada=False, salir_antes=0, title=None):
+def _card(code, start, end, *, kind="talk", reservada=False, salir_antes=0, title=None, walk_in=True):
+    """walk_in: solo por cola (30 min). Con walk_in=False se reserva y, sin reserva, la cola es de 45."""
     return {"kind": kind, "code": code, "base": code, "title": title or f"Charla {code}", "type": "Breakout session",
             "day": DIA, "start": start, "end": end, "locked": True, "reservada": reservada, "salir_antes": salir_antes,
+            "walk_in": walk_in,
             "venue": {"hotel": "MGM Grand", "detail": "Level 3", "lat": 36.1, "lng": -115.17}}
 
 
@@ -21,8 +23,26 @@ def _ahora(hhmm):
 
 def test_sin_reserva_hay_que_estar_30_min_antes():
     assert leave.arrive_by(_card("A", "10:00", "11:00")) == "09:30"
-    assert leave.arrive_by(_card("A", "10:00", "11:00", reservada=True)) == "10:00"
+    assert leave.arrive_by(_card("A", "10:00", "11:00", reservada=True)) == "10:00"  # el aviso dice hasta cuándo entrar
     assert leave.arrive_by(_card("E", "18:00", "21:00", kind="event")) == "18:00"  # los eventos no tienen cola
+
+
+def test_si_se_reserva_y_no_la_tenes_hay_que_estar_45_min_antes():
+    card = _card("A", "10:00", "11:00", walk_in=False)
+
+    assert leave.arrive_by(card) == "09:15"
+    assert leave.sin_lugar_seguro(card) is True
+    assert leave.sin_lugar_seguro(_card("A", "10:00", "11:00")) is False
+    assert leave.sin_lugar_seguro(_card("A", "10:00", "11:00", walk_in=False, reservada=True)) is False
+
+
+def test_el_aviso_de_salir_dice_que_es_a_ver_si_queda_lugar():
+    card = _card("A", "10:00", "11:00", walk_in=False)
+
+    avisos = dict(push.day_notices([card], _ahora("09:00")))
+
+    mensaje = next(m for k, m in avisos.items() if k.startswith("leave:"))
+    assert "desde las 09:15 a ver si queda lugar" in mensaje["body"]
 
 
 def test_salir_antes_resta_del_fin():

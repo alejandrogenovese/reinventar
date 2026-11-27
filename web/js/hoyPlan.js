@@ -3,7 +3,8 @@
 // (o la de otro día). Todo puro, sin DOM: lo dibuja today.js. Siempre en hora de Las Vegas (dia.js).
 import { enVegas } from "./dia.js";
 
-export const COLA_SIN_RESERVA_MIN = 30;   // fila de walk-up sin reserva (app/guided.py COLA_SIN_RESERVA)
+export const COLA_SIN_RESERVA_MIN = 30;   // charla solo por cola, walk-up (app/guided.py COLA_SIN_RESERVA)
+export const COLA_SIN_LUGAR_MIN = 45;     // se reserva y no la tenés reservada: a ver si queda lugar (COLA_SIN_LUGAR)
 const DURACION_POR_DEFECTO_MIN = 60;      // app/itinerary.py _DEFAULT_MINUTES
 const MINUTOS_DIA = 24 * 60;
 
@@ -12,6 +13,12 @@ const minutos = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); 
 /** HH:MM dando la vuelta al día (como app/leave.py: 00:05 menos 30 min da 23:35). */
 const hora = (total) => { const t = ((total % MINUTOS_DIA) + MINUTOS_DIA) % MINUTOS_DIA; return `${dos(Math.floor(t / 60))}:${dos(t % 60)}`; };
 
+/** Minutos antes del inicio en que hay que estar en la puerta (app/guided.py cola_min). */
+export function colaMin(card) {
+  if ((card?.kind ?? "talk") !== "talk" || card.reservada) return 0;
+  return card.walk_in ? COLA_SIN_RESERVA_MIN : COLA_SIN_LUGAR_MIN;
+}
+
 /** La tarjeta con fin, la hora de la cola (charla sin reserva) y la de salida si eligió irse antes (app/today.py _with_end). */
 export function conFin(card) {
   if (!card?.start) return card;
@@ -19,7 +26,7 @@ export function conFin(card) {
   const haceCola = (card.kind ?? "talk") === "talk" && !card.reservada;
   return {
     ...card, end,
-    cola_desde: haceCola ? hora(minutos(card.start) - COLA_SIN_RESERVA_MIN) : null,
+    cola_desde: haceCola ? hora(minutos(card.start) - colaMin(card)) : null,
     salis_a: card.salir_antes ? hora(minutos(end) - card.salir_antes) : null,
   };
 }

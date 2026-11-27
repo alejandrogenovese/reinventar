@@ -7,8 +7,8 @@ import { icon } from "./icons.js";
 import { GoThereParts, currentPosition } from "./location.js";
 import { Hint, h, mensajeError } from "./ui.js";
 
-const PRECIOS = [[1, "$", "Hasta $ (barato)"], [2, "$$", "Hasta $$ (moderado)"], [3, "$$$", "Hasta $$$ (caro)"],
-  [4, "$$$$", "Hasta $$$$ (muy caro)"]];
+const PRECIOS = [[1, "$ barato", "Hasta $ (barato)"], [2, "$$ moderado", "Hasta $$ (moderado)"],
+  [3, "$$$ caro", "Hasta $$$ (caro)"], [4, "$$$$ muy caro", "Hasta $$$$ (muy caro)"]];
 
 /** De dónde se buscó: la próxima sesión, el hotel cargado en Viajes (en un día libre) o la ubicación del celular. */
 export function textoOrigen(origen) {
@@ -41,26 +41,50 @@ export function consulta({ precio, minutos, tipo = "todo", abierto = false, punt
   return `/api/comer?${params}`;
 }
 
-const etiquetaPrecio = (n) => (n ? "$".repeat(n) : "Sin dato de precio");
+const NIVELES_PRECIO = ["", "Barato", "Moderado", "Caro", "Muy caro"];
 export const minutosTexto = (m) => `Hasta ${m} min caminando`;
 
+/** Ancho de la capa dorada: 4,3 → 86 %. Redondeado a la décima de estrella, como Google. */
+export const llenoPct = (rating) => Math.round(Math.min(5, Math.max(0, Number(rating) || 0)) * 10) * 2;
+
+/** «4,5 ★★★★⯪ (1.234)»: el número, cinco estrellas (la última parcial) y las reseñas. chica: sin número ni reseñas. */
+export function Estrellas(rating, { resenas = null, chica = false } = {}) {
+  const fila = h("span", { class: "ra-estrellas-fila", "aria-hidden": "true" }, "★★★★★",
+    h("span", { class: "ra-estrellas-llenas", style: { width: `${llenoPct(rating)}%` } }, "★★★★★"));
+  const aria = `${puntaje(rating)} de 5 estrellas${resenas == null ? "" : `, ${int(resenas)} reseñas`}`;
+  return h("span", { class: `ra-estrellas${chica ? " ra-estrellas-chica" : ""}`, role: "img", "aria-label": aria },
+    chica ? null : h("span", { class: "ra-estrellas-num" }, puntaje(rating)),
+    fila,
+    resenas == null ? null : h("span", { class: "ra-estrellas-cant" }, `(${int(resenas)})`));
+}
+
+/** «$$·· Moderado»: los $ del nivel resaltados, los que faltan hasta $$$$ apagados, y la palabra. */
+export function Precio(n) {
+  if (!n) return h("span", { class: "ra-precio" }, "Sin dato de precio");
+  return h("span", { class: "ra-precio", "aria-label": `Precio: ${NIVELES_PRECIO[n].toLowerCase()} (${"$".repeat(n)})` },
+    h("span", { class: "ra-precio-on", "aria-hidden": "true" }, "$".repeat(n)),
+    h("span", { class: "ra-precio-off", "aria-hidden": "true" }, "$".repeat(4 - n)),
+    ` · ${NIVELES_PRECIO[n]}`);
+}
+
 function Resena(r) {
-  return h("blockquote", { class: "caption", style: { margin: "0", paddingLeft: "var(--space-3)", borderLeft: "2px solid var(--surface-3)" } },
-    `“${r.texto}”`);
+  return h("blockquote", { class: "ra-resena caption" },
+    r.puntaje ? Estrellas(r.puntaje, { chica: true }) : null,
+    h("p", {}, `“${r.texto}”`));
 }
 
 export function LugarCard(l) {
   const dest = { lat: l.lat, lng: l.lng, name: l.nombre, placeId: l.place_id };
   const ir = GoThereParts(dest, { iconOnly: true })?.link;
   const abierto = l.abierto == null ? null : h("span", { class: "ra-tag" }, l.abierto ? "Abierto ahora" : "Cerrado ahora");
-  const puntajeTxt = l.rating ? `${puntaje(l.rating)} ★ (${int(l.resenas)} reseñas)` : "Sin reseñas todavía";
+  const puntajeEl = l.rating ? Estrellas(l.rating, { resenas: l.resenas }) : h("span", {}, "Sin reseñas todavía");
   return h("article", { class: "ra-card", style: { cursor: "default" } },
     h("div", { class: "ra-card-top" },
       h("h2", { class: "ra-card-title" }, l.nombre),
       ir),
     l.tipo ? h("span", { class: "ra-kind" }, l.tipo) : null,
     h("div", { class: "ra-card-meta" },
-      h("span", {}, puntajeTxt), h("span", {}, etiquetaPrecio(l.precio)),
+      puntajeEl, Precio(l.precio),
       h("span", { class: "ra-icotext" }, icon("caminar", 16), `${l.minutos} min caminando`), abierto),
     h("p", { class: "caption" }, l.direccion),
     (l.extracto || []).map(Resena));
