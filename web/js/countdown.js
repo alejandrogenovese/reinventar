@@ -3,6 +3,7 @@
 import { Itinerary, getToken } from "./api.js";
 import { alertSettings, currentPosition, startsAt, walkingMinutes } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
+import { colaMin } from "./hoyPlan.js";
 import { icon } from "./icons.js";
 import { h, toast } from "./ui.js";
 
@@ -14,7 +15,6 @@ const HIDDEN = "ra.countdown.hidden";      // código cuya franja se ocultó
 const MISSED_WINDOW_MS = 45 * 60_000;      // después de que termina una charla fijada, se pregunta si llegaste
 const NEXT_PRIORITY_MS = 15 * 60_000;      // pero si lo próximo empieza en menos de esto, gana lo próximo
 
-const QUEUE_MIN = 30;                       // fila de walk-up si la charla no está reservada (app/guided.py)
 let pinned = [];                           // [{ code, base, kind, title, start: Date, end: Date, venue }]
 let fetchedAt = 0;
 let ticker = null;
@@ -45,9 +45,11 @@ async function loadPinned() {
     const start = startsAt(s.day, s.start);
     let end = s.end ? startsAt(s.day, s.end) : new Date(start.getTime() + 3_600_000);
     if (end <= start) end = new Date(end.getTime() + 86_400_000); // termina pasada la medianoche
-    // Charla sin reserva: hay que llegar QUEUE_MIN antes por la fila de walk-up (armado guiado).
+    // Cuánto antes estar en la puerta (hoyPlan.colaMin): con reserva, al inicio; sin reserva, la fila de walk-up.
     const queue = (s.kind || "talk") === "talk" && !s.reservada;
-    return { code: s.code, base: s.base, show: s.show, kind: s.kind || "talk", title: s.title, start, end, venue: s.venue, queue };
+    const sinLugar = queue && !s.walk_in;
+    return { code: s.code, base: s.base, show: s.show, kind: s.kind || "talk", title: s.title, start, end, venue: s.venue,
+      queue, sinLugar, queueMin: colaMin(s) };
   })).sort((a, b) => a.start - b.start);
 }
 
@@ -72,12 +74,13 @@ function fireOnce(key, message) {
 /** Lo que muestra la franja para el próximo fijado; dispara las alertas que correspondan (una sola vez cada una). */
 function state(it, now, lead) {
   const toStart = it.start - now;
-  const leave = new Date(it.start.getTime() - (lead + (it.queue ? QUEUE_MIN : 0)) * 60000);
+  const leave = new Date(it.start.getTime() - (lead + (it.queueMin || 0)) * 60000);
   if (now >= it.start) return { tone: "live", text: `${label(it)} empezó hace ${Math.max(1, Math.round(-toStart / 60000))} min` };
   if (toStart <= alertSettings().startNoticeMin * 60000) fireOnce(`${it.code}:start`, `${it.title} empieza en ${Math.ceil(toStart / 60000)} min.`);
   if (now >= leave) {
-    fireOnce(`${it.code}:leave`, it.queue
-      ? `Salí ahora para ${it.title}: sin reserva, hacé la cola (empieza a las ${hhmm(it.start)}).`
+    fireOnce(`${it.code}:leave`, it.sinLugar
+      ? `Salí ahora para ${it.title}: sin reserva, hacé la cola a ver si queda lugar (empieza a las ${hhmm(it.start)}).`
+      : it.queue ? `Salí ahora para ${it.title}: sin reserva, hacé la cola (empieza a las ${hhmm(it.start)}).`
       : `Salí ahora para ${it.title}: empieza a las ${hhmm(it.start)}.`);
     return { tone: "urgent", text: `Salí ya · ${label(it)} en ${formatCountdown(toStart)}` };
   }

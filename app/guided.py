@@ -6,7 +6,9 @@ escribe en una oración por qué le sirve cada opción. Cada opción trae su est
   justo        llega con menos de MARGEN_JUSTO minutos de margen
   salir_antes  tiene que irse hasta SALIR_ANTES_MAX minutos antes de que termine la anterior
   se_superpone tiene que irse más que eso: se muestra igual, al final, como recomendación con aviso
-Si la charla no está reservada en el portal de AWS hay que llegar COLA_SIN_RESERVA minutos antes (fila de walk-up).
+Cuánto antes hay que estar (cola_min): con reserva, al inicio (el aviso dice hasta qué hora se puede entrar: app/leave.py);
+en una charla solo por cola (walk-up), COLA_SIN_RESERVA; en una que se reserva y no tenés reservada, COLA_SIN_LUGAR,
+porque la fila de walk-up entra recién con los lugares que dejan libres los reservados: tiene más prioridad irse antes.
 """
 import logging
 import re
@@ -20,6 +22,7 @@ log = logging.getLogger("reinventar.guided")
 
 SALIR_ANTES_MAX = 30
 COLA_SIN_RESERVA = 30
+COLA_SIN_LUGAR = 45      # se reserva y no la tenés reservada: a ver si queda lugar
 MARGEN_JUSTO = 5
 VENTANA_ANTES = 30       # candidatas que empiezan hasta 30 min antes de que termine la anterior
 VENTANA_DESPUES = 180    # … y hasta 3 h después
@@ -72,8 +75,16 @@ class Traslado:
     salir_antes_min: int      # cuánto antes de que termine la anterior (en rojo: cuánto se superpone)
 
 
-def evaluar(fin_previa: int | None, inicio: int, viaje: int | None, reservada: bool) -> Traslado:
-    llegada = inicio - (0 if reservada else COLA_SIN_RESERVA)
+def cola_min(card: dict) -> int:
+    """Minutos antes del inicio en que hay que estar en la puerta. Los eventos y shows no tienen cola."""
+    if card.get("kind", "talk") != "talk" or card.get("reservada"):
+        return 0
+    return COLA_SIN_RESERVA if card.get("walk_in") else COLA_SIN_LUGAR
+
+
+def evaluar(fin_previa: int | None, inicio: int, viaje: int | None, cola: int) -> Traslado:
+    """cola: minutos antes del inicio en que hay que estar (cola_min)."""
+    llegada = inicio - cola
     if fin_previa is None:
         return Traslado(A_TIEMPO, hhmm(llegada), None, 0)
     salida = llegada - (viaje or 0)
@@ -215,7 +226,7 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
     card["end"] = itinerary._end(card)
     previa_lugar = (ctx.previa or {}).get("venue")
     v = viaje_entre(previa_lugar, card.get("venue")) if ctx.previa else None
-    t = evaluar(ctx.fin_previa, minutos(card["start"]), v.minutos if v else None, reservada=False)
+    t = evaluar(ctx.fin_previa, minutos(card["start"]), v.minutos if v else None, cola_min(card))
     af, motivos = afinidad(session, ctx.ficha, ctx.busqueda.get(session["base"], 0.0),
                            session["base"] in ctx.pendientes)
     desde, hasta = (previa_lugar or {}).get("hotel"), (card.get("venue") or {}).get("hotel")
@@ -223,7 +234,7 @@ def _opcion(session: dict, inst: dict, ctx: _Contexto) -> dict:
     puntaje = (af - (v.minutos if v else 0) * PENALIDAD_POR_MIN_CAMINANDO
                - t.salir_antes_min * PENALIDAD_POR_MIN_SALIR_ANTES + (BONO_MISMA_SEDE if misma_sede else 0))
     return {"card": card, "estado": t.estado, "llegada": t.llegada, "salir_a": t.salir_a,
-            "salir_antes_min": t.salir_antes_min, "viaje_min": v.minutos if v else None,
+            "salir_antes_min": t.salir_antes_min, "cola_min": cola_min(card), "viaje_min": v.minutos if v else None,
             "viaje_estimado": v.estimado if v else None, "misma_sede": misma_sede,
             "ruta": (rutas.atajo_fijo(desde, hasta, v.minutos, rutas.momento(card.get("day"), card["start"]))
                      if v and not misma_sede else None),

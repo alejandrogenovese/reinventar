@@ -1,12 +1,12 @@
 """El itinerario como calendario .ics (RFC 5545), para importarlo en el calendario del teléfono.
 
 Cada ítem es un VEVENT en UTC (las horas del catálogo son de Las Vegas) con una alarma: 15 min antes del inicio, o
-15 min antes de la hora de la cola si la charla no está reservada. Si eligió irse antes, el evento termina a esa hora.
+15 min antes de la hora de la cola si la charla no está reservada (guided.cola_min). Si eligió irse antes, el evento termina a esa hora.
 """
 import datetime as dt
 
 from . import config, leave, sandbox
-from .guided import COLA_SIN_RESERVA
+from .guided import cola_min
 
 PRODID = "-//ReinventAR//Itinerario re:Invent//ES"
 ALARMA_MIN = 15
@@ -65,7 +65,7 @@ def _vevent(c: dict, ahora: dt.datetime) -> list[str]:
     inicio, fin = _rango(c)
     venue = c.get("venue") or {}
     lugar = " · ".join(filter(None, (venue.get("hotel"), venue.get("detail"))))
-    antes = ALARMA_MIN + (COLA_SIN_RESERVA if leave.needs_queue(c) else 0)
+    antes = ALARMA_MIN + (cola_min(c) if leave.needs_queue(c) else 0)
     return [
         "BEGIN:VEVENT",
         f"UID:{c['code']}-{c['day']}@reinventar",

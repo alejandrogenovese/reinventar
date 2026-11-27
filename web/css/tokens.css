@@ -94,6 +94,7 @@
     --ink-muted: #5f5f5f;     /* 6,4:1 sobre blanco · 5,8:1 sobre --bg */
     --line: #e3e3e3;
     --line-strong: #8a8a8a;   /* bordes de campos y píldoras · 3,5:1 */
+    --estrella: #f5a800;      /* estrellas de puntaje (Dónde comer): siempre con el número al lado */
 
     /* Marca: el naranja es señal (ahora, en vivo, acción principal), no decoración */
     --brand: #fa6400;         /* classic primary */
@@ -188,6 +189,7 @@
     --ink-muted: #a8a8a8;     /* 7,2:1 sobre --surface-1 */
     --line: #2e2e2e;
     --line-strong: #6e6e6e;   /* 3,4:1 */
+    --estrella: #fdd663;
     --brand-ink: #ff9a57;     /* 8,2:1 sobre --surface-1, 7,1:1 sobre --brand-soft */
     --brand-soft: #3a2210;
     --accent-on-ink: #a84308; /* el toast es claro en oscuro: 5,4:1 (el naranja daba 2,8:1) */

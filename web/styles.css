@@ -1059,3 +1059,17 @@ a.ra-heat-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ra-clima-ahora .ra-icon { flex: none; }
 .ra-clima-maxmin { font: var(--t-small); color: var(--ink-muted); }
 .ra-clima-consejo { font: var(--t-small-strong); color: var(--ink); }
+
+/* Dónde comer: puntaje como en Google (número, cinco estrellas con la última parcial y la cantidad de reseñas) y el
+   precio con los $ que no aplican apagados. */
+.ra-estrellas { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.ra-estrellas-num { font-weight: 600; color: var(--ink); }
+.ra-estrellas-fila { position: relative; display: inline-block; line-height: 1; letter-spacing: 1px; color: var(--line-strong); }
+.ra-estrellas-llenas { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--estrella); }
+.ra-estrellas-cant { color: var(--ink-muted); }
+.ra-estrellas-chica .ra-estrellas-fila { font-size: 0.8em; }
+.ra-precio { white-space: nowrap; }
+.ra-precio-on { font-weight: 600; color: var(--ink); }
+.ra-precio-off { color: var(--line-strong); }
+.ra-resena { margin: 0; padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius-m); display: flex; flex-direction: column; gap: var(--space-1); }
+.ra-resena p { margin: 0; }

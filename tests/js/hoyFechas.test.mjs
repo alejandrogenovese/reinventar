@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "./domMinimo.mjs";
 
-const { ACCESOS_DIA_LIBRE, COLA_SIN_RESERVA_MIN, conFin, hoySinSenal, mensajeSinCharlas, planDeHoy } = await import("../../web/js/hoyPlan.js");
+const { ACCESOS_DIA_LIBRE, COLA_SIN_LUGAR_MIN, COLA_SIN_RESERVA_MIN, colaMin, conFin, hoySinSenal, mensajeSinCharlas, planDeHoy } = await import("../../web/js/hoyPlan.js");
 const { SECCIONES, hoyEnReinvent } = await import("../../web/js/diaPorDia.js");
 const { cercaDeAhora } = await import("../../web/js/talkpicker.js");
 const { estaVencido } = await import("../../web/js/pendientes.js");
@@ -54,7 +54,8 @@ test("un show de 22:00 a 00:30 sigue en Ahora a las 23:00 (cruza la medianoche)"
 
 test("conFin suma la cola sin reserva, la salida anticipada y el fin estimado", () => {
   assert.equal(COLA_SIN_RESERVA_MIN, 30);
-  assert.deepEqual(conFin(charla("X", "2026-12-01", "00:10", "01:00", { salir_antes: 15 })).cola_desde, "23:40");
+  assert.deepEqual(conFin(charla("X", "2026-12-01", "00:10", "01:00", { salir_antes: 15, walk_in: true })).cola_desde, "23:40");
+  assert.equal(conFin(charla("X", "2026-12-01", "09:00", "10:00")).cola_desde, "08:15"); // se reserva y no la tenés
   assert.equal(conFin(charla("X", "2026-12-01", "09:00", "10:00", { salir_antes: 15 })).salis_a, "09:45");
   assert.equal(conFin(charla("X", "2026-12-01", "09:00", "10:00", { reservada: true })).cola_desde, null);
   assert.equal(conFin({ code: "E", start: "18:00", kind: "event" }).end, "19:00");
@@ -64,6 +65,15 @@ test("conFin suma la cola sin reserva, la salida anticipada y el fin estimado", 
 test("la cola sin reserva coincide con la del servidor (app/guided.py)", () => {
   const guided = readFileSync(new URL("../../app/guided.py", import.meta.url), "utf8");
   assert.match(guided, new RegExp(`^COLA_SIN_RESERVA = ${COLA_SIN_RESERVA_MIN}$`, "m"));
+  assert.match(guided, new RegExp(`^COLA_SIN_LUGAR = ${COLA_SIN_LUGAR_MIN}\\b`, "m"));
+});
+
+test("cuánto antes estar: con reserva al inicio, solo por cola 30, se reserva y no la tenés 45, eventos 0", () => {
+  assert.equal(colaMin({ kind: "talk", reservada: true }), 0);
+  assert.equal(colaMin({ kind: "talk", walk_in: true }), 30);
+  assert.equal(colaMin({ kind: "talk" }), 45);
+  assert.equal(colaMin({}), 45);
+  assert.equal(colaMin({ kind: "event" }), 0);
 });
 
 // ---------- hoySinSenal: la copia vieja de /api/today ----------

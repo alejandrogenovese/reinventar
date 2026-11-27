@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 import "./domMinimo.mjs";
 
-const { consulta, LugarCard, MINUTOS, minutosTexto, textoOrigen } = await import("../../web/js/comer.js");
+const { consulta, Estrellas, llenoPct, LugarCard, MINUTOS, minutosTexto, Precio, textoOrigen } = await import("../../web/js/comer.js");
 
 const lugar = (extra = {}) => ({ place_id: "p1", nombre: "Hershey's Chocolate World", lat: 36.1, lng: -115.17, rating: 4.6,
   resenas: 9000, precio: 1, minutos: 6, abierto: true, direccion: "Las Vegas Blvd", extracto: [], ...extra });
@@ -41,4 +41,41 @@ test("el origen dice si se buscó desde la sesión, el hotel o el celular", () =
   assert.equal(textoOrigen({ fuente: "sesion", nombre: "MGM Grand" }), "Cerca de MGM Grand, tu próxima sesión");
   assert.equal(textoOrigen({ fuente: "hotel", nombre: "The Venetian Resort" }), "Cerca de tu hotel, The Venetian Resort");
   assert.equal(textoOrigen({ fuente: "telefono", nombre: null }), "Cerca de donde estás");
+});
+
+test("las estrellas se llenan como en Google: la última parcial, redondeada a la décima", () => {
+  assert.equal(llenoPct(5), 100);
+  assert.equal(llenoPct(4.3), 86);
+  assert.equal(llenoPct(4.55), 92);
+  assert.equal(llenoPct(0), 0);
+  assert.equal(llenoPct(7), 100);
+});
+
+test("el puntaje muestra número, estrellas y reseñas, y lo dice entero para el lector de pantalla", () => {
+  const el = Estrellas(4.6, { resenas: 9000 });
+  assert.ok(el.textContent.startsWith("4,6"));
+  assert.ok(el.textContent.includes("(9.000)"));
+  assert.equal(el.getAttribute("aria-label"), "4,6 de 5 estrellas, 9.000 reseñas");
+});
+
+/** Primer descendiente con esa clase (el DOM de prueba no tiene querySelector). */
+function buscar(nodo, clase) {
+  if (typeof nodo !== "object" || !nodo) return null;
+  if (String(nodo.className).split(" ").includes(clase) || String(nodo.attrs?.class ?? "").split(" ").includes(clase)) return nodo;
+  for (const hijo of nodo.children ?? []) { const r = buscar(hijo, clase); if (r) return r; }
+  return null;
+}
+
+test("el precio resalta su nivel, apaga el resto y dice la palabra", () => {
+  const el = Precio(2);
+  assert.equal(el.textContent, "$$$$ · Moderado");
+  assert.equal(buscar(el, "ra-precio-on").textContent, "$$");
+  assert.equal(buscar(el, "ra-precio-off").textContent, "$$");
+  assert.equal(Precio(null).textContent, "Sin dato de precio");
+});
+
+test("cada reseña lleva sus estrellas", () => {
+  const card = LugarCard(lugar({ extracto: [{ texto: "Muy rico", puntaje: 5 }] }));
+  assert.ok(card.textContent.includes("“Muy rico”"));
+  assert.ok(buscar(buscar(card, "ra-resena"), "ra-estrellas"));
 });

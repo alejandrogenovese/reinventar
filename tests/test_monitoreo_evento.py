@@ -154,7 +154,7 @@ def test_ffmpeg_colgado_termina_en_error_de_la_sesion(monkeypatch):
 def _card(code, start, end, salir_antes=0):
     return {"kind": "talk", "code": code, "base": code, "title": f"Charla {code}", "day": DIA, "start": start,
             "end": end, "locked": True, "reservada": False, "salir_antes": salir_antes,
-            "venue": {"hotel": "MGM Grand", "detail": "Level 3"}}
+            "walk_in": True, "venue": {"hotel": "MGM Grand", "detail": "Level 3"}}
 
 
 def _ahora(hhmm):

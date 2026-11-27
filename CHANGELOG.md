@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Charla que se reserva y no tenés reservada: el aviso para salir, Hoy, la franja y el calendario cuentan 45 minutos de cola (antes 30), porque la fila de walk-up entra con los lugares que sobran. El armado guiado lo tiene en cuenta y te sugiere irte antes de la anterior. Las charlas solo por cola siguen en 30 y las reservadas, contra el inicio.
+- Dónde comer: el puntaje se ve como en Google (número, cinco estrellas con la última parcial y la cantidad de reseñas), el precio resalta su nivel con los $ restantes apagados y dice «Barato», «Moderado», «Caro» o «Muy caro», y cada reseña lleva sus estrellas.
+
 ## [1.4.0] - 2026-11-27
 
 ### Agregado

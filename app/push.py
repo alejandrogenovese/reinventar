@@ -182,6 +182,8 @@ def _url(c: dict) -> str:
 def _cuando_llegar(c: dict, now: dt.datetime) -> str:
     """El cuerpo del "Salí para…": la cola si no está reservada; con reserva, hasta qué hora se puede entrar (o que ese
     límite ya pasó, si el aviso sale tarde)."""
+    if leave.sin_lugar_seguro(c):
+        return f"Sin reserva: hacé la cola desde las {leave.arrive_by(c)} a ver si queda lugar"
     if leave.needs_queue(c):
         return f"Sin reserva: hacé la cola desde las {leave.arrive_by(c)}"
     limite = leave.entrar_antes(c)

@@ -21,8 +21,23 @@ FICHA = Ficha(
 
 # ---------- estado del traslado (puro) ----------
 
-def _t(fin, inicio, viaje, reservada=True):
-    return guided.evaluar(guided.minutos(fin), guided.minutos(inicio), viaje, reservada)
+def _t(fin, inicio, viaje, cola=0):
+    return guided.evaluar(guided.minutos(fin), guided.minutos(inicio), viaje, cola)
+
+
+def test_cuanto_antes_estar_segun_la_reserva():
+    assert guided.cola_min({"kind": "talk", "reservada": True}) == 0  # el aviso dice hasta cuándo entrar
+    assert guided.cola_min({"kind": "talk", "walk_in": True}) == guided.COLA_SIN_RESERVA == 30
+    assert guided.cola_min({"kind": "talk"}) == guided.COLA_SIN_LUGAR == 45  # se reserva y no la tenés
+    assert guided.cola_min({"kind": "event"}) == 0
+
+
+def test_sin_lugar_reservado_tiene_mas_prioridad_irse_antes():
+    # Misma sede (5 min) a las 10:15, la anterior termina 09:30: solo por cola llega a tiempo; si se reserva y no la
+    # tenés, hay que estar 09:30 y salir 5 min antes.
+    assert _t("09:30", "10:15", 5, cola=guided.COLA_SIN_RESERVA).estado == "a_tiempo"
+    t = _t("09:30", "10:15", 5, cola=guided.COLA_SIN_LUGAR)
+    assert (t.estado, t.salir_antes_min, t.salir_a, t.llegada) == ("salir_antes", 5, "09:25", "09:30")
 
 
 def test_con_margen_llega_a_tiempo():
@@ -32,7 +47,7 @@ def test_con_margen_llega_a_tiempo():
 
 
 def test_sin_reserva_suma_la_cola_y_dice_desde_cuando():
-    t = _t("09:00", "10:00", 15, reservada=False)
+    t = _t("09:00", "10:00", 15, cola=guided.COLA_SIN_RESERVA)
 
     assert (t.estado, t.llegada) == ("a_tiempo", "09:30")
 
@@ -59,12 +74,12 @@ def test_mas_de_30_min_se_superpone_y_dice_cuanto():
 def test_la_cola_puede_convertir_una_a_tiempo_en_salir_antes():
     # Misma sede (5 min) a las 09:15: con reserva sobra; sin reserva hay que estar 08:45, o sea salir 08:40.
     assert _t("09:00", "09:15", 5).estado == "a_tiempo"
-    t = _t("09:00", "09:15", 5, reservada=False)
+    t = _t("09:00", "09:15", 5, cola=guided.COLA_SIN_RESERVA)
     assert (t.estado, t.salir_antes_min) == ("salir_antes", 20)
 
 
 def test_sin_charla_anterior_siempre_llega():
-    t = guided.evaluar(None, guided.minutos("08:00"), None, reservada=False)
+    t = guided.evaluar(None, guided.minutos("08:00"), None, cola=guided.COLA_SIN_RESERVA)
 
     assert (t.estado, t.llegada) == ("a_tiempo", "07:30")
 
