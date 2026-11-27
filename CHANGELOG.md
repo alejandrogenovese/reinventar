@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.4] - 2026-11-27
+
+### Agregado
+
+- Cada charla dice si es con reserva previa (con los lugares de la sala), si ya la tenés reservada o si es sin reserva, por orden de llegada: en las tarjetas (Itinerario, Buscar, Explorar) y en cada horario de la ficha. En el itinerario, si se reserva y no la marcaste como reservada, explica que la cola es 45 min antes y que se entra con los lugares que sobren.
+
 ## [1.4.3] - 2026-11-27
 
 ### Agregado
