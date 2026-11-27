@@ -8,6 +8,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 ### Corregido
 
 - Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.
+- Una grabación que falla por un problema momentáneo (cupo de transcripción agotado, servicio caído) se reintenta sola hasta tres veces, a los 15, 30 y 60 minutos, y mientras tanto dice «Se reintenta sola en unos minutos». Los reintentos automáticos no cuentan para el tope de «Reintentar». Los errores que no se arreglan reintentando (sin audio, sin voz, demasiado larga) siguen mostrándose como hasta ahora.
+- Si la transcripción se corta a mitad de una grabación, al reintentar se retoma desde el pedazo que falló: los ya transcriptos no se vuelven a mandar (ni gastan cupo), y el resultado es el mismo que sin el corte.
 
 ## [1.3.6] - 2026-11-26
 
