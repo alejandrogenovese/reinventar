@@ -9,59 +9,47 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ### Agregado
 
-- Cada charla dice si es con reserva previa (con los lugares de la sala), si ya la tenés reservada o si es sin reserva, por orden de llegada: en las tarjetas (Itinerario, Buscar, Explorar) y en cada horario de la ficha. En el itinerario, si se reserva y no la marcaste como reservada, explica que la cola es 45 min antes y que se entra con los lugares que sobren.
+- **Charlas con reserva previa a la vista.** Cada charla dice si es con reserva previa (con los lugares de la sala), si ya la tenés reservada o si es sin reserva, por orden de llegada: en Itinerario, Buscar, Explorar y en cada horario de la ficha. Si se reserva y no la marcaste como reservada, el itinerario explica que la cola es 45 min antes y que se entra con los lugares que sobren.
 
 ## [1.4.3] - 2026-11-27
 
 ### Agregado
 
-- Dónde comer: «Apps de pedidos» como un tipo de lugar más. Lleva a Uber Eats, DoorDash y Grubhub (abre la app si está instalada) con un aviso sobre dónde se retira el pedido en los hoteles del Strip.
+- **Apps de pedidos en Dónde comer.** Un tipo de lugar más que lleva a Uber Eats, DoorDash y Grubhub (abre la app si está instalada), con un aviso sobre dónde se retira el pedido en los hoteles del Strip.
 
 ## [1.4.2] - 2026-11-27
 
 ### Cambiado
 
-- Dónde comer: los filtros están en un panel «Filtros» que se puede plegar, cada grupo con su título (Tipo de lugar, Precio, Distancia, Puntaje mínimo, Ordenar por, Horario). En Precio se pueden elegir varios niveles a la vez, también salteados (por ejemplo $ y $$$).
+- **Filtros de Dónde comer más claros.** Están en un panel «Filtros» que se puede plegar, cada grupo con su título (Tipo de lugar, Precio, Distancia, Puntaje mínimo, Ordenar por, Horario). En Precio se pueden elegir varios niveles a la vez, también salteados (por ejemplo $ y $$$).
 
 ## [1.4.1] - 2026-11-27
 
 ### Cambiado
 
-- Charla que se reserva y no tenés reservada: el aviso para salir, Hoy, la franja y el calendario cuentan 45 minutos de cola (antes 30), porque la fila de walk-up entra con los lugares que sobran. El armado guiado lo tiene en cuenta y te sugiere irte antes de la anterior. Las charlas solo por cola siguen en 30 y las reservadas, contra el inicio.
-- Dónde comer: el puntaje se ve como en Google (número, cinco estrellas con la última parcial y la cantidad de reseñas), el precio resalta su nivel con los $ restantes apagados y dice «Barato», «Moderado», «Caro» o «Muy caro», y cada reseña lleva sus estrellas.
+- **Más tiempo de cola si no tenés lugar.** En una charla que se reserva y no tenés reservada, el aviso para salir, Hoy, la franja y el calendario cuentan 45 minutos de cola (antes 30), porque la fila sin reserva entra con los lugares que sobran. El armado guiado te sugiere irte antes de la anterior. Las charlas solo por cola siguen en 30 y las reservadas, contra el inicio.
+- **Puntaje y precio como en Google.** En Dónde comer, el puntaje muestra el número, cinco estrellas (la última parcial) y la cantidad de reseñas; el precio resalta su nivel con los $ restantes apagados y dice «Barato», «Moderado», «Caro» o «Muy caro». Cada reseña lleva sus estrellas.
 
 ## [1.4.0] - 2026-11-27
 
 ### Agregado
 
-- Hoy muestra «Hoy en re:Invent»: lo propio de cada día de la conferencia (retiro del badge, keynotes, receptions, re:Play y sus shuttles, el corte de shuttles del jueves y el servicio limitado del viernes). Anda sin señal.
-- La llegada (29/11) y los días libres después de re:Invent dicen «Día libre» en Hoy, con accesos a Shows, Actividades y Comer.
-- El lunes 7/12 la franja del día dice «Hoy volvés · check-out y vuelo», con link a tus viajes.
-- Para admins: `/health` suma tres chequeos: `llm_reciente` (en false si el LLM falló 3 veces o más en 15 minutos, aunque el gateway responda: sin saldo, límite de pedidos), `grabaciones_error` (en false si 3 grabaciones o más terminaron con error en la última hora) y `disco_libre` (en false si el volumen de datos pasa el 85 % de uso). Un error aislado no da alarma.
-- Si el procesamiento de grabaciones o los avisos push se caen o se traban, la app se reinicia sola a los pocos minutos y retoma lo pendiente (con 5 minutos de gracia al arrancar). Se apaga con `VIGIA=0`.
-- En la tarjeta del vuelo que sale de Las Vegas: «Salí del hotel antes de las…» (3 h antes si es internacional, 2 h si es doméstico, más ~25 min desde el Strip) y, en la ficha, Uber y Lyft a la terminal de LAS. El banner «Próximo» avisa «Salí al aeropuerto» con esa hora.
-- «re:Invent día por día» suma Emergencias (911, qué hacer primero con el seguro, una farmacia que abre las 24 h en el Strip y el consulado argentino en Los Ángeles con su guardia) y Vuelta (check-out, anticipación y terminales en el aeropuerto, y la franquicia de la Aduana al volver), cada dato con su fuente.
-- Pendientes de la vuelta: check-in web del vuelo de vuelta, declarar compras en la Aduana y guardar las facturas. Aparecen también en las listas que ya existían.
-- «Documentos de viaje» en Viaje.
-- El conversor muestra la hora de Argentina.
-- «Personas que conocí» (en Viaje): tu libreta de contactos de re:Invent con nombre, empresa, cargo, LinkedIn, dónde se conocieron (o en qué charla de tu itinerario) y una nota. Se busca, se edita, se borra, abre el LinkedIn y se exporta a los contactos del teléfono (vCard). Es privada: nadie más la ve. Sin señal se ve la última lista y lo que cargues se sube solo cuando vuelve la señal.
-- «También van» en la ficha de cada charla: quién más del grupo tiene ese horario en su itinerario, para repartirse quién graba qué. Solo se ve el usuario; si no querés aparecer, en Ajustes → Grupo está «No mostrar mi agenda al grupo».
+- **Hoy en re:Invent.** Hoy muestra lo propio de cada día de la conferencia: retiro del badge, keynotes, receptions, re:Play y sus shuttles, el corte de shuttles del jueves y el servicio limitado del viernes. Anda sin señal. La llegada (29/11) y los días libres después dicen «Día libre», con accesos a Shows, Actividades y Comer.
+- **Vuelta a casa.** En el vuelo que sale de Las Vegas: «Salí del hotel antes de las…» (3 h antes si es internacional, 2 h si es doméstico, más ~25 min desde el Strip) y Uber y Lyft a la terminal. El 7/12 la franja dice «Hoy volvés · check-out y vuelo» y el banner «Próximo» avisa «Salí al aeropuerto». Pendientes nuevos: check-in web del vuelo de vuelta, declarar compras en la Aduana y guardar las facturas.
+- **Emergencias y Vuelta en «re:Invent día por día».** 911, qué hacer primero con el seguro, una farmacia 24 h en el Strip, el consulado argentino en Los Ángeles con su guardia, el check-out, las terminales del aeropuerto y la franquicia de la Aduana, cada dato con su fuente.
+- **Personas que conocí.** En Viaje: tu libreta de contactos de re:Invent con nombre, empresa, cargo, LinkedIn, dónde se conocieron y una nota. Se exporta a los contactos del teléfono. Es privada y anda sin señal.
+- **También van.** En la ficha de cada charla, quién más del grupo tiene ese horario en su itinerario, para repartirse quién graba qué. Si no querés aparecer: Ajustes → Grupo → «No mostrar mi agenda al grupo».
+- **Más cosas en Viaje.** «Documentos de viaje» aparece en Viaje y el conversor muestra la hora de Argentina.
+- **Para admins: monitoreo del evento.** `/health` suma `llm_reciente` (3 fallas o más del LLM en 15 minutos), `grabaciones_error` (3 grabaciones o más con error en la última hora) y `disco_libre` (más del 85 % de uso). Si el procesamiento de grabaciones o los avisos push se traban, la app se reinicia sola a los pocos minutos y retoma lo pendiente (se apaga con `VIGIA=0`).
 
 ### Corregido
 
-- Sin señal, Hoy ya no muestra como «Ahora» una charla que terminó o la de otro día: recalcula con tu itinerario guardado y la hora de Las Vegas. Si no hay itinerario guardado y la copia es de otro día, te pide mirar tu itinerario.
-- Un show o evento que pasa la medianoche (por ejemplo, de 22:00 a 00:30) ya no desaparece de Hoy apenas empieza.
-- «Ahora en tu itinerario» del grabador, la fecha de un gasto nuevo y el «Venció» de los pendientes usan la hora de Las Vegas, aunque el celular siga en hora de Argentina.
-- «re:Invent día por día» ya no dice que sirve solo hasta el 4/12: abarca toda la estadía.
-- Un audio corrupto ya no traba el procesamiento de todas las grabaciones: a los 10 minutos esa grabación queda con error y la cola sigue.
-- Los avisos «Salí para…», «Salí a las…» y «Empieza en 5 min» ya no llegan tarde: si el celular estuvo sin señal más de 15 minutos, se descartan.
-- Después de un reinicio de la base, el primer pedido ya no falla por una conexión vieja.
-- Actividades ya no ofrece excursiones para el día de la vuelta.
-- Dónde comer, sin ubicación en un día sin sesiones, busca cerca del hotel cargado en Viajes (si es una sede conocida) o pide prender la ubicación, en vez de decir que agendes una sesión.
-- La pestaña Viaje queda marcada también en Actividades.
-- Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.
-- Una grabación que falla por un problema momentáneo (cupo de transcripción agotado, servicio caído) se reintenta sola hasta tres veces, a los 15, 30 y 60 minutos, y mientras tanto dice «Se reintenta sola en unos minutos». Los reintentos automáticos no cuentan para el tope de «Reintentar». Los errores que no se arreglan reintentando (sin audio, sin voz, demasiado larga) siguen mostrándose como hasta ahora.
-- Si la transcripción se corta a mitad de una grabación, al reintentar se retoma desde el pedazo que falló: los ya transcriptos no se vuelven a mandar (ni gastan cupo), y el resultado es el mismo que sin el corte.
+- **Las grabaciones se recuperan solas.** Si una falla por algo momentáneo (cupo de transcripción agotado, servicio caído) se reintenta sola a los 15, 30 y 60 minutos, y retoma desde el pedazo que falló sin volver a gastar cupo. Si se agota el cupo diario, se transcribe con un modelo de respaldo. Un audio corrupto ya no traba la cola.
+- **Hoy sin señal, al día.** Ya no muestra como «Ahora» una charla que terminó o la de otro día: recalcula con tu itinerario guardado y la hora de Las Vegas. Un show que pasa la medianoche ya no desaparece apenas empieza.
+- **Hora de Las Vegas en todos lados.** El grabador, la fecha de un gasto nuevo y el «Venció» de los pendientes usan la hora de Las Vegas aunque el celular siga en hora de Argentina.
+- **Avisos que no llegan tarde.** «Salí para…», «Salí a las…» y «Empieza en 5 min» se descartan si el celular estuvo más de 15 minutos sin señal.
+- **Dónde comer en un día libre.** Sin ubicación y sin sesiones, busca cerca del hotel cargado en Viajes o pide prender la ubicación.
+- **Otros arreglos.** «re:Invent día por día» abarca toda la estadía, Actividades no ofrece excursiones para el día de la vuelta, la pestaña Viaje queda marcada en Actividades y el primer pedido después de un reinicio de la base ya no falla.
 
 ## [1.3.6] - 2026-11-26
 
