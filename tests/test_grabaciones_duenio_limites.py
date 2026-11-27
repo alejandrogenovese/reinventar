@@ -227,7 +227,9 @@ def test_el_error_crudo_va_al_log_y_se_muestra_uno_generico(cli, monkeypatch, ca
     pipeline._procesar(sid, None, None)
 
     s = db.get_session(sid)
-    assert s["status"] == "error" and s["error"] == pipeline.ERROR_GENERICO
+    # Un error interno es transitorio: se muestra el genérico de «se reintenta sola», nunca el crudo.
+    assert s["status"] == "error" and s["error"] == pipeline.ERROR_REINTENTO_AUTO
+    assert "Invalid data" not in s["error"]
     assert "Invalid data" in caplog.text
 
 

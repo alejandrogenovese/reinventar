@@ -10,6 +10,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Hoy muestra «Hoy en re:Invent»: lo propio de cada día de la conferencia (retiro del badge, keynotes, receptions, re:Play y sus shuttles, el corte de shuttles del jueves y el servicio limitado del viernes). Anda sin señal.
 - La llegada (29/11) y los días libres después de re:Invent dicen «Día libre» en Hoy, con accesos a Shows, Actividades y Comer.
 - El lunes 7/12 la franja del día dice «Hoy volvés · check-out y vuelo», con link a tus viajes.
+- Para admins: `/health` suma tres chequeos: `llm_reciente` (en false si el LLM falló 3 veces o más en 15 minutos, aunque el gateway responda: sin saldo, límite de pedidos), `grabaciones_error` (en false si 3 grabaciones o más terminaron con error en la última hora) y `disco_libre` (en false si el volumen de datos pasa el 85 % de uso). Un error aislado no da alarma.
+- Si el procesamiento de grabaciones o los avisos push se caen o se traban, la app se reinicia sola a los pocos minutos y retoma lo pendiente (con 5 minutos de gracia al arrancar). Se apaga con `VIGIA=0`.
 
 ### Corregido
 
@@ -17,7 +19,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Un show o evento que pasa la medianoche (por ejemplo, de 22:00 a 00:30) ya no desaparece de Hoy apenas empieza.
 - «Ahora en tu itinerario» del grabador, la fecha de un gasto nuevo y el «Venció» de los pendientes usan la hora de Las Vegas, aunque el celular siga en hora de Argentina.
 - «re:Invent día por día» ya no dice que sirve solo hasta el 4/12: abarca toda la estadía.
+- Un audio corrupto ya no traba el procesamiento de todas las grabaciones: a los 10 minutos esa grabación queda con error y la cola sigue.
+- Los avisos «Salí para…», «Salí a las…» y «Empieza en 5 min» ya no llegan tarde: si el celular estuvo sin señal más de 15 minutos, se descartan.
+- Después de un reinicio de la base, el primer pedido ya no falla por una conexión vieja.
 - Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.
+- Una grabación que falla por un problema momentáneo (cupo de transcripción agotado, servicio caído) se reintenta sola hasta tres veces, a los 15, 30 y 60 minutos, y mientras tanto dice «Se reintenta sola en unos minutos». Los reintentos automáticos no cuentan para el tope de «Reintentar». Los errores que no se arreglan reintentando (sin audio, sin voz, demasiado larga) siguen mostrándose como hasta ahora.
+- Si la transcripción se corta a mitad de una grabación, al reintentar se retoma desde el pedazo que falló: los ya transcriptos no se vuelven a mandar (ni gastan cupo), y el resultado es el mismo que sin el corte.
 
 ## [1.3.6] - 2026-11-26
 
