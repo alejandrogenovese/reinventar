@@ -5,6 +5,12 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.3] - 2026-11-27
+
+### Agregado
+
+- Dónde comer: «Apps de pedidos» como un tipo de lugar más. Lleva a Uber Eats, DoorDash y Grubhub (abre la app si está instalada) con un aviso sobre dónde se retira el pedido en los hoteles del Strip.
+
 ## [1.4.2] - 2026-11-27
 
 ### Cambiado

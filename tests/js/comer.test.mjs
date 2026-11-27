@@ -85,3 +85,12 @@ test("cada reseña lleva sus estrellas", () => {
   assert.ok(card.textContent.includes("“Muy rico”"));
   assert.ok(buscar(buscar(card, "ra-resena"), "ra-estrellas"));
 });
+
+test("«Apps de pedidos» es un tipo más y lleva a Uber Eats, DoorDash y Grubhub", async () => {
+  const { APPS_PEDIDOS, AppsPedidos } = await import("../../web/js/appsPedidos.js");
+  assert.deepEqual(APPS_PEDIDOS.map((a) => a.nombre), ["Uber Eats", "DoorDash", "Grubhub"]);
+  assert.ok(APPS_PEDIDOS.every((a) => a.url.startsWith("https://www.")));
+  const nodos = AppsPedidos();
+  assert.equal(nodos.length, 1 + APPS_PEDIDOS.length);  // el aviso del hotel y una tarjeta por app
+  assert.ok(nodos[1].textContent.includes("Abrir Uber Eats"));
+});
