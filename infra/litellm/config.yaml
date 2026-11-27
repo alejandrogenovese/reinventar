@@ -85,6 +85,25 @@ model_list:
       input_cost_per_second: 0.0000308333  # USD 0,111 por hora de audio
     model_info:
       mode: audio_transcription
+  # Respaldo (router_settings.fallbacks): el turbo, cuando el completo devuelve error después de los reintentos. En el plan
+  # gratis de Groq cada modelo tiene su propio cupo (2 h de audio por hora, 8 h por día): con el respaldo se duplica.
+  # Algo menos preciso con nombres propios, pero mejor que dejar la grabación esperando cupo.
+  - model_name: stt-charlas-turbo
+    litellm_params:
+      model: groq/whisper-large-v3-turbo
+      api_key: os.environ/GROQ_API_KEY
+      timeout: 600
+      input_cost_per_second: 0.0000111111  # USD 0,04 por hora de audio (groq.com/pricing, nov 2026)
+    model_info:
+      mode: audio_transcription
+  - model_name: stt-voz-turbo
+    litellm_params:
+      model: groq/whisper-large-v3-turbo
+      api_key: os.environ/GROQ_API_KEY
+      timeout: 120
+      input_cost_per_second: 0.0000111111  # USD 0,04 por hora de audio
+    model_info:
+      mode: audio_transcription
 
 litellm_settings:
   # Trazas en Langfuse Cloud (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST=https://us.cloud.langfuse.com).
@@ -96,6 +115,10 @@ router_settings:
   # Reintentos ante 429/5xx/overloaded del proveedor, antes de devolver el error a la app.
   num_retries: 2
   retry_after: 5
+  # Si el STT sigue fallando después de los reintentos (p. ej. 429 por el cupo diario de Groq), pasa al turbo.
+  fallbacks:
+    - stt-charlas: ["stt-charlas-turbo"]
+    - stt-voz: ["stt-voz-turbo"]
 
 general_settings:
   # Panel (dominio público) y claves virtuales: entrar con la master key; la app y los scripts usan claves virtuales.

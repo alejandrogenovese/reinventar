@@ -49,6 +49,21 @@ def test_cada_uso_tiene_su_alias_en_la_config_por_groq():
         assert m["litellm_params"]["input_cost_per_second"] > 0  # si no, el gasto del STT figura en $0
 
 
+def test_cada_uso_tiene_respaldo_en_el_turbo_con_su_propio_cupo():
+    cfg = yaml.safe_load(LITELLM_CONFIG.read_text())
+    modelos = {m["model_name"]: m for m in cfg["model_list"]}
+    respaldos = {k: v for regla in cfg["router_settings"]["fallbacks"] for k, v in regla.items()}
+
+    for uso in UsoSTT:
+        alias = llm_router.alias_stt(uso)
+        assert respaldos[alias] == [f"{alias}-turbo"]
+        m = modelos[f"{alias}-turbo"]
+        assert m["litellm_params"]["model"] == "groq/whisper-large-v3-turbo"
+        assert m["litellm_params"]["api_key"] == "os.environ/GROQ_API_KEY"
+        assert m["model_info"]["mode"] == "audio_transcription"
+        assert m["litellm_params"]["input_cost_per_second"] > 0
+
+
 def test_las_charlas_van_a_su_alias_con_tag_usuario_y_segmentos(gateway, audio):
     with llm_router.como_usuario("ale"):
         segs = stt.transcribe(audio, 60)
