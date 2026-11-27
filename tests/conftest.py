@@ -20,6 +20,7 @@ os.environ.setdefault("CLIMA_PROVIDER", "fake")  # clima de Las Vegas sin salir 
 os.environ.setdefault("RUTAS_PROVIDER", "fake")  # cómo ir entre sedes sin Routes API (app/rutas.py)
 os.environ.setdefault("MAIL_PROVIDER", "fake")  # los mails quedan en app.mail.enviados: no sale nada
 os.environ.setdefault("COTIZACION_AUTO", "0")  # sin hilo de cotización: los tests no pegan a la red
+os.environ.setdefault("PIPELINE_REINTENTOS_AUTO", "0")  # sin barrido de reintentos: los tests lo llaman a mano
 os.environ.setdefault("VIGIA", "0")  # sin vigía: un test que no arranca los hilos no tiene que matar el proceso
 # Postgres del docker local; cada corrida usa un schema propio que se borra al final.
 os.environ.setdefault("DATABASE_URL", "postgresql://reinvent:reinvent2026@localhost:5433/reinvent")

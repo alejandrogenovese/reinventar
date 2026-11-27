@@ -138,10 +138,15 @@ def test_ffmpeg_colgado_termina_en_error_de_la_sesion(monkeypatch):
     monkeypatch.setattr(pipeline, "process", lambda sid: audio._run(["ffmpeg", "-i", "x.webm"]))
     marcas = []
     monkeypatch.setattr(db, "update_session", lambda sid, **kw: marcas.append((sid, kw)))
+    monkeypatch.setattr(db, "get_session", lambda sid: {"reintentos_auto": 0})
 
     pipeline._procesar("s1", None, None)  # no tira: el worker sigue con la próxima de la cola
 
-    assert marcas == [("s1", {"status": "error", "error": pipeline.ERROR_GENERICO, "progress": None})]
+    # Un ffmpeg colgado es transitorio: la sesión queda en error con el reintento automático agendado.
+    (sid, campos), = marcas
+    assert sid == "s1"
+    assert (campos["status"], campos["error"], campos["progress"]) == ("error", pipeline.ERROR_REINTENTO_AUTO, None)
+    assert campos["reintento_auto_at"] is not None
 
 
 # ---------- TTL de los avisos inmediatos ----------
