@@ -78,7 +78,7 @@ function PeopleToMeet(items) {
 /** Lo que ya elegiste ese día, con la marca de reservada (cambia la cola) y quitar. */
 function ChosenRow(s, onChanged) {
   const fin = s.salir_antes && s.end ? hhmm(toMin(s.end) - s.salir_antes) : s.end;
-  const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Marcar reservada", {
+  const booked = Button(s.reservada ? IconText("listo", "Reservada") : "Ya la reservé", {
     variant: "ghost", "aria-pressed": String(Boolean(s.reservada)),
     title: "Si no la tenés reservada en el portal de AWS, hay que hacer la cola 45 min antes a ver si queda lugar (30 si es solo por cola)",
     onclick: () => Guided.booked(s.code, !s.reservada).then(onChanged).catch((err) => toast(mensajeError(err))) });

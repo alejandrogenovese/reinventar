@@ -5,6 +5,14 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.5] - 2026-11-27
+
+### Cambiado
+
+- **La reserva de cada charla, con la hora concreta.** En Hoy, un aviso dice a qué hora hacer la cola (o hasta qué hora entrar si la reservaste) y trae el botón «Ya la reservé». En Itinerario, una insignia arriba del título y una línea con la hora: «Sin tu reserva: cola desde las 07:15, entrás si sobran lugares», «Entrá antes de las 07:50 o se libera tu lugar» o «Cola desde las 07:30».
+- **«Ya la reservé».** Reemplaza a «Marcar reservada», se desmarca con otro toque y no aparece en las charlas por orden de llegada.
+- **Reserva más liviana en las listas.** En Buscar, Explorar y los horarios de la ficha, el estado (reservada en verde) va en la línea del lugar, con ícono y sin fondo, para que la lista no se cargue.
+
 ## [1.4.4] - 2026-11-27
 
 ### Agregado

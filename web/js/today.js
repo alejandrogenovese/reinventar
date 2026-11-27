@@ -1,7 +1,8 @@
 // Pantalla Hoy: la charla que está pasando, la que sigue y el resto del día, con "Grabar esta charla".
-import { Today, duenoDeCopias } from "./api.js";
+import { Guided, Today, duenoDeCopias } from "./api.js";
 import { cargarClima } from "./clima.js";
-import { CountdownBadge } from "./countdown.js";
+import { CountdownBadge, refreshCountdown } from "./countdown.js";
+import { AvisoReserva } from "./reservaEtiqueta.js";
 import { diaDeEvento, resumenDelDia } from "./dia.js";
 import { hoyEnReinvent } from "./diaPorDia.js";
 import { hoySinSenal, mensajeSinCharlas } from "./hoyPlan.js";
@@ -74,6 +75,9 @@ const WhenLabel = (s, label, highlight) => (highlight
   ? h("span", { class: "ra-status is-now" }, h("span", { class: "ra-status-dot", "aria-hidden": "true" }), label)
   : h("span", { class: "ra-soon" }, label, s.day && s.start ? [" · ", CountdownBadge(startsAt(s.day, s.start))] : null));
 
+const marcarReservada = (s) => (reservada) =>
+  Guided.booked(s.code, reservada).then(() => refreshCountdown({ force: true }));
+
 function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
   // Tiempo a pie (Routes API, paga) solo en estas dos tarjetas: lo que está pasando y lo que sigue.
   const go = GoThereParts(destination(s), { start: s.day && s.start ? startsAt(s.day, s.cola_desde || s.start) : null, eta: true, iconOnly: true });
@@ -84,7 +88,9 @@ function TalkCard(s, { label, recorded, variant, highlight, aviso }) {
     s.kind === "event" && s.cancelled ? Hint("Cancelado: ya no aparece en su página. Revisalo antes de ir.", { tone: "error" }) : null,
     s.kind === "talk" ? AvisoBaja(s) : null,
     s.kind === "show" && SHOW_HINT[s.status] ? Hint(SHOW_HINT[s.status], { tone: "error" }) : null,
-    s.cola_desde ? Hint(`Sin reserva: hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null,
+    // Reserva: aviso con la hora (cola, o hasta cuándo entrar si está reservada) y el botón para marcarla.
+    (s.kind === "talk" && AvisoReserva(s, marcarReservada(s)))
+      || (s.cola_desde ? Hint(`Hacé la cola desde las ${s.cola_desde}.`, { tone: "info" }) : null),
     s.salis_a ? Hint(`Salí a las ${s.salis_a}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
     go ? go.info : null,
     // Lo que avisa la gente en la puerta (y los botones para avisar). La pista de sin reserva ya está arriba.
