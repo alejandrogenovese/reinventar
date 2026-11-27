@@ -40,9 +40,11 @@ class _PoolFalso:
 
 @pytest.fixture(autouse=True)
 def _chequeos_sin_base(monkeypatch):
-    """La cotización de /health consulta la base: acá se aísla para medir solo Postgres y disco."""
+    """La cotización y las grabaciones con error de /health consultan la base: acá se aíslan para medir solo Postgres y
+    disco."""
     salud.limpiar_cache()
     monkeypatch.setattr(salud, "_probar_cotizacion", lambda: True)
+    monkeypatch.setattr(salud, "_probar_grabaciones", lambda: True)
     yield
     salud.limpiar_cache()
 

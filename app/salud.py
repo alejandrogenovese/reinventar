@@ -2,17 +2,21 @@
 
 Postgres y disco siguen en app/main.py y son los únicos que dan 503: si una API externa (el gateway LiteLLM) se cae,
 Railway no tiene que tumbar deploys ni reinicios. Acá no va nada sensible (ni URLs ni claves) y nada sale a la red por
-pedido: el gateway y la cotización se prueban en un ejecutor aparte, con timeout, y quedan cacheados CACHE_S.
+pedido: el gateway y la cotización se prueban en un ejecutor aparte, con timeout, y quedan cacheados CACHE_S. Lo mismo
+las grabaciones con error (una consulta a la base) y el disco lleno. Las fallas del LLM salen del contador en memoria de
+app/estado.py (el mismo del banner de la PWA): si Anthropic se queda sin saldo o Groq da 429, el gateway sigue vivo
+pero las llamadas fallan.
 """
 import asyncio
 import logging
+import shutil
 import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from . import catalog, config, cotizacion, healthcheck, pipeline, push
+from . import catalog, config, cotizacion, db, estado, healthcheck, pipeline, push
 
 log = logging.getLogger("reinventar.salud")
 
@@ -23,6 +27,11 @@ PUSH_SIN_VUELTA_MAX_S = 20 * 60
 # Lo que se espera al gateway LiteLLM (/health/liveliness) y a la cotización (una consulta a la base).
 LLM_GATEWAY_TIMEOUT_S = 2
 COTIZACION_TIMEOUT_S = 2
+GRABACIONES_TIMEOUT_S = 2
+DISCO_TIMEOUT_S = 2
+# Uso del volumen de datos (audio de las grabaciones, modelos, tickets) a partir del cual se avisa: con margen para que
+# se pueda liberar espacio antes de que una grabación no se pueda guardar.
+DISCO_USO_MAX = 0.85
 # Cuánto vale un resultado del gateway o de la cotización: con UptimeRobot cada 5 min, se prueba como mucho una vez
 # por minuto y el resto de los pedidos contesta del caché (rápido).
 CACHE_S = 60
@@ -30,6 +39,8 @@ CACHE_S = 60
 # Ejecutores propios: si el gateway se cuelga, no traba los de Postgres y disco de /health ni el threadpool de la app.
 _EJECUTOR_GATEWAY = ThreadPoolExecutor(max_workers=1, thread_name_prefix="health-gateway")
 _EJECUTOR_COTIZACION = ThreadPoolExecutor(max_workers=1, thread_name_prefix="health-cotizacion")
+_EJECUTOR_GRABACIONES = ThreadPoolExecutor(max_workers=1, thread_name_prefix="health-grabaciones")
+_EJECUTOR_DISCO = ThreadPoolExecutor(max_workers=1, thread_name_prefix="health-disco-libre")
 
 
 @dataclass(frozen=True)
@@ -72,6 +83,26 @@ def _probar_cotizacion() -> bool:
     return cotizacion.actual()["oficial"] > 0  # la guardada o, sin ninguna, la de respaldo
 
 
+def llm_reciente(ahora: float | None = None) -> bool:
+    """False si en la ventana (estado.VENTANA_FALLAS_LLM_S) fallaron FALLAS_LLM_PARA_CAIDA llamadas reales o más: una
+    falla aislada no alcanza. Las del modo prueba no cuentan."""
+    return len(estado.fallas_llm("real", ahora)) < estado.FALLAS_LLM_PARA_CAIDA
+
+
+def _probar_grabaciones() -> bool:
+    """Menos de ERRORES_PARA_CAIDA grabaciones terminadas en error en la última hora (las mismas reglas del banner)."""
+    return db.errores_desde(time.time() - estado.VENTANA_ERRORES_S) < estado.ERRORES_PARA_CAIDA
+
+
+def uso_disco(ruta) -> float:
+    total, usado, _ = shutil.disk_usage(ruta)
+    return usado / total if total else 1.0
+
+
+def _probar_disco() -> bool:
+    return uso_disco(config.DATA_DIR) < DISCO_USO_MAX
+
+
 async def _cacheado(nombre: str, ejecutor: ThreadPoolExecutor, prueba: Callable[[], bool], timeout: float) -> bool:
     previo = _cache.get(nombre)
     if previo and time.monotonic() - previo.at < CACHE_S:
@@ -96,6 +127,14 @@ async def cotizacion_disponible() -> bool:
     return await _cacheado("cotizacion", _EJECUTOR_COTIZACION, _probar_cotizacion, COTIZACION_TIMEOUT_S)
 
 
+async def grabaciones_sin_errores() -> bool:
+    return await _cacheado("grabaciones_error", _EJECUTOR_GRABACIONES, _probar_grabaciones, GRABACIONES_TIMEOUT_S)
+
+
+async def disco_libre() -> bool:
+    return await _cacheado("disco_libre", _EJECUTOR_DISCO, _probar_disco, DISCO_TIMEOUT_S)
+
+
 async def chequeos_seguros() -> dict[str, bool]:
     """Los chequeos, o {} si algo explota: /health nunca da 500 por el monitoreo (todo_ok queda en false)."""
     try:
@@ -106,7 +145,8 @@ async def chequeos_seguros() -> dict[str, bool]:
 
 
 async def chequeos() -> dict[str, bool]:
-    gateway, cotiza = await asyncio.gather(llm_gateway(), cotizacion_disponible())
+    gateway, cotiza, grabaciones, disco = await asyncio.gather(
+        llm_gateway(), cotizacion_disponible(), grabaciones_sin_errores(), disco_libre())
     return {
         "pipeline": pipeline.vivo(),
         "push": push_al_dia(),
@@ -115,4 +155,7 @@ async def chequeos() -> dict[str, bool]:
         "revision_eventos": revision_viva("eventos-auto"),
         "cotizacion": cotiza,
         "llm_gateway": gateway,
+        "llm_reciente": llm_reciente(),
+        "grabaciones_error": grabaciones,
+        "disco_libre": disco,
     }
