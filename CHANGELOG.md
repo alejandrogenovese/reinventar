@@ -5,6 +5,11 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- «Personas que conocí» (en Viaje): tu libreta de contactos de re:Invent con nombre, empresa, cargo, LinkedIn, dónde se conocieron (o en qué charla de tu itinerario) y una nota. Se busca, se edita, se borra, abre el LinkedIn y se exporta a los contactos del teléfono (vCard). Es privada: nadie más la ve. Sin señal se ve la última lista y lo que cargues se sube solo cuando vuelve la señal.
+- «También van» en la ficha de cada charla: quién más del grupo tiene ese horario en su itinerario, para repartirse quién graba qué. Solo se ve el usuario; si no querés aparecer, en Ajustes → Grupo está «No mostrar mi agenda al grupo».
+
 ### Corregido
 
 - Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.

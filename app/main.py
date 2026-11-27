@@ -49,6 +49,7 @@ from . import (
     fragmentos,
     gastos_api,
     grabaciones_api,
+    grupo_api,
     guided_api,
     huecos,
     interview_api,
@@ -63,6 +64,7 @@ from . import (
     ofertas_api,
     passkey_api,
     pendientes_api,
+    personas_api,
     pg,
     pipeline,
     push,
@@ -198,6 +200,8 @@ app.include_router(estado_api.router)
 app.include_router(ficha_api.router)
 app.include_router(novedades_api.router)
 app.include_router(charlas_nuevas_api.router)
+app.include_router(personas_api.router)
+app.include_router(grupo_api.router)
 
 
 @app.exception_handler(RequestValidationError)

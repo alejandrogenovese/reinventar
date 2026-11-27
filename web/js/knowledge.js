@@ -6,6 +6,7 @@ import { EtiquetaYoutube } from "./avisoYoutube.js";
 import { Abstract, People, SessionMiniCard, forgetItineraryCodes, shortDay } from "./itinerary.js";
 import { refreshCountdown } from "./countdown.js";
 import { GoThere } from "./location.js";
+import { TambienVan, tambienVanDe } from "./grupo.js";
 import { GuiaSala, destinoDeSala } from "./salas.js";
 import { recordTalk } from "./today.js";
 import { Button, IconText, StatusPill, Tag, h, mensajeError, toast } from "./ui.js";
@@ -54,7 +55,7 @@ const clashesWith = (i, mine) => mine.filter((m) => m.day === i.day && m.base !=
   && minutes(m.start) < minutes(i.start) + 60 && minutes(i.start) < minutes(m.end || m.start) + (m.end ? 0 : 60)).map((m) => m.title);
 
 /** Un horario de la charla: si está en tu itinerario, con qué choca, y "Cambiar a este" si tenés otro horario de la misma. */
-function Slot(i, mine, onChange, aviso) {
+function Slot(i, mine, onChange, aviso, grupo) {
   const own = mine.find((m) => m.code === i.code);
   const other = mine.find((m) => m.base === i.base && m.code !== i.code);
   const clashes = clashesWith(i, mine);
@@ -80,6 +81,7 @@ function Slot(i, mine, onChange, aviso) {
       h("span", {}, [i.venue?.hotel, i.venue?.detail].filter(Boolean).join(" · ") || "Sede a confirmar"),
       i.code !== i.base ? h("span", { class: "caption" }, i.code) : null,
       AvisoBaja(i),
+      TambienVan(grupo),  // otros del grupo con este horario en su itinerario (app/grupo_api.py)
       !own && clashes.length ? IconText("alerta", `choca con ${clashes.join(", ")}`, { className: "caption ra-icotext" }) : null,
       GoThere(destinoDeSala(i.venue), { aca: true }),  // a la entrada del área de convenciones, no al hotel en general
       GuiaSala(i.venue)),
@@ -101,7 +103,8 @@ export async function viewCharla(view, base) {
   const [s, current] = await Promise.all([Knowledge.speech(base), Itinerary.get().catch(() => ({ days: [] }))]);
   const mine = current.days.flatMap((d) => d.sessions);
   // Si falla (sin conexión), la ficha se muestra igual, sin avisos de lleno.
-  const avisos = await avisosDe(s.instances.map((i) => i.code));
+  // «También van»: quién más del grupo tiene cada horario (si falla, vacío: la ficha se ve igual).
+  const [avisos, grupo] = await Promise.all([avisosDe(s.instances.map((i) => i.code)), tambienVanDe(s.instances.map((i) => i.code))]);
   const rerender = () => { view.replaceChildren(); void viewCharla(view, base); };
   // «Cancelada» arriba del título solo si se cancelaron todos sus horarios; si es uno solo, lo dice ese horario.
   const estado = { ...s, cancelled: s.instances.length > 0 && s.instances.every((i) => i.cancelled) };
@@ -118,7 +121,7 @@ export async function viewCharla(view, base) {
       h("div", { class: "actions" }, TalkRecordAction(s))),
     s.abstract || s.abstract_es ? section("De qué se trata", Abstract(s, { fold: false, className: "ra-prose" })) : null,
     section("Quién la da", People(s) || h("p", { class: "caption" }, "Sin speakers cargados.")),
-    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Otros horarios", h("ul", { class: "ra-slots" }, s.instances.map((i) => Slot(i, mine, rerender, avisos[i.code])))) : null,
+    s.instances.length ? section(s.instances.length === 1 ? "Horario" : "Otros horarios", h("ul", { class: "ra-slots" }, s.instances.map((i) => Slot(i, mine, rerender, avisos[i.code], grupo[i.code])))) : null,
     s.concepts?.length ? section("Conceptos", chips(s.concepts)) : null,
     s.services?.length ? section("Servicios de AWS", chips(s.services)) : null,
     s.tech?.length ? section("Otras tecnologías", chips(s.tech)) : null,

@@ -52,6 +52,8 @@ import { viewConversor } from "./conversor.js";
 import { viewDiaPorDia } from "./diaPorDia.js";
 import { decidirGrabar } from "./grabacionDuplicada.js";
 import { viewPendientes } from "./pendientes.js";
+import { viewPersonas } from "./personas.js";
+import { GrupoSettings } from "./grupo.js";
 import { Recorder, empezarSesion, estadoSala, listMics, pasoDeSala, pickDjI, preferredMic, resultadoDeFinishFallido, textosTerminar, uploader, wakeLock } from "./recorder.js";
 import * as store from "./store.js";
 import { SILENCIO_AVISO_S, TIP_NO_MOLESTAR, mandarHuecos, marcarTipNoMolestarVisto, tipNoMolestarVisto } from "./huecos.js";
@@ -135,6 +137,7 @@ const routes = [
   [/^#\/viaje$/, () => viewViaje(view)],
   [/^#\/viaje\/conversor$/, () => viewConversor(view)],
   [/^#\/viaje\/reinvent$/, () => viewDiaPorDia(view)],
+  [/^#\/viaje\/personas$/, () => viewPersonas(view)],
   [/^#\/mi-evento\/nuevo$/, () => viewMiEvento(view)],
   [/^#\/mi-evento\/([\w-]+)$/, (id) => viewMiEvento(view, id)],
   [/^#\/buscar(\?.*)?$/, async () => { cleanup = await viewSearch(view); }],
@@ -762,6 +765,7 @@ async function viewSettings() {
     LocationSetting(),
     AlertSettings(),
     PushSettings(),
+    GrupoSettings(),
     PasskeySettings(),
     InstallPrompt(),
     pending,
