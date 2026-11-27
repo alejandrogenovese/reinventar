@@ -1,5 +1,6 @@
 // Cuestionario de perfil + itinerario con mapa (la búsqueda manual vive en Explorar).
 import { Catalog, Guided, Interview, Itinerary } from "./api.js";
+import { EtiquetaReserva, ayudaReserva } from "./reservaEtiqueta.js";
 import { refreshCountdown } from "./countdown.js";
 import { startsAt } from "./location.js";
 import { sandboxNow } from "./sandbox.js";
@@ -144,13 +145,15 @@ export function SessionMiniCard(s, { onAdd, onLock, onRemove, onBook, locked, ex
       h("h3", { class: "ra-minicard-title" }, h("a", { class: "ra-link", href: `#/charla/${s.base}` }, s.title)),
       h("div", { class: "ra-minicard-meta" }, [s.venue?.hotel, s.venue?.detail].filter(Boolean).join(" · ")),
       AvisoBaja(s),
-      tags.length || s.newlaunch || s.en_youtube ? h("div", { class: "ra-chips" },
+      tags.length || s.newlaunch || s.en_youtube || EtiquetaReserva(s) ? h("div", { class: "ra-chips" },
+        EtiquetaReserva(s),
         s.newlaunch ? h("span", { class: "ra-tag is-new" }, "Nuevo lanzamiento") : null,
         EtiquetaYoutube(s),
         tags.slice(0, 6).map(Tag)) : null,
       People(s),
       Abstract(s),
       s.reason ? h("p", { class: "caption" }, s.reason) : null,
+      onBook && ayudaReserva(s) ? h("p", { class: "caption" }, ayudaReserva(s)) : null,
       s.salir_antes && s.end ? Hint(`Salís a las ${minusMinutes(s.end, s.salir_antes)}, antes de que termine, para llegar a la siguiente.`, { tone: "warn" }) : null,
       s.overlaps?.length ? Hint(`Se superpone con ${s.overlaps.join(", ")}`, { tone: "error" }) : null,
       extra,

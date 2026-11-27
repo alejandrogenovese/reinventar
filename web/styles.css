@@ -151,6 +151,7 @@ button.ra-chip.ra-chip-on[aria-pressed]::before, .chipgroup input:checked + labe
 .ra-tag { font: var(--t-micro); background: var(--surface-3); color: var(--ink-muted); border-radius: var(--radius-s); padding: 2px 8px; white-space: nowrap; }
 .ra-tag.is-new { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 /* Estado de la charla en el catálogo oficial: recién sumada por AWS o cancelada (web/js/lleno.js EtiquetaEstado). */
+.ra-tag.is-reserva { align-self: flex-start; background: var(--warning-soft); color: var(--on-warning-soft); font-weight: 600; }
 .ra-tag.is-nueva { align-self: flex-start; background: var(--info-soft); color: var(--on-info-soft); font-weight: 600; }
 .ra-tag.is-cancelada { align-self: flex-start; background: var(--error-soft); color: var(--on-error-soft); font-weight: 600; }
 
