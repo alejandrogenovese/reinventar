@@ -3,7 +3,7 @@ itinerario. Places va mockeado: estos tests nunca le pegan a Google."""
 import pytest
 from fastapi.testclient import TestClient
 
-from app import comer_api, config, places, today
+from app import comer_api, config, places, today, venues, vuelos
 from app.main import app
 from tests.conftest import login_headers
 
@@ -197,8 +197,54 @@ def test_origen_del_telefono_tiene_prioridad(client, google, monkeypatch):
 def test_sin_origen_ni_sesion_con_coordenadas(client, google, monkeypatch):
     monkeypatch.setattr(today, "for_user", lambda u: {"now": None, "next": {"venue": {"hotel": "Various", "lat": None}},
                                                       "upcoming": None})
+    monkeypatch.setattr(vuelos, "listar_hoteles", lambda u: [])
     r = client.get("/api/comer")
-    assert r.status_code == 404 and "ubicación" in r.json()["detail"] and not google.pedidos
+    assert r.status_code == 404 and not google.pedidos
+    assert r.json()["detail"] == "Prendé la ubicación para ver dónde comer cerca."
+    assert "agendá" not in r.json()["detail"]
+
+
+VENETIAN = {"id": 1, "name": "Venetian", "lat": 36.1216, "lng": -115.1691, "address": "3355 S Las Vegas Blvd"}
+MGM = {"id": 2, "name": "MGM Grand", "lat": 36.1022, "lng": -115.1695, "address": "3799 S Las Vegas Blvd"}
+
+
+def _hotel(nombre, checkin="2026-11-29T15:00", checkout="2026-12-07T11:00"):
+    return {"id": "h1", "nombre": nombre, "direccion": "", "checkin": checkin, "checkout": checkout,
+            "zona": "America/Los_Angeles"}
+
+
+def test_dia_libre_sin_ubicacion_busca_desde_el_hotel_cargado(client, google, monkeypatch):
+    monkeypatch.setattr(today, "for_user", lambda u: {"now": None, "next": None, "upcoming": None})
+    monkeypatch.setattr(venues, "all_venues", lambda: [VENETIAN, MGM])
+    monkeypatch.setattr(vuelos, "listar_hoteles", lambda u: [_hotel("The Venetian Resort")])
+    google.respuesta = _respuesta(_lugar("a", "A", 36.1216, -115.1691))
+    r = client.get("/api/comer")
+    assert r.status_code == 200
+    assert r.json()["origen"] == {"lat": VENETIAN["lat"], "lng": VENETIAN["lng"], "nombre": "The Venetian Resort",
+                                  "fuente": "hotel"}
+
+
+def test_hotel_que_no_es_una_sede_conocida_pide_la_ubicacion(client, google, monkeypatch):
+    monkeypatch.setattr(today, "for_user", lambda u: {"now": None, "next": None, "upcoming": None})
+    monkeypatch.setattr(venues, "all_venues", lambda: [VENETIAN, MGM])
+    monkeypatch.setattr(vuelos, "listar_hoteles", lambda u: [_hotel("Hotel del Centro")])
+    r = client.get("/api/comer")
+    assert r.status_code == 404 and r.json()["detail"] == comer_api.SIN_ORIGEN and not google.pedidos
+
+
+def test_hotel_vigente_gana_sobre_uno_que_ya_paso():
+    viejo = _hotel("MGM Grand", "2026-11-29T15:00", "2026-12-01T11:00")
+    actual = _hotel("Venetian", "2026-12-01T15:00", "2026-12-07T11:00")
+    assert comer_api._hotel_vigente([viejo, actual], "2026-12-02T12:00")["nombre"] == "Venetian"
+    assert comer_api._hotel_vigente([viejo, actual], "2026-12-10T12:00")["nombre"] == "MGM Grand"
+    assert comer_api._hotel_vigente([], "2026-12-02T12:00") is None
+
+
+def test_la_sede_mas_especifica_gana(monkeypatch):
+    mgm = {**MGM, "name": "MGM"}
+    monkeypatch.setattr(venues, "all_venues", lambda: [mgm, MGM, {**VENETIAN, "lat": None}])
+    assert comer_api._sede_del_hotel("mgm grand las vegas")["name"] == "MGM Grand"
+    assert comer_api._sede_del_hotel("The Venetian") is None   # sin coordenadas no sirve
 
 
 @pytest.mark.parametrize("params", [{"lat": 91, "lng": 0}, {"lat": 10}, {"lat": 36, "lng": -115, "precio": 5},
