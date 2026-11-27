@@ -265,6 +265,16 @@ CREATE TABLE IF NOT EXISTS charlas_nuevas_decision (
   creado DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (username, base)
 );
+-- Lo que devolvió el STT de cada pedazo de ~10 min de una grabación, guardado apenas vuelve (app/pipeline.py): si el
+-- pedazo 5 falla (429 del cupo diario), el reintento no vuelve a transcribir del 1 al 4. firma: qué audio se partió
+-- (pedazos recibidos, bytes y largo de cada pedazo); si cambia, lo guardado no se reusa. Se borra al armar los bloques.
+CREATE TABLE IF NOT EXISTS stt_pedazos (
+  session_id TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  firma TEXT NOT NULL,
+  segs TEXT NOT NULL,
+  PRIMARY KEY (session_id, n)
+);
 """
 INDICES_DATOS_USUARIO = """
 -- Va después de agregar las columnas: usa client_id.
@@ -282,6 +292,10 @@ COLUMNAS_DATOS_USUARIO = (
     ("sessions", "created_by", "TEXT"),
     ("sessions", "huecos", "TEXT"),
     ("sessions", "client_id", "TEXT"),
+    # Reintento automático de una grabación con error transitorio (app/pipeline.py): cuántos van y cuándo toca el
+    # próximo (epoch; NULL = no hay ninguno pendiente: error definitivo, se agotaron o no está en error).
+    ("sessions", "reintentos_auto", "INTEGER NOT NULL DEFAULT 0"),
+    ("sessions", "reintento_auto_at", DOBLE),
     ("itinerary_items", "kind", "TEXT NOT NULL DEFAULT 'talk'"),
     ("itinerary_items", "snapshot", "JSONB"),
     ("itinerary_profile", "respuestas", "JSONB"),
@@ -318,7 +332,7 @@ COLUMNAS_DATOS_USUARIO = (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
                         "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados",
-                        "viajes_documentos", "viajes_pendientes", "charlas_nuevas_decision", "personas_conocidas")
+                        "viajes_documentos", "viajes_pendientes", "charlas_nuevas_decision", "stt_pedazos", "personas_conocidas")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).
@@ -624,6 +638,7 @@ def delete_session(sid):
         if vector_disponible:
             c.execute("DELETE FROM fragmentos WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
+        c.execute("DELETE FROM stt_pedazos WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM chunks WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM voto_resumen WHERE session_id=%s", (sid,))
         c.execute("DELETE FROM sessions WHERE id=%s", (sid,))
@@ -649,14 +664,32 @@ def chunk_index(sid):
 
 
 def replace_blocks(sid, blocks):
+    """Reemplaza los bloques. La transcripción guardada por pedazo se borra en la misma transacción: ya quedó en los
+    bloques, y «Reintentar desde cero» (bloques vacíos) tiene que volver a transcribir todo."""
     with conn() as c:
         c.execute("DELETE FROM blocks WHERE session_id=%s", (sid,))
+        c.execute("DELETE FROM stt_pedazos WHERE session_id=%s", (sid,))
         if vector_disponible:  # los fragmentos se arman de los bloques: si cambian, se vuelven a indexar
             c.execute("DELETE FROM fragmentos WHERE session_id=%s", (sid,))
         c.cursor().executemany(
             "INSERT INTO blocks (session_id,idx,start_s,end_s,en,es) VALUES (%s,%s,%s,%s,%s,%s)",
             [(sid, i, b["start"], b["end"], b["en"], b.get("es")) for i, b in enumerate(blocks)],
         )
+
+
+def guardar_stt_pedazo(sid, n, firma, segs) -> None:
+    """Guarda lo que devolvió el STT para el pedazo n (pisa lo anterior de ese pedazo)."""
+    with conn() as c:
+        c.execute("INSERT INTO stt_pedazos (session_id,n,firma,segs) VALUES (%s,%s,%s,%s) "
+                  "ON CONFLICT (session_id,n) DO UPDATE SET firma=EXCLUDED.firma, segs=EXCLUDED.segs",
+                  (sid, n, firma, json.dumps(segs, ensure_ascii=False)))
+
+
+def stt_pedazos(sid, firma) -> dict[int, list[dict]]:
+    """{n: segmentos} de los pedazos ya transcriptos de este mismo audio (los de otra firma no sirven)."""
+    with conn() as c:
+        rows = c.execute("SELECT n, segs FROM stt_pedazos WHERE session_id=%s AND firma=%s", (sid, firma)).fetchall()
+    return {r["n"]: json.loads(r["segs"]) for r in rows}
 
 
 def set_translations(sid, pairs):
@@ -707,6 +740,25 @@ def sessions_in(statuses):
             "SELECT id FROM sessions WHERE status = ANY(%s) ORDER BY updated_at", (list(statuses),)
         ).fetchall()
     return [r["id"] for r in rows]
+
+
+def reintentos_auto_vencidos(ahora: float) -> list[str]:
+    """Grabaciones en error con un reintento automático pendiente al que ya le llegó la hora."""
+    with conn() as c:
+        rows = c.execute("SELECT id FROM sessions WHERE status='error' AND reintento_auto_at <= %s ORDER BY reintento_auto_at",
+                         (ahora,)).fetchall()
+    return [r["id"] for r in rows]
+
+
+def tomar_reintento_auto(sid) -> bool:
+    """Pasa la grabación a la cola para su reintento automático, solo si sigue en error con el reintento pendiente:
+    si alguien tocó «Reintentar» en el medio, el UPDATE no encuentra la fila y devuelve False."""
+    with conn() as c:
+        r = c.execute("UPDATE sessions SET status='queued', error=NULL, progress=NULL, reintento_auto_at=NULL, "
+                      "reintentos_auto=reintentos_auto+1, updated_at=%s "
+                      "WHERE id=%s AND status='error' AND reintento_auto_at IS NOT NULL RETURNING id",
+                      (time.time(), sid)).fetchone()
+    return r is not None
 
 
 def updated_at_en_proceso() -> list[float]:

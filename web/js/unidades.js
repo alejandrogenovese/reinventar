@@ -1,6 +1,15 @@
 // Conversiones del conversor (#/viaje/conversor): funciones puras, sin DOM ni red, así andan sin señal y se prueban con
 // node (tests/js/unidades.test.mjs). La pantalla está en conversor.js y la lectura con cámara en conversorFoto.js.
 
+/** Zona horaria de la Argentina (no cambia de hora en el año). */
+export const ZONA_ARGENTINA = "America/Argentina/Buenos_Aires";
+
+/** «HH:MM» (24 h) de `fecha` en la Argentina, con la zona del sistema (anda sin señal). */
+export function horaEnArgentina(fecha = new Date()) {
+  return new Intl.DateTimeFormat("es-AR", { timeZone: ZONA_ARGENTINA, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .format(fecha);
+}
+
 /** Impuesto de venta de Clark County (Las Vegas), en %. */
 export const IMPUESTO_CLARK = 8.375;
 export const PROPINAS = [18, 20, 22];

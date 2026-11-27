@@ -6,8 +6,9 @@ import { ProgresoPendientes } from "./pendientes.js";
 import { h } from "./ui.js";
 
 export const SECCIONES = [
-  { href: "#/viaje/reinvent", icono: () => icon("eventos", 20), titulo: "re:Invent día por día", bajada: "Badge, keynotes, shuttles, Expo, re:Play y tips de Las Vegas, sin señal" },
+  { href: "#/viaje/reinvent", icono: () => icon("eventos", 20), titulo: "re:Invent día por día", bajada: "Badge, keynotes, shuttles, Expo, re:Play, tips, emergencias y la vuelta, sin señal" },
   { href: "#/viajes/pendientes", icono: () => icon("listo", 20), titulo: "Pendientes del viaje", bajada: "ESTA, seguro, eSIM y lo que falte antes de salir" },
+  { href: "#/viajes/documentos", icono: () => icon("fijar", 20), titulo: "Documentos de viaje", bajada: "Pasaporte, ESTA, seguro y reservas, también sin señal" },
   { href: "#/comer", icono: () => icon("ubicacion", 20), titulo: "Dónde comer barato", bajada: "Cerca de tu próxima charla, con precio y reseñas" },
   { href: "#/actividades", icono: () => icon("explorar", 20), titulo: "Actividades", bajada: "Excursiones de Viator y atracciones cerca tuyo" },
   { href: "#/gastos", icono: () => icon("listo", 20), titulo: "Gastos", bajada: "Cuánto llevás gastado y qué se reintegra" },

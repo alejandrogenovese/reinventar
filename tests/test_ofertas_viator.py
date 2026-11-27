@@ -81,7 +81,7 @@ def test_forma_inesperada_es_viator_no_disponible(data):
 
 def test_la_busqueda_pide_solo_special_offer_en_las_fechas_de_la_estadia():
     cuerpo = viator.cuerpo_ofertas(ANTES_DEL_VIAJE)
-    assert cuerpo["filtering"] == {"destination": "684", "startDate": "2026-11-29", "endDate": "2026-12-07",
+    assert cuerpo["filtering"] == {"destination": "684", "startDate": "2026-11-29", "endDate": "2026-12-06",
                                    "flags": ["SPECIAL_OFFER"]}
     assert cuerpo["pagination"] == {"start": 1, "count": viator.POR_PAGINA}
 

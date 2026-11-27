@@ -1,7 +1,7 @@
 """Borrado completo de un usuario (Admin › Usuarios › Borrar usuario).
 
 Se borra todo lo que es de la persona, en el schema real y en el de prueba (app/sandbox.py):
-- sus grabaciones (las que creó: created_by) con su audio en disco, pedazos, bloques, fragmentos y votos;
+- sus grabaciones (las que creó: created_by) con su audio en disco, pedazos, bloques, transcripción por pedazo, fragmentos y votos;
 - sus documentos de viaje (filas y archivos cifrados del bucket) y las fotos de sus gastos;
 - cada tabla de datos del usuario (itinerario, eventos, viajes, gastos, avisos, fichas, etc.);
 - su cuenta: sesiones, passkeys, suscripciones push, challenges de WebAuthn y la fila de users;
@@ -17,7 +17,7 @@ from . import audio, db, documentos, limites, passkeys_db, sandbox, tickets_alma
 log = logging.getLogger("reinventar.admin")
 
 # Tablas de datos que cuelgan de una grabación (sin columna username): se borran con db.delete_session.
-_DE_GRABACIONES = ("sessions", "chunks", "blocks", "fragmentos")
+_DE_GRABACIONES = ("sessions", "chunks", "blocks", "stt_pedazos", "fragmentos")
 # Cachés por usuario que se crean a demanda (pueden no existir todavía en un schema).
 _A_DEMANDA = ("briefings",)
 # Tablas de la cuenta: solo existen en el schema real.

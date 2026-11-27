@@ -11,7 +11,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from . import limites, places, today, travel
+from . import limites, places, sandbox, today, travel, venues, vuelos
 from .auth import auth
 
 log = logging.getLogger("reinventar.comer")
@@ -35,6 +35,8 @@ RESENAS_PRIOR = 50
 PUNTAJE_PRIOR = 4.0
 CASTIGO_DISTANCIA = 0.5      # puntos que resta estar a la distancia máxima
 METROS_MAXIMOS = MINUTOS_RADIO_CERCANO * travel.METROS_POR_MIN
+
+SIN_ORIGEN = "Prendé la ubicación para ver dónde comer cerca."
 
 Orden = Literal["recomendado", "cerca", "puntaje"]
 
@@ -122,6 +124,36 @@ def _origen_de_la_sesion(usuario: str) -> dict | None:
             "fuente": "sesion"}
 
 
+def _hotel_vigente(hoteles: list[dict], ahora: str) -> dict | None:
+    """El hotel donde estás parando (check-in ≤ ahora < check-out, en hora local «YYYY-MM-DDTHH:MM»); si ninguno, el
+    primero cargado."""
+    return next((h for h in hoteles if h["checkin"] <= ahora < h["checkout"]), hoteles[0] if hoteles else None)
+
+
+def _sede_del_hotel(nombre: str) -> dict | None:
+    """Coordenadas del hotel si su nombre contiene el de una sede del maestro («The Venetian Resort» → Venetian). Los
+    hoteles cargados en Viajes no tienen coordenadas propias: sin coincidencia, None."""
+    texto = nombre.casefold()
+    candidatas = [v for v in venues.all_venues() if v.get("lat") is not None and v.get("lng") is not None
+                  and v.get("name") and v["name"].casefold() in texto]
+    return max(candidatas, key=lambda v: len(v["name"]), default=None)  # la más específica: «MGM Grand» antes que «MGM»
+
+
+def _origen_del_hotel(usuario: str) -> dict | None:
+    """En días sin sesiones (o sin itinerario): desde el hotel cargado en Viajes, si se reconoce la sede."""
+    try:
+        hoteles = vuelos.listar_hoteles(usuario)
+    except Exception:  # la base caída no tiene que tapar el mensaje útil de «prendé la ubicación»
+        log.warning("no se pudieron leer los hoteles para dónde comer", exc_info=True)  # sin el usuario: viene del pedido
+        return None
+    ahora = sandbox.ahora(vuelos.zona(vuelos.ZONA_HOTEL_DEFECTO)).strftime("%Y-%m-%dT%H:%M")
+    hotel = _hotel_vigente(hoteles, ahora)
+    sede = _sede_del_hotel(hotel["nombre"]) if hotel else None
+    if not sede:
+        return None
+    return {"lat": sede["lat"], "lng": sede["lng"], "nombre": hotel["nombre"], "fuente": "hotel"}
+
+
 def _puntaje(lugar: dict) -> float:
     if not lugar["rating"]:
         return 0.0
@@ -163,7 +195,8 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
                 minutos: int = Query(MINUTOS_DEFAULT, ge=1, le=MINUTOS_MAXIMOS), tipo: Tipo = "todo",
                 abierto: bool = False, puntaje: float = Query(0, ge=0, le=5), orden: Orden = "recomendado",
                 username: str = Depends(auth)):
-    """Con lat y lng (el celular), desde ahí; sin ellos, desde la sede de la próxima sesión del itinerario.
+    """Con lat y lng (el celular), desde ahí; sin ellos, desde la sede de la próxima sesión del itinerario y, si no hay
+    (un día libre), desde el hotel cargado en Viajes.
     `precio`: máximo ($ = 1 … $$$$ = 4); los lugares sin dato de precio entran igual. `minutos`: máximo caminando.
     `tipo`: comida rápida, dulces, café o restaurantes (cada uno es otra búsqueda). `abierto`: solo los abiertos ahora.
     `puntaje`: mínimo de estrellas. `orden`: recomendado (puntaje y distancia), más cerca o mejor puntaje."""
@@ -171,8 +204,8 @@ def donde_comer(lat: float | None = Query(None, ge=-90, le=90), lng: float | Non
         raise HTTPException(422, "Mandá lat y lng juntos.")
     if lat is not None:
         origen = {"lat": lat, "lng": lng, "nombre": None, "fuente": "telefono"}
-    elif not (origen := _origen_de_la_sesion(username)):
-        raise HTTPException(404, "No sé desde dónde buscar: prendé la ubicación o agendá una sesión en una sede.")
+    elif not (origen := _origen_de_la_sesion(username) or _origen_del_hotel(username)):
+        raise HTTPException(404, SIN_ORIGEN)
     lugares = _cercanos(origen["lat"], origen["lng"], username, tipo, minutos, fresco=abierto)
     return {"origen": origen, "lugares": _armar(lugares, (origen["lat"], origen["lng"]), precio, minutos, abierto,
                                                 puntaje, orden)}

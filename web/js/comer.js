@@ -9,6 +9,14 @@ import { Hint, h, mensajeError } from "./ui.js";
 
 const PRECIOS = [[1, "$", "Hasta $ (barato)"], [2, "$$", "Hasta $$ (moderado)"], [3, "$$$", "Hasta $$$ (caro)"],
   [4, "$$$$", "Hasta $$$$ (muy caro)"]];
+
+/** De dónde se buscó: la próxima sesión, el hotel cargado en Viajes (en un día libre) o la ubicación del celular. */
+export function textoOrigen(origen) {
+  if (origen?.fuente === "sesion") return `Cerca de ${origen.nombre}, tu próxima sesión`;
+  if (origen?.fuente === "hotel") return `Cerca de tu hotel, ${origen.nombre}`;
+  return "Cerca de donde estás";
+}
+
 export const MINUTOS = { min: 5, max: 30, paso: 5 };
 const PUNTAJES = [[0, "Cualquier puntaje"], [4, "4 ★ o más"], [4.5, "4,5 ★ o más"]];
 const ORDENES = [["recomendado", "Recomendados"], ["cerca", "Más cerca"], ["puntaje", "Mejor puntaje"]];
@@ -119,7 +127,7 @@ export async function viewComer(view) {
       const pos = await currentPosition();
       const r = await api(consulta(filtros, pos));
       if (mio !== pedido) return; // llegó una respuesta más nueva
-      origenEl.textContent = r.origen.fuente === "sesion" ? `Cerca de ${r.origen.nombre}, tu próxima sesión` : "Cerca de donde estás";
+      origenEl.textContent = textoOrigen(r.origen);
       lista.replaceChildren(...(r.lugares.length ? r.lugares.map(LugarCard)
         : [Hint("No encontramos lugares con esos filtros. Probá con más minutos, más $, otro tipo de lugar o sacando «Abierto ahora».")]));
     } catch (e) {

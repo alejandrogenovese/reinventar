@@ -4,23 +4,26 @@ Puro: recibe las listas ya leídas de la base (app/vuelos.py), el plan del día 
 uno. Nunca consulta AeroDataBox: lo usa GET /api/viajes/proximo (app/viajes_api.py), que solo lee lo guardado.
 
 Ventanas (desde cuándo se muestra, hasta que empieza):
+- Salir al aeropuerto (solo el vuelo que sale de Las Vegas, app/vuelta.py): desde 3 h antes de la hora de salir del
+  hotel hasta esa hora; después queda el vuelo.
 - Vuelo: desde 12 h antes de la salida (la demorada, si AeroDataBox informó demora) hasta que sale. Uno cancelado se
   muestra igual, con tono de error.
 - Hotel: el check-in desde 3 h antes (como su aviso, viajes_avisos.CHECKIN_HOTEL_ANTES_H); el check-out desde 2 h antes.
 - Charla o evento del itinerario: la que sigue hoy (plan["next"]), desde 2 h antes.
-Gana el que empieza antes; si empiezan a la vez, vuelo > hotel > charla. Todo se compara en UTC: cada hora se arma en
+Gana el que empieza antes; si empiezan a la vez, aeropuerto > vuelo > hotel > charla. Todo se compara en UTC: cada hora se arma en
 su zona (la del vuelo, la del hotel o la del evento).
 """
 import datetime as dt
 from urllib.parse import quote
 
-from . import sandbox, viajes_avisos, vuelos
+from . import sandbox, viajes_avisos, vuelos, vuelta
 
 VUELO_ANTES_H = 12
+AEROPUERTO_ANTES_H = 3
 CHECKIN_HOTEL_ANTES_H = viajes_avisos.CHECKIN_HOTEL_ANTES_H
 CHECKOUT_HOTEL_ANTES_H = 2
 CHARLA_ANTES_H = 2
-ORDEN = {"vuelo": 0, "hotel": 1, "charla": 2}   # desempate a igual hora de inicio
+ORDEN = {"aeropuerto": 0, "vuelo": 1, "hotel": 2, "charla": 3}   # desempate a igual hora de inicio
 ZONA_EVENTO = sandbox.EVENT_TZ                  # el itinerario está en hora de Las Vegas
 
 Candidato = tuple[dt.timedelta, int, dict]
@@ -50,6 +53,17 @@ def _vuelo(v: dict, now: dt.datetime) -> Candidato | None:
         "detalle": f"puerta {v['puerta']}" if v.get("puerta") else None,
         "url": f"#/viajes/vuelo/{v['id']}", "demora_min": demora, "cancelado": cancelado,
         "tono": "error" if cancelado else "info"})
+
+
+def _aeropuerto(v: dict, now: dt.datetime) -> Candidato | None:
+    """«Salí al aeropuerto» a la hora que calcula app/vuelta.py (solo vuelos que salen de Las Vegas)."""
+    salir = vuelta.salir_al_aeropuerto(v)
+    if not salir:
+        return None
+    sale = vuelos.salida(v).astimezone(vuelos.zona(v["zona"]))
+    return _candidato("aeropuerto", salir, AEROPUERTO_ANTES_H, now, {
+        "titulo": "Salí al aeropuerto", "hora": salir.astimezone(vuelos.zona(v["zona"])).strftime("%H:%M"),
+        "detalle": f"{v['numero']} sale {sale:%H:%M}", "url": f"#/viajes/vuelo/{v['id']}", "tono": "info"})
 
 
 def _local(texto: str, zona: str) -> dt.datetime:
@@ -99,6 +113,7 @@ def _charla(plan_hoy: dict | None, now: dt.datetime) -> Candidato | None:
 def elegir(lista_vuelos: list[dict], lista_hoteles: list[dict], plan_hoy: dict | None, now: dt.datetime) -> dict | None:
     """{tipo, titulo, hora, detalle, url, tono, inicio, …} de lo próximo, o None si no hay nada dentro de su ventana."""
     candidatos = [c for v in lista_vuelos if (c := _vuelo(v, now))]
+    candidatos += [c for v in lista_vuelos if (c := _aeropuerto(v, now))]
     candidatos += [c for h in lista_hoteles for c in _hotel(h, now)]
     candidatos += [c for c in (_charla(plan_hoy, now),) if c]
     if not candidatos:

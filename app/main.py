@@ -77,6 +77,8 @@ from . import (
     talks,
     ubicacion_api,
     viajes_api,
+    viajes_pendientes,
+    vigia,
     voto_resumen_api,
 )
 from .auth import auth, bearer, context_for_token
@@ -90,6 +92,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(_app):
     db.init()
+    viajes_pendientes.sembrar_a_quienes_tienen_lista()  # los sugeridos nuevos, a quien ya tiene lista
     if not config.BOOTSTRAP_USERS:
         logging.warning("BOOTSTRAP_USERS vacío: nadie va a poder loguearse hasta que lo configures")
     try:
@@ -106,6 +109,7 @@ async def lifespan(_app):
     eventos_auto.start_worker()
     charlas_auto.start_worker()
     cotizacion.start_worker()
+    vigia.start_worker()  # después de pipeline y push: los mira a ellos
     gastos_api.al_arrancar()
     documentos_api.al_arrancar()
     yield

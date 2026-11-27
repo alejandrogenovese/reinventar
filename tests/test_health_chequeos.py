@@ -9,10 +9,11 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import catalog, config, cotizacion, healthcheck, pg, pipeline, push, salud
+from app import catalog, config, cotizacion, db, estado, healthcheck, pg, pipeline, push, salud
 from app.main import app
 
-TODOS = {"pipeline", "push", "catalogo", "revision_catalogo", "revision_eventos", "cotizacion", "llm_gateway"}
+TODOS = {"pipeline", "push", "catalogo", "revision_catalogo", "revision_eventos", "cotizacion", "llm_gateway",
+         "llm_reciente", "grabaciones_error", "disco_libre"}
 
 
 class _Conexion:
@@ -43,8 +44,12 @@ def _todo_sano(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "EVENTOS_AUTO", False)
     monkeypatch.setattr(cotizacion, "ultima", lambda: None)  # sin historial: la de respaldo
     monkeypatch.setattr(config, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(db, "errores_desde", lambda desde: 0)
+    monkeypatch.setattr(salud, "uso_disco", lambda ruta: 0.1)  # no depende de cuán lleno esté el disco de la máquina
+    estado.reiniciar_fallas_llm()
     yield
     salud.limpiar_cache()
+    estado.reiniciar_fallas_llm()
 
 
 @pytest.fixture
@@ -89,6 +94,9 @@ def test_todo_sano_da_todo_ok_y_cada_chequeo_en_true(cliente):
     ("cotizacion", lambda mp: mp.setattr(cotizacion, "ultima", lambda: 1 / 0)),
     ("revision_catalogo", lambda mp: mp.setattr(config, "EVENTOS_AUTO", True)),
     ("llm_gateway", lambda mp: _con_litellm(mp, _Gateway(status=503))),
+    ("llm_reciente", lambda mp: [estado.registrar_falla_llm("real") for _ in range(estado.FALLAS_LLM_PARA_CAIDA)]),
+    ("grabaciones_error", lambda mp: mp.setattr(db, "errores_desde", lambda desde: estado.ERRORES_PARA_CAIDA)),
+    ("disco_libre", lambda mp: mp.setattr(salud, "uso_disco", lambda ruta: salud.DISCO_USO_MAX)),
 ])
 def test_un_chequeo_en_false_baja_todo_ok_pero_no_el_status(cliente, monkeypatch, chequeo, romper):
     romper(monkeypatch)

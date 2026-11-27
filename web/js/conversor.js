@@ -8,7 +8,7 @@ import { edadCotizacion, guardarMeta, leerMeta, textoEdad } from "./gastosCola.j
 import { Button, Hint, IconText, Tag, h } from "./ui.js";
 import {
   ATAJOS_COMIDA, IMPUESTO_CLARK, PARES, PROPINAS, TALLES, UNIDADES, buscarTalle, calcularPropina, discos, formatear,
-  parsearNumero, resultadoDe, textoAtajo, tiraClima, usdAArs,
+  horaEnArgentina, parsearNumero, resultadoDe, textoAtajo, tiraClima, usdAArs,
 } from "./unidades.js";
 
 const CLAVE_PESTANA = "reinventar.conversor.pestana";
@@ -205,6 +205,17 @@ function Cotizacion() {
   return cotiz;
 }
 
+const HORA_AR_CADA_MS = 30_000;
+
+/** «En Argentina son las HH:MM», que se actualiza sola mientras la pantalla está abierta. */
+function HoraArgentina() {
+  const linea = h("p", { class: "caption" });
+  const pintar = () => { linea.textContent = `En Argentina son las ${horaEnArgentina()}`; };
+  pintar();
+  const timer = setInterval(() => (linea.isConnected ? pintar() : clearInterval(timer)), HORA_AR_CADA_MS);
+  return linea;
+}
+
 export function viewConversor(view) {
   let pestana = leerPestana();
   const cotiz = Cotizacion();
@@ -217,7 +228,7 @@ export function viewConversor(view) {
   mostrar();
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" }, h("h1", { class: "title" }, "Conversor"),
-      h("p", { class: "caption" }, "Anda sin señal. Escribí con coma o con punto.")),
+      h("p", { class: "caption" }, "Anda sin señal. Escribí con coma o con punto."), HoraArgentina()),
     pestanas, h("section", { class: "ra-card", style: { cursor: "default" } }, cuerpo),
     SeccionFoto(cotiz)));
   void cotiz.cargar();

@@ -256,3 +256,38 @@ def test_los_sugeridos_incluyen_enchufe_foto_aduana_tarjeta_y_swag():
     assert "OM-121" in textos["om121"]
     assert "dólares propios" in textos["tarjeta_dolares"] and "confirmalo con tu banco" in textos["tarjeta_dolares"]
     assert "swag" in textos["swag"]
+
+
+def test_los_sugeridos_incluyen_la_vuelta():
+    textos = dict(vp.SUGERIDOS)
+    assert "vuelta" in textos["checkin_vuelta"]
+    assert "Aduana" in textos["aduana_vuelta"]
+    assert "facturas" in textos["facturas"]
+
+
+def test_la_migracion_suma_los_sugeridos_nuevos_a_quien_ya_tiene_lista_sin_duplicar(cli, monkeypatch):
+    # Lista sembrada con los sugeridos viejos (sin los de la vuelta) y uno de ellos borrado.
+    viejos = tuple(x for x in vp.SUGERIDOS if x[0] not in ("checkin_vuelta", "aduana_vuelta", "facturas"))
+    monkeypatch.setattr(vp, "SUGERIDOS", viejos)
+    vp.sembrar(TEST_USER)
+    swag = next(p for p in vp.listar_filas(TEST_USER) if p["clave_sugerido"] == "swag")
+    vp.borrar(TEST_USER, swag["id"])
+    monkeypatch.undo()
+
+    agregados = vp.sembrar_a_quienes_tienen_lista()
+    claves = [p["clave_sugerido"] for p in vp.listar_filas(TEST_USER)]
+    assert agregados >= 3
+    assert {"checkin_vuelta", "aduana_vuelta", "facturas"} <= set(claves)
+    assert "swag" not in claves                       # el borrado no vuelve
+    assert len(claves) == len(set(claves)) == len(vp.SUGERIDOS) - 1
+
+    # Correrla otra vez no agrega nada, y a quien no tiene lista no le crea una.
+    assert vp.sembrar_a_quienes_tienen_lista() == 0
+    assert vp.listar_filas(TEST_ADMIN) == []
+
+
+def test_la_migracion_no_tumba_el_arranque_si_falla_la_base(monkeypatch):
+    def rota():
+        raise RuntimeError("sin base")
+    monkeypatch.setattr(vp.db, "conn", rota)
+    assert vp.sembrar_a_quienes_tienen_lista() == 0

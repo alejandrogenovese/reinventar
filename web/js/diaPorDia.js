@@ -1,4 +1,5 @@
-// re:Invent día por día (#/viaje/reinvent): badge, keynotes, shuttles, Expo, re:Play, comidas y tips de Las Vegas.
+// re:Invent día por día (#/viaje/reinvent): badge, keynotes, shuttles, Expo, re:Play, comidas, tips de Las Vegas,
+// emergencias y la vuelta.
 // Es texto fijo, como salas.js: anda sin señal (el service worker precachea este archivo). Lo único que se pide a la red
 // es el pronóstico de la sección de clima (el mismo de Hoy, clima.js); sin señal va la última copia y, si no hay, nada.
 // Cada sección dice de dónde sale y cuándo se consultó. Lo que no se pudo respaldar con una fuente no está.
@@ -19,7 +20,24 @@ export const FUENTES = Object.freeze({
     url: "https://vegas411.com/list/las-vegas-tipping-guide-who-gets-what" },
   enchufes: { nombre: "Enchufes y tensión en Estados Unidos (Walkabout Travel Gear, guía de terceros)",
     url: "https://www.walkabouttravelgear.com/countries/united_states.html" },
+  // Emergencias y vuelta: consultadas el 26/11/2026 (CONSULTA_VUELTA).
+  emergencias: { nombre: "Cuándo llamar al 911 (911.gov, gobierno de EE. UU.)", url: "https://www.911.gov/calling-911/" },
+  consulado: { nombre: "Consulado General de la Argentina en Los Ángeles (Cancillería)",
+    url: "https://cancilleria.gob.ar/es/representaciones/clang" },
+  guardiaConsular: { nombre: "Emergencia consular (Cancillería)", url: "https://cancilleria.gob.ar/emergencia-consular" },
+  walgreens: { nombre: "Walgreens 3765 Las Vegas Blvd S (localizador de Walgreens)",
+    url: "https://www.walgreens.com/locator/walgreens-3765+las+vegas+blvd+s-las+vegas-nv-89109/id=4763" },
+  lasAnticipacion: { nombre: "Get ready for your flight (aeropuerto Harry Reid)",
+    url: "https://www.harryreidairport.com/get-ready-for-your-flight" },
+  lasAerolineas: { nombre: "Aerolíneas y terminales (aeropuerto Harry Reid)", url: "https://www.harryreidairport.com/flights/airlines" },
+  franquicia: { nombre: "Franquicia para viajeros (ARCA)", url: "https://arca.gob.ar/viajeros/ayuda/franquicia.asp" },
+  equipaje: { nombre: "Régimen de equipaje (ARCA)", url: "https://arca.gob.ar/viajeros/ayuda/regimen-equipaje.asp" },
 });
+
+/** Fecha de consulta de las fuentes de «Emergencias» y «Vuelta». */
+export const CONSULTA_VUELTA = "26/11/2026";
+/** Dónde se ven la póliza y los documentos (sin señal, los que la persona guardó en el teléfono: documentos.js). */
+export const RUTA_DOCUMENTOS = "#/viajes/documentos";
 
 /** Livestream oficial de las keynotes (gratis, con registro). Lo usa también la tarjeta de anuncios (anuncios.js). */
 export const LIVESTREAM_URL = "https://aws.amazon.com/events/reinvent/livestream/";
@@ -27,15 +45,17 @@ export const LIVESTREAM_URL = "https://aws.amazon.com/events/reinvent/livestream
 export const TRADUCCION_KEYNOTES = "Traducción al español (latinoamericano), sin pedirla antes";
 
 /**
- * Secciones de la ficha: { id, titulo, items, nota?, fuentes }. Cada item es { cuando?, texto }: `cuando` es el día
- * (o la etiqueta) que va en negrita adelante. `fuentes` son claves de FUENTES.
+ * Secciones de la ficha: { id, titulo, items, nota?, links?, fuentes, consulta? }. `consulta`: fecha de las fuentes si
+ * no es CONSULTA. Un link con `interno` lleva a otra pantalla de la app. Cada item es { cuando?, dias?, texto }: `cuando`
+ * es el día (o la etiqueta) que va en negrita adelante; `dias` (fechas de Las Vegas, «2026-12-03»), los días en que el
+ * ítem sale también en «Hoy en re:Invent» de Inicio (hoyEnReinvent). `fuentes` son claves de FUENTES.
  */
 export const SECCIONES = Object.freeze([
   {
     id: "badge", titulo: "Retiro del badge",
     items: [
-      { cuando: "Dom 29/11", texto: "Aeropuerto Harry Reid, terminales 1 y 3: 7:00 a 23:59. MGM Grand y Venetian: 10:00 a 20:00." },
-      { cuando: "Lun 30/11", texto: "Aeropuerto, terminales 1 y 3: 7:00 a 23:59. Venetian: 6:30 a 17:30. MGM Grand: 6:30 a 21:00." },
+      { cuando: "Dom 29/11", dias: ["2026-11-29"], texto: "Aeropuerto Harry Reid, terminales 1 y 3: 7:00 a 23:59. MGM Grand y Venetian: 10:00 a 20:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Aeropuerto, terminales 1 y 3: 7:00 a 23:59. Venetian: 6:30 a 17:30. MGM Grand: 6:30 a 21:00." },
       { cuando: "Mar 1/12 a jue 3/12", texto: "MGM Grand y Venetian: 6:30 a 20:00." },
       { cuando: "Vie 4/12", texto: "No hay retiro de badge." },
       { texto: "Llevá un documento con foto emitido por un gobierno (el pasaporte) y usá el badge toda la semana." },
@@ -46,10 +66,10 @@ export const SECCIONES = Object.freeze([
   {
     id: "keynotes", titulo: "Keynotes",
     items: [
-      { cuando: "Lun 30/11", texto: "Developer Keynote, 19:30 a 20:45." },
-      { cuando: "Mar 1/12", texto: "CEO Keynote con Matt Garman, 8:30 a 10:45." },
-      { cuando: "Mié 2/12", texto: "Data & AI Keynote, 8:30 a 10:00. Partner Keynote, 15:00 a 16:00." },
-      { cuando: "Jue 3/12", texto: "Technical Innovations Keynote, 8:30 a 10:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Developer Keynote, 19:30 a 20:45." },
+      { cuando: "Mar 1/12", dias: ["2026-12-01"], texto: "CEO Keynote con Matt Garman, 8:30 a 10:45." },
+      { cuando: "Mié 2/12", dias: ["2026-12-02"], texto: "Data & AI Keynote, 8:30 a 10:00. Partner Keynote, 15:00 a 16:00." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "Technical Innovations Keynote, 8:30 a 10:00." },
       { texto: "Todas en el Venetian. No hace falta reservar lugar." },
       { texto: `${TRADUCCION_KEYNOTES}; también hay japonés, coreano y mandarín. La fuente no dice cómo se accede.` },
       { texto: "Livestream gratis del 29/11 al 3/12, con registro." },
@@ -60,11 +80,11 @@ export const SECCIONES = Object.freeze([
   {
     id: "shuttles", titulo: "Shuttles",
     items: [
-      { cuando: "Dom 29/11", texto: "9:30 a 20:30, servicio limitado: Caesars Forum, MGM Grand y Venetian." },
+      { cuando: "Dom 29/11", dias: ["2026-11-29"], texto: "9:30 a 20:30, servicio limitado: Caesars Forum, MGM Grand y Venetian." },
       { cuando: "Lun 30/11", texto: "6:00 a 21:15." },
       { cuando: "Mar 1/12 y mié 2/12", texto: "6:00 a 20:30." },
-      { cuando: "Jue 3/12", texto: "6:00 a 17:45. Para re:Play, 18:15 a 23:00." },
-      { cuando: "Vie 4/12", texto: "6:30 a 13:00, servicio limitado: Venetian y Wynn/Encore." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "6:00 a 17:45. Para re:Play, 18:15 a 23:00." },
+      { cuando: "Vie 4/12", dias: ["2026-12-04"], texto: "6:30 a 13:00, servicio limitado: Venetian y Wynn/Encore." },
       { texto: "Shuttles y monorail son gratis con el badge. Entre sedes calculá de 30 a 45 minutos." },
     ],
     fuentes: ["agenda", "faq", "kbyg"],
@@ -72,7 +92,7 @@ export const SECCIONES = Object.freeze([
   {
     id: "expo", titulo: "Expo (Venetian)",
     items: [
-      { cuando: "Lun 30/11", texto: "Welcome Reception, 16:00 a 19:00." },
+      { cuando: "Lun 30/11", dias: ["2026-11-30"], texto: "Welcome Reception, 16:00 a 19:00." },
       { cuando: "Mar 1/12", texto: "10:00 a 18:00." },
       { cuando: "Mié 2/12", texto: "10:00 a 18:00, con happy hour de 16:30 a 18:00." },
       { cuando: "Jue 3/12", texto: "10:00 a 16:00." },
@@ -91,7 +111,7 @@ export const SECCIONES = Object.freeze([
   {
     id: "replay", titulo: "re:Play",
     items: [
-      { cuando: "Jue 3/12", texto: "18:30 a 22:30 en el Allegiant Stadium. Shuttle de 18:15 a 23:00. Entrás con el badge." },
+      { cuando: "Jue 3/12", dias: ["2026-12-03"], texto: "18:30 a 22:30 en el Allegiant Stadium. Shuttle de 18:15 a 23:00. Entrás con el badge." },
     ],
     fuentes: ["agenda", "faq"],
   },
@@ -99,7 +119,7 @@ export const SECCIONES = Object.freeze([
     id: "comidas", titulo: "Comidas",
     items: [
       { texto: "Desayuno, almuerzo y snacks los días completos de conferencia. Halal y kosher hasta agotar: se piden antes por soporte." },
-      { cuando: "Mar 1/12 y mié 2/12", texto: "Networking receptions con comida y bebida, 18:00 a 20:00." },
+      { cuando: "Mar 1/12 y mié 2/12", dias: ["2026-12-01", "2026-12-02"], texto: "Networking receptions con comida y bebida, 18:00 a 20:00." },
     ],
     fuentes: ["faq", "agenda"],
   },
@@ -127,7 +147,39 @@ export const SECCIONES = Object.freeze([
     ],
     fuentes: ["enchufes"],
   },
+  {
+    id: "emergencias", titulo: "Emergencias",
+    items: [
+      { cuando: "911", texto: "Policía, bomberos o ambulancia: cualquier situación que necesite ayuda inmediata." },
+      { cuando: "Seguro de viaje", texto: "Antes de ir a una guardia o a una farmacia, llamá a la asistencia de tu seguro: te dicen adónde ir y qué cubren. Subí la póliza a Documentos de viaje y guardala en este teléfono: así la ves sin señal." },
+      { cuando: "Farmacia", texto: "Walgreens, 3765 Las Vegas Blvd S (esquina noreste, frente al MGM Grand): el local abre las 24 h. El horario del mostrador de farmacia no figura: confirmalo al 702-739-9645." },
+      { cuando: "Consulado", texto: "Consulado General de la Argentina en Los Ángeles (atiende Nevada): 5055 Wilshire Blvd, #210, Los Ángeles. Tel. +1 323-954-9155, lunes a viernes de 9 a 18 (público de 9 a 13)." },
+      { cuando: "Guardia consular", texto: "+1 323-459-9780, solo para emergencias de verdad." },
+      { cuando: "Pasaporte perdido o robado", texto: "Comunicate con el consulado: su sitio no publica el trámite, así que preguntá ahí qué necesitás para volver." },
+    ],
+    links: [{ texto: "Ver la póliza en Documentos", url: RUTA_DOCUMENTOS, interno: true }],
+    fuentes: ["emergencias", "walgreens", "consulado", "guardiaConsular"],
+    consulta: CONSULTA_VUELTA,
+  },
+  {
+    id: "vuelta", titulo: "Vuelta",
+    items: [
+      { cuando: "Check-out", texto: "La hora es la de tu hotel cargado en Viajes. Si el vuelo sale a la tarde, preguntá en el bell desk si te guardan las valijas (cada hotel tiene su regla)." },
+      { cuando: "Aeropuerto LAS", texto: "Llegá 3 h antes si el vuelo es internacional y 2 h si es doméstico; confirmalo con tu aerolínea. En la ficha del vuelo te decimos a qué hora salir del hotel." },
+      { cuando: "Terminales", texto: "Terminal 1: American, Delta y Southwest. Terminal 3: United, Copa y Aeroméxico." },
+      { cuando: "Franquicia al volver", texto: "Llegando en avión: US$ 500 en equipaje, más US$ 500 en el free shop de llegada. Es mensual y no acumulable; los menores de 16 tienen la mitad." },
+      { cuando: "Si te pasás", texto: "Pagás el 50 % de lo que excede la franquicia. Declarás solo si tenés que pagar, si traés productos regulados por SENASA o efectivo por US$ 10.000 o más: con el formulario digital de declaración de equipaje de entrada (app o terminales de autogestión)." },
+      { texto: "Guardá las facturas y tickets de lo que compres: son tu respaldo del valor ante la Aduana." },
+    ],
+    fuentes: ["lasAnticipacion", "lasAerolineas", "franquicia", "equipaje"],
+    consulta: CONSULTA_VUELTA,
+  },
 ]);
+
+/** Lo propio de re:Invent en esa fecha de Las Vegas («2026-12-03»): [{ seccion, texto }], en el orden de la ficha. */
+export function hoyEnReinvent(fecha, secciones = SECCIONES) {
+  return secciones.flatMap((s) => s.items.filter((i) => i.dias?.includes(fecha)).map((i) => ({ seccion: s.titulo, texto: i.texto })));
+}
 
 const LinkExterno = (texto, url) =>
   h("a", { class: "ra-link", href: url, target: "_blank", rel: "noopener noreferrer" }, texto, icon("externo", 16));
@@ -136,10 +188,15 @@ function Item({ cuando, texto }) {
   return h("li", {}, cuando ? h("strong", {}, `${cuando}: `) : null, texto);
 }
 
-function Fuentes(claves) {
-  return h("p", { class: "caption ra-dxd-fuente" }, `Fuente (consultada el ${CONSULTA}): `,
+function Fuentes(claves, consulta = CONSULTA) {
+  return h("p", { class: "caption ra-dxd-fuente" }, `Fuente (consultada el ${consulta}): `,
     claves.flatMap((k, i) => [i ? " · " : null, LinkExterno(FUENTES[k].nombre, FUENTES[k].url)]).filter(Boolean));
 }
+
+/** Un link de la sección: los de la app (`interno`) abren acá; los externos, en otra pestaña. */
+const Boton = (l) => (l.interno
+  ? h("a", { class: "ra-btn ra-btn-ghost", href: l.url }, l.texto)
+  : h("a", { class: "ra-btn ra-btn-ghost", href: l.url, target: "_blank", rel: "noopener noreferrer" }, l.texto, icon("externo", 16)));
 
 /** Una sección de la ficha, con su título, lo `extra` (el pronóstico en la de clima), la lista, los links y las fuentes. */
 export function Seccion(s, extra = null) {
@@ -149,9 +206,8 @@ export function Seccion(s, extra = null) {
     extra,
     h("ul", { class: "ra-dxd-lista" }, s.items.map(Item)),
     s.nota ? h("p", { class: "caption" }, s.nota) : null,
-    s.links?.length ? h("div", {}, s.links.map((l) =>
-      h("a", { class: "ra-btn ra-btn-ghost", href: l.url, target: "_blank", rel: "noopener noreferrer" }, l.texto, icon("externo", 16)))) : null,
-    Fuentes(s.fuentes));
+    s.links?.length ? h("div", {}, s.links.map(Boton)) : null,
+    Fuentes(s.fuentes, s.consulta));
 }
 
 export function viewDiaPorDia(view) {
@@ -160,6 +216,6 @@ export function viewDiaPorDia(view) {
   view.append(h("div", { class: "stack-lg" },
     h("div", { class: "stack" },
       h("h1", { class: "title" }, "re:Invent día por día"),
-      h("p", { class: "caption" }, "Lo que conviene tener a mano en Las Vegas, del 29/11 al 4/12. Anda sin señal.")),
+      h("p", { class: "caption" }, "Lo que conviene tener a mano durante la estadía en Las Vegas. Anda sin señal.")),
     h("div", { class: "stack" }, SECCIONES.map((s) => Seccion(s, s.id === "clima" ? pronostico : null)))));
 }

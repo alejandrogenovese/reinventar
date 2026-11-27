@@ -1,8 +1,9 @@
 // Viajes: vuelos y hoteles cargados a mano. Los avisos (check-in web, check-in/out del hotel, demora y puerta) los manda
 // el servidor por Web Push (app/viajes_avisos.py); tocar uno abre #/viajes/vuelo/ID o #/viajes/hotel/ID.
 import { Viajes } from "./api.js";
-import { DondeTeLevanta, zonaDeTerminal } from "./rideshare.js";
+import { DondeTeLevanta, PedirAuto, ZONAS, zonaDeTerminal } from "./rideshare.js";
 import { Button, Hint, h, mensajeError, toast } from "./ui.js";
+import { TRASLADO_STRIP_MIN, salirAlAeropuerto, terminalDeSalida } from "./vuelta.js";
 
 const ZONA_HOTEL = "America/Los_Angeles"; // los hoteles son de re:Invent: horas de Las Vegas
 const SALIDA_INICIAL = { nombre: "Buenos Aires", pais: "AR", zona: "America/Argentina/Buenos_Aires" };
@@ -47,6 +48,32 @@ export function rideshareAlLlegar(v) {
   return DondeTeLevanta(zona ? [zona] : ["lasT1", "lasT3"], "Uber o Lyft al aterrizar");
 }
 
+/** Uber y Lyft a la vereda de salidas de una terminal de LAS, con su fuente. */
+function AutoATerminal(clave) {
+  const zona = ZONAS[clave];
+  const [lat, lng] = zona.puntos[0];
+  const auto = PedirAuto({ lat, lng, name: zona.nombre });
+  return h("div", { class: "stack" },
+    h("p", { class: "caption" }, h("strong", {}, zona.nombre), `. ${zona.bajada}`),
+    h("div", { class: "actions" }, auto.botones));
+}
+
+/** Saliendo de Las Vegas: «Salí del hotel antes de las HH:MM» y, en la ficha, Uber o Lyft a la terminal (si no se sabe
+ * cuál, a las dos). null si el vuelo no sale de Las Vegas. */
+export function SalidaAlAeropuerto(v, { detalle = false } = {}) {
+  const salir = salirAlAeropuerto(v);
+  if (!salir) return null;
+  const tipo = salir.internacional ? "internacional" : "doméstico";
+  const linea = h("p", { class: "caption" }, h("strong", {}, `Salí del hotel antes de las ${salir.hora}`),
+    ` (${salir.anticipacionMin / 60} h antes por ser ${tipo}, más ~${TRASLADO_STRIP_MIN} min desde el Strip)`);
+  if (!detalle) return linea;
+  const terminal = terminalDeSalida(v);
+  return h("div", { class: "stack" }, linea,
+    (terminal ? [terminal] : ["lasT1", "lasT3"]).map(AutoATerminal),
+    h("p", { class: "caption" }, "Fuente: ", h("a", { class: "ra-link", href: "https://www.harryreidairport.com/get-ready-for-your-flight",
+      target: "_blank", rel: "noopener" }, "harryreidairport.com"), ". Confirmá la anticipación con tu aerolínea."));
+}
+
 function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
   const sale = v.salida ? `${cuando(v.salida)} (${v.zona_nombre})` : `${dia(v.fecha)} · sin hora`;
   const puerta = v.puerta ? `Puerta ${v.puerta}${v.terminal ? ` · Terminal ${v.terminal}` : ""}` : "";
@@ -59,6 +86,7 @@ function VueloCard(v, { detalle = false, onQuitar, onEditar }) {
     llega ? h("div", { class: "ra-card-meta" }, h("span", {}, llega)) : null,
     detalle ? datosDelVuelo(v).map((linea) => h("p", { class: "caption" }, linea)) : null,
     v.checkin_abre ? h("p", { class: "caption" }, `Check-in web desde el ${cuando(v.checkin_abre)} (${v.checkin_horas} h antes)`) : null,
+    SalidaAlAeropuerto(v, { detalle }),
     detalle ? rideshareAlLlegar(v) : null,
     detalle ? h("div", { class: "actions" },
       linkSeguro(v.checkin_url) ? h("a", { class: "ra-btn ra-btn-secondary", href: linkSeguro(v.checkin_url), target: "_blank", rel: "noopener" }, "Hacer check-in") : null,

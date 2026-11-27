@@ -2,13 +2,14 @@
 // servidor la primera vez (app/viajes_pendientes.py); todo se tilda, edita y borra. Los avisos de fecha límite y el
 // resumen de los días previos los manda el servidor por Web Push (app/viajes_avisos.py) y se apagan en Ajustes.
 import { Pendientes } from "./api.js";
+import { enVegas } from "./dia.js";
 import { icon } from "./icons.js";
+import { sandboxNow } from "./sandbox.js";
 import { Button, Hint, h, mensajeError, toast, withUndo } from "./ui.js";
 
 const LARGO_MAX = 120;
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const dia = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`; };
-const hoyIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 /** «7/12 listos» con su barra. Se usa acá y en la tarjeta del hub de Viaje. */
 export const textoProgreso = ({ hechos, total }) => `${hechos}/${total} listos`;
@@ -23,9 +24,12 @@ export function ProgresoPendientes(resumen) {
 
 const resumenDe = (items) => ({ hechos: items.filter((x) => x.hecho).length, total: items.length });
 
+/** Si la fecha límite ya pasó (y no está hecho), con la fecha de Las Vegas de `ahora` (la hora de la app). */
+export const estaVencido = (p, ahora = sandboxNow()) => Boolean(p.fecha_limite && !p.hecho && p.fecha_limite < enVegas(ahora).fecha);
+
 function Vence(p) {
   if (!p.fecha_limite) return null;
-  const vencido = !p.hecho && p.fecha_limite < hoyIso();
+  const vencido = estaVencido(p);
   return h("span", { class: vencido ? "ra-tag is-new" : "caption" }, vencido ? `Venció el ${dia(p.fecha_limite)}` : `Hasta el ${dia(p.fecha_limite)}`);
 }
 

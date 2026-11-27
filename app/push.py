@@ -51,6 +51,8 @@ LEAVE_LEAD_MIN = 20
 START_NOTICE_MIN = 5
 RECORD_SIZE = 4096
 TTL_SECONDS = 3600
+# «Salí» y «Empieza en 5 min» valen solo un rato: si el celular estuvo sin señal, que no llegue media hora tarde.
+TTL_AVISO_INMEDIATO_S = 900
 RESUMEN_CADA_S = 3600  # cada cuánto se loguea cuántos avisos salieron (log.info)
 
 # Latido para /health (app/salud.py): time.monotonic() del último arranque o fin de una vuelta. Se marca al empezar
@@ -202,11 +204,13 @@ def _notice(c: dict, now: dt.datetime, grabar: bool = False) -> tuple[str, dict]
     if START_NOTICE_MIN < to_arrive <= LEAVE_LEAD_MIN:
         cuando = _cuando_llegar(c, now)
         return (f"leave:{c['code']}:{c['day']}",
-                {"title": f"Salí para {c['title']}", "body": f"{cuando} · {where}", "url": _url(c)})
+                {"title": f"Salí para {c['title']}", "body": f"{cuando} · {where}", "url": _url(c),
+                 "ttl": TTL_AVISO_INMEDIATO_S})
     to_start = (_at(c["day"], c["start"]) - now).total_seconds() / 60
     if 0 < to_start <= START_NOTICE_MIN:
         key = f"start:{c['code']}:{c['day']}"
-        msg = {"title": f"{c['title']} empieza en {round(to_start)} min", "body": where, "url": _url(c)}
+        msg = {"title": f"{c['title']} empieza en {round(to_start)} min", "body": where, "url": _url(c),
+               "ttl": TTL_AVISO_INMEDIATO_S}
         if grabar and c.get("kind", "talk") == "talk":
             msg = recordatorio.con_grabar(key, c["code"],
                                           {**msg, "body": " · ".join(filter(None, (where, "¿La grabás?")))})
@@ -225,7 +229,8 @@ def _early_notice(c: dict, siguiente: dict | None, now: dt.datetime) -> tuple[st
     destino = (siguiente.get("venue") or {}).get("hotel") or ""
     return (f"early:{c['code']}:{c['day']}",
             {"title": f"Salí a las {sale} para llegar a {siguiente['title']}",
-             "body": " · ".join(filter(None, (destino, f"empieza a las {siguiente['start']}"))), "url": _url(siguiente)})
+             "body": " · ".join(filter(None, (destino, f"empieza a las {siguiente['start']}"))), "url": _url(siguiente),
+             "ttl": TTL_AVISO_INMEDIATO_S})
 
 
 def day_notices(cards: list[dict], now: dt.datetime, grabar: bool = False) -> list[tuple[str, dict]]:

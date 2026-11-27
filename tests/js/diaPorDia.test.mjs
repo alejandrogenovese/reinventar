@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "./domMinimo.mjs";
 
-const { CONSULTA, FUENTES, LIVESTREAM_URL, SECCIONES, TRADUCCION_KEYNOTES, Seccion, viewDiaPorDia } =
+const { CONSULTA, CONSULTA_VUELTA, FUENTES, LIVESTREAM_URL, RUTA_DOCUMENTOS, SECCIONES, TRADUCCION_KEYNOTES, Seccion, viewDiaPorDia } =
   await import("../../web/js/diaPorDia.js");
 
 const texto = (id) => SECCIONES.find((s) => s.id === id).items.map((i) => `${i.cuando ?? ""} ${i.texto}`).join("\n");
@@ -54,4 +54,35 @@ test("la tarjeta de keynotes de Inicio suma livestream y traducción", () => {
   assert.match(anuncios, /import \{ LIVESTREAM_URL, TRADUCCION_KEYNOTES \} from "\.\/diaPorDia\.js"/);
   assert.match(anuncios, /s\.nivel === NIVEL_KEYNOTE \? KeynoteExtras\(\)/);
   assert.match(TRADUCCION_KEYNOTES, /español/);
+});
+
+test("emergencias y vuelta van al final, con fuentes oficiales consultadas el 26/11", () => {
+  assert.deepEqual(SECCIONES.slice(-2).map((s) => s.id), ["emergencias", "vuelta"]);
+  const oficiales = /^https:\/\/(www\.)?(911\.gov|cancilleria\.gob\.ar|walgreens\.com|harryreidairport\.com|arca\.gob\.ar)\//;
+  for (const s of SECCIONES.slice(-2)) {
+    assert.equal(s.consulta, CONSULTA_VUELTA);
+    for (const f of s.fuentes) assert.match(FUENTES[f].url, oficiales, `${s.id}: ${f}`);
+  }
+  assert.match(Seccion(SECCIONES.at(-1)).textContent, /consultada el 26\/11\/2026/);
+  assert.match(Seccion(SECCIONES[0]).textContent, /consultada el 25\/11\/2026/, "las otras siguen con su fecha");
+});
+
+test("emergencias: 911, seguro con link a Documentos, farmacia y consulado con guardia", () => {
+  const t = texto("emergencias");
+  assert.match(t, /^911 /);
+  assert.match(t, /Walgreens, 3765 Las Vegas Blvd S/);
+  assert.match(t, /\+1 323-954-9155/);
+  assert.match(t, /Guardia consular \+1 323-459-9780/);
+  assert.match(t, /atiende Nevada/);
+  const docs = buscar(Seccion(SECCIONES.find((s) => s.id === "emergencias")), "a").find((a) => a.attrs.href === RUTA_DOCUMENTOS);
+  assert.ok(docs, "link a Documentos de viaje");
+  assert.equal(docs.attrs.target, undefined, "un link de la app no abre otra pestaña");
+});
+
+test("vuelta: anticipación en LAS, terminales y franquicia de ARCA", () => {
+  const t = texto("vuelta");
+  assert.match(t, /3 h antes si el vuelo es internacional y 2 h si es doméstico/);
+  assert.match(t, /Terminal 1: American, Delta y Southwest\. Terminal 3: United/);
+  assert.match(t, /US\$ 500 en equipaje, más US\$ 500 en el free shop/);
+  assert.match(t, /50 % de lo que excede/);
 });
