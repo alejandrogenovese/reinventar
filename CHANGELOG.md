@@ -5,6 +5,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+## [1.4.0] - 2026-11-27
+
 ### Agregado
 
 - Hoy muestra «Hoy en re:Invent»: lo propio de cada día de la conferencia (retiro del badge, keynotes, receptions, re:Play y sus shuttles, el corte de shuttles del jueves y el servicio limitado del viernes). Anda sin señal.
