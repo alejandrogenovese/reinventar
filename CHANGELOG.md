@@ -17,6 +17,8 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 - Pendientes de la vuelta: check-in web del vuelo de vuelta, declarar compras en la Aduana y guardar las facturas. Aparecen también en las listas que ya existían.
 - «Documentos de viaje» en Viaje.
 - El conversor muestra la hora de Argentina.
+- «Personas que conocí» (en Viaje): tu libreta de contactos de re:Invent con nombre, empresa, cargo, LinkedIn, dónde se conocieron (o en qué charla de tu itinerario) y una nota. Se busca, se edita, se borra, abre el LinkedIn y se exporta a los contactos del teléfono (vCard). Es privada: nadie más la ve. Sin señal se ve la última lista y lo que cargues se sube solo cuando vuelve la señal.
+- «También van» en la ficha de cada charla: quién más del grupo tiene ese horario en su itinerario, para repartirse quién graba qué. Solo se ve el usuario; si no querés aparecer, en Ajustes → Grupo está «No mostrar mi agenda al grupo».
 
 ### Corregido
 

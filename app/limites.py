@@ -115,6 +115,11 @@ REINTENTOS_GRABACION_POR_USUARIO = 15
 grabaciones_nuevas = Limite(GRABACIONES_NUEVAS_POR_DIA, VENTANA_DIA)
 reintentos_grabacion = Limite(REINTENTOS_GRABACION_POR_USUARIO, VENTANA_LARGA)
 
+# «Personas que conocí» (app/personas_api.py): altas nuevas por hora. En un after o un almuerzo se cargan varias seguidas;
+# 60 por hora sobra para eso y frena a un script que llene la tabla (además está el tope total de app/personas.py).
+PERSONAS_NUEVAS_POR_USUARIO = 60
+personas_nuevas = Limite(PERSONAS_NUEVAS_POR_USUARIO, VENTANA_LARGA)
+
 # Páginas públicas del resumen de una grabación (/c/<token>), por IP: alcanza para que un grupo abra el link desde la misma
 # red del evento y frena a quien pruebe tokens al azar (igual no puede fabricar uno sin la clave).
 LINKS_GRABACION_POR_IP = 120
@@ -164,7 +169,7 @@ def verificar_cupo(limite: Limite, usuario: str, accion: str) -> None:
 TODOS = (fallos_usuario, fallos_ip, pedidos_passkey, busquedas_nl, preguntas, briefings, entrevista, itinerarios,
          admin_links, links_grabacion, fotos_conversor, mails_verificacion, mails_destino, olvide_ip, olvide_cuenta,
          restablecer_ip, codigos_recuperacion, grabaciones_nuevas, reintentos_grabacion, guiado, autocompletar,
-         lugares)
+         lugares, personas_nuevas)
 
 
 def reiniciar_todo() -> None:

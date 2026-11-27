@@ -240,6 +240,23 @@ CREATE TABLE IF NOT EXISTS viajes_documentos (
   actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (username, id)
 );
+-- «Personas que conocí» (app/personas.py): la libreta de contactos de cada uno, privada. id lo genera el teléfono (así
+-- cargar sin señal y reintentar no duplica). charla_code/charla_titulo: la charla del itinerario donde se conocieron.
+CREATE TABLE IF NOT EXISTS personas_conocidas (
+  username TEXT NOT NULL,
+  id UUID NOT NULL,
+  nombre TEXT NOT NULL CHECK (char_length(nombre) BETWEEN 1 AND 80),
+  empresa TEXT NOT NULL DEFAULT '' CHECK (char_length(empresa) <= 80),
+  cargo TEXT NOT NULL DEFAULT '' CHECK (char_length(cargo) <= 80),
+  linkedin TEXT NOT NULL DEFAULT '' CHECK (char_length(linkedin) <= 200),
+  donde TEXT NOT NULL DEFAULT '' CHECK (char_length(donde) <= 120),
+  charla_code TEXT,
+  charla_titulo TEXT NOT NULL DEFAULT '' CHECK (char_length(charla_titulo) <= 200),
+  nota TEXT NOT NULL DEFAULT '' CHECK (char_length(nota) <= 1000),
+  creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (username, id)
+);
 -- «Charlas nuevas» que la persona agregó o descartó desde esa lista (app/charlas_nuevas.py): no le vuelven a aparecer.
 CREATE TABLE IF NOT EXISTS charlas_nuevas_decision (
   username TEXT NOT NULL,
@@ -294,6 +311,8 @@ COLUMNAS_DATOS_USUARIO = (
     ("preferencias_avisos", "viajes_estado", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "viajes_pendientes", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("preferencias_avisos", "charlas_nuevas", "BOOLEAN NOT NULL DEFAULT TRUE"),  # push de charlas nuevas (app/charlas_nuevas.py)
+    # «También van» en la ficha de una charla (app/grupo_api.py): FALSE = la persona no muestra su agenda al grupo.
+    ("preferencias_avisos", "agenda_visible", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("gastos", "cotizacion_estimada", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("gastos", "foto_at", "TIMESTAMPTZ"),
     ("viajes_vuelos", "ciudad", "TEXT NOT NULL DEFAULT ''"),  # de dónde sale, como la eligió la persona
@@ -313,7 +332,7 @@ COLUMNAS_DATOS_USUARIO = (
 TABLAS_DATOS_USUARIO = ("sessions", "chunks", "blocks", "itinerary_profile", "itinerary_items", "itinerary_pending",
                         "user_events", "push_sent", "ubicacion_reciente", "preferencias_avisos",
                         "reporte_lleno", "voto_resumen", "viajes_vuelos", "viajes_hoteles", "gastos", "gastos_presupuesto", "codigos_deseados",
-                        "viajes_documentos", "viajes_pendientes", "charlas_nuevas_decision", "stt_pedazos")
+                        "viajes_documentos", "viajes_pendientes", "charlas_nuevas_decision", "stt_pedazos", "personas_conocidas")
 
 # Fragmentos de las grabaciones para buscar en lo grabado (app/fragmentos.py). Necesita la extensión pgvector: si la
 # base no la tiene, la tabla no se crea y esa búsqueda queda apagada (el resto de la app anda igual).

@@ -9,7 +9,8 @@ const PREFIX = "reinventar.last.";
 // la persona (usuario e is_admin) que trae /api/me.
 const RUTAS_PERMITIDAS = new Set(["/api/today", "/api/itinerary", "/api/sessions", "/api/anuncios", "/api/me/sandbox", "/api/me/cuenta",
   "/api/viajes/documentos", // documentos: solo la lista de metadatos, nunca un archivo
-  "/api/clima"]);
+  "/api/clima",
+  "/api/personas"]); // «Personas que conocí»: la libreta privada de cada uno (personas.js)
 const DUENO_VALIDO = /^[0-9a-f]{12}$/;
 const MAX_BYTES = 2_000_000; // un itinerario grande pesa decenas de KB; el tope es para que no llene el almacenamiento
 
