@@ -80,3 +80,11 @@ def test_endpoint_hoy_requiere_login_y_responde_con_el_itinerario():
         assert r.status_code == 200
         assert set(r.json()) == {"date", "time", "now", "next", "later", "upcoming"}
         c.delete(f"/api/itinerary/items/{code}", headers=H)
+
+
+def test_un_show_que_pasa_la_medianoche_sigue_en_ahora_despues_de_empezar():
+    show = {**_s("SHOW", "2026-12-04", "22:00"), "kind": "show", "end": "00:30"}
+    r = today.plan([{"day": "2026-12-04", "sessions": [show]}], datetime(2026, 12, 4, 23, 0))
+
+    assert r["now"]["code"] == "SHOW"
+    assert r["next"] is None and r["upcoming"] is None

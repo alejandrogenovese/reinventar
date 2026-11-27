@@ -8,6 +8,9 @@ export const MARGEN_DIAS = 14;  // fuera de esto (antes de empezar o después de
 const TZ_VEGAS = "America/Los_Angeles";
 const DIA_MS = 86_400_000;
 
+/** Lo que dice la franja el día de salida, con el enlace a Viajes (vuelos y hotel). */
+export const VUELTA = Object.freeze({ texto: "Hoy volvés · check-out y vuelo", href: "#/viajes" });
+
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 /** Fecha («2026-12-01») y hora («08:05») de `ahora` en Las Vegas. */
@@ -30,7 +33,9 @@ export const fechaLarga = (fecha) => `${diaSemana(fecha)} ${corta(fecha)}`;
  * - antes: «Faltan 7 días para re:Invent» · «Llegás el domingo 29/11».
  * - llegada (29/11): «Domingo 29/11» · «Llegada» · «re:Invent arranca mañana».
  * - conferencia (30/11 a 4/12): «Martes 1/12», dia 2 de total 5 (la keynote y las charlas las suma quien dibuja).
- * - despues (5/12 hasta el 7/12 a las 13:00): «Sábado 5/12» · «re:Invent terminó» · «la estadía sigue hasta…».
+ * - despues (5/12 y 6/12): «Sábado 5/12» · «re:Invent terminó» · «la estadía sigue hasta…».
+ * - el día de salida (7/12): «Lunes 7/12» · «Hoy volvés · check-out y vuelo» (enlace a #/viajes); es despues hasta la
+ *   hora de salida (13:00) y terminado después.
  * - terminado (después de irse, dentro del margen): «Martes 8/12» · «re:Invent terminó».
  */
 export function diaDeEvento(ahora, rango = RANGO_REINVENT) {
@@ -50,7 +55,10 @@ export function diaDeEvento(ahora, rango = RANGO_REINVENT) {
   if (fecha <= rango.fin) {
     return { tipo: "conferencia", titulo: fechaLarga(fecha), detalles: [], dia: diasEntre(rango.inicio, fecha) + 1, total };
   }
-  const sigueLaEstadia = fecha < rango.salida || (fecha === rango.salida && hora < rango.horaSalida);
+  if (fecha === rango.salida) {
+    return { tipo: hora < rango.horaSalida ? "despues" : "terminado", titulo: fechaLarga(fecha), detalles: [], enlace: VUELTA };
+  }
+  const sigueLaEstadia = fecha < rango.salida;
   if (sigueLaEstadia) {
     return { tipo: "despues", titulo: fechaLarga(fecha), detalles: ["re:Invent terminó",
       `la estadía sigue hasta el ${diaSemana(rango.salida).toLowerCase()} ${corta(rango.salida)} a las ${rango.horaSalida}`] };

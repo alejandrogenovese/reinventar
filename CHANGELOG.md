@@ -5,8 +5,18 @@ y la versión, [SemVer](https://semver.org/lang/es/). La versión vive en `app/_
 
 ## [Sin publicar]
 
+### Agregado
+
+- Hoy muestra «Hoy en re:Invent»: lo propio de cada día de la conferencia (retiro del badge, keynotes, receptions, re:Play y sus shuttles, el corte de shuttles del jueves y el servicio limitado del viernes). Anda sin señal.
+- La llegada (29/11) y los días libres después de re:Invent dicen «Día libre» en Hoy, con accesos a Shows, Actividades y Comer.
+- El lunes 7/12 la franja del día dice «Hoy volvés · check-out y vuelo», con link a tus viajes.
+
 ### Corregido
 
+- Sin señal, Hoy ya no muestra como «Ahora» una charla que terminó o la de otro día: recalcula con tu itinerario guardado y la hora de Las Vegas. Si no hay itinerario guardado y la copia es de otro día, te pide mirar tu itinerario.
+- Un show o evento que pasa la medianoche (por ejemplo, de 22:00 a 00:30) ya no desaparece de Hoy apenas empieza.
+- «Ahora en tu itinerario» del grabador, la fecha de un gasto nuevo y el «Venció» de los pendientes usan la hora de Las Vegas, aunque el celular siga en hora de Argentina.
+- «re:Invent día por día» ya no dice que sirve solo hasta el 4/12: abarca toda la estadía.
 - Si se agota el cupo diario de transcripción, las grabaciones y la voz de la entrevista se transcriben con un modelo de respaldo (un poco menos preciso con nombres propios) en vez de quedar esperando.
 
 ## [1.3.6] - 2026-11-26

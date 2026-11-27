@@ -1,6 +1,8 @@
 // Gastos: cola sin señal en IndexedDB (gastos pendientes, fotos como Blob, metadatos) y la lógica pura que la rodea.
 // Nada acá toca el DOM ni la red, así se prueba con node (tests/js/gastos.test.mjs). La pantalla y el sync están en gastos.js.
 
+import { enVegas } from "./dia.js";
+
 export const CATEGORIAS = ["comida", "transporte", "shows", "compras", "otros"];
 export const MONEDAS = ["USD", "ARS"];
 export const LADO_MAYOR_PX = 1600;   // la foto del ticket se achica a este lado mayor
@@ -18,10 +20,10 @@ const CAMPOS_DEL_CAMBIO = ["client_id", "fecha", "monto", "moneda", "categoria",
 
 // ---------- lógica pura ----------
 
-/** AAAA-MM-DD con el reloj local del celular (no UTC: un gasto a las 23 h es del día que se vive). */
+/** AAAA-MM-DD en hora de Las Vegas, donde se vive el viaje (no UTC ni la zona del celular, que puede seguir en Buenos
+ *  Aires: un gasto a las 23 h de Las Vegas es de ese día). */
 export function fechaLocal(fecha = new Date()) {
-  const dos = (n) => String(n).padStart(2, "0");
-  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`;
+  return enVegas(fecha).fecha;
 }
 
 /** USD de un monto: los dólares tal cual; los pesos, con la cotización de tarjeta. Sin cotización, null. */

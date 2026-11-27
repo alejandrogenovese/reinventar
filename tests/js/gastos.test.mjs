@@ -138,8 +138,10 @@ test("totales suma USD del servidor, estima los pesos y cuenta los que no tienen
   assert.equal(sin.usd, 52);
 });
 
-test("fechaLocal da AAAA-MM-DD con los números del reloj local", () => {
-  assert.equal(fechaLocal(new Date(2026, 11, 1, 23, 59)), "2026-12-01");
+test("fechaLocal da AAAA-MM-DD en hora de Las Vegas, aunque el celular siga en otra zona", () => {
+  assert.equal(fechaLocal(new Date("2026-12-01T23:59:00-08:00")), "2026-12-01");
+  // 23:30 en Las Vegas ya es el 2/12 en Buenos Aires y en UTC: el gasto es del 1/12.
+  assert.equal(fechaLocal(new Date("2026-12-02T07:30:00Z")), "2026-12-01");
 });
 
 // ---------- PR «gastos en el celular sin pérdidas ni duplicados» ----------
